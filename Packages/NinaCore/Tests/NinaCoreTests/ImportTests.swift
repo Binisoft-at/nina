@@ -220,3 +220,19 @@ struct OpenFoodFactsTests {
         #expect(OpenFoodFacts.amount(in: "250g") == 250)
     }
 }
+
+/// Writes the three AI prompts for docs/IMPORT.md: `NINA_PROMPTS_OUT=/path swift test --filter writePrompts`.
+@Suite("Prompts for the docs")
+struct PromptExportTests {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["NINA_PROMPTS_OUT"] != nil))
+    func writePrompts() throws {
+        let path = try #require(ProcessInfo.processInfo.environment["NINA_PROMPTS_OUT"])
+        let meals = MealSlot.defaults.sorted { $0.minutes < $1.minutes }.map(\.name)
+        let text = [
+            "### Foods\n\n```text\n" + FoodCSV.prompt(appName: "Nina").text + "```\n",
+            "### Diary\n\n```text\n" + DiaryCSV.prompt(appName: "Nina", mealNames: meals).text + "```\n",
+            "### Meals & recipes\n\n```text\n" + RecipeCSV.prompt(appName: "Nina", existingNames: []).text + "```\n",
+        ].joined(separator: "\n")
+        try text.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+}

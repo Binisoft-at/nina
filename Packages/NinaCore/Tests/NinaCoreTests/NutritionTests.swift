@@ -67,7 +67,7 @@ struct NutrientTests {
         let servings = [Serving(en: "slice", de: "Scheibe", amount: 30), Serving(en: "pack", amount: 250)]
         #expect(Serving.decode(Serving.encode(servings)) == servings)
         #expect(Serving.parseList("slice/Scheibe=30|pack=250g") == servings)
-        #expect(Serving.formatList(servings) == "slice/Scheibe=30|pack=250")
+        #expect(Serving.formatList(servings) == "slice/Scheibe=30;pack=250")
     }
 
     @Test func categoriesFromText() {

@@ -1,7 +1,7 @@
 # Nina – tour
 
-The interactive tour runs the real Items screen on a separate practice store (in memory, never
-synced) with a coach card on top. Each step ticks itself off once the practice page shows it was done.
+The interactive tour runs the real diary on a separate practice day (in memory, never synced) with
+a coach card on top. Each step ticks itself off once the practice page shows it was done.
 
 - Opens by itself **once after install**; after an update that added steps it shows only those as
   **"What's new"**; otherwise never by itself.
@@ -10,25 +10,20 @@ synced) with a coach card on top. Each step ticks itself off once the practice p
 
 ## Steps
 
-The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift`:
+The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 1):
 
 | id | Teaches | Ticks off when |
 |---|---|---|
-| welcome | – | Let's Go |
-| create | the central + | the create sheet is open |
-| add | New Item | an item was added |
-| done | check off | an item is done |
-| undo | delete + Undo | an item went to the trash and came back |
-| reorder | drag to reorder | the order changed |
-| edit | the editor | the editor is open |
-| everywhere | sync, Mac, watch, widget, Settings | Continue |
-| finish | where to replay | Done |
+| welcome | what the tour is | – (Continue) |
+| create | the central + | the create sheet opens |
+| log | search and add a food | an entry is eaten |
+| quick | type a whole meal like a message | another entry is eaten |
+| undo | delete and Undo | an entry is deleted and restored |
+| move | move an entry to another meal | the meal layout changes |
+| plan | confirm a planned meal | a planned entry is confirmed |
+| water | water in one tap | water goes up |
+| everywhere | sync, watch, widgets, Health | – (Continue) |
+| finish | where to replay | – (Done) |
 
-## Adding a step for a new feature
-
-1. Add a `TourStep` with `since: NinaTour.version + 1` at the end of its topic, with a `body`
-   (touch) and a `macBody` (pointer, menus, shortcuts) and a goal over `NinaTourSnapshot`
-   (add a field there if needed and fill it in `TourView.PracticePage.snapshot`).
-2. Bump `NinaTour.version`.
-3. `make check` – the Core tests check the catalog.
-4. People who took the tour before see only the new steps as "What's new".
+To teach a new feature: add a step with `since: <version + 1>`, bump `NinaTour.version`; people who
+took the tour get only the new steps. `swift test` checks the catalog.

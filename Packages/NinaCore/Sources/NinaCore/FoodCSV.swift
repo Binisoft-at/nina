@@ -42,7 +42,7 @@ public enum FoodCSV {
         .init("name_de", "German name, if you know it (optional)."),
         .init("brand", "Brand or shop, empty for generic foods."),
         .init("category", "One of: \(FoodCategory.allCases.map(\.rawValue).joined(separator: ", "))."),
-        .init("tags", "Optional labels separated by | (e.g. breakfast|high-protein)."),
+        .init("tags", "Optional labels separated by ; (e.g. breakfast;high-protein)."),
         .init("unit", "g if the values are per 100 g, ml if per 100 ml (drinks)."),
         .init("kcal", "Energy in kcal per 100 g/ml.", required: true),
         .init("protein", "Protein in g per 100 g/ml.", required: true),
@@ -52,7 +52,7 @@ public enum FoodCSV {
         .init("sugar", "Sugars in g per 100 g/ml."),
         .init("saturated_fat", "Saturated fat in g per 100 g/ml."),
         .init("salt", "Salt in g per 100 g/ml (as on EU labels)."),
-        .init("portions", "Household portions as name=amount separated by |, amount in g or ml: slice=30|pack=250|glass=250."),
+        .init("portions", "Household portions as name=amount separated by ; – amount in g or ml, e.g. slice=30;pack=250;glass=250."),
         .init("barcode", "EAN/GTIN barcode digits, if known."),
         .init("favorite", "yes for foods I eat often."),
         .init("notes", "Anything else."),
@@ -118,7 +118,7 @@ public enum FoodCSV {
             func cell(_ value: Double?) -> String { value.map { NumberText.plain($0, decimals: 2) } ?? "" }
             table.append([
                 ImportColumns.exportID(forKey: key), draft.name, draft.nameDE, draft.brand, draft.category.rawValue,
-                draft.tags.joined(separator: "|"), draft.unit == .milliliter ? "ml" : "g",
+                draft.tags.joined(separator: ";"), draft.unit == .milliliter ? "ml" : "g",
                 cell(n[.energy]), cell(n[.protein]), cell(n[.carbs]), cell(n[.fat]), cell(n[.fiber]), cell(n[.sugar]),
                 cell(n[.saturatedFat]), cell(n.salt), Serving.formatList(draft.servings), draft.barcode,
                 draft.isFavorite ? "yes" : "", draft.notes,
@@ -141,7 +141,7 @@ public enum FoodCSV {
             ],
             existingNames: [("Tags", existingTags)],
             exampleRows: [
-                ["1", "Greek yogurt 2%", "Griechisches Joghurt 2 %", "Fage", "dairy", "breakfast|high-protein", "g", "73", "10", "3.6", "2", "", "3.6", "1.3", "0.1", "pot=170", "5201054017197", "yes", ""],
+                ["1", "Greek yogurt 2%", "Griechisches Joghurt 2 %", "Fage", "dairy", "breakfast;high-protein", "g", "73", "10", "3.6", "2", "", "3.6", "1.3", "0.1", "pot=170", "5201054017197", "yes", ""],
                 ["2", "Oat drink Barista", "Haferdrink Barista", "Oatly", "beverages", "", "ml", "59", "1", "6.6", "3", "0.8", "3.4", "0.3", "0.1", "glass=250", "", "", ""],
             ]
         )

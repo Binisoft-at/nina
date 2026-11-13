@@ -129,7 +129,7 @@ public struct Serving: Codable, Hashable, Sendable, Identifiable {
         return (try? JSONDecoder().decode([Serving].self, from: data)) ?? []
     }
 
-    /// "slice=30|pack=250" (CSV and AI import) → servings. Amounts may carry a unit ("slice=30g").
+    /// "slice=30;pack=250" (CSV and AI import; "|" works too) → servings. Amounts may carry a unit ("slice=30g").
     public static func parseList(_ text: String) -> [Serving] {
         text.split(whereSeparator: { $0 == "|" || $0 == ";" }).compactMap { part in
             let pieces = part.split(separator: "=", maxSplits: 1)
@@ -147,7 +147,7 @@ public struct Serving: Codable, Hashable, Sendable, Identifiable {
             let name = serving.de.isEmpty ? serving.en : serving.en + "/" + serving.de
             return name + "=" + NumberText.plain(serving.amount)
         }
-        .joined(separator: "|")
+        .joined(separator: ";")
     }
 }
 
