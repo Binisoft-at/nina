@@ -1,7 +1,9 @@
 // swift-tools-version: 6.0
 import PackageDescription
 
-// NinaCore: all of Nina's logic that doesn't need Apple frameworks (Foundation only).
+// NinaCore: all of Nina's logic that doesn't need Apple frameworks (Foundation only): nutrients,
+// the bundled food catalog (Resources/foods.json, built by scripts/build_food_db.py), search, the
+// quick-add parser, goals, insights, plans, CSV import/export and the AI prompts.
 // Tested with Swift Testing on Linux in CI, so keep UIKit/SwiftUI/SwiftData out of here.
 let package = Package(
     name: "NinaCore",
@@ -15,7 +17,8 @@ let package = Package(
     targets: [
         .target(
             name: "NinaCore",
-            dependencies: [.product(name: "BinisoftKitCore", package: "BinisoftKit")]
+            dependencies: [.product(name: "BinisoftKitCore", package: "BinisoftKit")],
+            resources: [.copy("Resources/foods.json")]
         ),
         .testTarget(name: "NinaCoreTests", dependencies: ["NinaCore"]),
     ],

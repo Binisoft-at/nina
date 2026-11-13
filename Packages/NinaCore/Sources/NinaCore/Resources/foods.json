@@ -1,0 +1,12 @@
+{"version":1,"generated":"placeholder","sources":{"usda":"USDA SR28 (public domain)"},"foods":[
+{"id":"usda:09003","en":"Apple","de":"Apfel","aliases":["Äpfel"],"cat":"fruit","unit":"g","n":{"energy":52,"protein":0.26,"carbs":13.81,"fat":0.17,"fiber":2.4,"sugar":10.39},"portions":[{"en":"medium","de":"mittelgroß","amount":182},{"en":"small","de":"klein","amount":149}],"src":"usda"},
+{"id":"usda:09040","en":"Banana","de":"Banane","cat":"fruit","unit":"g","n":{"energy":89,"protein":1.09,"carbs":22.84,"fat":0.33,"fiber":2.6,"sugar":12.23},"portions":[{"en":"medium","de":"mittelgroß","amount":118}],"src":"usda"},
+{"id":"usda:01123","en":"Egg, whole, raw","de":"Ei, roh","aliases":["Eier","eggs"],"cat":"eggs","unit":"g","n":{"energy":143,"protein":12.56,"carbs":0.72,"fat":9.51},"portions":[{"en":"large","de":"groß (L)","amount":50},{"en":"medium","de":"mittel (M)","amount":44}],"src":"usda"},
+{"id":"usda:05064","en":"Chicken breast, roasted","de":"Hähnchenbrust, gebraten","aliases":["Hühnerbrust"],"cat":"poultry","unit":"g","n":{"energy":165,"protein":31.02,"carbs":0,"fat":3.57},"portions":[{"en":"breast","de":"Brust","amount":172}],"src":"usda"},
+{"id":"usda:05062","en":"Chicken breast, raw","de":"Hähnchenbrust, roh","aliases":["Hühnerbrust"],"cat":"poultry","unit":"g","n":{"energy":120,"protein":22.5,"carbs":0,"fat":2.62},"src":"usda"},
+{"id":"usda:01077","en":"Whole milk 3.5%","de":"Vollmilch 3,5 %","aliases":["Milch","milk"],"cat":"dairy","unit":"ml","density":1.031,"n":{"energy":63,"protein":3.25,"carbs":4.94,"fat":3.35},"portions":[{"en":"glass","de":"Glas","amount":250}],"src":"usda"},
+{"id":"usda:18069","en":"White bread, toast","de":"Toastbrot","aliases":["toast"],"cat":"bread","unit":"g","n":{"energy":266,"protein":7.64,"carbs":49.2,"fat":3.29,"fiber":2.7},"portions":[{"en":"slice","de":"Scheibe","amount":25}],"src":"usda"},
+{"id":"usda:04053","en":"Olive oil","de":"Olivenöl","cat":"fats","unit":"g","n":{"energy":884,"protein":0,"carbs":0,"fat":100},"portions":[{"en":"tbsp","de":"EL","amount":13.5}],"src":"usda"},
+{"id":"usda:14096","en":"Red wine","de":"Rotwein","cat":"alcohol","unit":"ml","density":0.994,"n":{"energy":85,"protein":0.07,"carbs":2.6,"fat":0,"alcohol":10.6},"portions":[{"en":"glass (125 ml)","de":"Achtel","amount":125}],"src":"usda"},
+{"id":"nina:extrawurst","en":"Extrawurst","de":"Extrawurst","aliases":["Fleischwurst"],"cat":"sausages","unit":"g","n":{"energy":230,"protein":13,"carbs":1,"fat":19.5},"portions":[{"en":"slice","de":"Scheibe","amount":15}],"src":"label"}
+]}
