@@ -300,7 +300,7 @@ public enum QuickParser {
         "pack": ["pack", "package", "packung", "becher", "pot"],
     ]
 
-    static func unit(for word: String) -> QuickUnit? {
+    public static func unit(for word: String) -> QuickUnit? {
         switch word {
         case "g", "gr", "gram", "grams", "gramm", "grammes", "gramme": return .mass(1)
         case "kg", "kilo", "kilos", "kilogram", "kilograms", "kilogramm": return .mass(1000)

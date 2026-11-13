@@ -1,0 +1,318 @@
+import Foundation
+import SwiftData
+import Observation
+import BinisoftKit
+import NinaCore
+#if os(iOS)
+import HealthKit
+#endif
+
+/// Apple Health, iPhone only. Writes what was eaten (one food correlation per entry, with a sync
+/// identifier so edits replace instead of duplicating) and water; reads weight and active energy
+/// live. Health values are never stored in Nina's iCloud data (App Store guideline 5.1.3).
+/// What was written is remembered in a device-only file, so each entry is written once per change.
+@MainActor
+@Observable
+final class HealthService {
+    enum Option: String, CaseIterable {
+        case writeDiary, writeWater, weight, activity
+
+        var title: String {
+            switch self {
+            case .writeDiary: "Meals and nutrients"
+            case .writeWater: "Water"
+            case .weight: "Weight (read and write)"
+            case .activity: "Active energy (read)"
+            }
+        }
+
+        var key: String { "nina.health." + rawValue }
+    }
+
+    let enabled: Bool
+    private(set) var options: Set<Option> = []
+    private(set) var activeEnergyToday: Double = 0
+    private(set) var weights: [DayKey: Double] = [:]
+    private(set) var latestWeight: Double?
+    private(set) var lastSync: Date?
+    private(set) var lastError: String?
+    @ObservationIgnored private var syncTask: Task<Void, Never>?
+
+    init(enabled: Bool) {
+        self.enabled = enabled
+        for option in Option.allCases where UserDefaults.standard.bool(forKey: option.key) {
+            options.insert(option)
+        }
+    }
+
+    var isAvailable: Bool {
+        #if os(iOS)
+        enabled && HKHealthStore.isHealthDataAvailable()
+        #else
+        false
+        #endif
+    }
+
+    var isConnected: Bool { isAvailable && !options.isEmpty }
+    var readsWeight: Bool { isConnected && options.contains(.weight) }
+
+    func isOn(_ option: Option) -> Bool { options.contains(option) }
+
+    /// Turns an option on or off; asks for permission when something new is turned on.
+    func set(_ option: Option, _ on: Bool, container: ModelContainer) async {
+        if on { options.insert(option) } else { options.remove(option) }
+        UserDefaults.standard.set(on, forKey: option.key)
+        if on {
+            await requestAuthorization()
+            await refreshReadings()
+            await syncNow(container: container)
+        }
+    }
+
+    #if os(iOS)
+    @ObservationIgnored private let store = HKHealthStore()
+
+    private var shareTypes: Set<HKSampleType> {
+        var types = Set<HKSampleType>()
+        if options.contains(.writeDiary) {
+            for item in HealthMapping.items {
+                if let type = HKQuantityType.quantityType(forIdentifier: HKQuantityTypeIdentifier(rawValue: item.identifier)) {
+                    types.insert(type)
+                }
+            }
+        }
+        if options.contains(.writeWater) { types.insert(HKQuantityType(.dietaryWater)) }
+        if options.contains(.weight) { types.insert(HKQuantityType(.bodyMass)) }
+        return types
+    }
+
+    private var readTypes: Set<HKObjectType> {
+        var types = Set<HKObjectType>()
+        if options.contains(.weight) { types.insert(HKQuantityType(.bodyMass)) }
+        if options.contains(.activity) { types.insert(HKQuantityType(.activeEnergyBurned)) }
+        return types
+    }
+
+    func requestAuthorization() async {
+        guard isAvailable else { return }
+        do {
+            try await store.requestAuthorization(toShare: shareTypes, read: readTypes)
+            AppLog.info("Health permission asked (\(options.count) options)", category: "health")
+        } catch {
+            lastError = error.localizedDescription
+            AppLog.warning("Health permission failed: \(error.localizedDescription)", category: "health")
+        }
+    }
+
+    func refreshReadings() async {
+        guard isAvailable else { return }
+        if options.contains(.activity) {
+            let start = Calendar.current.startOfDay(for: Date())
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+            let descriptor = HKStatisticsQueryDescriptor(predicate: .quantitySample(type: HKQuantityType(.activeEnergyBurned), predicate: predicate),
+                                                         options: .cumulativeSum)
+            if let statistics = try? await descriptor.result(for: store) {
+                activeEnergyToday = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+            }
+        } else {
+            activeEnergyToday = 0
+        }
+        WidgetBridge.activityBonus = activeEnergyToday
+
+        if options.contains(.weight) {
+            let start = Calendar.current.date(byAdding: .day, value: -400, to: Date()) ?? Date()
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: nil)
+            let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.bodyMass), predicate: predicate)],
+                                                     sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)], limit: 2000)
+            if let samples = try? await descriptor.result(for: store) {
+                var byDay: [DayKey: Double] = [:]
+                for sample in samples {
+                    let day = DayKey(date: sample.endDate)
+                    if byDay[day] == nil { byDay[day] = sample.quantity.doubleValue(for: .gramUnit(with: .kilo)) }
+                }
+                weights = byDay
+                latestWeight = samples.first?.quantity.doubleValue(for: .gramUnit(with: .kilo))
+            }
+        } else {
+            weights = [:]
+            latestWeight = nil
+        }
+    }
+
+    /// Debounced: many saves in a row cause one Health sync.
+    func scheduleSync(container: ModelContainer) {
+        guard isConnected else { return }
+        syncTask?.cancel()
+        syncTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            await self?.syncNow(container: container)
+        }
+    }
+
+    /// Writes new and changed entries of the last 14 days, removes deleted, planned and skipped ones.
+    func syncNow(container: ModelContainer) async {
+        guard isAvailable, options.contains(.writeDiary) || options.contains(.writeWater) else { return }
+        let context = container.mainContext
+        let first = DayKey.today().adding(days: -14).rawValue
+        var ledger = HealthLedger.load()
+        var removeIDs: [String] = []
+        var write: [(id: String, version: Int, entry: LogEntry)] = []
+
+        let entries = (try? context.fetch(FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { $0.day >= first }))) ?? []
+        for entry in entries {
+            let id = entry.uuid.uuidString
+            let version = HealthMapping.syncVersion(modifiedAt: entry.modifiedAt)
+            let wanted = options.contains(.writeDiary) && entry.deletedAt == nil && entry.isEaten && entry.energy > 0
+            if wanted {
+                if ledger.versions[id] != version {
+                    if ledger.versions[id] != nil { removeIDs.append(id) }
+                    write.append((id, version, entry))
+                }
+            } else if ledger.versions[id] != nil {
+                removeIDs.append(id)
+                ledger.versions[id] = nil
+            }
+        }
+
+        var waterWrite: [WaterLog] = []
+        var waterRemove: [String] = []
+        let waters = (try? context.fetch(FetchDescriptor<WaterLog>(predicate: #Predicate<WaterLog> { $0.day >= first }))) ?? []
+        for log in waters {
+            let id = "w:" + log.uuid.uuidString
+            let wanted = options.contains(.writeWater) && log.deletedAt == nil && log.amount > 0
+            if wanted, ledger.versions[id] == nil {
+                waterWrite.append(log)
+            } else if !wanted, ledger.versions[id] != nil {
+                waterRemove.append(log.uuid.uuidString)
+                ledger.versions[id] = nil
+            }
+        }
+
+        if !removeIDs.isEmpty { await delete(metadataValues: removeIDs, key: "NinaEntry") }
+        if !waterRemove.isEmpty { await delete(metadataValues: waterRemove, key: "NinaWater", types: [HKQuantityType(.dietaryWater)]) }
+
+        var written = 0
+        for item in write {
+            if await save(item.entry, version: item.version) {
+                ledger.versions[item.id] = item.version
+                written += 1
+            }
+        }
+        for log in waterWrite {
+            let sample = HKQuantitySample(type: HKQuantityType(.dietaryWater), quantity: HKQuantity(unit: .literUnit(with: .milli), doubleValue: log.amount),
+                                          start: log.time, end: log.time,
+                                          metadata: ["NinaWater": log.uuid.uuidString, HKMetadataKeySyncIdentifier: HealthMapping.syncIdentifier(water: log.uuid),
+                                                     HKMetadataKeySyncVersion: NSNumber(value: 1)])
+            do {
+                try await store.save(sample)
+                ledger.versions["w:" + log.uuid.uuidString] = 1
+                written += 1
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+        ledger.prune(keeping: Set(entries.map(\.uuid.uuidString) + waters.map { "w:" + $0.uuid.uuidString }))
+        ledger.save()
+        lastSync = Date()
+        if written > 0 || !removeIDs.isEmpty {
+            AppLog.info("Health: wrote \(written), removed \(removeIDs.count + waterRemove.count)", category: "health")
+        }
+    }
+
+    private func save(_ entry: LogEntry, version: Int) async -> Bool {
+        let values = entry.values
+        let metadata: [String: Any] = ["NinaEntry": entry.uuid.uuidString, HKMetadataKeyFoodType: entry.displayName]
+        var samples = Set<HKSample>()
+        for item in HealthMapping.items {
+            guard let value = values[item.nutrient], value > 0,
+                  let type = HKQuantityType.quantityType(forIdentifier: HKQuantityTypeIdentifier(rawValue: item.identifier)),
+                  store.authorizationStatus(for: type) == .sharingAuthorized else { continue }
+            samples.insert(HKQuantitySample(type: type, quantity: HKQuantity(unit: Self.unit(item.unit), doubleValue: value),
+                                            start: entry.time, end: entry.time, metadata: metadata))
+        }
+        guard !samples.isEmpty else { return true }
+        var correlationMetadata = metadata
+        correlationMetadata[HKMetadataKeySyncIdentifier] = HealthMapping.syncIdentifier(entry: entry.uuid)
+        correlationMetadata[HKMetadataKeySyncVersion] = NSNumber(value: version)
+        let correlation = HKCorrelation(type: HKCorrelationType(.food), start: entry.time, end: entry.time, objects: samples,
+                                        metadata: correlationMetadata)
+        do {
+            try await store.save(correlation)
+            return true
+        } catch {
+            lastError = error.localizedDescription
+            AppLog.warning("Health write failed: \(error.localizedDescription)", category: "health")
+            return false
+        }
+    }
+
+    private func delete(metadataValues: [String], key: String, types: [HKObjectType]? = nil) async {
+        let predicate = HKQuery.predicateForObjects(withMetadataKey: key, allowedValues: metadataValues)
+        var targets: [HKObjectType] = types ?? HealthMapping.items.compactMap {
+            HKQuantityType.quantityType(forIdentifier: HKQuantityTypeIdentifier(rawValue: $0.identifier))
+        }
+        if types == nil { targets.append(HKCorrelationType(.food)) }
+        for type in targets {
+            if let sample = type as? HKQuantityType, store.authorizationStatus(for: sample) != .sharingAuthorized { continue }
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                store.deleteObjects(of: type, predicate: predicate) { _, _, _ in continuation.resume() }
+            }
+        }
+    }
+
+    func writeWeight(_ kilograms: Double, date: Date) async {
+        guard isAvailable, options.contains(.weight),
+              store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized else { return }
+        let sample = HKQuantitySample(type: HKQuantityType(.bodyMass), quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kilograms),
+                                      start: date, end: date, metadata: ["NinaWeight": "1"])
+        try? await store.save(sample)
+        await refreshReadings()
+    }
+
+    private static func unit(_ text: String) -> HKUnit {
+        switch text {
+        case "kcal": .kilocalorie()
+        case "mg": .gramUnit(with: .milli)
+        case "mcg": .gramUnit(with: .micro)
+        default: .gram()
+        }
+    }
+    #else
+    func requestAuthorization() async {}
+    func refreshReadings() async {}
+    func scheduleSync(container: ModelContainer) {}
+    func syncNow(container: ModelContainer) async {}
+    func writeWeight(_ kilograms: Double, date: Date) async {}
+    #endif
+}
+
+/// What this device already wrote to Health: entry id → version. Device-only file in Application
+/// Support (never synced, never in iCloud).
+struct HealthLedger: Codable {
+    var versions: [String: Int] = [:]
+
+    static var url: URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(AppInfo.name, isDirectory: true)
+            .appendingPathComponent("health-ledger.json")
+    }
+
+    static func load() -> HealthLedger {
+        guard let url, let data = try? Data(contentsOf: url), let ledger = try? JSONDecoder().decode(HealthLedger.self, from: data) else {
+            return HealthLedger()
+        }
+        return ledger
+    }
+
+    func save() {
+        guard let url, let data = try? JSONEncoder().encode(self) else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? data.write(to: url, options: .atomic)
+    }
+
+    /// Forgets entries older than the sync window (they stay in Health).
+    mutating func prune(keeping ids: Set<String>) {
+        versions = versions.filter { ids.contains($0.key) }
+    }
+}

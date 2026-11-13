@@ -89,7 +89,7 @@ public struct BodyProfile: Equatable, Codable, Sendable {
 }
 
 /// How the energy is split between protein, carbs and fat (fractions that add up to 1).
-public struct MacroSplit: Equatable, Codable, Sendable, Identifiable {
+public struct MacroSplit: Hashable, Codable, Sendable, Identifiable {
     public var id: String
     public var name: String
     public var protein: Double

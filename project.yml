@@ -38,8 +38,8 @@ packages:
   NinaCore:
     path: Packages/NinaCore
 
-# One source tree (App/Sources + Shared) for iPhone/iPad and Mac. The watch app shares Shared/,
-# the widgets only the small snapshot bridge.
+# One source tree (App/Sources + Shared) for iPhone/iPad and Mac. The watch app shares Shared/;
+# the widgets and complications only the snapshot bridge, rings and formatting.
 targets:
   Nina:
     type: application
@@ -62,6 +62,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Config/iOS/Nina.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -95,7 +96,8 @@ targets:
     scheme:
       testTargets: []
 
-  # Apple Watch app, embedded in the iOS app. Syncs on its own through the app's iCloud container.
+  # Apple Watch app, embedded in the iOS app. Syncs on its own through the app's iCloud container
+  # and carries the complications.
   NinaWatch:
     type: application
     platform: watchOS
@@ -107,6 +109,7 @@ targets:
       - package: NinaCore
       - package: BinisoftKit
         product: BinisoftKit
+      - target: NinaWatchWidgets
     settings:
       base:
         PRODUCT_NAME: NinaWatch
@@ -126,8 +129,11 @@ targets:
     platform: iOS
     sources:
       - path: Widgets/Sources
-      - path: Shared/WidgetBridge.swift
+      - path: Widgets/Resources
+      - path: Shared/Store/WidgetBridge.swift
       - path: Shared/AppInfo.swift
+      - path: Shared/Format.swift
+      - path: Shared/UI
     dependencies:
       - package: NinaCore
       - package: BinisoftKit
@@ -138,5 +144,31 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(WIDGETS_BUNDLE_ID)
         INFOPLIST_FILE: Config/Widgets/Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Widgets/NinaWidgets.entitlements
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES
+
+  # Watch complications: the same widget source, on the watch's own App Group snapshot.
+  NinaWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: Widgets/Sources
+      - path: Widgets/Resources
+      - path: Shared/Store/WidgetBridge.swift
+      - path: Shared/AppInfo.swift
+      - path: Shared/Format.swift
+      - path: Shared/UI
+    dependencies:
+      - package: NinaCore
+      - package: BinisoftKit
+        product: BinisoftKitCore
+    settings:
+      base:
+        PRODUCT_NAME: NinaWatchWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(WATCH_WIDGETS_BUNDLE_ID)
+        INFOPLIST_FILE: Config/WatchWidgets/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/WatchWidgets/NinaWatchWidgets.entitlements
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "4"
         SKIP_INSTALL: YES

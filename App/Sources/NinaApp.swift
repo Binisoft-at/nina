@@ -7,12 +7,14 @@ struct NinaApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MainWindowGuard.self) private var windowGuard
     #endif
+    @Environment(\.scenePhase) private var scenePhase
     @State private var app: AppModel
 
     init() {
         AppLog.bootstrap(appName: AppInfo.name)
         BinisoftTips.configure()
-        let opened = Persistence.open()
+        NotificationScheduler.shared.activate()
+        let opened = Persistence.shared
         _app = State(initialValue: AppModel(container: opened.container, mode: opened.mode))
     }
 
@@ -22,8 +24,11 @@ struct NinaApp: App {
                 .environment(app)
                 .modelContainer(app.container)
                 .appearanceFromSettings()
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { app.becameActive() }
+                }
         }
-        .defaultSize(width: 1000, height: 720)
+        .defaultSize(width: 1120, height: 780)
         #if os(macOS)
         // macOS may otherwise finish launching without the main window (see MainWindowGuard).
         .defaultLaunchBehavior(.presented)
@@ -40,39 +45,8 @@ struct NinaApp: App {
             .environment(app)
             .modelContainer(app.container)
             .appearanceFromSettings()
-            .frame(minWidth: 520, minHeight: 600)
+            .frame(minWidth: 580, minHeight: 680)
         }
         #endif
-    }
-}
-
-/// Menu bar commands and keyboard shortcuts (Mac, iPad with a keyboard). While the tour is
-/// open they act on its practice page.
-struct NinaCommands: Commands {
-    let app: AppModel
-
-    var body: some Commands {
-        CommandGroup(replacing: .newItem) {
-            Button("New Item") { app.commandTarget.sheet = .newItem(nil) }
-                .keyboardShortcut("n")
-            Button("Create…") { app.commandTarget.sheet = .create }
-                .keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("New Folder…") { app.commandTarget.sheet = .newFolder }
-                .keyboardShortcut("n", modifiers: [.command, .option])
-            Divider()
-            Button("Import My Data…") { app.commandTarget.sheet = .importData }
-                .keyboardShortcut("i", modifiers: [.command, .shift])
-        }
-        CommandMenu("Go") {
-            Button("Items") { app.sidebar = .items; app.tab = .items }
-                .keyboardShortcut("1")
-            Button("Done") { app.sidebar = .done; app.tab = .done }
-                .keyboardShortcut("2")
-            Button("Recently Deleted") { app.sidebar = .trash; app.showTrash = true }
-                .keyboardShortcut("3")
-        }
-        CommandGroup(replacing: .help) {
-            Button("\(AppInfo.name) Tour") { app.startTour() }
-        }
     }
 }

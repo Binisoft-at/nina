@@ -8,11 +8,12 @@ DEVELOPMENT_TEAM =
 // App
 APP_DISPLAY_NAME = Nina
 APP_BUNDLE_ID = $(BUNDLE_ID_PREFIX).nina
-APP_CATEGORY = public.app-category.productivity
+APP_CATEGORY = public.app-category.healthcare-fitness
 
 // Extra targets: $(APP_BUNDLE_ID).<extension>
 WATCH_BUNDLE_ID = $(APP_BUNDLE_ID).watchkitapp
 WIDGETS_BUNDLE_ID = $(APP_BUNDLE_ID).widgets
+WATCH_WIDGETS_BUNDLE_ID = $(WATCH_BUNDLE_ID).widgets
 
 // iCloud: the app's own container holds its data
 APP_CLOUDKIT_CONTAINER = iCloud.$(APP_BUNDLE_ID)
