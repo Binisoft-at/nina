@@ -1,0 +1,64 @@
+// Nina – CloudKit schema of iCloud.at.binisoft.nina (SwiftData mirroring: CD_ prefix, one
+// record type per @Model, to-one relationships as CD_<name> STRING, to-many sides are not stored).
+//
+// Keep it in step with Shared/Item.swift and Shared/Folder.swift. Order on every model change:
+//   1. add the field here   2. Actions → CloudKit schema (imports into Development)
+//   3. CloudKit Console → Deploy Schema Changes to Production   4. then the TestFlight build.
+// Production only accepts additive changes: never rename or remove a field.
+
+DEFINE SCHEMA
+
+    RECORD TYPE CD_Folder (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_createdAt    TIMESTAMP,
+        CD_deletedAt    TIMESTAMP,
+        CD_entityName   STRING,
+        CD_modifiedAt   TIMESTAMP,
+        CD_name         STRING,
+        CD_sortOrder    DOUBLE,
+        CD_uuid         STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CD_Item (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_completedAt  TIMESTAMP,
+        CD_createdAt    TIMESTAMP,
+        CD_deletedAt    TIMESTAMP,
+        CD_entityName   STRING,
+        CD_folder       STRING,
+        CD_importKey    STRING,
+        CD_isDone       INT64,
+        CD_modifiedAt   TIMESTAMP,
+        CD_notes        STRING,
+        CD_sortOrder    DOUBLE,
+        CD_title        STRING,
+        CD_uuid         STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE Users (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE,
+        roles           LIST<INT64>,
+        GRANT WRITE TO "_creator",
+        GRANT READ TO "_world"
+    );
