@@ -1,0 +1,894 @@
+{
+  "_about": [
+    "DACH foods that USDA SR28 lacks. Each food uses exactly one transparent method, recorded in 'src':",
+    "  recipe: computed by scripts/build_food_db.py from the USDA SR28 ingredients listed below (grams, or ml",
+    "          converted with the ingredient's USDA density) and a cooking yield: 'yield' = cooked weight / raw",
+    "          weight, or 'yield_g' = cooked weight in g. Water lost in cooking is subtracted from 'water'.",
+    "          Drinks ('unit': 'ml') are per 100 ml of the finished drink ('yield_ml', default: sum of the ml).",
+    "          No vitamin retention factors are applied, so heat-sensitive vitamins may be slightly overestimated.",
+    "  label:  typical per-100 g (or per-100 ml) values printed on common Austrian/German supermarket products,",
+    "          rounded conservatively. 'carbsExclFiber' is the EU label value (carbohydrate without fibre);",
+    "          the build adds fibre so 'carbs' means total carbohydrate like USDA's. 'salt' is converted to",
+    "          sodium (salt / 2.5). Only simple products use this method.",
+    "Ids ('nina:<slug>') are stable forever: never rename or reuse one. 'item' fields are for people only.",
+    "'portions' uses the same syntax as data/food-catalog.tsv. 'atwater' records a reviewed deviation."
+  ],
+  "foods": [
+    {
+      "id": "nina:topfen-mager", "en": "Quark, low-fat", "de": "Magertopfen",
+      "aliases": ["Magerquark", "Topfen mager", "Quark mager", "Speisequark mager"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 67, "fat": 0.2, "saturatedFat": 0.1, "carbsExclFiber": 4.0, "sugar": 4.0, "protein": 12.0, "salt": 0.1},
+      "portions": "tbsp/EL=25|cup (250 g)/Becher (250 g)=250",
+      "note": "Typical label values of Magertopfen/Magerquark (below 10% fat in dry matter)"
+    },
+    {
+      "id": "nina:topfen-20", "en": "Quark 20% fat in dry matter", "de": "Topfen 20 % F.i.T.",
+      "aliases": ["Speisequark 20 %", "Quark halbfett", "Topfen halbfett", "Speisetopfen"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 105, "fat": 5.0, "saturatedFat": 3.2, "carbsExclFiber": 3.5, "sugar": 3.5, "protein": 11.5, "salt": 0.1},
+      "portions": "tbsp/EL=25|cup (250 g)/Becher (250 g)=250",
+      "note": "Typical label values of quark with 20% fat in dry matter"
+    },
+    {
+      "id": "nina:topfen-40", "en": "Quark 40% fat in dry matter", "de": "Topfen 40 % F.i.T.",
+      "aliases": ["Speisequark 40 %", "Sahnequark", "Rahmtopfen", "Quark vollfett"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 153, "fat": 11.0, "saturatedFat": 7.0, "carbsExclFiber": 3.2, "sugar": 3.2, "protein": 10.0, "salt": 0.1},
+      "portions": "tbsp/EL=25|cup (250 g)/Becher (250 g)=250",
+      "note": "Typical label values of quark with 40% fat in dry matter"
+    },
+    {
+      "id": "nina:skyr", "en": "Skyr, plain", "de": "Skyr natur",
+      "aliases": ["Skyr", "isländischer Joghurt"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 63, "fat": 0.2, "saturatedFat": 0.1, "carbsExclFiber": 4.0, "sugar": 4.0, "protein": 11.0, "salt": 0.1},
+      "portions": "cup (150 g)/Becher (150 g)=150|cup (450 g)/Becher (450 g)=450|tbsp/EL=20",
+      "note": "Typical label values of plain skyr"
+    },
+    {
+      "id": "nina:milch-1-5", "en": "Low-fat milk 1.5%", "de": "Fettarme Milch 1,5 %",
+      "aliases": ["Milch 1,5 %", "Leichtmilch", "teilentrahmte Milch", "fettarme Milch"],
+      "cat": "dairy", "unit": "ml", "density": 1.03, "src": "label",
+      "label": {"energy": 47, "fat": 1.5, "saturatedFat": 1.0, "carbsExclFiber": 4.8, "sugar": 4.8, "protein": 3.4, "salt": 0.1, "calcium": 120},
+      "portions": "@milk",
+      "note": "Typical label values per 100 ml of semi-skimmed milk (1.5% fat)"
+    },
+    {
+      "id": "nina:sauerrahm-15", "en": "Sour cream 15%", "de": "Sauerrahm 15 %",
+      "aliases": ["Rahm", "saurer Rahm", "Sauerrahm"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 161, "fat": 15.0, "saturatedFat": 10.0, "carbsExclFiber": 3.5, "sugar": 3.5, "protein": 2.9, "salt": 0.1},
+      "portions": "tbsp/EL=15|cup (250 g)/Becher (250 g)=250",
+      "note": "Typical label values of Austrian Sauerrahm (15% fat)"
+    },
+    {
+      "id": "nina:creme-fraiche", "en": "Crème fraîche 30%", "de": "Crème fraîche 30 %",
+      "aliases": ["Creme fraiche", "Crème fraîche", "Schmand 30 %"],
+      "cat": "dairy", "unit": "g", "src": "label",
+      "label": {"energy": 290, "fat": 30.0, "saturatedFat": 20.0, "carbsExclFiber": 2.6, "sugar": 2.6, "protein": 2.3, "salt": 0.1},
+      "portions": "tbsp/EL=15|cup (200 g)/Becher (200 g)=200",
+      "note": "Typical label values of crème fraîche (30% fat)"
+    },
+    {
+      "id": "nina:haferdrink", "en": "Oat drink", "de": "Haferdrink",
+      "aliases": ["Hafermilch", "Haferdrink Original", "Hafer Drink", "oat milk"],
+      "cat": "beverages", "unit": "ml", "density": 1.03, "src": "label",
+      "label": {"energy": 46, "fat": 1.5, "saturatedFat": 0.2, "carbsExclFiber": 6.7, "sugar": 4.0, "fiber": 0.8, "protein": 1.0, "salt": 0.1},
+      "portions": "@plantdrink",
+      "note": "Typical label values per 100 ml of oat drink (original, no added sugar)"
+    },
+    {
+      "id": "nina:haferdrink-barista", "en": "Oat drink, barista", "de": "Haferdrink Barista",
+      "aliases": ["Hafermilch Barista", "Barista Haferdrink", "oat milk barista"],
+      "cat": "beverages", "unit": "ml", "density": 1.03, "src": "label",
+      "label": {"energy": 59, "fat": 3.0, "saturatedFat": 0.3, "carbsExclFiber": 6.6, "sugar": 3.4, "fiber": 0.8, "protein": 1.1, "salt": 0.1},
+      "portions": "@plantdrink",
+      "note": "Typical label values per 100 ml of barista oat drink (about 3% fat)"
+    },
+    {
+      "id": "nina:kraeuterlimonade", "en": "Herbal lemonade", "de": "Kräuterlimonade",
+      "aliases": ["Almdudler", "Kräuterlimo", "Alpenkräuterlimonade"],
+      "cat": "beverages", "unit": "ml", "density": 1.03, "src": "label",
+      "label": {"energy": 34, "fat": 0, "carbsExclFiber": 8.4, "sugar": 8.4, "protein": 0, "salt": 0},
+      "portions": "@softdrink",
+      "note": "Typical label values per 100 ml of Austrian herbal lemonade (Almdudler style)"
+    },
+    {
+      "id": "nina:leberkaese", "en": "Leberkäse", "de": "Leberkäse",
+      "aliases": ["Leberkäs", "Fleischkäse", "Leberkas", "Leberkässemmel Füllung"],
+      "cat": "sausages", "unit": "g", "src": "label",
+      "label": {"energy": 281, "fat": 25.0, "saturatedFat": 9.5, "carbsExclFiber": 1.0, "sugar": 0.5, "protein": 13.0, "salt": 2.0},
+      "portions": "slice for a roll/Scheibe für die Semmel=100|thin slice/dünne Scheibe=25",
+      "note": "Typical label values of Austrian Leberkäse (pork and beef, without liver)"
+    },
+    {
+      "id": "nina:extrawurst", "en": "Extrawurst", "de": "Extrawurst",
+      "aliases": ["Lyoner", "Fleischwurst", "Gelbwurst", "Pariser Wurst"],
+      "cat": "sausages", "unit": "g", "src": "label",
+      "label": {"energy": 241, "fat": 21.0, "saturatedFat": 8.0, "carbsExclFiber": 1.0, "sugar": 0.5, "protein": 12.0, "salt": 2.1},
+      "portions": "slice/Scheibe=12",
+      "note": "Typical label values of Austrian Extrawurst (scalded sausage, like Lyoner)"
+    },
+    {
+      "id": "nina:debreziner", "en": "Debreziner sausage", "de": "Debreziner",
+      "aliases": ["Debreziner Würstel", "Debrecziner", "Paprikawürstel"],
+      "cat": "sausages", "unit": "g", "src": "label",
+      "label": {"energy": 299, "fat": 27.0, "saturatedFat": 10.0, "carbsExclFiber": 1.0, "sugar": 0.5, "protein": 13.0, "salt": 2.3},
+      "portions": "piece/Stück=45|pair/Paar=90",
+      "note": "Typical label values of Debreziner (smoked pork sausage with paprika)"
+    },
+    {
+      "id": "nina:tiroler-speck", "en": "Tyrolean speck", "de": "Tiroler Speck",
+      "aliases": ["Speck", "Schinkenspeck", "Bauernspeck", "Südtiroler Speck"],
+      "cat": "sausages", "unit": "g", "src": "label",
+      "label": {"energy": 350, "fat": 28.0, "saturatedFat": 10.0, "carbsExclFiber": 0.5, "sugar": 0.5, "protein": 24.0, "salt": 4.5},
+      "portions": "slice/Scheibe=8",
+      "note": "Typical label values of Tiroler Speck g.g.A. (dry-cured, smoked pork)"
+    },
+    {
+      "id": "nina:kuerbiskernoel", "en": "Pumpkin seed oil", "de": "Kürbiskernöl",
+      "aliases": ["Steirisches Kürbiskernöl", "Kernöl", "Kernöl g.g.A."],
+      "cat": "fats", "unit": "g", "src": "label",
+      "label": {"energy": 900, "fat": 100.0, "saturatedFat": 18.0, "monoFat": 31.0, "polyFat": 51.0, "carbs": 0, "protein": 0, "salt": 0},
+      "portions": "tbsp/EL=13.6|tsp/TL=4.5",
+      "note": "Typical label values of Styrian pumpkin seed oil (energy as declared on EU labels: 9 kcal per g fat)"
+    },
+    {
+      "id": "nina:sekt", "en": "Sparkling wine, brut", "de": "Sekt, brut",
+      "aliases": ["Sekt", "Prosecco", "Schaumwein", "Champagner"],
+      "cat": "alcohol", "unit": "ml", "density": 0.995, "src": "label",
+      "label": {"energy": 76, "fat": 0, "carbsExclFiber": 1.5, "sugar": 1.2, "protein": 0.1, "alcohol": 9.1, "salt": 0},
+      "portions": "glass (100 ml)/Glas (0,1 l)=100|glass (125 ml)/Achtel (125 ml)=125|bottle (750 ml)/Flasche (0,75 l)=750",
+      "note": "Typical label values per 100 ml of brut sparkling wine, about 11.5% vol",
+      "atwater": "label energy includes glycerol and organic acids"
+    },
+    {
+      "id": "nina:schwarzbrot", "en": "Dark rye bread", "de": "Schwarzbrot",
+      "aliases": ["Roggenbrot", "Bauernbrot dunkel", "Sauerteigbrot", "Hausbrot dunkel"],
+      "cat": "bread", "unit": "g", "src": "label",
+      "label": {"energy": 215, "fat": 1.2, "saturatedFat": 0.2, "carbsExclFiber": 41.0, "sugar": 2.0, "fiber": 6.5, "protein": 6.5, "salt": 1.3},
+      "portions": "slice/Scheibe=45",
+      "note": "Typical label values of Austrian dark rye sourdough bread (mostly rye)"
+    },
+    {
+      "id": "nina:roggenvollkornbrot", "en": "Whole-grain rye bread", "de": "Roggenvollkornbrot",
+      "aliases": ["Vollkornbrot", "Vollkornbrot Roggen", "Schrotbrot", "Vollkornschnitten"],
+      "cat": "bread", "unit": "g", "src": "label",
+      "label": {"energy": 200, "fat": 1.2, "saturatedFat": 0.2, "carbsExclFiber": 37.0, "sugar": 2.5, "fiber": 8.5, "protein": 6.0, "salt": 1.2},
+      "portions": "slice/Scheibe=50",
+      "note": "Typical label values of whole-grain rye bread (sliced, packaged)",
+      "atwater": "high fibre: carbs include 8.5 g fibre"
+    },
+    {
+      "id": "nina:pumpernickel", "en": "Pumpernickel", "de": "Pumpernickel",
+      "aliases": ["Pumpernickel Brot", "westfälisches Schwarzbrot"],
+      "cat": "bread", "unit": "g", "src": "label",
+      "label": {"energy": 185, "fat": 1.0, "saturatedFat": 0.2, "carbsExclFiber": 35.0, "sugar": 4.5, "fiber": 9.0, "protein": 5.5, "salt": 1.2},
+      "portions": "slice/Scheibe=50",
+      "note": "Typical label values of German pumpernickel (whole-grain rye, long-baked)",
+      "atwater": "high fibre: carbs include 9 g fibre"
+    },
+    {
+      "id": "nina:laugenbrezel", "en": "Pretzel, soft", "de": "Laugenbrezel",
+      "aliases": ["Brezel", "Brezen", "Laugenstange", "Laugenweckerl", "Breze"],
+      "cat": "bread", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 500, "item": "wheat flour"},
+        {"ndb": "14411", "g": 280, "item": "water"},
+        {"ndb": "01145", "g": 25, "item": "butter"},
+        {"ndb": "18374", "g": 20, "item": "fresh yeast"},
+        {"ndb": "02047", "g": 16, "item": "salt (dough 10 g, coarse salt topping 6 g)"}
+      ], "yield": 0.86},
+      "portions": "piece/Stück=85",
+      "note": "8 pretzels; baking loss 14%; the lye bath adds no nutrients"
+    },
+    {
+      "id": "nina:semmelknoedel", "en": "Bread dumpling", "de": "Semmelknödel",
+      "aliases": ["Knödel", "Serviettenknödel", "Brotknödel", "Semmelknödl"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "18353", "g": 300, "item": "stale kaiser rolls (Knödelbrot)"},
+        {"ndb": "01211", "g": 300, "item": "whole milk"},
+        {"ndb": "01123", "g": 150, "item": "3 eggs"},
+        {"ndb": "01145", "g": 30, "item": "butter"},
+        {"ndb": "11282", "g": 80, "item": "onion"},
+        {"ndb": "11297", "g": 10, "item": "parsley"},
+        {"ndb": "02047", "g": 6, "item": "salt"}
+      ], "yield": 1.0},
+      "portions": "piece/Stück=110",
+      "note": "8 dumplings, simmered; weight assumed unchanged by cooking"
+    },
+    {
+      "id": "nina:erdaepfelknoedel", "en": "Potato dumpling", "de": "Erdäpfelknödel",
+      "aliases": ["Kartoffelknödel", "Kartoffelklöße", "Erdäpfelteig-Knödel"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11365", "g": 750, "item": "potatoes boiled in skin, peeled"},
+        {"ndb": "20481", "g": 150, "item": "wheat flour"},
+        {"ndb": "08172", "g": 50, "item": "wheat semolina"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "01145", "g": 20, "item": "butter"},
+        {"ndb": "02047", "g": 8, "item": "salt"}
+      ], "yield": 1.0},
+      "portions": "piece/Stück=100",
+      "note": "10 dumplings, simmered"
+    },
+    {
+      "id": "nina:kaiserschmarrn", "en": "Kaiserschmarrn", "de": "Kaiserschmarrn",
+      "aliases": ["Kaiserschmarren", "Schmarrn", "Kaiserschmarn"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 125, "item": "wheat flour"},
+        {"ndb": "01211", "g": 250, "item": "whole milk"},
+        {"ndb": "01123", "g": 200, "item": "4 eggs"},
+        {"ndb": "19335", "g": 25, "item": "sugar"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "01145", "g": 40, "item": "butter for frying"},
+        {"ndb": "09298", "g": 30, "item": "raisins"},
+        {"ndb": "19336", "g": 15, "item": "powdered sugar for dusting"}
+      ], "yield": 0.88},
+      "portions": "serving (300 g)/Portion (300 g)=300",
+      "note": "2 servings, without Zwetschkenröster or apple sauce; frying loss 12%"
+    },
+    {
+      "id": "nina:palatschinken", "en": "Crêpe", "de": "Palatschinken",
+      "aliases": ["Palatschinke", "Pfannkuchen", "Crêpes", "Eierkuchen", "Crepe"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 125, "item": "wheat flour"},
+        {"ndb": "01211", "g": 250, "item": "whole milk"},
+        {"ndb": "01123", "g": 100, "item": "2 eggs"},
+        {"ndb": "19335", "g": 5, "item": "sugar"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "04506", "g": 15, "item": "oil for the pan"}
+      ], "yield": 0.9},
+      "portions": "piece/Stück=55",
+      "note": "8 plain crêpes, without filling; frying loss 10%"
+    },
+    {
+      "id": "nina:marmeladepalatschinken", "en": "Crêpe with apricot jam", "de": "Marmeladepalatschinken",
+      "aliases": ["Palatschinken mit Marmelade", "Marillenpalatschinken", "Pfannkuchen mit Marmelade"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 125, "item": "wheat flour"},
+        {"ndb": "01211", "g": 250, "item": "whole milk"},
+        {"ndb": "01123", "g": 100, "item": "2 eggs"},
+        {"ndb": "19335", "g": 5, "item": "sugar"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "04506", "g": 15, "item": "oil for the pan"},
+        {"ndb": "19719", "g": 160, "item": "apricot jam (20 g per crêpe)"}
+      ], "yield_g": 606},
+      "portions": "piece/Stück=75",
+      "note": "8 crêpes: 446 g cooked batter (10% frying loss) plus 160 g jam"
+    },
+    {
+      "id": "nina:germknoedel", "en": "Germknödel", "de": "Germknödel",
+      "aliases": ["Hefeknödel", "Dampfknödel mit Powidl", "Germknödl"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 250, "item": "wheat flour"},
+        {"ndb": "01211", "g": 125, "item": "whole milk"},
+        {"ndb": "01145", "g": 30, "item": "butter (dough)"},
+        {"ndb": "19335", "g": 25, "item": "sugar"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "18374", "g": 20, "item": "fresh yeast"},
+        {"ndb": "02047", "g": 2, "item": "salt"},
+        {"ndb": "19297", "g": 100, "item": "plum jam as Powidl"},
+        {"ndb": "01145", "g": 50, "item": "melted butter (topping)"},
+        {"ndb": "02033", "g": 40, "item": "ground poppy seeds (topping)"},
+        {"ndb": "19336", "g": 30, "item": "powdered sugar (topping)"}
+      ], "yield": 1.0},
+      "portions": "piece with topping/Stück mit Butter und Mohn=180",
+      "note": "4 dumplings with butter, poppy seeds and sugar; Powidl approximated by USDA jam"
+    },
+    {
+      "id": "nina:sachertorte", "en": "Sacher torte", "de": "Sachertorte",
+      "aliases": ["Sacher-Torte", "Schokoladetorte Sacher", "Sacher"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "01145", "g": 140, "item": "butter"},
+        {"ndb": "19336", "g": 110, "item": "powdered sugar"},
+        {"ndb": "01123", "g": 300, "item": "6 eggs"},
+        {"ndb": "19902", "g": 130, "item": "dark chocolate (batter)"},
+        {"ndb": "19335", "g": 110, "item": "sugar (for the egg whites)"},
+        {"ndb": "20481", "g": 140, "item": "wheat flour"},
+        {"ndb": "19719", "g": 200, "item": "apricot jam"},
+        {"ndb": "19335", "g": 200, "item": "sugar (glaze)"},
+        {"ndb": "19902", "g": 150, "item": "dark chocolate (glaze)"},
+        {"ndb": "14411", "g": 125, "item": "water (glaze, mostly boiled off)"}
+      ], "yield_g": 1395},
+      "portions": "slice/Stück=85",
+      "note": "Ø 24 cm, 16 slices, without whipped cream; baking loss 110 g, glaze water loss 100 g"
+    },
+    {
+      "id": "nina:linzer-torte", "en": "Linzer torte", "de": "Linzer Torte",
+      "aliases": ["Linzertorte", "Linzer Schnitte"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 200, "item": "wheat flour"},
+        {"ndb": "01145", "g": 200, "item": "butter"},
+        {"ndb": "19336", "g": 150, "item": "powdered sugar"},
+        {"ndb": "12120", "g": 200, "item": "ground hazelnuts"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "02010", "g": 4, "item": "cinnamon"},
+        {"ndb": "02011", "g": 1, "item": "cloves"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "19297", "g": 250, "item": "redcurrant jam"}
+      ], "yield": 0.92},
+      "portions": "slice/Stück=80",
+      "note": "Ø 24 cm, 12 slices; baking loss 8%"
+    },
+    {
+      "id": "nina:mohnstrudel", "en": "Poppy seed strudel", "de": "Mohnstrudel",
+      "aliases": ["Mohnstriezel", "Mohnrolle", "Mohnkuchen"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 500, "item": "wheat flour"},
+        {"ndb": "01211", "g": 200, "item": "whole milk (dough)"},
+        {"ndb": "01145", "g": 80, "item": "butter (dough)"},
+        {"ndb": "19335", "g": 60, "item": "sugar (dough)"},
+        {"ndb": "01123", "g": 75, "item": "egg (dough and egg wash)"},
+        {"ndb": "18374", "g": 30, "item": "fresh yeast"},
+        {"ndb": "02047", "g": 4, "item": "salt"},
+        {"ndb": "02033", "g": 300, "item": "ground poppy seeds"},
+        {"ndb": "01211", "g": 250, "item": "whole milk (filling)"},
+        {"ndb": "19335", "g": 150, "item": "sugar (filling)"},
+        {"ndb": "19296", "g": 50, "item": "honey"},
+        {"ndb": "01145", "g": 40, "item": "butter (filling)"},
+        {"ndb": "09298", "g": 50, "item": "raisins"},
+        {"ndb": "02010", "g": 2, "item": "cinnamon"}
+      ], "yield": 0.88},
+      "portions": "slice/Scheibe=60",
+      "note": "2 strudels, yeast dough; filling cooking and baking loss 12%"
+    },
+    {
+      "id": "nina:topfenstrudel", "en": "Quark strudel", "de": "Topfenstrudel",
+      "aliases": ["Quarkstrudel", "Topfenstrudl", "Milchrahmstrudel"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "18338", "g": 250, "item": "strudel dough (phyllo)"},
+        {"ndb": "01014", "g": 500, "item": "low-fat quark (USDA dry curd cottage cheese)"},
+        {"ndb": "01056", "g": 125, "item": "sour cream"},
+        {"ndb": "01145", "g": 60, "item": "butter (filling)"},
+        {"ndb": "19335", "g": 100, "item": "sugar"},
+        {"ndb": "01123", "g": 150, "item": "3 eggs"},
+        {"ndb": "09298", "g": 50, "item": "raisins"},
+        {"ndb": "08172", "g": 20, "item": "semolina"},
+        {"ndb": "01145", "g": 50, "item": "butter for brushing"},
+        {"ndb": "19336", "g": 10, "item": "powdered sugar"}
+      ], "yield": 0.9},
+      "portions": "piece/Stück=150",
+      "note": "8 pieces; Magertopfen approximated by USDA dry curd cottage cheese; baking loss 10%"
+    },
+    {
+      "id": "nina:marillenknoedel", "en": "Apricot dumpling", "de": "Marillenknödel",
+      "aliases": ["Aprikosenknödel", "Topfenknödel mit Marille", "Marillenknödl"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "01014", "g": 250, "item": "low-fat quark (USDA dry curd cottage cheese)"},
+        {"ndb": "20481", "g": 100, "item": "wheat flour"},
+        {"ndb": "08172", "g": 30, "item": "semolina"},
+        {"ndb": "01145", "g": 40, "item": "butter (dough)"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "09021", "g": 480, "item": "12 apricots, pitted"},
+        {"ndb": "19335", "g": 30, "item": "12 sugar cubes"},
+        {"ndb": "18079", "g": 100, "item": "breadcrumbs (Butterbrösel)"},
+        {"ndb": "01145", "g": 80, "item": "butter (Butterbrösel)"},
+        {"ndb": "19335", "g": 40, "item": "sugar (Butterbrösel)"},
+        {"ndb": "19336", "g": 15, "item": "powdered sugar"}
+      ], "yield": 1.0},
+      "portions": "piece/Stück=100",
+      "note": "12 dumplings in quark dough with butter crumbs; Topfen approximated by USDA dry curd cottage cheese"
+    },
+    {
+      "id": "nina:vanillekipferl", "en": "Vanilla crescent cookies", "de": "Vanillekipferl",
+      "aliases": ["Vanillekipferln", "Vanillekipferl Kekse", "Weihnachtskekse"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20481", "g": 210, "item": "wheat flour"},
+        {"ndb": "01145", "g": 175, "item": "butter"},
+        {"ndb": "12062", "g": 70, "item": "ground blanched almonds"},
+        {"ndb": "19336", "g": 70, "item": "powdered sugar (dough)"},
+        {"ndb": "19336", "g": 60, "item": "powdered and vanilla sugar (coating)"}
+      ], "yield": 0.95},
+      "portions": "piece/Stück=8",
+      "note": "About 70 cookies; baking loss 5%"
+    },
+    {
+      "id": "nina:marmorgugelhupf", "en": "Marble bundt cake", "de": "Marmorgugelhupf",
+      "aliases": ["Gugelhupf", "Marmorkuchen", "Gugelhopf", "Napfkuchen"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "01145", "g": 200, "item": "butter"},
+        {"ndb": "19335", "g": 200, "item": "sugar"},
+        {"ndb": "01123", "g": 250, "item": "5 eggs"},
+        {"ndb": "20481", "g": 300, "item": "wheat flour"},
+        {"ndb": "01211", "g": 125, "item": "whole milk"},
+        {"ndb": "18369", "g": 16, "item": "baking powder"},
+        {"ndb": "19165", "g": 20, "item": "cocoa powder"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "19336", "g": 5, "item": "powdered sugar"}
+      ], "yield": 0.9},
+      "portions": "slice/Stück=70",
+      "note": "One bundt cake, 14 slices; baking loss 10%"
+    },
+    {
+      "id": "nina:griessbrei", "en": "Semolina pudding", "de": "Grießbrei",
+      "aliases": ["Grießkoch", "Griesbrei", "Grießmus"],
+      "cat": "sweets", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "01211", "g": 500, "item": "whole milk"},
+        {"ndb": "08172", "g": 60, "item": "wheat semolina"},
+        {"ndb": "19335", "g": 40, "item": "sugar (incl. cinnamon sugar topping)"},
+        {"ndb": "01145", "g": 10, "item": "butter"},
+        {"ndb": "02010", "g": 1, "item": "cinnamon"},
+        {"ndb": "02047", "g": 1, "item": "salt"}
+      ], "yield": 0.92},
+      "portions": "serving (250 g)/Portion (250 g)=250",
+      "note": "2 servings; evaporation 8%"
+    },
+    {
+      "id": "nina:wiener-schnitzel-kalb", "en": "Wiener schnitzel, veal", "de": "Wiener Schnitzel vom Kalb",
+      "aliases": ["Wiener Schnitzel", "Kalbsschnitzel paniert", "Kalbsschnitzel gebacken"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "17099", "g": 500, "item": "veal leg (top round), lean, raw"},
+        {"ndb": "20481", "g": 30, "item": "flour"},
+        {"ndb": "01123", "g": 60, "item": "egg"},
+        {"ndb": "18079", "g": 80, "item": "breadcrumbs"},
+        {"ndb": "02047", "g": 4, "item": "salt"},
+        {"ndb": "04506", "g": 50, "item": "frying fat absorbed"}
+      ], "yield_g": 614},
+      "portions": "schnitzel/Schnitzel=150",
+      "note": "4 schnitzels, pan-fried; meat loses 20% water. Cross-check: USDA 17096 breaded pan-fried veal = 238 kcal"
+    },
+    {
+      "id": "nina:schnitzel-schwein", "en": "Pork schnitzel, breaded", "de": "Schnitzel Wiener Art vom Schwein",
+      "aliases": ["Schweinsschnitzel paniert", "Wiener Schnitzel Schwein", "Schnitzel gebacken", "Schnitzel"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "10010", "g": 500, "item": "pork leg, lean, raw"},
+        {"ndb": "20481", "g": 30, "item": "flour"},
+        {"ndb": "01123", "g": 60, "item": "egg"},
+        {"ndb": "18079", "g": 80, "item": "breadcrumbs"},
+        {"ndb": "02047", "g": 4, "item": "salt"},
+        {"ndb": "04506", "g": 50, "item": "frying fat absorbed"}
+      ], "yield_g": 614},
+      "portions": "schnitzel/Schnitzel=150",
+      "note": "4 schnitzels, pan-fried; meat loses 20% water"
+    },
+    {
+      "id": "nina:huehnerschnitzel", "en": "Chicken schnitzel, breaded", "de": "Hühnerschnitzel, paniert",
+      "aliases": ["Hendlschnitzel", "Putenschnitzel paniert", "Hähnchenschnitzel paniert", "Chicken Schnitzel"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "05062", "g": 500, "item": "chicken breast, raw"},
+        {"ndb": "20481", "g": 30, "item": "flour"},
+        {"ndb": "01123", "g": 60, "item": "egg"},
+        {"ndb": "18079", "g": 80, "item": "breadcrumbs"},
+        {"ndb": "02047", "g": 4, "item": "salt"},
+        {"ndb": "04506", "g": 50, "item": "frying fat absorbed"}
+      ], "yield_g": 614},
+      "portions": "schnitzel/Schnitzel=150",
+      "note": "4 schnitzels, pan-fried; meat loses 20% water"
+    },
+    {
+      "id": "nina:backhendl", "en": "Viennese fried chicken", "de": "Backhendl",
+      "aliases": ["Wiener Backhendl", "Backhuhn", "Steirisches Backhendl", "gebackenes Hendl"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "05011", "g": 800, "item": "chicken pieces, meat only, raw"},
+        {"ndb": "20481", "g": 40, "item": "flour"},
+        {"ndb": "01123", "g": 80, "item": "eggs"},
+        {"ndb": "18079", "g": 100, "item": "breadcrumbs"},
+        {"ndb": "02047", "g": 8, "item": "salt"},
+        {"ndb": "04506", "g": 60, "item": "frying fat absorbed"}
+      ], "yield_g": 877},
+      "portions": "serving (250 g)/Portion (250 g)=250",
+      "note": "Skinless pieces, deep-fried; meat loses 25% water, coating 5%"
+    },
+    {
+      "id": "nina:rindsgulasch", "en": "Beef goulash", "de": "Rindsgulasch",
+      "aliases": ["Gulasch", "Saftgulasch", "Wiener Saftgulasch", "Rindergulasch"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "23093", "g": 1000, "item": "beef for stew (shoulder/shank), raw"},
+        {"ndb": "11282", "g": 1000, "item": "onions"},
+        {"ndb": "04002", "g": 60, "item": "lard"},
+        {"ndb": "02028", "g": 30, "item": "paprika powder"},
+        {"ndb": "11546", "g": 20, "item": "tomato paste"},
+        {"ndb": "11215", "g": 10, "item": "garlic"},
+        {"ndb": "02005", "g": 3, "item": "caraway"},
+        {"ndb": "02023", "g": 2, "item": "marjoram"},
+        {"ndb": "02053", "g": 15, "item": "vinegar"},
+        {"ndb": "02047", "g": 15, "item": "salt"},
+        {"ndb": "14411", "g": 750, "item": "water"}
+      ], "yield_g": 1800},
+      "portions": "serving (300 g)/Portion (300 g)=300",
+      "note": "6 servings; braised about 2.5 h and reduced to 1.8 kg"
+    },
+    {
+      "id": "nina:gulaschsuppe", "en": "Goulash soup", "de": "Gulaschsuppe",
+      "aliases": ["Gulyássuppe", "Gulaschsuppe mit Erdäpfeln", "Saftgulaschsuppe"],
+      "cat": "dishes", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "23093", "g": 500, "item": "beef for stew, raw"},
+        {"ndb": "11282", "g": 400, "item": "onions"},
+        {"ndb": "11352", "g": 500, "item": "potatoes"},
+        {"ndb": "04002", "g": 40, "item": "lard"},
+        {"ndb": "02028", "g": 20, "item": "paprika powder"},
+        {"ndb": "11546", "g": 20, "item": "tomato paste"},
+        {"ndb": "11215", "g": 10, "item": "garlic"},
+        {"ndb": "02005", "g": 3, "item": "caraway"},
+        {"ndb": "02023", "g": 2, "item": "marjoram"},
+        {"ndb": "02047", "g": 15, "item": "salt"},
+        {"ndb": "14411", "g": 1800, "item": "water"}
+      ], "yield_g": 2900, "yield_ml": 2800},
+      "portions": "@soup",
+      "note": "About 2.8 l; simmered, evaporation 410 g"
+    },
+    {
+      "id": "nina:frittatensuppe", "en": "Pancake strip soup", "de": "Frittatensuppe",
+      "aliases": ["Frittaten", "Flädlesuppe", "Pfannkuchensuppe", "Rindsuppe mit Frittaten"],
+      "cat": "dishes", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "06170", "g": 1000, "item": "beef broth, homemade"},
+        {"ndb": "20481", "g": 60, "item": "flour (Frittaten)"},
+        {"ndb": "01211", "g": 120, "item": "whole milk (Frittaten)"},
+        {"ndb": "01123", "g": 60, "item": "egg (Frittaten)"},
+        {"ndb": "04506", "g": 8, "item": "oil (Frittaten)"},
+        {"ndb": "02047", "g": 1, "item": "salt"},
+        {"ndb": "11156", "g": 5, "item": "chives"}
+      ], "yield_g": 1230, "yield_ml": 1220},
+      "portions": "@soup",
+      "note": "4 servings; the crêpes lose 10% when fried"
+    },
+    {
+      "id": "nina:griessnockerlsuppe", "en": "Semolina dumpling soup", "de": "Grießnockerlsuppe",
+      "aliases": ["Grießnockerl", "Griesnockerlsuppe", "Grießklößchensuppe"],
+      "cat": "dishes", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "06170", "g": 1000, "item": "beef broth, homemade"},
+        {"ndb": "01145", "g": 40, "item": "butter"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "08172", "g": 100, "item": "wheat semolina"},
+        {"ndb": "02047", "g": 2, "item": "salt"}
+      ], "yield_g": 1142, "yield_ml": 1130},
+      "portions": "@soup",
+      "note": "4 servings with 8 dumplings; evaporation 50 g"
+    },
+    {
+      "id": "nina:fleischlaberl", "en": "Meat patty", "de": "Fleischlaberl",
+      "aliases": ["Frikadelle", "Fleischpflanzerl", "Faschiertes Laibchen", "Bulette", "Fleischküchle"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "23572", "g": 250, "item": "ground beef 20% fat"},
+        {"ndb": "10219", "g": 250, "item": "ground pork"},
+        {"ndb": "18353", "g": 60, "item": "stale kaiser roll"},
+        {"ndb": "01211", "g": 100, "item": "whole milk (to soak the roll)"},
+        {"ndb": "01123", "g": 50, "item": "1 egg"},
+        {"ndb": "11282", "g": 80, "item": "onion"},
+        {"ndb": "04506", "g": 20, "item": "oil (onions and frying, absorbed)"},
+        {"ndb": "11215", "g": 5, "item": "garlic"},
+        {"ndb": "02023", "g": 2, "item": "marjoram"},
+        {"ndb": "02047", "g": 8, "item": "salt"},
+        {"ndb": "02030", "g": 1, "item": "pepper"},
+        {"ndb": "18079", "g": 20, "item": "breadcrumbs"}
+      ], "yield": 0.8},
+      "portions": "piece/Stück=85",
+      "note": "8 patties, pan-fried; frying loss 20%"
+    },
+    {
+      "id": "nina:faschiertes-gemischt", "en": "Ground beef and pork, raw", "de": "Faschiertes gemischt, roh",
+      "aliases": ["gemischtes Hackfleisch", "Hackfleisch gemischt", "Faschiertes", "Gemischtes Faschiertes"],
+      "cat": "meat", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "23572", "g": 500, "item": "ground beef 20% fat, raw"},
+        {"ndb": "10219", "g": 500, "item": "ground pork, raw"}
+      ], "yield": 1.0},
+      "portions": "serving (125 g)/Portion (125 g)=125|pack (500 g)/Packung (500 g)=500",
+      "note": "Half beef, half pork, as sold in Austria and Germany"
+    },
+    {
+      "id": "nina:kaesespaetzle", "en": "Cheese spaetzle", "de": "Käsespätzle",
+      "aliases": ["Kasnocken", "Kasspatzen", "Käsknöpfle", "Kässpätzle"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20097", "g": 600, "item": "spaetzle (homemade egg pasta), cooked"},
+        {"ndb": "01023", "g": 120, "item": "mountain cheese (Gruyère)"},
+        {"ndb": "01040", "g": 120, "item": "Emmental"},
+        {"ndb": "01145", "g": 30, "item": "butter"},
+        {"ndb": "11286", "g": 120, "item": "sautéed onions"},
+        {"ndb": "11156", "g": 5, "item": "chives"}
+      ], "yield": 0.97},
+      "portions": "serving (300 g)/Portion (300 g)=300",
+      "note": "3 servings; baking loss 3%"
+    },
+    {
+      "id": "nina:schinkenfleckerl", "en": "Ham noodle bake", "de": "Schinkenfleckerl",
+      "aliases": ["überbackene Schinkenfleckerl", "Schinkennudeln", "Fleckerl mit Schinken"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20410", "g": 500, "item": "egg noodles (Fleckerl), cooked"},
+        {"ndb": "07029", "g": 200, "item": "ham"},
+        {"ndb": "01123", "g": 100, "item": "2 eggs"},
+        {"ndb": "01056", "g": 100, "item": "sour cream"},
+        {"ndb": "01145", "g": 30, "item": "butter"},
+        {"ndb": "11282", "g": 80, "item": "onion"},
+        {"ndb": "02047", "g": 4, "item": "salt"}
+      ], "yield": 0.92},
+      "portions": "serving (300 g)/Portion (300 g)=300",
+      "note": "3 servings, baked; loss 8%"
+    },
+    {
+      "id": "nina:tiroler-groestl", "en": "Tyrolean potato and meat hash", "de": "Tiroler Gröstl",
+      "aliases": ["Gröstl", "Bauerngröstl", "Grenadiermarsch"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11365", "g": 600, "item": "potatoes boiled in skin, peeled"},
+        {"ndb": "10071", "g": 200, "item": "roast pork"},
+        {"ndb": "11282", "g": 150, "item": "onions"},
+        {"ndb": "04002", "g": 40, "item": "lard"},
+        {"ndb": "02005", "g": 2, "item": "caraway"},
+        {"ndb": "02023", "g": 1, "item": "marjoram"},
+        {"ndb": "02047", "g": 6, "item": "salt"}
+      ], "yield": 0.9},
+      "portions": "serving (300 g)/Portion (300 g)=300",
+      "note": "3 servings, without fried egg; frying loss 10%"
+    },
+    {
+      "id": "nina:rahmspinat", "en": "Creamed spinach", "de": "Rahmspinat",
+      "aliases": ["Cremespinat", "Spinat mit Rahm", "Blattspinat in Rahm"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11463", "g": 600, "item": "frozen spinach"},
+        {"ndb": "01211", "g": 150, "item": "whole milk"},
+        {"ndb": "01052", "g": 50, "item": "whipping cream"},
+        {"ndb": "01145", "g": 20, "item": "butter"},
+        {"ndb": "20481", "g": 20, "item": "flour"},
+        {"ndb": "11215", "g": 5, "item": "garlic"},
+        {"ndb": "02047", "g": 5, "item": "salt"},
+        {"ndb": "02025", "g": 0.5, "item": "nutmeg"}
+      ], "yield": 0.9},
+      "portions": "serving (150 g)/Portion (150 g)=150",
+      "note": "4 servings; cooking loss 10%"
+    },
+    {
+      "id": "nina:polenta-gekocht", "en": "Polenta, cooked", "de": "Polenta, gekocht",
+      "aliases": ["Polentabrei", "Sterz", "Maisgrießbrei"],
+      "cat": "grains", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "20422", "g": 200, "item": "polenta (degermed cornmeal)"},
+        {"ndb": "14411", "g": 800, "item": "water"},
+        {"ndb": "01145", "g": 20, "item": "butter"},
+        {"ndb": "02047", "g": 6, "item": "salt"}
+      ], "yield": 0.85},
+      "portions": "serving (200 g)/Portion (200 g)=200",
+      "note": "Soft polenta; evaporation 15%"
+    },
+    {
+      "id": "nina:erdaepfelsalat", "en": "Austrian potato salad", "de": "Erdäpfelsalat",
+      "aliases": ["Kartoffelsalat", "Erdäpfelsalat mit Essig und Öl", "Wiener Kartoffelsalat", "Erdäpfelsalat steirisch"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11365", "g": 1000, "item": "waxy potatoes boiled in skin, peeled"},
+        {"ndb": "06170", "g": 200, "item": "beef broth"},
+        {"ndb": "11282", "g": 80, "item": "onion"},
+        {"ndb": "02053", "g": 50, "item": "vinegar"},
+        {"ndb": "04506", "g": 50, "item": "sunflower oil"},
+        {"ndb": "02046", "g": 10, "item": "mustard"},
+        {"ndb": "19335", "g": 5, "item": "sugar"},
+        {"ndb": "02047", "g": 8, "item": "salt"},
+        {"ndb": "11156", "g": 10, "item": "chives"}
+      ], "yield": 1.0},
+      "portions": "serving (150 g)/Portion (150 g)=150",
+      "note": "With vinegar, oil and broth (no mayonnaise)"
+    },
+    {
+      "id": "nina:krautsalat", "en": "Coleslaw, Austrian style", "de": "Krautsalat",
+      "aliases": ["Weißkrautsalat", "Krautsalat mit Kümmel", "Weißkohlsalat"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11109", "g": 1000, "item": "white cabbage"},
+        {"ndb": "02053", "g": 80, "item": "vinegar"},
+        {"ndb": "04506", "g": 40, "item": "sunflower oil"},
+        {"ndb": "19335", "g": 15, "item": "sugar"},
+        {"ndb": "02047", "g": 10, "item": "salt"},
+        {"ndb": "02005", "g": 3, "item": "caraway"}
+      ], "yield": 1.0},
+      "portions": "serving (100 g)/Portion (100 g)=100",
+      "note": "With vinegar, oil and caraway (no mayonnaise)"
+    },
+    {
+      "id": "nina:gurkensalat", "en": "Cucumber salad", "de": "Gurkensalat",
+      "aliases": ["Gurkerlsalat", "Gurkensalat mit Essig"],
+      "cat": "dishes", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "11205", "g": 500, "item": "cucumber"},
+        {"ndb": "02053", "g": 30, "item": "vinegar"},
+        {"ndb": "04506", "g": 15, "item": "sunflower oil"},
+        {"ndb": "19335", "g": 5, "item": "sugar"},
+        {"ndb": "02047", "g": 5, "item": "salt"},
+        {"ndb": "11215", "g": 3, "item": "garlic"}
+      ], "yield": 1.0},
+      "portions": "serving (100 g)/Portion (100 g)=100",
+      "note": "With vinegar and oil"
+    },
+    {
+      "id": "nina:liptauer", "en": "Liptauer spread", "de": "Liptauer",
+      "aliases": ["Liptauer Aufstrich", "Topfenaufstrich pikant", "Paprikatopfen"],
+      "cat": "condiments", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "01014", "g": 250, "item": "low-fat quark (USDA dry curd cottage cheese)"},
+        {"ndb": "01145", "g": 80, "item": "butter"},
+        {"ndb": "01056", "g": 50, "item": "sour cream"},
+        {"ndb": "11282", "g": 30, "item": "onion"},
+        {"ndb": "02028", "g": 8, "item": "paprika powder"},
+        {"ndb": "02054", "g": 10, "item": "capers"},
+        {"ndb": "02046", "g": 10, "item": "mustard"},
+        {"ndb": "02005", "g": 2, "item": "caraway"},
+        {"ndb": "11937", "g": 20, "item": "pickled gherkins"},
+        {"ndb": "02047", "g": 3, "item": "salt"}
+      ], "yield": 1.0},
+      "portions": "tbsp/EL=20",
+      "note": "Topfen approximated by USDA dry curd cottage cheese"
+    },
+    {
+      "id": "nina:doener", "en": "Doner kebab", "de": "Döner Kebab",
+      "aliases": ["Döner", "Kebab", "Dürüm", "Kebap im Brot"],
+      "cat": "fastFood", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "18413", "g": 100, "item": "flatbread (pita)"},
+        {"ndb": "17225", "g": 60, "item": "lamb, ground, cooked (as kebab meat)"},
+        {"ndb": "23575", "g": 60, "item": "beef 20% fat, cooked (as kebab meat)"},
+        {"ndb": "11252", "g": 30, "item": "lettuce"},
+        {"ndb": "11529", "g": 30, "item": "tomato"},
+        {"ndb": "11282", "g": 20, "item": "onion"},
+        {"ndb": "11112", "g": 30, "item": "red cabbage"},
+        {"ndb": "01116", "g": 40, "item": "yogurt (sauce)"},
+        {"ndb": "04026", "g": 10, "item": "mayonnaise (sauce)"}
+      ], "yield": 1.0},
+      "portions": "piece/Stück=380",
+      "note": "One kebab in flatbread; kebab meat approximated by USDA cooked ground lamb and beef"
+    },
+    {
+      "id": "nina:radler", "en": "Shandy", "de": "Radler",
+      "aliases": ["Radlermaß", "Alsterwasser", "Bier mit Limo", "Zitronenradler"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14003", "ml": 500, "item": "beer"},
+        {"ndb": "14144", "ml": 500, "item": "lemon-lime soda"}
+      ]},
+      "portions": "@beer",
+      "note": "Half beer, half lemonade"
+    },
+    {
+      "id": "nina:spritzer", "en": "White wine spritzer", "de": "Spritzer",
+      "aliases": ["G'spritzter", "Gespritzter", "Weißweinspritzer", "Weinschorle"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14106", "ml": 125, "item": "white wine"},
+        {"ndb": "14121", "ml": 125, "item": "soda water"}
+      ]},
+      "portions": "glass (250 ml)/Viertel (250 ml)=250|large (500 ml)/Halbe (0,5 l)=500",
+      "note": "Half wine, half soda water"
+    },
+    {
+      "id": "nina:apfelsaft-gespritzt", "en": "Apple juice spritzer", "de": "Apfelsaft gespritzt",
+      "aliases": ["Apfelschorle", "Apfelspritzer", "Apfelsaft gespritzt mit Soda"],
+      "cat": "beverages", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "09016", "ml": 250, "item": "apple juice"},
+        {"ndb": "14121", "ml": 250, "item": "soda water"}
+      ]},
+      "portions": "glass (250 ml)/Glas (0,25 l)=250|large (500 ml)/Krügerl (0,5 l)=500",
+      "note": "Half apple juice, half soda water"
+    },
+    {
+      "id": "nina:sirup-verduennt", "en": "Fruit syrup drink", "de": "Sirup mit Wasser",
+      "aliases": ["Himbeersaft", "Holundersaft", "Hollersaft", "Sirupwasser", "Himbeerwasser"],
+      "cat": "beverages", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "19030", "ml": 30, "density": 1.32, "item": "fruit syrup"},
+        {"ndb": "14411", "ml": 210, "item": "water"}
+      ]},
+      "portions": "@juice",
+      "note": "Syrup diluted 1:7 with water"
+    },
+    {
+      "id": "nina:gin-tonic", "en": "Gin and tonic", "de": "Gin Tonic",
+      "aliases": ["Gin-Tonic", "G&T", "Gin mit Tonic"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14049", "ml": 40, "item": "gin"},
+        {"ndb": "14155", "ml": 160, "item": "tonic water"}
+      ]},
+      "portions": "@cocktail",
+      "note": "4 cl gin, 16 cl tonic water"
+    },
+    {
+      "id": "nina:cuba-libre", "en": "Rum and cola", "de": "Cuba Libre",
+      "aliases": ["Rum Cola", "Rum-Cola"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14050", "ml": 40, "item": "rum"},
+        {"ndb": "14148", "ml": 120, "item": "cola"},
+        {"ndb": "09160", "ml": 10, "item": "lime juice"}
+      ]},
+      "portions": "glass (170 ml)/Glas (170 ml)=170",
+      "note": "4 cl rum, 12 cl cola, 1 cl lime juice"
+    },
+    {
+      "id": "nina:gluehwein", "en": "Mulled wine", "de": "Glühwein",
+      "aliases": ["Punsch mit Wein", "Glühmost", "Weihnachtsmarkt Glühwein"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14096", "ml": 750, "item": "red wine"},
+        {"ndb": "19335", "g": 60, "item": "sugar"},
+        {"ndb": "09209", "ml": 150, "item": "orange juice"},
+        {"ndb": "14411", "ml": 100, "item": "water"}
+      ], "yield_g": 1023, "yield_ml": 1000, "alcohol_retention": 0.85},
+      "portions": "mug (200 ml)/Häferl (200 ml)=200|mug (250 ml)/Häferl (250 ml)=250",
+      "note": "Heated, not boiled: 15% of the alcohol assumed lost"
+    },
+    {
+      "id": "nina:jagatee", "en": "Hunter's tea with rum", "de": "Jagatee",
+      "aliases": ["Jägertee", "Tee mit Rum", "Hüttentee"],
+      "cat": "alcohol", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14355", "ml": 200, "item": "black tea"},
+        {"ndb": "14050", "ml": 40, "item": "rum"},
+        {"ndb": "19335", "g": 10, "item": "sugar"}
+      ], "yield_ml": 246},
+      "portions": "mug (250 ml)/Häferl (250 ml)=250",
+      "note": "Black tea with 4 cl rum and sugar"
+    },
+    {
+      "id": "nina:cappuccino", "en": "Cappuccino", "de": "Cappuccino",
+      "aliases": ["Melange", "Wiener Melange", "Kapuziner", "Cappucino"],
+      "cat": "beverages", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14210", "ml": 40, "item": "espresso"},
+        {"ndb": "01211", "ml": 120, "item": "whole milk, steamed"}
+      ]},
+      "portions": "cup (160 ml)/Tasse (160 ml)=160|large (300 ml)/groß (300 ml)=300",
+      "note": "Espresso with whole milk, without sugar"
+    },
+    {
+      "id": "nina:latte-macchiato", "en": "Latte macchiato", "de": "Latte macchiato",
+      "aliases": ["Latte", "Caffè Latte", "Milchkaffee Glas"],
+      "cat": "beverages", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14210", "ml": 40, "item": "espresso"},
+        {"ndb": "01211", "ml": 260, "item": "whole milk, steamed"}
+      ]},
+      "portions": "glass (300 ml)/Glas (300 ml)=300",
+      "note": "Espresso with whole milk, without sugar"
+    },
+    {
+      "id": "nina:milchkaffee", "en": "Café au lait", "de": "Milchkaffee",
+      "aliases": ["Kaffee mit Milch", "Großer Brauner", "Häferlkaffee", "Milchkaffee groß"],
+      "cat": "beverages", "unit": "ml", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14209", "ml": 150, "item": "brewed coffee"},
+        {"ndb": "01211", "ml": 150, "item": "whole milk"}
+      ]},
+      "portions": "mug (300 ml)/Häferl (300 ml)=300|cup (200 ml)/Tasse (200 ml)=200",
+      "note": "Half coffee, half whole milk, without sugar"
+    },
+    {
+      "id": "nina:eiskaffee", "en": "Iced coffee with ice cream", "de": "Eiskaffee",
+      "aliases": ["Wiener Eiskaffee", "Eiskaffee mit Schlag", "Eiskaffee mit Vanilleeis"],
+      "cat": "beverages", "unit": "g", "src": "recipe",
+      "recipe": {"ingredients": [
+        {"ndb": "14209", "g": 150, "item": "cold coffee"},
+        {"ndb": "19095", "g": 100, "item": "vanilla ice cream (2 scoops)"},
+        {"ndb": "01053", "g": 30, "item": "whipped cream"}
+      ]},
+      "portions": "glass/Glas=280",
+      "note": "Cold coffee, vanilla ice cream and whipped cream"
+    }
+  ]
+}

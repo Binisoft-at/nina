@@ -1,0 +1,1053 @@
+# Nina food catalog: curated selection of USDA SR28 foods.
+# One food per row, tab-separated. Lines starting with # are comments.
+# ndb: USDA NDB number (5 digits) -> id "usda:<ndb>" (stable forever, never reuse or renumber).
+# en / de: short natural names (<= 44 chars), main noun first, details after a comma.
+# aliases: |-separated extra search terms (other words, plurals, Austrian words), at most 6.
+# cat: fruit vegetables legumes grains bread cereals dairy cheese eggs meat poultry sausages fish
+#      plantProtein nuts fats sweets snacks beverages alcohol condiments spices dishes fastFood other
+# unit: g (default) or ml (drinks and pourable liquids; per-100 g values are converted with the density).
+# portions: empty = derived from USDA WEIGHT.txt; "-" = none; otherwise |-separated tokens:
+#      en/de=amount (in the food's unit), "auto" (the derived portions), "@profile" (a named set:
+#      @water @softdrink @juice @milk @plantdrink @coffee @espresso @tea @beer @wine @spirits
+#      @cocktail @energy @soup; defined in scripts/build_food_db.py).
+# notes: free text; "density=1.03" overrides the g/ml density; "atwater: reason" marks a reviewed
+#      Atwater-check deviation.
+ndb	en	de	aliases(|-separated)	cat	unit	portions(override, optional)	notes
+# ------------------------------------------------------------------ fruit: fruit (fresh, dried, canned)
+09003	Apple	Apfel	Äpfel|apples	fruit	g		
+09004	Apple, peeled	Apfel, geschält	geschälter Apfel	fruit	g		
+09011	Apple rings, dried	Apfelringe, getrocknet	Trockenäpfel|Apfelchips|dried apple	fruit	g	ring/Ring=6|handful/Handvoll=30	
+09019	Apple sauce, unsweetened	Apfelmus, ungesüßt	Apfelkompott|Apfelmark|applesauce	fruit	g	tbsp/EL=15|bowl (125 g)/Schälchen (125 g)=125	
+09020	Apple sauce, sweetened	Apfelmus, gesüßt	Apfelkompott gesüßt|applesauce sweetened	fruit	g	tbsp/EL=15|bowl (125 g)/Schälchen (125 g)=125	
+09021	Apricot	Aprikose	Marille|Marillen|Aprikosen|apricots	fruit	g	piece/Stück=35	
+09032	Apricots, dried	Aprikosen, getrocknet	Dörrmarillen|getrocknete Marillen|Trockenaprikosen	fruit	g	piece/Stück=8|handful/Handvoll=30	
+09037	Avocado	Avocado	Avocados	fruit	g	piece/Stück=150|half/halbe=75	edible part of a medium avocado
+09040	Banana	Banane	Bananen|bananas	fruit	g		
+09042	Blackberries	Brombeeren	Brombeere|blackberry	fruit	g	handful/Handvoll=50|punnet (125 g)/Schale (125 g)=125	
+09050	Blueberries	Heidelbeeren	Blaubeeren|Schwarzbeeren|Heidelbeere|blueberry	fruit	g	handful/Handvoll=50|punnet (125 g)/Schale (125 g)=125	
+09063	Sour cherries	Sauerkirschen	Weichseln|Weichsel|Schattenmorellen|tart cherries	fruit	g	handful/Handvoll=80	
+09070	Cherries	Kirschen	Süßkirschen|Kirsche|sweet cherries	fruit	g	piece/Stück=8|handful/Handvoll=80	
+09078	Cranberries	Cranberrys	Moosbeeren|Kranbeeren	fruit	g	handful/Handvoll=50	
+09079	Cranberries, dried	Cranberrys, getrocknet	getrocknete Cranberries|Trockenbeeren	fruit	g	tbsp/EL=10|handful/Handvoll=30	
+09083	Blackcurrants	Schwarze Johannisbeeren	schwarze Ribisel|Cassis|blackcurrant	fruit	g	handful/Handvoll=50	
+09084	Redcurrants	Rote Johannisbeeren	Ribisel|rote Ribisel|Johannisbeeren|redcurrant	fruit	g	handful/Handvoll=50	
+09085	Currants, dried	Korinthen	Zante currants|getrocknete Korinthen	fruit	g	tbsp/EL=10	
+09087	Dates, dried	Datteln, getrocknet	Dattel|Datteln|dates	fruit	g		
+09421	Medjool dates	Medjool-Datteln	Medjool|Medjooldatteln	fruit	g		
+09088	Elderberries	Holunderbeeren	Hollerbeeren|Holler|Holunder|elderberry	fruit	g	handful/Handvoll=50	
+09089	Fig	Feige	Feigen|figs	fruit	g		
+09094	Figs, dried	Feigen, getrocknet	Trockenfeigen|getrocknete Feige	fruit	g		
+09107	Gooseberries	Stachelbeeren	Agrasel|Stachelbeere|gooseberry	fruit	g	handful/Handvoll=50	
+09110	Goji berries, dried	Goji-Beeren, getrocknet	Gojibeeren|Wolfsbeeren|goji	fruit	g	tbsp/EL=10|handful/Handvoll=30	
+09111	Grapefruit	Grapefruit	Pampelmuse|Grapefruits	fruit	g	medium/mittelgroß=256|half/halbe=128	
+09132	Grapes	Weintrauben	Trauben|Weintraube|grape	fruit	g	grape/Beere=5|handful/Handvoll=80|bowl (150 g)/Schüssel (150 g)=150	
+09139	Guava	Guave	Guaven|guavas	fruit	g		
+09148	Kiwi	Kiwi	Kiwis|kiwifruit	fruit	g		
+09520	Gold kiwi	Gold-Kiwi	Kiwi gelb|Goldkiwi|SunGold	fruit	g		
+09150	Lemon	Zitrone	Zitronen|lemons	fruit	g		atwater: fibre and citric acid, USDA specific factors for citrus
+09159	Lime	Limette	Limetten|limes	fruit	g		atwater: fibre and citric acid, USDA specific factors for citrus
+09164	Lychee	Litschi	Litschis|Lychees|Litchi	fruit	g		
+09176	Mango	Mango	Mangos|mangoes	fruit	g		
+09178	Mango, dried	Mango, getrocknet	Trockenmango|getrocknete Mango|dried mango	fruit	g	handful/Handvoll=30	
+09181	Cantaloupe melon	Cantaloupe-Melone	Zuckermelone|Netzmelone|Melone|cantaloupe	fruit	g	wedge/Spalte=70|melon/ganze Melone=550	
+09184	Honeydew melon	Honigmelone	Melone|honeydew	fruit	g	wedge/Spalte=125|melon/ganze Melone=1000	
+09191	Nectarine	Nektarine	Nektarinen|nectarines	fruit	g		
+09200	Orange	Orange	Orangen|Apfelsine|oranges	fruit	g	medium/mittelgroß=131|small/klein=96|large/groß=184	
+09218	Mandarin	Mandarine	Mandarinen|tangerine|mandarins	fruit	g		
+09433	Clementine	Clementine	Klementine|Clementinen|clementines	fruit	g		
+09226	Papaya	Papaya	Papayas	fruit	g	piece/Stück=300|half/halbe=150	
+09231	Passion fruit	Passionsfrucht	Maracuja|Maracujas|passionfruit	fruit	g		
+09236	Peach	Pfirsich	Pfirsiche|peaches	fruit	g		
+09252	Pear	Birne	Birnen|pears	fruit	g		
+09259	Pears, dried	Birnen, getrocknet	Kletzen|Dörrbirnen|Trockenbirnen	fruit	g	piece/Stück=18	
+09263	Persimmon	Kaki	Kakifrucht|Sharonfrucht|Persimone|persimmons	fruit	g		
+09266	Pineapple	Ananas	Ananasse|pineapples	fruit	g	slice/Scheibe=85|whole/ganze Ananas=900	
+09279	Plum	Pflaume	Zwetschke|Zwetschge|Zwetschken|Pflaumen|plums	fruit	g		
+09286	Pomegranate	Granatapfel	Granatäpfel|Granatapfelkerne|pomegranates	fruit	g	piece/Stück=282	
+09291	Prunes	Dörrpflaumen	Trockenpflaumen|Dörrzwetschken|getrocknete Pflaumen|dried plums	fruit	g	piece/Stück=9.5|handful/Handvoll=40	
+09298	Raisins	Rosinen	Weinbeerl|Weinbeeren|Sultaninen|raisin	fruit	g	tbsp/EL=10|handful/Handvoll=30	
+09302	Raspberries	Himbeeren	Himbeere|raspberry	fruit	g	handful/Handvoll=50|punnet (125 g)/Schale (125 g)=125	
+09307	Rhubarb	Rhabarber	Rhabarberstangen|rhubarb stalks	fruit	g		
+09316	Strawberries	Erdbeeren	Erdbeere|strawberry	fruit	g	medium/mittelgroß=12|large/groß=18|bowl (150 g)/Schüssel (150 g)=150	
+09326	Watermelon	Wassermelone	Wassermelonen|Melone	fruit	g	wedge/Spalte=286	
+09426	Candied fruit	Kandierte Früchte	Zitronat|Orangeat|Belegfrüchte|candied peel	fruit	g	tbsp/EL=10	
+09240	Peaches, canned	Pfirsiche, aus der Dose	Dosenpfirsiche|Pfirsichkompott|Pfirsiche in Sirup	fruit	g	half/Hälfte=90	light syrup, solids and liquids
+09269	Pineapple, canned	Ananas, aus der Dose	Ananasscheiben|Dosenananas|Ananas in Sirup	fruit	g	slice/Scheibe=50	light syrup, solids and liquids
+09220	Mandarin oranges, canned	Mandarinen, aus der Dose	Dosenmandarinen|Mandarinorangen	fruit	g	can (175 g drained)/Dose (175 g)=175	light syrup
+09099	Fruit cocktail, canned	Fruchtcocktail, aus der Dose	Fruchtsalat aus der Dose|Obstcocktail	fruit	g	serving (125 g)/Portion (125 g)=125	light syrup, solids and liquids
+09065	Sour cherries, in syrup	Sauerkirschen, im Glas	Weichseln im Glas|Kirschkompott|Schattenmorellen im Glas	fruit	g	serving (125 g)/Portion (125 g)=125	light syrup, solids and liquids
+09256	Pears, canned	Birnen, aus der Dose	Birnenkompott|Dosenbirnen	fruit	g	half/Hälfte=75	light syrup
+09026	Apricots, canned	Aprikosen, aus der Dose	Marillenkompott|Dosenaprikosen|Marillen aus der Dose	fruit	g	half/Hälfte=30	light syrup
+09296	Quince	Quitte	Quitten|Quittenfrucht	fruit	g	piece/Stück=92	edible part of one fruit
+09060	Star fruit	Sternfrucht	Karambole|Karambola|carambola	fruit	g	medium/mittelgroß=91	
+09340	Nashi pear	Nashi-Birne	Nashi|Asienbirne|Asian pear	fruit	g	piece/Stück=275	
+# ------------------------------------------------------------------ vegetables: vegetables, potatoes, mushrooms
+11008	Artichoke, cooked	Artischocke, gekocht	Artischocken|artichokes	vegetables	g	medium/mittelgroß=120	
+11011	Asparagus, raw	Spargel, roh	grüner Spargel|weißer Spargel|Spargelstangen	vegetables	g	spear/Stange=16|serving (250 g)/Portion (250 g)=250	
+11012	Asparagus, cooked	Spargel, gekocht	grüner Spargel gekocht|weißer Spargel gekocht	vegetables	g	spear/Stange=15|serving (250 g)/Portion (250 g)=250	
+11015	Asparagus, jarred	Spargel, aus dem Glas	Spargel Glas|Dosenspargel|Stangenspargel	vegetables	g	spear/Stange=18	canned, drained
+11028	Bamboo shoots, canned	Bambussprossen, aus der Dose	Bambus|Bambussprossen	vegetables	g	serving (100 g)/Portion (100 g)=100	drained
+11043	Bean sprouts	Sojasprossen	Mungbohnensprossen|Mungosprossen|Keimlinge|mung bean sprouts	vegetables	g	handful/Handvoll=50	mung bean sprouts
+11052	Green beans, raw	Grüne Bohnen, roh	Fisolen|Brechbohnen|Prinzessbohnen|Bohnen grün	vegetables	g	handful/Handvoll=60	
+11053	Green beans, cooked	Grüne Bohnen, gekocht	Fisolen gekocht|Brechbohnen|Prinzessbohnen	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11056	Green beans, canned	Grüne Bohnen, aus der Dose	Fisolen aus der Dose|Bohnen Dose	vegetables	g	serving (150 g)/Portion (150 g)=150	drained
+11080	Beetroot, raw	Rote Bete, roh	Rote Rüben|Rote Rübe|Rahnen|beet	vegetables	g	piece/Stück=82	
+11081	Beetroot, cooked	Rote Bete, gekocht	Rote Rüben gekocht|Rote Rübe|beets	vegetables	g	piece/Stück=50|serving (150 g)/Portion (150 g)=150	
+11609	Beetroot, pickled	Rote Bete, eingelegt	Rote-Rüben-Salat|Rote Rüben sauer|pickled beets	vegetables	g	serving (100 g)/Portion (100 g)=100	canned, solids and liquids
+11089	Broad beans, cooked	Dicke Bohnen, gekocht	Saubohnen|Favabohnen|Puffbohnen|fava beans	vegetables	g	serving (150 g)/Portion (150 g)=150	immature seeds
+11090	Broccoli, raw	Brokkoli, roh	Broccoli|Brokkoliröschen	vegetables	g	floret/Röschen=11|head/Kopf=350	
+11091	Broccoli, cooked	Brokkoli, gekocht	Broccoli gekocht|Brokkoliröschen	vegetables	g	floret/Röschen=11|serving (150 g)/Portion (150 g)=150	
+11098	Brussels sprouts, raw	Rosenkohl, roh	Kohlsprossen|Röschenkohl|Sprossenkohl	vegetables	g		
+11099	Brussels sprouts, cooked	Rosenkohl, gekocht	Kohlsprossen gekocht|Röschenkohl	vegetables	g	sprout/Röschen=21|serving (150 g)/Portion (150 g)=150	
+11109	White cabbage, raw	Weißkohl, roh	Weißkraut|Kraut|Krautkopf|Kabis|cabbage	vegetables	g	leaf/Blatt=23|head/Kopf=900	
+11110	White cabbage, cooked	Weißkohl, gekocht	Weißkraut gekocht|Kraut gedünstet|cabbage cooked	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11112	Red cabbage, raw	Rotkohl, roh	Rotkraut|Blaukraut|red cabbage	vegetables	g	leaf/Blatt=23|head/Kopf=900	
+11113	Red cabbage, cooked	Rotkohl, gekocht	Rotkraut gekocht|Blaukraut gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	without fat or sugar
+11114	Savoy cabbage, raw	Wirsing, roh	Kohl|Wirsingkohl|Welschkraut	vegetables	g	leaf/Blatt=15|head/Kopf=700	
+11115	Savoy cabbage, cooked	Wirsing, gekocht	Kohl gekocht|Wirsingkohl gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11116	Pak choi	Pak Choi	Bok Choy|Pak-Choi|Senfkohl	vegetables	g	head/Kopf=250	
+11118	Kimchi	Kimchi	Kimchee	vegetables	g	serving (50 g)/Portion (50 g)=50	
+11119	Chinese cabbage	Chinakohl	Napa cabbage|Peking-Kohl	vegetables	g	leaf/Blatt=15|head/Kopf=900	
+11124	Carrot, raw	Karotte, roh	Möhre|Karotten|Möhren|Mohrrübe|Gelbe Rübe	vegetables	g		
+11125	Carrot, cooked	Karotte, gekocht	Möhren gekocht|Karotten gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11135	Cauliflower, raw	Blumenkohl, roh	Karfiol|Karfiolröschen	vegetables	g	floret/Röschen=13|head/Kopf=600	
+11136	Cauliflower, cooked	Blumenkohl, gekocht	Karfiol gekocht|Karfiolröschen	vegetables	g	floret/Röschen=13|serving (150 g)/Portion (150 g)=150	
+11141	Celeriac, raw	Knollensellerie, roh	Sellerie|Zeller|Sellerieknolle|celery root	vegetables	g	bulb/Knolle=500	
+11142	Celeriac, cooked	Knollensellerie, gekocht	Sellerie gekocht|Zeller gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11143	Celery	Staudensellerie	Stangensellerie|Bleichsellerie|Selleriestangen	vegetables	g	stalk/Stange=40|tbsp/EL=7.5	
+11147	Swiss chard	Mangold	Krautstiel|Schnittmangold|chard	vegetables	g	leaf/Blatt=48	
+11151	Belgian endive	Chicorée	Chicoree|Brüsseler Endivie|chicory	vegetables	g	head/Kopf=53	
+11168	Sweet corn, cooked	Mais, gekocht	Maiskolben|Kukuruz|Zuckermais|corn on the cob	vegetables	g		kernels; one ear = edible part
+11172	Sweet corn, canned	Mais, aus der Dose	Dosenmais|Kukuruz|Maiskörner	vegetables	g	tbsp/EL=15|can (140 g drained)/Dose (140 g)=140	drained
+11190	Lamb's lettuce	Feldsalat	Vogerlsalat|Rapunzel|Nüsslisalat|corn salad	vegetables	g	serving (50 g)/Portion (50 g)=50	
+11203	Cress	Kresse	Gartenkresse|garden cress	vegetables	g	tbsp/EL=3	
+11205	Cucumber	Gurke	Salatgurke|Gurken|Schlangengurke|cucumbers	vegetables	g	piece/Stück=300|slice/Scheibe=7	
+11207	Dandelion greens	Löwenzahn	Röhrlsalat|Löwenzahnsalat|Löwenzahnblätter	vegetables	g	serving (50 g)/Portion (50 g)=50	
+11209	Eggplant, raw	Aubergine, roh	Melanzani|Melanzane|Auberginen|aubergine	vegetables	g	piece/Stück=300	
+11210	Eggplant, cooked	Aubergine, gekocht	Melanzani gekocht|Melanzane|aubergine cooked	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11213	Endive	Endivie	Endiviensalat|Frisée|Friseesalat|Krause Endivie	vegetables	g	head/Kopf=500	
+11215	Garlic	Knoblauch	Knofel|Knoblauchzehe|Knofi	vegetables	g		
+11226	Jerusalem artichoke	Topinambur	Erdbirne|sunchoke	vegetables	g	piece/Stück=40|serving (150 g)/Portion (150 g)=150	
+11233	Kale, raw	Grünkohl, roh	Federkohl|Braunkohl|Kale	vegetables	g	handful/Handvoll=40	
+11234	Kale, cooked	Grünkohl, gekocht	Federkohl gekocht|Kale gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11238	Shiitake mushrooms	Shiitake-Pilze	Shiitake|Shiitakepilze	vegetables	g	piece/Stück=19	
+11239	Chanterelles	Pfifferlinge	Eierschwammerl|Eierschwammerln|Reherl|chanterelle	vegetables	g	handful/Handvoll=50	
+11241	Kohlrabi, raw	Kohlrabi, roh	Kohlrabis|Oberrübe	vegetables	g	piece/Stück=250	
+11242	Kohlrabi, cooked	Kohlrabi, gekocht	Kohlrabigemüse	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11246	Leek, raw	Lauch, roh	Porree|Porreestange|Lauchstange|leeks	vegetables	g	stalk/Stange=200	
+11247	Leek, cooked	Lauch, gekocht	Porree gekocht|Lauchgemüse	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11250	Butterhead lettuce	Kopfsalat	Häuptelsalat|Häuptlsalat|grüner Salat|Buttersalat	vegetables	g	head/Kopf=250|leaf/Blatt=8	
+11251	Romaine lettuce	Römersalat	Bindesalat|Romana|Romanasalat|cos lettuce	vegetables	g	leaf/Blatt=28|head/Kopf=500	
+11252	Iceberg lettuce	Eisbergsalat	Eissalat|Krachsalat|iceberg	vegetables	g	leaf/Blatt=8|head/Kopf=550	
+11257	Red leaf lettuce	Lollo Rosso	Eichblattsalat|Pflücksalat|red lettuce	vegetables	g	leaf/Blatt=8	
+11260	Mushrooms, raw	Champignons, roh	Pilze|Schwammerl|Champignon|button mushrooms	vegetables	g	piece/Stück=18|handful/Handvoll=60	
+11261	Mushrooms, cooked	Champignons, gekocht	Pilze gekocht|Schwammerl gedünstet	vegetables	g	serving (100 g)/Portion (100 g)=100	without fat
+11264	Mushrooms, canned	Champignons, aus der Dose	Dosenchampignons|Pilze Dose	vegetables	g	can (170 g drained)/Dose (170 g)=170	drained
+11266	Brown mushrooms	Braune Champignons	Egerlinge|Crimini|Steinchampignons|cremini	vegetables	g	piece/Stück=18	
+11987	Oyster mushrooms	Austernpilze	Austernseitlinge|Seitlinge|oyster mushroom	vegetables	g	handful/Handvoll=50	
+11282	Onion, raw	Zwiebel, roh	Zwiebeln|Zwiefel|rote Zwiebel|onions	vegetables	g		
+11283	Onion, cooked	Zwiebel, gekocht	Zwiebeln gedünstet|onions cooked	vegetables	g		boiled, without fat
+11286	Onions, sautéed	Zwiebeln, angebraten	Röstzwiebeln selbst gemacht|gebratene Zwiebeln|fried onions	vegetables	g	tbsp/EL=15	sautéed in fat
+11291	Spring onions	Frühlingszwiebeln	Jungzwiebeln|Lauchzwiebeln|scallions|Frühlingszwiebel	vegetables	g		
+11677	Shallots	Schalotten	Schalotte|shallot	vegetables	g	piece/Stück=25|tbsp/EL=10	
+11298	Parsnip, raw	Pastinake, roh	Pastinaken|parsnips	vegetables	g	piece/Stück=130	
+11299	Parsnip, cooked	Pastinake, gekocht	Pastinaken gekocht	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11300	Snow peas	Zuckerschoten	Kaiserschoten|Zuckererbsen|sugar snap peas|Zuckererbsenschoten	vegetables	g	pod/Schote=3.4|handful/Handvoll=50	
+11312	Green peas, frozen	Erbsen, tiefgekühlt	TK-Erbsen|Tiefkühlerbsen|grüne Erbsen	vegetables	g	tbsp/EL=15	unprepared
+11313	Green peas, cooked	Erbsen, gekocht	grüne Erbsen gekocht|Erbsen	vegetables	g	tbsp/EL=15|serving (100 g)/Portion (100 g)=100	frozen, boiled
+11308	Green peas, canned	Erbsen, aus der Dose	Dosenerbsen|Erbsen Dose	vegetables	g	tbsp/EL=15	drained
+11323	Peas and carrots, cooked	Erbsen und Karotten, gekocht	Erbsen-Karotten|Erbsen-Möhren|peas and carrots	vegetables	g	serving (150 g)/Portion (150 g)=150	frozen, boiled
+11333	Bell pepper, green	Paprika, grün	grüne Paprika|Paprikaschote grün|Pfefferoni grün mild	vegetables	g		
+11821	Bell pepper, red	Paprika, rot	rote Paprika|Paprikaschote rot|red pepper	vegetables	g		
+11951	Bell pepper, yellow	Paprika, gelb	gelbe Paprika|Paprikaschote gelb|yellow pepper	vegetables	g		
+11670	Chili pepper, green	Chilischote, grün	Pfefferoni|grüne Chili|Peperoni scharf|green chili	vegetables	g	piece/Stück=45	
+11819	Chili pepper, red	Chilischote, rot	Pfefferoni rot|rote Chili|Peperoni|red chili	vegetables	g	piece/Stück=45	
+11632	Jalapeños, pickled	Jalapeños, eingelegt	Jalapeño|Jalapenos	vegetables	g	tbsp/EL=10	canned, solids and liquids
+31034	Pickled hot peppers	Pfefferoni, eingelegt	Peperoni eingelegt|Pfefferoni sauer|Pfefferonen	vegetables	g	piece/Stück=15	
+11352	Potato, raw	Kartoffel, roh	Erdäpfel|Erdapfel|Kartoffeln|potatoes	vegetables	g	medium/mittelgroß=150|small/klein=80|large/groß=250	flesh and skin
+11365	Potato, boiled in skin	Kartoffel, in der Schale gekocht	Pellkartoffeln|Schalerdäpfel|Quellkartoffeln|Erdäpfel in der Schale	vegetables	g	medium/mittelgroß=150|small/klein=80|large/groß=250	flesh only
+11367	Potato, boiled	Kartoffel, gekocht	Salzkartoffeln|Salzerdäpfel|Erdäpfel gekocht|boiled potatoes	vegetables	g	medium/mittelgroß=135|small/klein=75|large/groß=220	peeled before boiling
+11674	Baked potato	Ofenkartoffel	Folienkartoffel|Ofenerdäpfel|Kartoffel gebacken|jacket potato	vegetables	g	medium/mittelgroß=173|large/groß=299	flesh and skin
+11378	Mashed potato flakes	Kartoffelpüree-Flocken	Püreeflocken|Püreepulver|Erdäpfelpüree Pulver	vegetables	g	serving (30 g)/Portion (30 g)=30	dry, without milk
+11422	Pumpkin, raw	Kürbis, roh	Kürbisse|Speisekürbis|pumpkins	vegetables	g	serving (200 g)/Portion (200 g)=200	
+11423	Pumpkin, cooked	Kürbis, gekocht	Kürbisgemüse|pumpkin cooked	vegetables	g	serving (200 g)/Portion (200 g)=200	
+11485	Butternut squash, raw	Butternusskürbis, roh	Butternut|Butternut-Kürbis	vegetables	g	serving (200 g)/Portion (200 g)=200	
+11486	Butternut squash, baked	Butternusskürbis, gebacken	Butternut gebacken|Ofenkürbis	vegetables	g	serving (200 g)/Portion (200 g)=200	
+11429	Radishes	Radieschen	Radieserl|Radieschen rot|radish	vegetables	g	piece/Stück=5|bunch/Bund=130	
+11430	White radish	Rettich	Radi|Daikon|weißer Rettich|daikon radish	vegetables	g	piece/Stück=340	
+11439	Sauerkraut	Sauerkraut	Sauerkohl|Kraut|Weinkraut	vegetables	g	serving (150 g)/Portion (150 g)=150	canned, solids and liquids
+11457	Spinach, raw	Spinat, roh	Babyspinat|Blattspinat|Spinatblätter	vegetables	g	handful/Handvoll=30	
+11458	Spinach, cooked	Spinat, gekocht	Blattspinat gekocht|Spinat gedünstet	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11477	Zucchini, raw	Zucchini, roh	Zucchino|Zucchetti|courgette|Zucchinis	vegetables	g		
+11478	Zucchini, cooked	Zucchini, gekocht	Zucchini gedünstet|courgette cooked	vegetables	g	serving (150 g)/Portion (150 g)=150	
+11507	Sweet potato, raw	Süßkartoffel, roh	Batate|Süßerdäpfel|Süßkartoffeln|yam	vegetables	g	medium/mittelgroß=250|small/klein=130	
+11508	Sweet potato, baked	Süßkartoffel, gebacken	Süßkartoffel aus dem Ofen|Ofensüßkartoffel	vegetables	g	serving (200 g)/Portion (200 g)=200	flesh only
+11529	Tomato	Tomate	Paradeiser|Tomaten|Cherrytomaten|Cocktailtomaten|Paradeis	vegetables	g		
+11531	Tomatoes, canned	Tomaten, aus der Dose	Dosentomaten|Pelati|geschälte Tomaten|Paradeiser aus der Dose	vegetables	g	can (400 g)/Dose (400 g)=400	in tomato juice
+11693	Crushed tomatoes	Gehackte Tomaten	stückige Tomaten|Tomatenstücke|Paradeiser gehackt	vegetables	g	can (400 g)/Dose (400 g)=400	canned
+11547	Tomato passata	Passierte Tomaten	Passata|Paradeispüree|Tomatenpüree	vegetables	g	tbsp/EL=15|serving (100 g)/Portion (100 g)=100	canned puree
+11546	Tomato paste	Tomatenmark	Paradeismark|Tomatenkonzentrat|Tomatenmark 2-fach	vegetables	g	tbsp/EL=16|tsp/TL=5	
+11955	Sun-dried tomatoes	Getrocknete Tomaten	sonnengetrocknete Tomaten|Paradeiser getrocknet	vegetables	g	piece/Stück=2	
+11956	Sun-dried tomatoes in oil	Getrocknete Tomaten in Öl	eingelegte getrocknete Tomaten|Tomaten in Öl	vegetables	g	piece/Stück=3	drained
+11957	Fennel	Fenchel	Fenchelknolle|Gemüsefenchel	vegetables	g	bulb/Knolle=234	
+11959	Arugula	Rucola	Rauke|rocket|Rukola	vegetables	g	handful/Handvoll=20	
+11952	Radicchio	Radicchio	Radicchio rosso|Zichoriensalat	vegetables	g	leaf/Blatt=8	
+11937	Pickled gherkins	Essiggurken	Gurkerl|Essiggurkerl|Cornichons|saure Gurken|Gewürzgurken	vegetables	g	piece/Stück=35|slice/Scheibe=7	dill pickles
+11584	Mixed vegetables, cooked	Mischgemüse, gekocht	Gemüsemischung|TK-Gemüse|Buttergemüse ohne Butter	vegetables	g	serving (150 g)/Portion (150 g)=150	frozen, boiled
+09193	Black olives	Schwarze Oliven	Oliven schwarz|Oliven|black olive	vegetables	g	piece/Stück=4|tbsp/EL=8.4	
+09195	Green olives	Grüne Oliven	Oliven grün|green olive	vegetables	g	piece/Stück=2.7|tbsp/EL=8.4	pickled
+11001	Alfalfa sprouts	Alfalfasprossen	Luzernesprossen|Sprossen	vegetables	g	handful/Handvoll=20	
+11463	Spinach, frozen	Spinat, tiefgekühlt	TK-Spinat|Blattspinat TK|Tiefkühlspinat	vegetables	g	serving (150 g)/Portion (150 g)=150	chopped or leaf, unprepared
+11564	Turnip	Weiße Rübe	Speiserübe|Mairübe|Stoppelrübe|Rübe	vegetables	g	medium/mittelgroß=122|small/klein=61|large/groß=183	
+11435	Rutabaga	Steckrübe	Kohlrübe|Wruke|Dotsch|swede	vegetables	g	serving (200 g)/Portion (200 g)=200	
+11591	Watercress	Brunnenkresse	Wasserkresse	vegetables	g	sprig/Zweig=2.5|handful/Handvoll=20	
+11253	Green leaf lettuce	Lollo Bianco	Blattsalat|Pflücksalat grün|grüner Blattsalat	vegetables	g	leaf/Blatt=10|head/Kopf=360	
+11240	Morels	Morcheln	Speisemorcheln|Morchel	vegetables	g	piece/Stück=13	raw
+11268	Shiitake, dried	Shiitake, getrocknet	getrocknete Shiitake|Tongu	vegetables	g	piece/Stück=3.6	
+11669	Wakame	Wakame	Wakame-Algen|Seetang|Algensalat	vegetables	g	tbsp/EL=5	raw
+# ------------------------------------------------------------------ legumes: legumes
+16014	Black beans, dry	Schwarze Bohnen, getrocknet	schwarze Bohnen roh|black turtle beans	legumes	g	serving (60 g)/Portion (60 g)=60	
+16015	Black beans, cooked	Schwarze Bohnen, gekocht	schwarze Bohnen	legumes	g	serving (150 g)/Portion (150 g)=150	
+16027	Kidney beans, dry	Kidneybohnen, getrocknet	rote Bohnen getrocknet|Kidneybohnen roh	legumes	g	serving (60 g)/Portion (60 g)=60	
+16028	Kidney beans, cooked	Kidneybohnen, gekocht	rote Bohnen gekocht|Kidneybohnen	legumes	g	serving (150 g)/Portion (150 g)=150	
+16145	Kidney beans, canned	Kidneybohnen, aus der Dose	rote Bohnen Dose|Kidneybohnen Dose	legumes	g	can (250 g drained)/Dose (250 g)=250	drained
+16049	White beans, dry	Weiße Bohnen, getrocknet	weiße Bohnen roh|Cannellini|navy beans	legumes	g	serving (60 g)/Portion (60 g)=60	
+16050	White beans, cooked	Weiße Bohnen, gekocht	weiße Bohnen|Cannellini gekocht	legumes	g	serving (150 g)/Portion (150 g)=150	
+16051	White beans, canned	Weiße Bohnen, aus der Dose	weiße Bohnen Dose|Cannellini Dose	legumes	g	can (250 g)/Dose (250 g)=250	
+16056	Chickpeas, dry	Kichererbsen, getrocknet	Kichererbsen roh|garbanzo beans	legumes	g	serving (60 g)/Portion (60 g)=60	
+16057	Chickpeas, cooked	Kichererbsen, gekocht	Kichererbsen|garbanzos	legumes	g	serving (150 g)/Portion (150 g)=150	
+16358	Chickpeas, canned	Kichererbsen, aus der Dose	Kichererbsen Dose	legumes	g	can (240 g drained)/Dose (240 g)=240	drained
+16069	Lentils, dry	Linsen, getrocknet	Berglinsen|braune Linsen|Tellerlinsen|Linsen roh	legumes	g	serving (60 g)/Portion (60 g)=60	
+16070	Lentils, cooked	Linsen, gekocht	braune Linsen gekocht|Berglinsen gekocht	legumes	g	serving (150 g)/Portion (150 g)=150	
+16144	Red lentils, dry	Rote Linsen, getrocknet	rote Linsen|red lentils	legumes	g	serving (60 g)/Portion (60 g)=60	
+16085	Split peas, dry	Schälerbsen, getrocknet	gelbe Erbsen|Spalterbsen|getrocknete Erbsen	legumes	g	serving (60 g)/Portion (60 g)=60	
+16086	Split peas, cooked	Schälerbsen, gekocht	gelbe Erbsen gekocht|Erbsenpüree	legumes	g	serving (150 g)/Portion (150 g)=150	
+16108	Soybeans, dry	Sojabohnen, getrocknet	Sojabohnen roh|soya beans	legumes	g	serving (60 g)/Portion (60 g)=60	
+16109	Soybeans, cooked	Sojabohnen, gekocht	Sojabohnen|soya beans cooked	legumes	g	serving (150 g)/Portion (150 g)=150	
+11212	Edamame	Edamame	grüne Sojabohnen|Edamame-Bohnen	legumes	g	serving (100 g)/Portion (100 g)=100	frozen, prepared
+16006	Baked beans	Baked Beans	weiße Bohnen in Tomatensauce|Bohnen in Tomatensauce	legumes	g	can (415 g)/Dose (415 g)=415	canned, vegetarian
+16158	Hummus	Hummus	Humus|Hommus|Kichererbsenpüree	legumes	g	tbsp/EL=15	commercial
+16080	Mung beans, dry	Mungbohnen, getrocknet	Mungobohnen|Mungbohnen	legumes	g	serving (60 g)/Portion (60 g)=60	
+16018	Black beans, canned	Schwarze Bohnen, aus der Dose	schwarze Bohnen Dose	legumes	g	can (240 g)/Dose (240 g)=240	solids and liquids
+16103	Refried beans	Refried Beans	Bohnenmus|Bohnenpüree mexikanisch	legumes	g	tbsp/EL=15|serving (125 g)/Portion (125 g)=125	canned
+# ------------------------------------------------------------------ grains: grains, rice, pasta, flour
+20001	Amaranth, uncooked	Amaranth, ungekocht	Amaranth|Fuchsschwanz	grains	g	serving (60 g)/Portion (60 g)=60	
+20005	Pearl barley, uncooked	Rollgerste, ungekocht	Graupen|Gerstl|Rollgerstl|Perlgraupen	grains	g	serving (60 g)/Portion (60 g)=60	
+20006	Pearl barley, cooked	Rollgerste, gekocht	Graupen gekocht|Gerstl gekocht|Rollgerstl	grains	g	serving (150 g)/Portion (150 g)=150	
+20008	Buckwheat, uncooked	Buchweizen, ungekocht	Heiden|Buchweizenkörner|Hadn	grains	g	serving (60 g)/Portion (60 g)=60	
+20010	Buckwheat, cooked	Buchweizen, gekocht	Kasha|Buchweizengrütze	grains	g	serving (150 g)/Portion (150 g)=150	roasted groats
+20011	Buckwheat flour	Buchweizenmehl	Heidenmehl|Heidensterz-Mehl	grains	g	tbsp/EL=8	
+20012	Bulgur, uncooked	Bulgur, ungekocht	Bulgur|Weizengrütze	grains	g	serving (60 g)/Portion (60 g)=60	
+20013	Bulgur, cooked	Bulgur, gekocht	Bulgur Pilaw	grains	g	serving (150 g)/Portion (150 g)=150	
+20027	Cornstarch	Maisstärke	Speisestärke|Maizena|Stärkemehl|corn starch	grains	g	tbsp/EL=8|tsp/TL=2.7	
+20028	Couscous, uncooked	Couscous, ungekocht	Kuskus|Couscous trocken	grains	g	serving (60 g)/Portion (60 g)=60	
+20029	Couscous, cooked	Couscous, gekocht	Kuskus gekocht	grains	g	serving (150 g)/Portion (150 g)=150	
+20031	Millet, uncooked	Hirse, ungekocht	Hirse|Goldhirse	grains	g	serving (60 g)/Portion (60 g)=60	
+20032	Millet, cooked	Hirse, gekocht	Hirsebrei ohne Milch	grains	g	serving (150 g)/Portion (150 g)=150	
+20035	Quinoa, uncooked	Quinoa, ungekocht	Quinoa trocken|Inkareis	grains	g	serving (60 g)/Portion (60 g)=60	
+20137	Quinoa, cooked	Quinoa, gekocht	Quinoa	grains	g	serving (150 g)/Portion (150 g)=150	
+20036	Brown rice, uncooked	Naturreis, ungekocht	Vollkornreis|brauner Reis|Naturreis trocken	grains	g	serving (70 g)/Portion (70 g)=70	long-grain
+20037	Brown rice, cooked	Naturreis, gekocht	Vollkornreis gekocht|brauner Reis gekocht	grains	g	serving (180 g)/Portion (180 g)=180	long-grain
+20444	White rice, uncooked	Weißer Reis, ungekocht	Reis|Langkornreis|Basmati|Jasminreis	grains	g	serving (70 g)/Portion (70 g)=70	long-grain, unenriched
+20445	White rice, cooked	Weißer Reis, gekocht	Reis gekocht|Langkornreis gekocht|Basmati gekocht|Jasminreis gekocht	grains	g	serving (180 g)/Portion (180 g)=180	long-grain, unenriched
+20446	Parboiled rice, uncooked	Parboiled Reis, ungekocht	Spitzenreis|Kochbeutelreis|Uncle Ben's	grains	g	serving (70 g)/Portion (70 g)=70	unenriched
+20447	Parboiled rice, cooked	Parboiled Reis, gekocht	Kochbeutelreis gekocht|Spitzenreis gekocht	grains	g	serving (180 g)/Portion (180 g)=180	unenriched
+20452	Short-grain rice, uncooked	Rundkornreis, ungekocht	Milchreis roh|Risottoreis|Sushireis|Arborio	grains	g	serving (70 g)/Portion (70 g)=70	unenriched
+20453	Short-grain rice, cooked	Rundkornreis, gekocht	Sushireis gekocht|Risottoreis gekocht	grains	g	serving (180 g)/Portion (180 g)=180	unenriched
+20061	Rice flour	Reismehl	Reismehl weiß	grains	g	tbsp/EL=10	
+20064	Rye flour	Roggenmehl	Roggenmehl Type 960|Roggenmehl Type 1150	grains	g	tbsp/EL=8	medium
+08172	Wheat semolina	Weizengrieß	Grieß|Weichweizengrieß|farina	grains	g	tbsp/EL=12	farina, unenriched
+20466	Durum wheat semolina	Hartweizengrieß	Semola|Hartweizen|semolina	grains	g	tbsp/EL=12	unenriched
+20481	Wheat flour	Weizenmehl	Mehl|glattes Mehl|griffiges Mehl|Type 480|Type 405|Universalmehl	grains	g	tbsp/EL=8|cup (125 g)/Tasse (125 g)=125	all-purpose, unenriched
+20080	Whole wheat flour	Weizenvollkornmehl	Vollkornmehl|Weizenmehl Vollkorn	grains	g	tbsp/EL=8	
+20140	Spelt, whole grain	Dinkel, Vollkorn	Dinkelvollkornmehl|Dinkelkörner|Dinkelmehl Vollkorn|spelt flour	grains	g	tbsp/EL=8	uncooked grain; whole-grain flour has the same composition
+20141	Spelt, cooked	Dinkel, gekocht	Dinkelreis|Dinkelkörner gekocht	grains	g	serving (150 g)/Portion (150 g)=150	
+20422	Polenta, uncooked	Polenta, ungekocht	Maisgrieß|Polentagrieß|Sterz|cornmeal	grains	g	serving (60 g)/Portion (60 g)=60	degermed cornmeal, unenriched
+20420	Pasta, uncooked	Nudeln, ungekocht	Spaghetti|Penne|Makkaroni|Fusilli|Teigwaren|Pasta	grains	g	serving (100 g)/Portion (100 g)=100	durum pasta without egg, unenriched
+20421	Pasta, cooked	Nudeln, gekocht	Spaghetti gekocht|Penne gekocht|Makkaroni gekocht|Fusilli gekocht|Teigwaren gekocht|Pasta gekocht	grains	g	serving (220 g)/Portion (220 g)=220	unenriched, without salt
+20124	Whole wheat pasta, uncooked	Vollkornnudeln, ungekocht	Vollkornspaghetti|Vollkornpasta|Vollkornteigwaren	grains	g	serving (100 g)/Portion (100 g)=100	
+20125	Whole wheat pasta, cooked	Vollkornnudeln, gekocht	Vollkornspaghetti gekocht|Vollkornpasta gekocht	grains	g	serving (220 g)/Portion (220 g)=220	
+20409	Egg noodles, uncooked	Eiernudeln, ungekocht	Bandnudeln|Eierteigwaren|Fleckerl|Tagliatelle|Suppennudeln	grains	g	serving (100 g)/Portion (100 g)=100	unenriched
+20410	Egg noodles, cooked	Eiernudeln, gekocht	Bandnudeln gekocht|Fleckerl gekocht|Tagliatelle gekocht|Suppennudeln gekocht	grains	g	serving (220 g)/Portion (220 g)=220	unenriched, without salt
+20093	Fresh pasta, uncooked	Frische Nudeln, ungekocht	Frischnudeln|frische Pasta|Frischeipasta	grains	g	serving (125 g)/Portion (125 g)=125	refrigerated, as purchased
+20097	Spätzle, cooked	Spätzle, gekocht	Nockerl|Knöpfle|Spatzen|homemade egg pasta	grains	g	serving (200 g)/Portion (200 g)=200	homemade pasta with egg, cooked
+22901	Tortellini, cheese, uncooked	Tortellini mit Käsefüllung	Tortellini|Käsetortellini|Ravioli frisch	grains	g	serving (125 g)/Portion (125 g)=125	fresh-refrigerated, as purchased
+20133	Rice noodles, uncooked	Reisnudeln, ungekocht	Reisnudeln trocken|Glasnudeln aus Reis|rice vermicelli	grains	g	serving (75 g)/Portion (75 g)=75	
+20134	Rice noodles, cooked	Reisnudeln, gekocht	Reisnudeln|Pad-Thai-Nudeln	grains	g	serving (175 g)/Portion (175 g)=175	
+16082	Glass noodles, uncooked	Glasnudeln, ungekocht	Glasnudeln|Mungbohnennudeln|cellophane noodles	grains	g	serving (50 g)/Portion (50 g)=50	dehydrated
+06583	Instant noodles, dry	Instantnudeln, trocken	Ramen|Yum Yum|Instant-Nudelsuppe|Mi Goreng|Fertignudeln	grains	g	pack (70 g)/Packung (70 g)=70	ramen noodle soup, any flavor, dry
+16157	Chickpea flour	Kichererbsenmehl	Besan|Gram flour|Kichererbsen-Mehl	grains	g	tbsp/EL=8	
+20088	Wild rice, uncooked	Wildreis, ungekocht	Wildreis|Indianerreis	grains	g	serving (60 g)/Portion (60 g)=60	
+20089	Wild rice, cooked	Wildreis, gekocht	Indianerreis gekocht	grains	g	serving (150 g)/Portion (150 g)=150	
+20132	Oat flour	Hafermehl	Hafermehl fein	grains	g	tbsp/EL=7	partially debranned
+20068	Tapioca pearls	Tapiokaperlen	Tapioka|Sago|Bubble-Tea-Perlen	grains	g	tbsp/EL=10	dry
+20115	Soba noodles, cooked	Soba-Nudeln, gekocht	Soba|Buchweizennudeln	grains	g	serving (200 g)/Portion (200 g)=200	
+20094	Fresh pasta, cooked	Frische Nudeln, gekocht	Frischnudeln gekocht|frische Pasta gekocht	grains	g	serving (200 g)/Portion (200 g)=200	refrigerated, plain
+# ------------------------------------------------------------------ bread: bread, rolls, dough
+18069	White toast bread	Toastbrot	Weißbrot|Toast|Sandwichbrot|Kastenweißbrot|Toastbrot weiß	bread	g	slice/Scheibe=25	
+18029	Baguette	Baguette	Weißbrot|Pariser|Stangenbrot|französisches Brot|French bread	bread	g	slice/Scheibe=25|baguette/ganzes Baguette=250	
+18033	Ciabatta	Ciabatta	italienisches Weißbrot|Italian bread	bread	g	slice/Scheibe=30|piece/Stück=80	USDA: Italian bread
+18075	Whole wheat bread	Weizenvollkornbrot	Vollkorntoast|Vollkornbrot Weizen|whole-wheat bread	bread	g	slice/Scheibe=30	
+18060	Rye bread	Roggenmischbrot	Mischbrot|Hausbrot|Bauernbrot|Graubrot|Brot	bread	g	slice/Scheibe=45	US rye bread (rye and wheat flour)
+28397	Multigrain bread	Mehrkornbrot	Körnerbrot|Vollkornbrot mit Körnern|Mehrkorn	bread	g	slice/Scheibe=40	
+18413	Pita bread	Pitabrot	Pita|Fladenbrot|Pide	bread	g		white, unenriched
+18353	Kaiser roll	Kaisersemmel	Semmel|Brötchen|Weckerl|Schrippe|Rundstück	bread	g	piece/Stück=57	hard roll
+18348	Whole wheat roll	Vollkornbrötchen	Vollkornweckerl|Vollkornsemmel|Vollkornbrötchen Weizen	bread	g	piece/Stück=55	
+18346	Rye roll	Roggenbrötchen	Roggenweckerl|Roggensemmel	bread	g	piece/Stück=55	
+18350	Burger bun	Burgerbrötchen	Hamburgerbrötchen|Hot-Dog-Brötchen|Burger-Bun|Hotdogbrötchen	bread	g	piece/Stück=50	
+18239	Croissant	Croissant	Kipferl|Butterkipferl|Buttercroissant|Hörnchen	bread	g	medium/mittelgroß=57|small/klein=42|large/groß=67|mini/Mini=28	butter croissant
+18001	Bagel	Bagel	Bagels	bread	g	piece/Stück=100	plain
+28307	Naan bread	Naan-Brot	Naan|Naanbrot	bread	g	piece/Stück=90	
+18973	Focaccia	Focaccia	Fladenbrot italienisch	bread	g	piece/Stück=60	plain
+18963	Garlic bread	Knoblauchbrot	Knoblauchbaguette|Kräuterbaguette	bread	g	slice/Scheibe=30	frozen
+18047	Raisin bread	Rosinenbrot	Rosinenstuten|Rosinenweckerl|Rosinenzopf	bread	g	slice/Scheibe=30	
+18970	Wheat tortilla	Weizentortilla	Wrap|Tortilla-Wrap|Tortillafladen|flour tortilla	bread	g	piece/Stück=60	shelf stable
+18363	Corn tortilla	Maistortilla	Tortilla aus Mais|corn tortillas	bread	g	piece/Stück=26	
+18360	Taco shell	Taco-Schale	Tacos|Taco Shells	bread	g	piece/Stück=13	baked
+18216	Crispbread	Knäckebrot	Knäcke|Roggenknäcke|Roggenknäckebrot	bread	g	slice/Scheibe=10	rye
+18224	Rusk	Zwieback	Zwiebäcke|rusk toast	bread	g	piece/Stück=10	
+18080	Breadsticks	Grissini	Brotstangen|Knabberstangen	bread	g	piece/Stück=5	
+18079	Breadcrumbs	Semmelbrösel	Paniermehl|Brösel|Semmelbrösel natur	bread	g	tbsp/EL=7	plain
+18242	Croutons	Croûtons	Brotwürfel|Suppenwürfel geröstet	bread	g	tbsp/EL=4	plain
+18337	Puff pastry	Blätterteig	Blätterteig roh	bread	g	sheet (275 g)/Rolle (275 g)=275	frozen, ready-to-bake
+18338	Filo pastry	Strudelteig	Filoteig|Yufka|Phyllo|Strudelblätter	bread	g	sheet/Blatt=19	
+18342	Soft dinner roll	Milchbrötchen	Milchweckerl|Soft-Brötchen|Dinner Roll	bread	g	piece/Stück=40	plain, commercially prepared
+18349	French roll	Baguettebrötchen	Baguette-Weckerl|Stangerl|Bürli	bread	g	piece/Stück=40	
+18258	English muffin	Toastbrötchen	Muffin zum Toasten|Toasties	bread	g	piece/Stück=57	plain
+18042	Whole wheat pita	Vollkorn-Pita	Vollkornpita|Vollkorn-Fladenbrot	bread	g	large/groß=64|small/klein=28	
+28306	Chapati	Chapati	Roti|indisches Fladenbrot	bread	g	piece/Stück=68	commercially prepared
+18070	White toast, toasted	Toastbrot, getoastet	Toast getoastet|getoastetes Toastbrot	bread	g	slice/Scheibe=22	
+18217	Matzo	Matze	Mazze|Matzen|Matzah	bread	g	piece/Stück=28	plain
+18334	Shortcrust pastry	Mürbteig	Mürbeteig|Tarteteig|Kuchenteig	bread	g	sheet (230 g)/Rolle (230 g)=230	pie crust, frozen, ready-to-bake
+18368	Wonton wrappers	Wan-Tan-Blätter	Frühlingsrollenteig|Wantan-Teigblätter|Teigblätter	bread	g	wrapper/Blatt=8|egg roll wrapper/Frühlingsrollenblatt=32	
+# ------------------------------------------------------------------ cereals: breakfast cereals, oats, bran
+20038	Rolled oats	Haferflocken	Hafer|Haferflocken zart|Haferflocken kernig|oatmeal	cereals	g	tbsp/EL=10|serving (50 g)/Portion (50 g)=50	
+08121	Porridge, made with water	Haferbrei, mit Wasser	Porridge|Haferschleim|Oatmeal|Haferbrei	cereals	g	bowl (250 g)/Schüssel (250 g)=250	oats cooked with water, without salt
+20033	Oat bran	Haferkleie	Haferkleie Flocken|oat bran flakes	cereals	g	tbsp/EL=6	raw; atwater: high fibre, USDA energy uses specific Atwater factors
+20077	Wheat bran	Weizenkleie	Kleie|Weizenkleie grob	cereals	g	tbsp/EL=4	crude; atwater: high fibre, USDA energy uses specific Atwater factors
+20078	Wheat germ	Weizenkeime	Weizenkeimflocken	cereals	g	tbsp/EL=7	crude
+43218	Muesli	Müsli	Früchtemüsli|Bircher Müsli trocken|Schweizer Müsli|Alpen Müsli	cereals	g	serving (50 g)/Portion (50 g)=50	USDA: Alpen muesli
+08054	Granola	Knuspermüsli	Crunchy Müsli|Knuspermüsli Honig	cereals	g	serving (50 g)/Portion (50 g)=50	USDA: natural granola, oats, wheat and honey
+08020	Cornflakes	Cornflakes	Corn Flakes|Maisflocken	cereals	g	serving (30 g)/Portion (30 g)=30	
+08069	Frosted flakes	Gezuckerte Cornflakes	Frosties|Zuckerflakes|frosted cornflakes	cereals	g	serving (30 g)/Portion (30 g)=30	
+08067	Wheat and rice flakes	Weizen-Reis-Flakes	Special K|Fitness-Flakes|Vollkornflakes	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: Special K
+08156	Puffed rice	Puffreis	Reispops|Reis gepufft|Rice Krispies	cereals	g	serving (30 g)/Portion (30 g)=30	fortified
+08204	Chocolate corn puffs	Schoko-Pops	Choco Pops|Schokopops|Chocapic|Kakao-Cerealien	cereals	g	serving (30 g)/Portion (30 g)=30	frosted puffed corn, chocolate-flavored
+08071	Honey wheat puffs	Honig-Weizenpops	Smacks|Honigpops|Honig-Pops	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: Honey Smacks
+08272	Cinnamon cereal squares	Zimt-Cerealien	Cini Minis|Zimtcerealien|cinnamon toast crunch	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: Cinnamon Toast Crunch
+08013	Oat rings	Haferringe	Cheerios|Hafer-Kringel|oat rings cereal	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: Cheerios
+08122	Instant oats	Instant-Haferflocken	Schmelzflocken|Instant-Porridge|Haferflocken instant	cereals	g	packet (28 g)/Päckchen (28 g)=28|tbsp/EL=8	fortified, plain, dry
+08001	Bran cereal	Kleie-Cerealien	All-Bran|Kleieflocken	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: All-Bran Original; atwater: high fibre, USDA energy uses specific Atwater factors
+42237	Wheat biscuits	Weizen-Biscuits	Weetabix|Weizenkissen	cereals	g	biscuit/Stück=17.5	USDA: Weetabix
+08030	Fruit rings cereal	Frucht-Ringe	Froot Loops|bunte Ringe|Fruchtringe	cereals	g	serving (30 g)/Portion (30 g)=30	USDA: Froot Loops
+08037	Granola, homemade	Granola, selbst gemacht	Knuspermüsli selbst gemacht|Granola hausgemacht	cereals	g	serving (50 g)/Portion (50 g)=50	
+43483	Puffed millet	Hirse, gepufft	Hirsepops|gepuffte Hirse	cereals	g	serving (30 g)/Portion (30 g)=30	
+# ------------------------------------------------------------------ dairy: milk, cream, yogurt
+01211	Whole milk 3.5%	Vollmilch 3,5 %	Milch|Vollmilch|Frischmilch|Heumilch|whole milk	dairy	ml	@milk	USDA whole milk 3.25% fat, without added vitamins A and D
+01151	Skim milk	Magermilch	entrahmte Milch|Milch 0,1 %|Milch mager|skimmed milk	dairy	ml	@milk	without added vitamins A and D
+01088	Buttermilk	Buttermilch	Buttermilch natur	dairy	ml	glass (250 ml)/Glas (250 ml)=250|cup (500 ml)/Becher (500 ml)=500	cultured, low-fat
+01106	Goat milk	Ziegenmilch	Geißmilch	dairy	ml	@milk	
+01289	Kefir	Kefir	Kefir natur|Milchkefir	dairy	ml	glass (250 ml)/Glas (250 ml)=250|cup (500 ml)/Becher (500 ml)=500	density=1.03; low-fat, plain
+01095	Sweetened condensed milk	Gezuckerte Kondensmilch	Milchmädchen|Kondensmilch gezuckert	dairy	g	tbsp/EL=20	
+01214	Evaporated milk	Kondensmilch	Kaffeemilch|Dosenmilch|Kondensmilch 7,5 %	dairy	ml	tbsp/EL=15|dash (10 ml)/Schuss (10 ml)=10	unsweetened, about 7.5% fat
+01091	Skim milk powder	Magermilchpulver	Milchpulver|Trockenmilch	dairy	g	tbsp/EL=7	
+01049	Coffee cream 10%	Kaffeesahne 10 %	Kaffeeobers|Kaffeerahm|half and half	dairy	ml	portion cup (10 ml)/Portionsbecher (10 ml)=10|tbsp/EL=15|dash (20 ml)/Schuss (20 ml)=20	USDA half and half (10.4% fat)
+01052	Whipping cream 30%	Schlagsahne 30 %	Sahne|Schlagobers|Obers|Schlagrahm	dairy	ml	tbsp/EL=15|carton (200 ml)/Becher (200 ml)=200	light whipping cream (30.9% fat)
+01053	Heavy cream 36%	Schlagobers 36 %	Schlagsahne 36 %|Obers|Sahne|heavy whipping cream	dairy	ml	tbsp/EL=15|carton (250 ml)/Becher (250 ml)=250	heavy whipping cream (36% fat)
+01054	Whipped cream, canned	Sprühsahne	Sprühobers|Schlagobers aus der Dose|Schlagsahne Spray	dairy	g	dollop/Tupfer=10	pressurized
+01056	Sour cream, full-fat	Schmand	saure Sahne 20 %|Sauerrahm vollfett|sour cream	dairy	g	tbsp/EL=15	cultured, about 19% fat
+01055	Sour cream, light	Saure Sahne	Sauerrahm leicht|saurer Rahm|Sauerrahm 10 %	dairy	g	tbsp/EL=15	cultured, reduced fat (12%)
+01116	Natural yogurt	Naturjoghurt	Joghurt natur|Jogurt|Naturjogurt|Joghurt 3,5 %|yoghurt	dairy	g	cup (180 g)/Becher (180 g)=180|tbsp/EL=15	plain, whole milk
+01117	Natural yogurt, low-fat	Naturjoghurt, fettarm	Joghurt 1,5 %|Jogurt leicht|fettarmer Joghurt	dairy	g	cup (180 g)/Becher (180 g)=180|tbsp/EL=15	plain, low fat
+01118	Natural yogurt, fat-free	Naturjoghurt, Magerstufe	Magerjoghurt|Joghurt 0,1 %|Jogurt mager	dairy	g	cup (180 g)/Becher (180 g)=180|tbsp/EL=15	plain, skim milk
+01293	Greek yogurt 5%	Griechischer Joghurt 5 %	griechisches Joghurt|Joghurt griechische Art|Greek yoghurt	dairy	g	cup (170 g)/Becher (170 g)=170|tbsp/EL=15	plain, whole milk
+01287	Greek yogurt, low-fat	Griechischer Joghurt, fettarm	griechisches Joghurt 2 %|Greek yogurt 2%	dairy	g	cup (170 g)/Becher (170 g)=170|tbsp/EL=15	plain
+01120	Fruit yogurt, low-fat	Fruchtjoghurt, fettarm	Fruchtjoghurt|Erdbeerjoghurt|Jogurt mit Früchten|Fruchtjogurt	dairy	g	cup (150 g)/Becher (150 g)=150|cup (250 g)/Becher (250 g)=250	
+01119	Vanilla yogurt, low-fat	Vanillejoghurt, fettarm	Vanillejoghurt|Vanillejogurt	dairy	g	cup (150 g)/Becher (150 g)=150	
+43261	Fruit yogurt, fat-free	Fruchtjoghurt, Magerstufe	Fruchtjoghurt 0,1 %|Magerfruchtjoghurt	dairy	g	cup (150 g)/Becher (150 g)=150|cup (250 g)/Becher (250 g)=250	
+01294	Greek yogurt with fruit	Griechischer Joghurt mit Früchten	Griechisches Fruchtjoghurt|Greek yogurt fruit	dairy	g	cup (150 g)/Becher (150 g)=150	whole milk
+# ------------------------------------------------------------------ cheese: cheese
+01017	Cream cheese	Frischkäse	Doppelrahmfrischkäse|Philadelphia|Rahmfrischkäse|Frischkäse natur	cheese	g	tbsp/EL=15	
+43274	Cream cheese, light	Frischkäse, light	Frischkäse leicht|Frischkäse halbfett|Frischkäse fettarm	cheese	g	tbsp/EL=15	
+01012	Cottage cheese	Hüttenkäse	körniger Frischkäse|Hüttenkäse natur	cheese	g	tbsp/EL=20|cup (200 g)/Becher (200 g)=200	creamed
+01016	Cottage cheese, low-fat	Hüttenkäse, mager	körniger Frischkäse mager|Hüttenkäse light	cheese	g	tbsp/EL=20|cup (200 g)/Becher (200 g)=200	1% milkfat
+01036	Ricotta	Ricotta	Ricotta-Käse|Molkenkäse	cheese	g	tbsp/EL=20	whole milk
+01004	Blue cheese	Blauschimmelkäse	Gorgonzola|Edelpilzkäse|Roquefort|Bergader	cheese	g	serving (30 g)/Portion (30 g)=30	
+01006	Brie	Brie	Briekäse	cheese	g	serving (30 g)/Portion (30 g)=30	
+01007	Camembert	Camembert	Camembertkäse	cheese	g	serving (30 g)/Portion (30 g)=30|whole (125 g)/ganzer Laib (125 g)=125	
+01009	Cheddar	Cheddar	Cheddarkäse|Chester	cheese	g	slice/Scheibe=20	
+01018	Edam	Edamer	Edamer Käse|Edam cheese	cheese	g	slice/Scheibe=20	
+01019	Feta	Feta	Schafskäse|Hirtenkäse|Fetakäse	cheese	g	serving (50 g)/Portion (50 g)=50	
+01022	Gouda	Gouda	Goudakäse|Gouda jung|Gouda mittelalt	cheese	g	slice/Scheibe=20	
+01023	Gruyère	Bergkäse	Greyerzer|Alpkäse|Comté|Gruyere	cheese	g	slice/Scheibe=20	
+01040	Emmental	Emmentaler	Schweizer Käse|Emmentaler Käse|Swiss cheese	cheese	g	slice/Scheibe=20	
+01041	Tilsit	Tilsiter	Tilsiter Käse	cheese	g	slice/Scheibe=20	
+01026	Mozzarella	Mozzarella	Mozzarellakugel|Mozarella	cheese	g	ball (125 g)/Kugel (125 g)=125	whole milk
+01271	Mozzarella, grated	Mozzarella, gerieben	Pizzakäse|geriebener Mozzarella|Pizzamozzarella	cheese	g	handful/Handvoll=30	low moisture, part-skim
+01032	Parmesan, grated	Parmesan, gerieben	Reibkäse|geriebener Parmesan|Grana Padano gerieben	cheese	g	tbsp/EL=5	
+01033	Parmesan	Parmesan	Parmigiano Reggiano|Grana Padano|Hartkäse	cheese	g	serving (30 g)/Portion (30 g)=30	hard
+01038	Pecorino	Pecorino	Pecorino Romano|Schafskäse hart	cheese	g	tbsp grated/EL gerieben=5	
+01044	Processed cheese slices	Schmelzkäsescheiben	Toastkäse|Scheiblettenkäse|Schmelzkäse|Burgerkäse	cheese	g	slice/Scheibe=20	pasteurized process Swiss
+01048	Cheese spread	Streichkäse	Schmelzkäse zum Streichen|Dreieckskäse|Käseecken|Streichschmelzkäse	cheese	g	wedge/Ecke=17|tbsp/EL=15	pasteurized process, American
+01157	Goat cheese, semi-soft	Ziegenkäse, schnittfest	Ziegenkäse|Ziegenschnittkäse	cheese	g	slice/Scheibe=20	
+01159	Goat cheese, soft	Ziegenkäse, weich	Ziegenfrischkäse|Chèvre|Ziegenrolle	cheese	g	serving (30 g)/Portion (30 g)=30	
+01186	Cream cheese, fat-free	Frischkäse, Magerstufe	Frischkäse 0,2 %|Frischkäse fettfrei	cheese	g	tbsp/EL=15	
+01020	Fontina	Fontina	Fontinakäse	cheese	g	slice/Scheibe=20	
+01024	Limburger	Limburger	Romadur|Weißlacker|Limburger Käse	cheese	g	serving (30 g)/Portion (30 g)=30	
+01035	Provolone	Provolone	Provolonekäse	cheese	g	slice/Scheibe=20	
+01156	Goat cheese, hard	Ziegenkäse, hart	Ziegenhartkäse	cheese	g	serving (30 g)/Portion (30 g)=30	
+43589	Emmental, light	Emmentaler, light	Leichtkäse|Schnittkäse light|Swiss cheese low fat	cheese	g	slice/Scheibe=20	USDA: Swiss cheese, low fat
+# ------------------------------------------------------------------ eggs: eggs (raw, boiled, fried, scrambled)
+01123	Egg, raw	Ei, roh	Eier|Hühnerei|Hühnereier|eggs	eggs	g	egg, size M/Ei, Größe M=50|egg, size L/Ei, Größe L=60|egg, size S/Ei, Größe S=44	edible part
+01124	Egg white	Eiklar	Eiweiß|Hühnereiweiß|Eiklar roh	eggs	g	from 1 egg (M)/von 1 Ei (M)=33|from 1 egg (L)/von 1 Ei (L)=39	raw
+01125	Egg yolk	Eigelb	Dotter|Eidotter|Eigelb roh	eggs	g	from 1 egg (M)/von 1 Ei (M)=17|from 1 egg (L)/von 1 Ei (L)=20	raw
+01129	Egg, boiled	Ei, gekocht	hartgekochtes Ei|Frühstücksei|weiches Ei|gekochte Eier	eggs	g	egg, size M/Ei, Größe M=50|egg, size L/Ei, Größe L=60	
+01128	Egg, fried	Spiegelei	Ei gebraten|Spiegeleier|Ochsenauge	eggs	g	egg, size M/Ei, Größe M=46|egg, size L/Ei, Größe L=55	fried in fat
+01132	Scrambled eggs	Rührei	Eierspeis|Eierspeise|Rühreier	eggs	g	1 egg/1 Ei=60|2 eggs/2 Eier=120|3 eggs/3 Eier=180	with milk and fat
+01130	Omelette	Omelett	Eieromelett|Omelette natur	eggs	g	2 eggs/2 Eier=120|3 eggs/3 Eier=180	
+01131	Egg, poached	Ei, pochiert	verlorenes Ei|pochiertes Ei	eggs	g	egg, size M/Ei, Größe M=50|egg, size L/Ei, Größe L=60	
+01140	Quail egg	Wachtelei	Wachteleier	eggs	g	piece/Stück=9	raw
+01138	Duck egg	Entenei	Enteneier	eggs	g	piece/Stück=70	raw
+# ------------------------------------------------------------------ meat: meat (beef, pork, veal, lamb, game)
+23342	Beef tenderloin, raw	Rinderfilet, roh	Lungenbraten|Rinderlende|Filet|Filet Mignon	meat	g	steak (180 g)/Steak (180 g)=180	lean and fat
+13439	Beef tenderloin, grilled	Rinderfilet, gegrillt	Lungenbraten gebraten|Filetsteak|Filet Mignon gebraten	meat	g	steak (150 g)/Steak (150 g)=150	lean and fat
+23339	Strip loin steak, raw	Rumpsteak, roh	Beiried|Roastbeef roh|Rinderlende|New York Strip	meat	g	steak (220 g)/Steak (220 g)=220	top loin, lean and fat
+13445	Strip loin steak, grilled	Rumpsteak, gegrillt	Beiried gebraten|Roastbeef|Sirloin Steak|Zwischenrippe	meat	g	steak (180 g)/Steak (180 g)=180	top loin, lean and fat
+23230	Rib eye steak, raw	Rib-Eye-Steak, roh	Entrecôte|Rostbraten|Hohe Rippe|Ribeye	meat	g	steak (250 g)/Steak (250 g)=250	lean and fat
+23227	Rib eye steak, grilled	Rib-Eye-Steak, gegrillt	Entrecôte gegrillt|Rostbraten gebraten|Ribeye gegrillt	meat	g	steak (200 g)/Steak (200 g)=200	lean and fat
+23611	Sirloin steak, raw	Hüftsteak, roh	Hüferl|Hüferscherzel|Rinderhüfte|top sirloin	meat	g	steak (200 g)/Steak (200 g)=200	top sirloin, lean only
+13454	Sirloin steak, grilled	Hüftsteak, gegrillt	Hüftsteak gebraten|Rinderhüfte gebraten|top sirloin grilled	meat	g	steak (160 g)/Steak (160 g)=160	top sirloin, lean only
+23244	Beef rump cap, raw	Tafelspitz, roh	Hüferschwanzl|Picanha|Hüftdeckel	meat	g	serving (200 g)/Portion (200 g)=200	top sirloin cap, lean only
+23241	Beef rump cap, cooked	Tafelspitz, gegart	Tafelspitz gekocht|Picanha gegrillt|Hüftdeckel gegart	meat	g	serving (150 g)/Portion (150 g)=150	top sirloin cap, lean only, grilled
+23324	Beef top round, raw	Rinderoberschale, roh	Schale|Rouladenfleisch|Rindsschnitzel|Rinderschnitzel	meat	g	serving (150 g)/Portion (150 g)=150	lean and fat
+13428	Beef top round, braised	Rinderoberschale, geschmort	Schale geschmort|Rindsbraten|Rinderbraten|Rouladenfleisch geschmort	meat	g	serving (120 g)/Portion (120 g)=120	lean and fat
+23093	Beef stew meat, raw	Rindergulaschfleisch, roh	Gulaschfleisch|Rindsschulter|Schulterscherzel|Rindfleisch Würfel	meat	g	serving (150 g)/Portion (150 g)=150	chuck for stew
+23090	Beef stew meat, braised	Rindergulaschfleisch, geschmort	Gulaschfleisch gekocht|Rindfleisch geschmort|Schmorfleisch	meat	g	serving (120 g)/Portion (120 g)=120	chuck for stew
+13904	Beef brisket, raw	Rinderbrust, roh	Brustkern|Siedfleisch|Suppenfleisch|Rindsbrust	meat	g	serving (150 g)/Portion (150 g)=150	flat half, lean and fat
+13369	Beef brisket, braised	Rinderbrust, gekocht	Siedfleisch gekocht|Suppenfleisch gekocht|Brustkern gekocht	meat	g	serving (120 g)/Portion (120 g)=120	flat half, lean and fat
+13473	T-bone steak, grilled	T-Bone-Steak, gegrillt	T-Bone|Porterhouse	meat	g	steak (300 g)/Steak (300 g)=300	lean and fat
+23557	Ground beef 5% fat, raw	Rinderhackfleisch 5 % Fett, roh	Rinderfaschiertes mager|Tatar|Beefsteak Tatar|Hackfleisch mager	meat	g	serving (125 g)/Portion (125 g)=125	
+23562	Ground beef 10% fat, raw	Rinderhackfleisch 10 % Fett, roh	Rinderfaschiertes|Faschiertes Rind|Hackfleisch Rind	meat	g	serving (125 g)/Portion (125 g)=125	
+23567	Ground beef 15% fat, raw	Rinderhackfleisch 15 % Fett, roh	Rinderfaschiertes|Faschiertes|Rinderhack	meat	g	serving (125 g)/Portion (125 g)=125	
+23572	Ground beef 20% fat, raw	Rinderhackfleisch 20 % Fett, roh	Rinderfaschiertes|Faschiertes|Rinderhack	meat	g	serving (125 g)/Portion (125 g)=125	
+23565	Ground beef 10% fat, cooked	Rinderhackfleisch 10 % Fett, gebraten	Faschiertes gebraten|Hackfleisch gebraten	meat	g	serving (100 g)/Portion (100 g)=100	crumbles, pan-browned
+23575	Ground beef 20% fat, cooked	Rinderhackfleisch 20 % Fett, gebraten	Faschiertes gebraten|Hackfleisch gebraten	meat	g	serving (100 g)/Portion (100 g)=100	crumbles, pan-browned
+23568	Beef patty, grilled	Rindfleisch-Patty, gegrillt	Burger Patty|Hamburger-Laibchen|Rindfleischlaibchen	meat	g	patty/Laibchen=90	85% lean ground beef, broiled
+13325	Beef liver, raw	Rinderleber, roh	Rindsleber|Leber vom Rind	meat	g	serving (125 g)/Portion (125 g)=125	
+13327	Beef liver, fried	Rinderleber, gebraten	Rindsleber geröstet|geröstete Leber	meat	g	serving (100 g)/Portion (100 g)=100	
+13340	Beef tongue, cooked	Rinderzunge, gekocht	Rindszunge|Zunge	meat	g	slice/Scheibe=20	simmered
+10060	Pork tenderloin, raw	Schweinefilet, roh	Schweinslungenbraten|Schweinsfilet|Schweinelende|Lungenbraten Schwein	meat	g	serving (150 g)/Portion (150 g)=150	lean only
+10061	Pork tenderloin, roasted	Schweinefilet, gebraten	Schweinsfilet gebraten|Schweinslungenbraten gebraten	meat	g	serving (120 g)/Portion (120 g)=120	lean only
+10062	Pork loin chop, raw	Schweinekotelett, roh	Karree|Schweinskarree|Kotelett|Schweinerücken	meat	g	chop/Kotelett=185	boneless top loin, lean and fat
+10186	Pork loin chop, pan-fried	Schweinekotelett, gebraten	Karree gebraten|Kotelett gebraten|Schweinskotelett	meat	g	chop/Kotelett=150	boneless top loin, lean and fat
+10010	Pork leg cutlet, raw	Schweineschnitzel, roh	Schweinsschnitzel|Schweineschale|Schweinskeule|Schnitzelfleisch	meat	g	cutlet (150 g)/Schnitzel (150 g)=150	leg (ham), lean only
+10011	Pork leg, roasted	Schweinskeule, gebraten	Naturschnitzel Schwein|Schweineschale gebraten|Schinkenbraten	meat	g	serving (120 g)/Portion (120 g)=120	leg (ham), lean only
+10070	Pork shoulder, raw	Schweineschulter, roh	Schweinsschulter|Schulter Schwein|Bratenfleisch	meat	g	serving (200 g)/Portion (200 g)=200	lean and fat
+10071	Roast pork	Schweinsbraten	Schweinebraten|Krustenbraten|Schulterbraten	meat	g	slice/Scheibe=60|serving (150 g)/Portion (150 g)=150	shoulder, lean and fat, roasted
+10080	Pork neck, raw	Schweinenacken, roh	Schopf|Schweinskamm|Schopfbraten roh|Nackensteak	meat	g	steak (180 g)/Steak (180 g)=180	Boston butt, lean and fat
+10083	Pork neck, roasted	Schweinenacken, gebraten	Schopfbraten|Nackensteak gegrillt|Schweinskamm gebraten	meat	g	serving (150 g)/Portion (150 g)=150	Boston butt, lean and fat
+10005	Pork belly, raw	Schweinebauch, roh	Schweinsbauch|Bauchfleisch|Wammerl|Schweinebauch frisch	meat	g	slice/Scheibe=80	
+10089	Spare ribs, braised	Spareribs, gegart	Ripperl|Schweinsripperl|Schälrippchen|Rippchen	meat	g	serving (200 g)/Portion (200 g)=200	lean and fat, edible part
+10219	Ground pork, raw	Schweinehackfleisch, roh	Schweinefaschiertes|Hackfleisch Schwein|Mett	meat	g	serving (125 g)/Portion (125 g)=125	
+10220	Ground pork, cooked	Schweinehackfleisch, gebraten	Schweinefaschiertes gebraten	meat	g	serving (100 g)/Portion (100 g)=100	
+10110	Pork liver, raw	Schweineleber, roh	Schweinsleber	meat	g	serving (125 g)/Portion (125 g)=125	
+10111	Pork liver, cooked	Schweineleber, gegart	Schweinsleber gebraten|geröstete Leber	meat	g	serving (100 g)/Portion (100 g)=100	braised
+17099	Veal cutlet, raw	Kalbsschnitzel, roh	Kalbfleisch|Kalbsschale|Kalbsnuss|Kalbsoberschale	meat	g	cutlet (120 g)/Schnitzel (120 g)=120	leg (top round), lean only
+17103	Roast veal	Kalbsbraten	Kalbfleisch gebraten|Kalbskeule gebraten	meat	g	serving (120 g)/Portion (120 g)=120	leg (top round), lean only
+17141	Veal stew meat, braised	Kalbsgulaschfleisch, geschmort	Kalbsragout|Kalbfleisch geschmort|Kalbsgulasch Fleisch	meat	g	serving (120 g)/Portion (120 g)=120	leg and shoulder, lean only
+17142	Ground veal, raw	Kalbshackfleisch, roh	Kalbsfaschiertes|Kalbshack	meat	g	serving (125 g)/Portion (125 g)=125	
+17277	Veal shank, braised	Kalbshaxe, geschmort	Kalbsstelze|Ossobuco|Kalbshaxn	meat	g	serving (200 g)/Portion (200 g)=200	lean and fat, edible part
+17202	Calf liver, raw	Kalbsleber, roh	Leber vom Kalb	meat	g	serving (125 g)/Portion (125 g)=125	
+17204	Calf liver, fried	Kalbsleber, gebraten	Kalbsleber geröstet|Leber geröstet	meat	g	serving (100 g)/Portion (100 g)=100	
+17011	Leg of lamb, raw	Lammkeule, roh	Lammschlegel|Lammschlögel|Lammfleisch	meat	g	serving (150 g)/Portion (150 g)=150	lean and fat
+17012	Leg of lamb, roasted	Lammkeule, gebraten	Lammbraten|Lammschlögel gebraten	meat	g	serving (120 g)/Portion (120 g)=120	lean and fat
+17023	Lamb chops, raw	Lammkoteletts, roh	Lammkarree|Lammrücken|Lammkotelett	meat	g	chop/Kotelett=60	loin, lean and fat
+17024	Lamb chops, grilled	Lammkoteletts, gegrillt	Lammkarree gegrillt|Lammrücken gebraten	meat	g	chop/Kotelett=45	loin, lean and fat
+17060	Lamb stew meat, braised	Lammgulaschfleisch, geschmort	Lammragout|Lammcurry-Fleisch	meat	g	serving (120 g)/Portion (120 g)=120	leg and shoulder, lean only
+17224	Ground lamb, raw	Lammhackfleisch, roh	Lammfaschiertes|Lammhack	meat	g	serving (125 g)/Portion (125 g)=125	
+17225	Ground lamb, cooked	Lammhackfleisch, gebraten	Lammfaschiertes gebraten	meat	g	serving (100 g)/Portion (100 g)=100	broiled
+17164	Venison, raw	Hirschfleisch, roh	Reh|Rehfleisch|Wild|Wildfleisch	meat	g	serving (150 g)/Portion (150 g)=150	deer
+17165	Venison, roasted	Hirschbraten	Rehbraten|Wildbraten|Hirsch gebraten	meat	g	serving (120 g)/Portion (120 g)=120	deer
+17158	Wild boar, raw	Wildschwein, roh	Wildschweinfleisch	meat	g	serving (150 g)/Portion (150 g)=150	
+17159	Wild boar, roasted	Wildschweinbraten	Wildschwein gebraten	meat	g	serving (120 g)/Portion (120 g)=120	
+17177	Rabbit, raw	Kaninchen, roh	Hase|Hasenfleisch|Kaninchenfleisch	meat	g	serving (150 g)/Portion (150 g)=150	domesticated
+17178	Rabbit, roasted	Kaninchen, gebraten	Hasenbraten|Kaninchenbraten	meat	g	serving (120 g)/Portion (120 g)=120	domesticated
+13948	Flank steak, grilled	Flanksteak, gegrillt	Bavette|Dünnung|Flank Steak	meat	g	serving (150 g)/Portion (150 g)=150	lean and fat
+10088	Spare ribs, raw	Spareribs, roh	Ripperl roh|Schälrippchen roh	meat	g	serving (300 g)/Portion (300 g)=300	lean and fat, edible part
+17168	Goat meat, raw	Ziegenfleisch, roh	Kitz|Zicklein|Ziege	meat	g	serving (150 g)/Portion (150 g)=150	
+17170	Horse meat, raw	Pferdefleisch, roh	Pferd|Rossfleisch	meat	g	serving (150 g)/Portion (150 g)=150	
+17143	Ground veal, cooked	Kalbshackfleisch, gebraten	Kalbsfaschiertes gebraten	meat	g	serving (100 g)/Portion (100 g)=100	broiled
+17427	Veal chop, grilled	Kalbskotelett, gegrillt	Kalbskotelett|Kalbskarree gegrillt	meat	g	chop/Kotelett=153	loin, lean only
+17169	Goat meat, roasted	Ziegenfleisch, gebraten	Kitzbraten|Zickleinbraten|Kitz gebraten	meat	g	serving (120 g)/Portion (120 g)=120	
+# ------------------------------------------------------------------ poultry: poultry
+05062	Chicken breast, raw	Hähnchenbrust, roh	Hühnerbrust|Hendlbrust|Hühnerfilet|Hähnchenbrustfilet|Pouletbrust	poultry	g	fillet/Filet=170	skinless, boneless
+05064	Chicken breast, roasted	Hähnchenbrust, gebraten	Hühnerbrust gebraten|Hendlbrust gebraten|Hühnerfilet gebraten	poultry	g	fillet/Filet=130	meat only
+05065	Chicken breast, boiled	Hähnchenbrust, gekocht	Hühnerbrust gekocht|gedünstetes Hühnerfilet	poultry	g	fillet/Filet=135	meat only, stewed
+05075	Chicken leg, raw	Hähnchenschenkel, roh	Hühnerkeule|Hendlhaxerl|Hühnerhaxerl|Hähnchenkeule	poultry	g	leg/Keule=180	meat and skin, edible part
+05078	Chicken leg, roasted	Hähnchenschenkel, gebraten	Hühnerkeule gebraten|Brathendlhaxerl|Grillhendl-Keule	poultry	g	leg/Keule=130	meat and skin, edible part
+05096	Chicken thigh fillet, raw	Hähnchenoberkeule, roh	Hähnchenschenkelfilet|Hühneroberschenkel ohne Haut|thigh fillet	poultry	g	piece/Stück=90	meat only
+05098	Chicken thigh fillet, roasted	Hähnchenoberkeule, gebraten	Hähnchenschenkelfilet gebraten|Hühneroberschenkel gebraten	poultry	g	piece/Stück=70	meat only
+05069	Chicken drumstick, roasted	Hähnchenunterschenkel, gebraten	Drumstick|Hendlhaxerl gebraten|Hühnerunterschenkel	poultry	g	piece/Stück=75	meat and skin, edible part
+05103	Chicken wings, roasted	Chicken Wings, gebraten	Hühnerflügel|Hähnchenflügel|Flügerl|Chicken Wings	poultry	g	wing/Flügel=34	meat and skin, edible part
+05006	Whole chicken, raw	Hähnchen, roh	Hendl|Huhn|Brathähnchen roh|Hühnerfleisch mit Haut	poultry	g	serving (200 g)/Portion (200 g)=200	meat and skin
+05009	Roast chicken	Brathähnchen	Brathendl|Grillhendl|Hendl|Grillhähnchen	poultry	g	half chicken/halbes Hendl=300|quarter/Viertel=150	meat and skin, edible part
+05013	Chicken meat, roasted, skinless	Hühnerfleisch, gebraten, ohne Haut	Hendlfleisch|gegartes Hühnerfleisch	poultry	g	serving (120 g)/Portion (120 g)=120	meat only
+05027	Chicken liver, raw	Hühnerleber, roh	Geflügelleber|Hendlleber	poultry	g	serving (100 g)/Portion (100 g)=100	
+05028	Chicken liver, cooked	Hühnerleber, gegart	Geflügelleber gebraten|Hendlleber gebraten	poultry	g	serving (100 g)/Portion (100 g)=100	simmered
+05219	Turkey breast, raw	Putenbrust, roh	Truthahnbrust|Putenschnitzel|Truthahnschnitzel|Putenfilet	poultry	g	cutlet (150 g)/Schnitzel (150 g)=150	meat only
+05220	Turkey breast, roasted	Putenbrust, gebraten	Truthahnbrust gebraten|Putenschnitzel gebraten|Truthahnschnitzel gebraten	poultry	g	cutlet (120 g)/Schnitzel (120 g)=120	meat only
+05194	Turkey leg, roasted	Putenkeule, gebraten	Truthahnkeule|Putenoberkeule	poultry	g	serving (150 g)/Portion (150 g)=150	meat and skin
+05305	Ground turkey, raw	Putenhackfleisch, roh	Putenfaschiertes|Truthahnfaschiertes	poultry	g	serving (125 g)/Portion (125 g)=125	
+05306	Ground turkey, cooked	Putenhackfleisch, gebraten	Putenfaschiertes gebraten	poultry	g	serving (100 g)/Portion (100 g)=100	
+05140	Duck, roasted, with skin	Ente, gebraten, mit Haut	Entenbraten|Ente	poultry	g	serving (150 g)/Portion (150 g)=150	meat and skin
+05142	Duck, roasted, skinless	Ente, gebraten, ohne Haut	Entenfleisch|Entenfleisch gebraten	poultry	g	serving (150 g)/Portion (150 g)=150	meat only
+05315	Duck breast, roasted	Entenbrust, gebraten	Barbarie-Entenbrust|Entenbrustfilet	poultry	g	piece/Stück=150	meat and skin
+05147	Roast goose	Gänsebraten	Martinigansl|Gans|Gansl|Weihnachtsgans	poultry	g	serving (200 g)/Portion (200 g)=200	meat and skin
+05149	Goose, roasted, skinless	Gans, gebraten, ohne Haut	Gänsefleisch|Gansl ohne Haut	poultry	g	serving (150 g)/Portion (150 g)=150	meat only
+05060	Chicken breast with skin, roasted	Hähnchenbrust mit Haut, gebraten	Hühnerbrust mit Haut|Hendlbrust mit Haut	poultry	g	piece/Stück=150	meat and skin
+05100	Chicken wings, raw	Chicken Wings, roh	Hühnerflügel roh|Hähnchenflügel roh	poultry	g	wing/Flügel=45	meat and skin, edible part
+05066	Chicken drumstick, raw	Hähnchenunterschenkel, roh	Hühnerunterschenkel roh|Drumstick roh	poultry	g	piece/Stück=95	meat and skin, edible part
+05153	Pheasant, raw	Fasan, roh	Fasanenfleisch|Fasan	poultry	g	serving (150 g)/Portion (150 g)=150	meat and skin
+43283	Pheasant, cooked	Fasan, gebraten	Fasanenbraten|Fasan gegart	poultry	g	serving (150 g)/Portion (150 g)=150	total edible
+# ------------------------------------------------------------------ sausages: sausages, ham, cold cuts, bacon
+07028	Ham, lean	Kochschinken	Schinken|Toastschinken|Pressschinken|Formschinken	sausages	g	slice/Scheibe=20	sliced, 96% fat free, water added
+07029	Ham, regular	Schinken, mit Fettrand	Beinschinken|Hinterschinken|Kochschinken mit Fett	sausages	g	slice/Scheibe=25	sliced, about 11% fat
+10141	Dry-cured ham	Rohschinken	Prosciutto|Parmaschinken|Serrano|Schinkenspeck|Prosciutto crudo	sausages	g	slice/Scheibe=15	country-style, lean only
+13350	Air-dried beef	Bündner Fleisch	Bresaola|Trockenfleisch|Bündnerfleisch	sausages	g	slice/Scheibe=5	cured, dried beef
+07043	Roast beef, sliced	Roastbeef, Aufschnitt	Roastbeef kalt|Roastbeef geschnitten	sausages	g	slice/Scheibe=25	deli style
+07081	Turkey breast, sliced	Putenbrust, Aufschnitt	Truthahnbrust Aufschnitt|Putenbrustaufschnitt	sausages	g	slice/Scheibe=20	prepackaged
+42128	Turkey ham	Putenschinken	Truthahnschinken	sausages	g	slice/Scheibe=20	extra lean
+07933	Chicken breast, sliced	Hähnchenbrust, Aufschnitt	Hühnerbrust Aufschnitt|Geflügelaufschnitt|Hendlbrust Aufschnitt	sausages	g	slice/Scheibe=20	oven-roasted, fat-free
+13355	Pastrami	Pastrami	Rindfleisch-Pastrami|beef pastrami	sausages	g	slice/Scheibe=25	beef, cured
+07072	Salami	Salami	Hartwurst|Dauerwurst|Ungarische Salami|Milano Salami	sausages	g	slice/Scheibe=8	dry or hard, pork and beef
+07057	Pepperoni	Pizzasalami	Peperonisalami|Pfeffersalami|pepperoni sausage	sausages	g	slice/Scheibe=4	beef and pork
+07050	Mortadella	Mortadella	Bologna|Mortadela	sausages	g	slice/Scheibe=20	beef and pork
+07939	Frankfurter	Frankfurter Würstel	Wiener Würstchen|Wiener|Würstel|Wienerle|hot dog sausage	sausages	g	piece/Stück=45|pair/Paar=90	pork
+07024	Chicken frankfurter	Geflügelwürstchen	Hühnerwürstel|Geflügelwiener|Putenwürstel	sausages	g	piece/Stück=45|pair/Paar=90	
+07013	Bratwurst, cooked	Bratwurst, gebraten	Bratwürstel|Rostbratwurst|Nürnberger|Grillwurst	sausages	g	piece/Stück=85	pork
+07910	Veal bratwurst	Kalbsbratwurst	Kalbsbratwürstel	sausages	g	piece/Stück=85	cooked
+07016	Cheese sausage	Käsekrainer	Käsewurst|Eitrige|Käsekrainer Würstel	sausages	g	piece/Stück=110	USDA: cheesefurter (pork, beef, cheese)
+07059	Polish sausage	Krainer Wurst	Krainer|Kielbasa|Burenwurst|Polnische	sausages	g	piece/Stück=100	pork, smoked
+07038	Knackwurst	Knackwurst	Knacker|Klobasse|Knackwürstchen	sausages	g	piece/Stück=100	pork and beef
+07078	Cervelat	Cervelatwurst	Zervelat|Schlackwurst|summer sausage	sausages	g	slice/Scheibe=10	beef and pork
+07019	Chorizo	Chorizo	Chorizo-Wurst|spanische Paprikawurst	sausages	g	slice/Scheibe=10	pork and beef
+07036	Italian sausage, raw	Salsiccia, roh	Salsiccia|italienische Bratwurst	sausages	g	piece/Stück=90	pork
+07005	Blood sausage	Blutwurst	Blunzn|Blunze|Rotwurst	sausages	g	slice/Scheibe=30	
+07041	Liver sausage	Leberwurst	Leberstreichwurst|Kalbsleberwurst|Leberaufstrich	sausages	g	tbsp/EL=15|slice/Scheibe=15	
+07055	Liver pâté	Leberpastete	Pastete|Leberparfait|Pastete Leber	sausages	g	tbsp/EL=15	canned
+07034	Head cheese	Presswurst	Sulz|Schweinskopfsulz|Schwartenmagen|Presssack	sausages	g	slice/Scheibe=30	pork
+07045	Luncheon meat	Frühstücksfleisch	Spam|Schinkenkonserve|Dosenfleisch	sausages	g	slice/Scheibe=30	pork, canned
+10123	Bacon, raw	Frühstücksspeck, roh	Bacon|Bauchspeck|Speck in Scheiben|Baconscheiben	sausages	g	slice/Scheibe=10	cured, unprepared
+10862	Bacon, fried	Frühstücksspeck, gebraten	Bacon knusprig|gebratener Speck|Speckscheiben gebraten	sausages	g	slice/Scheibe=4	pan-fried
+10130	Smoked pork loin	Kasseler	Kassler|Selchkarree|Geselchtes|Kasseler Aufschnitt	sausages	g	slice/Scheibe=25	USDA: Canadian bacon
+07054	Foie gras pâté	Gänseleberpastete	Foie gras|Gänseleber-Pastete|Gänseleberparfait	sausages	g	tbsp/EL=13	smoked, canned
+07006	Bockwurst	Bockwurst	Bockwürstchen|Bockwürstel	sausages	g	piece/Stück=91	pork and veal
+07002	Beer salami	Bierwurst	Bierschinken|Bierschinkenwurst	sausages	g	slice/Scheibe=20	pork and beef
+07022	Beef frankfurter	Rindswürstel	Rindswurst|Rinderwürstchen|Rindfleischwürstchen	sausages	g	piece/Stück=50|pair/Paar=100	
+07254	Turkey bacon	Putenspeck	Truthahnspeck|Putenbacon	sausages	g	slice/Scheibe=10	unprepared
+# ------------------------------------------------------------------ fish: fish and seafood
+15236	Salmon, raw	Lachs, roh	Lachsfilet|Zuchtlachs|atlantischer Lachs	fish	g	fillet (125 g)/Filet (125 g)=125	Atlantic, farmed
+15237	Salmon, cooked	Lachs, gebraten	Lachsfilet gebraten|Lachs gegrillt|Lachs gegart	fish	g	fillet (110 g)/Filet (110 g)=110	Atlantic, farmed, dry heat
+15085	Wild salmon, raw	Wildlachs, roh	Sockeye|Rotlachs|Wildlachsfilet	fish	g	fillet (125 g)/Filet (125 g)=125	sockeye
+15179	Smoked salmon	Räucherlachs	Lachs geräuchert|Lachsschinken|lox	fish	g	slice/Scheibe=15|pack (100 g)/Packung (100 g)=100	
+15015	Cod, raw	Kabeljau, roh	Dorsch|Kabeljaufilet|Dorschfilet	fish	g	fillet (150 g)/Filet (150 g)=150	Atlantic
+15016	Cod, cooked	Kabeljau, gegart	Dorsch gebraten|Kabeljaufilet gebraten	fish	g	fillet (125 g)/Filet (125 g)=125	Atlantic, dry heat
+15066	Alaska pollock, raw	Alaska-Seelachs, roh	Seelachs|Pollack|Alaska Pollock|Seelachsfilet	fish	g	fillet (125 g)/Filet (125 g)=125	may have been previously frozen
+15067	Alaska pollock, cooked	Alaska-Seelachs, gegart	Seelachs gebraten|Seelachsfilet gegart	fish	g	fillet (110 g)/Filet (110 g)=110	dry heat
+15065	Coley, raw	Köhler, roh	Seelachs atlantisch|Pollack atlantisch|Atlantic pollock|Kohlfisch	fish	g	fillet (125 g)/Filet (125 g)=125	Atlantic pollock
+15028	Plaice, raw	Scholle, roh	Seezunge|Flunder|Plattfisch|sole|flounder	fish	g	fillet (100 g)/Filet (100 g)=100	flatfish (flounder and sole)
+15029	Plaice, cooked	Scholle, gebraten	Seezunge gebraten|Flunder gebraten|Plattfisch gegart	fish	g	fillet (90 g)/Filet (90 g)=90	flatfish, dry heat
+15033	Haddock, raw	Schellfisch, roh	Schellfischfilet	fish	g	fillet (125 g)/Filet (125 g)=125	
+15039	Herring, raw	Hering, roh	Heringsfilet|Atlantic herring|frischer Hering	fish	g	fillet (100 g)/Filet (100 g)=100	Atlantic
+15041	Pickled herring	Bismarckhering	Rollmops|eingelegter Hering|Heringsfilet sauer|Brathering	fish	g	piece/Stück=40	
+15042	Smoked herring	Bückling	Räucherhering|Kipper|kippered herring	fish	g	fillet (60 g)/Filet (60 g)=60	kippered
+15046	Mackerel, raw	Makrele, roh	Makrelenfilet|Atlantic mackerel	fish	g	fillet (110 g)/Filet (110 g)=110	Atlantic
+15047	Mackerel, cooked	Makrele, gegart	Makrele gebraten|Makrele gegrillt	fish	g	fillet (90 g)/Filet (90 g)=90	Atlantic, dry heat
+15057	Redfish, raw	Rotbarsch, roh	Goldbarsch|Rotbarschfilet|ocean perch	fish	g	fillet (125 g)/Filet (125 g)=125	Atlantic ocean perch
+15058	Redfish, cooked	Rotbarsch, gegart	Rotbarsch gebraten|Goldbarsch gebraten	fish	g	fillet (110 g)/Filet (110 g)=110	dry heat
+15064	Pike-perch, raw	Zander, roh	Fogosch|Hechtbarsch|Zanderfilet|walleye	fish	g	fillet (125 g)/Filet (125 g)=125	USDA: walleye pike (Sander vitreus)
+15204	Pike-perch, cooked	Zander, gegart	Fogosch gebraten|Zanderfilet gebraten	fish	g	fillet (110 g)/Filet (110 g)=110	USDA: walleye pike, dry heat
+15062	Pike, raw	Hecht, roh	Hechtfilet	fish	g	fillet (125 g)/Filet (125 g)=125	northern pike
+15060	Perch, raw	Flussbarsch, roh	Barsch|Egli|Barschfilet	fish	g	fillet (100 g)/Filet (100 g)=100	
+15008	Carp, raw	Karpfen, roh	Karpfenfilet|Spiegelkarpfen	fish	g	serving (150 g)/Portion (150 g)=150	
+15009	Carp, cooked	Karpfen, gegart	Karpfen gebraten|Karpfen blau	fish	g	serving (130 g)/Portion (130 g)=130	dry heat
+15240	Trout, raw	Forelle, roh	Regenbogenforelle|Forellenfilet|Lachsforelle	fish	g	fillet (100 g)/Filet (100 g)=100	rainbow, farmed
+15241	Trout, cooked	Forelle, gebraten	Forelle gegrillt|Forellenfilet gebraten|Forelle Müllerin	fish	g	fillet (90 g)/Filet (90 g)=90	rainbow, farmed, dry heat
+15130	Whitefish, raw	Renke, roh	Reinanke|Felchen|Maräne|whitefish fillet	fish	g	fillet (100 g)/Filet (100 g)=100	
+15131	Whitefish, smoked	Renke, geräuchert	Räucherrenke|Reinanke geräuchert|Felchen geräuchert	fish	g	fillet (80 g)/Filet (80 g)=80	
+15091	Sea bass, raw	Wolfsbarsch, roh	Branzino|Loup de mer|Seebarsch	fish	g	fillet (100 g)/Filet (100 g)=100	
+15092	Sea bass, cooked	Wolfsbarsch, gegart	Branzino gegrillt|Loup de mer gebraten|Seebarsch gebraten	fish	g	fillet (90 g)/Filet (90 g)=90	dry heat
+15010	Catfish, raw	Wels, roh	Waller|Pangasius|Welsfilet	fish	g	fillet (125 g)/Filet (125 g)=125	channel catfish, wild
+15261	Tilapia, raw	Tilapia, roh	Buntbarsch|Tilapiafilet	fish	g	fillet (110 g)/Filet (110 g)=110	
+15262	Tilapia, cooked	Tilapia, gegart	Tilapia gebraten|Buntbarsch gebraten	fish	g	fillet (90 g)/Filet (90 g)=90	dry heat
+15110	Swordfish, raw	Schwertfisch, roh	Schwertfischsteak	fish	g	steak (150 g)/Steak (150 g)=150	
+15127	Tuna, raw	Thunfisch, roh	Thunfischsteak|Gelbflossenthun|yellowfin tuna|Sashimi Thunfisch	fish	g	steak (150 g)/Steak (150 g)=150	yellowfin
+15121	Tuna in water, canned	Thunfisch im eigenen Saft	Thunfisch Natur|Thunfisch Dose|Thunfisch in Wasser	fish	g	can (150 g drained)/Dose (150 g)=150	light tuna, drained
+15119	Tuna in oil, canned	Thunfisch in Öl	Thunfisch Dose in Öl|Thunfischfilet in Öl	fish	g	can (150 g drained)/Dose (150 g)=150	light tuna, drained
+15088	Sardines in oil	Sardinen in Öl	Ölsardinen|Sardinen Dose	fish	g	can (90 g drained)/Dose (90 g)=90|piece/Stück=12	canned, drained, with bone
+15089	Sardines in tomato sauce	Sardinen in Tomatensauce	Sardinen in Paradeissauce	fish	g	can (120 g)/Dose (120 g)=120	canned, drained, with bone
+15002	Anchovies in oil	Sardellen in Öl	Anchovis|Sardellenfilets|anchovy fillets	fish	g	fillet/Filet=4	canned, drained
+15012	Caviar	Kaviar	Fischrogen|Lachskaviar|Forellenkaviar|roe	fish	g	tsp/TL=10	black and red, granular
+15027	Fish fingers	Fischstäbchen	Fischstäbchen paniert|fish sticks	fish	g	piece/Stück=28	frozen, prepared
+15109	Surimi	Surimi	Surimi-Sticks|Krabbensticks|Krebsfleischersatz|crab sticks	fish	g	stick/Stick=17	
+15270	Shrimp, raw	Garnelen, roh	Shrimps|Crevetten|Scampi|Prawns|Riesengarnelen	fish	g	serving (100 g)/Portion (100 g)=100	not previously frozen
+15271	Shrimp, cooked	Garnelen, gekocht	Shrimps gekocht|Crevetten gekocht|Cocktailgarnelen	fish	g	serving (100 g)/Portion (100 g)=100	not previously frozen
+15148	Lobster, cooked	Hummer, gekocht	Hummerfleisch|Languste	fish	g	serving (100 g)/Portion (100 g)=100	northern lobster
+15164	Mussels, raw	Miesmuscheln, roh	Muscheln|Pfahlmuscheln|blue mussels	fish	g	serving (100 g)/Portion (100 g)=100	meat only
+15165	Mussels, cooked	Miesmuscheln, gekocht	Muscheln gekocht|Moules	fish	g	serving (100 g)/Portion (100 g)=100	meat only
+15230	Octopus, cooked	Oktopus, gekocht	Krake|Pulpo|Polpo	fish	g	serving (100 g)/Portion (100 g)=100	moist heat
+15175	Squid, raw	Tintenfisch, roh	Kalmar|Calamari|Tintenfischringe roh	fish	g	serving (100 g)/Portion (100 g)=100	
+15176	Calamari, fried	Calamari, frittiert	Tintenfischringe paniert|gebackene Calamari|frittierte Tintenfischringe	fish	g	serving (150 g)/Portion (150 g)=150	
+15172	Scallops	Jakobsmuscheln	Jakobsmuschel|Kammmuscheln|scallop	fish	g	piece/Stück=20	raw
+15171	Oysters	Austern	Auster|Pazifische Auster	fish	g	piece/Stück=25	Pacific, raw
+15025	Eel, raw	Aal, roh	Aal|Flussaal	fish	g	fillet (200 g)/Filet (200 g)=200	
+15037	Halibut, cooked	Heilbutt, gegart	Heilbutt|Heilbuttfilet gebraten	fish	g	fillet (160 g)/Filet (160 g)=160	dry heat
+15145	Crayfish	Flusskrebse	Flusskrebs|Krebse|Signalkrebs	fish	g	serving (100 g)/Portion (100 g)=100	wild, raw, meat
+15159	Clams, cooked	Venusmuscheln, gekocht	Vongole|Venusmuscheln|clams	fish	g	serving (100 g)/Portion (100 g)=100	meat, moist heat
+15140	Crab, cooked	Krebsfleisch, gekocht	Krabbenfleisch|Taschenkrebs|crab meat	fish	g	serving (100 g)/Portion (100 g)=100	blue crab, moist heat
+15260	Salmon, canned	Lachs, aus der Dose	Dosenlachs|Wildlachs Dose	fish	g	can (180 g)/Dose (180 g)=180	pink, drained
+15026	Eel, cooked	Aal, gegart	Aal gebraten|Flussaal gegart	fish	g	serving (150 g)/Portion (150 g)=150	dry heat
+15034	Haddock, cooked	Schellfisch, gegart	Schellfisch gebraten|Schellfischfilet gegart	fish	g	fillet (110 g)/Filet (110 g)=110	dry heat
+15040	Herring, cooked	Hering, gebraten	Hering gegrillt|grüner Hering gebraten	fish	g	fillet (90 g)/Filet (90 g)=90	Atlantic, dry heat
+15061	Perch, cooked	Flussbarsch, gegart	Barsch gebraten|Egli gebraten	fish	g	fillet (90 g)/Filet (90 g)=90	dry heat
+15063	Pike, cooked	Hecht, gegart	Hecht gebraten|Hechtfilet gegart	fish	g	fillet (110 g)/Filet (110 g)=110	northern pike, dry heat
+15086	Wild salmon, cooked	Wildlachs, gebraten	Sockeye gebraten|Wildlachsfilet gegrillt	fish	g	fillet (110 g)/Filet (110 g)=110	sockeye, dry heat
+15111	Swordfish, cooked	Schwertfisch, gebraten	Schwertfischsteak gegrillt	fish	g	steak (130 g)/Steak (130 g)=130	dry heat
+15205	Coley, cooked	Köhler, gegart	Seelachs atlantisch gebraten|Köhlerfilet gegart	fish	g	fillet (110 g)/Filet (110 g)=110	Atlantic pollock, dry heat
+15223	Whitefish, cooked	Renke, gebraten	Reinanke gebraten|Felchen gebraten|Renke Müllerin	fish	g	fillet (90 g)/Filet (90 g)=90	dry heat
+15233	Catfish, cooked	Wels, gegart	Waller gebraten|Pangasius gebraten|Welsfilet gegart	fish	g	fillet (110 g)/Filet (110 g)=110	channel catfish, wild, dry heat
+# ------------------------------------------------------------------ plantProtein: tofu and plant protein
+16426	Tofu, firm	Tofu natur	Tofu|fester Tofu|Räuchertofu	plantProtein	g	block (200 g)/Block (200 g)=200	prepared with calcium sulfate
+16127	Silken tofu	Seidentofu	weicher Tofu|Tofu weich	plantProtein	g	pack (400 g)/Packung (400 g)=400|serving (100 g)/Portion (100 g)=100	prepared with nigari
+16129	Tofu, fried	Tofu, frittiert	frittierter Tofu|gebratener Tofu	plantProtein	g	serving (100 g)/Portion (100 g)=100	
+16114	Tempeh	Tempeh	Tempe	plantProtein	g	block (200 g)/Block (200 g)=200|serving (100 g)/Portion (100 g)=100	
+16117	Textured soy protein, dry	Sojagranulat, trocken	Sojaschnetzel|Sojafleisch|TVP|Sojahack	plantProtein	g	serving (50 g)/Portion (50 g)=50	USDA defatted soy flour (TVP is extruded defatted soy flour)
+16122	Soy protein powder	Sojaproteinpulver	Sojaprotein|Sojaeiweiß|Proteinpulver Soja	plantProtein	g	scoop (30 g)/Messlöffel (30 g)=30	soy protein isolate
+48052	Vital wheat gluten	Weizengluten	Seitanpulver|Glutenpulver|Seitan Basis	plantProtein	g	tbsp/EL=8	
+16147	Veggie burger patty	Gemüselaibchen	Veggie-Burger|Gemüseburger|vegetarisches Laibchen|Sojaburger	plantProtein	g	patty/Laibchen=70	unprepared
+43130	Veggie sausages	Vegane Würstchen	Veggie-Würstel|vegetarische Würstel|Sojawürstchen	plantProtein	g	piece/Stück=45	meatless frankfurter
+43410	Veggie chicken, breaded	Veggie-Hühnchen, paniert	vegane Nuggets|Veggie-Schnitzel|vegetarische Nuggets	plantProtein	g	piece/Stück=20	meatless chicken, breaded, fried
+43131	Veggie cold cuts	Veganer Aufschnitt	vegetarische Wurst|Veggie-Aufschnitt|vegane Wurst	plantProtein	g	slice/Scheibe=15	meatless luncheon slices
+43132	Veggie meatballs	Vegane Bällchen	vegetarische Fleischbällchen|Veggie-Bällchen	plantProtein	g	piece/Stück=20	meatless
+# ------------------------------------------------------------------ nuts: nuts, seeds, nut butters
+12061	Almonds	Mandeln	Mandelkerne|Mandel|almond	nuts	g	piece/Stück=1.2|handful/Handvoll=25	
+12063	Almonds, roasted	Mandeln, geröstet	geröstete Mandeln|Röstmandeln	nuts	g	handful/Handvoll=25	dry roasted, without salt
+12062	Almonds, blanched	Mandeln, blanchiert	gemahlene Mandeln|geriebene Mandeln|Mandelblättchen|Mandelstifte	nuts	g	tbsp ground/EL gemahlen=6|handful/Handvoll=25	
+12195	Almond butter	Mandelmus	Mandelbutter|Mandelcreme	nuts	g	tbsp/EL=16|tsp/TL=5	plain, without salt
+12120	Hazelnuts	Haselnüsse	Haselnuss|gemahlene Haselnüsse|geriebene Haselnüsse|filberts	nuts	g	piece/Stück=1.4|handful/Handvoll=25	
+12155	Walnuts	Walnüsse	Walnuss|Nüsse|Baumnüsse|geriebene Walnüsse	nuts	g	half/Hälfte=2|handful/Handvoll=25	
+12087	Cashews	Cashewkerne	Cashewnüsse|Cashew|Kaschunüsse	nuts	g	handful/Handvoll=25	raw
+12585	Cashews, roasted, salted	Cashewkerne, geröstet, gesalzen	Cashews gesalzen|geröstete Cashewnüsse	nuts	g	handful/Handvoll=25	dry roasted
+12151	Pistachios	Pistazien	Pistazienkerne|Pistazie	nuts	g	handful/Handvoll=25	raw
+12652	Pistachios, roasted, salted	Pistazien, geröstet, gesalzen	gesalzene Pistazien|Pistazien in der Schale	nuts	g	handful (kernels)/Handvoll (Kerne)=25	dry roasted
+12131	Macadamia nuts	Macadamianüsse	Macadamia|Macadamianuss	nuts	g	handful/Handvoll=25	raw
+12142	Pecans	Pekannüsse	Pekannuss|Pecannüsse	nuts	g	handful/Handvoll=25	
+12078	Brazil nuts	Paranüsse	Paranuss|Amazonasnüsse	nuts	g	piece/Stück=5|handful/Handvoll=25	
+12147	Pine nuts	Pinienkerne	Pinienkern|Pignoli	nuts	g	tbsp/EL=9	
+12635	Mixed nuts, salted	Nussmischung, gesalzen	Nüsse gemischt|Erdnussmischung|Party-Mix Nüsse	nuts	g	handful/Handvoll=25	dry roasted, with peanuts
+19059	Trail mix	Studentenfutter	Nuss-Rosinen-Mischung	nuts	g	handful/Handvoll=30	nuts, seeds and raisins
+16087	Peanuts	Erdnüsse	Erdnusskerne|Erdnuss|Aschantinüsse	nuts	g	handful/Handvoll=25	raw
+16090	Peanuts, roasted, salted	Erdnüsse, geröstet, gesalzen	gesalzene Erdnüsse|Erdnüsse geröstet|Salzerdnüsse	nuts	g	handful/Handvoll=25	dry roasted
+16098	Peanut butter	Erdnussbutter	Erdnussmus|Erdnusscreme|Erdnussbutter cremig|peanut butter smooth	nuts	g	tbsp/EL=16|tsp/TL=5	smooth, with salt
+16097	Peanut butter, crunchy	Erdnussbutter, crunchy	Erdnussbutter stückig|Erdnussmus crunchy	nuts	g	tbsp/EL=16|tsp/TL=5	chunk style, with salt
+12014	Pumpkin seeds	Kürbiskerne	Kürbiskern|Steirische Kürbiskerne|pepitas	nuts	g	tbsp/EL=10|handful/Handvoll=25	dried
+12516	Pumpkin seeds, roasted, salted	Kürbiskerne, geröstet, gesalzen	geröstete Kürbiskerne|Knabberkerne	nuts	g	handful/Handvoll=25	
+12036	Sunflower seeds	Sonnenblumenkerne	Sonnenblumenkern|Sonnenblumensamen	nuts	g	tbsp/EL=9	dried
+12023	Sesame seeds	Sesam	Sesamsamen|Sesamkörner	nuts	g	tbsp/EL=9|tsp/TL=3	whole, dried
+12698	Tahini	Tahin	Sesammus|Sesampaste|Tahina	nuts	g	tbsp/EL=15|tsp/TL=5	
+12220	Flaxseed	Leinsamen	Leinsaat|Flachssamen|linseed	nuts	g	tbsp/EL=10	
+12006	Chia seeds	Chiasamen	Chia|Chia-Samen	nuts	g	tbsp/EL=12	dried
+12012	Hemp seeds, hulled	Hanfsamen, geschält	Hanfsamen|Hanfherzen	nuts	g	tbsp/EL=10	
+02033	Poppy seeds	Mohn	Graumohn|Blaumohn|Mohnsamen	nuts	g	tbsp/EL=9|tsp/TL=3	
+12108	Desiccated coconut	Kokosraspeln	Kokosflocken|Kokosraspel|Kokosnussraspeln	nuts	g	tbsp/EL=5	unsweetened
+12104	Coconut, fresh	Kokosnuss, frisch	Kokosnuss|Kokosfleisch	nuts	g	piece (45 g)/Stück (45 g)=45	raw meat
+12118	Coconut milk	Kokosmilch	Kokosnussmilch|coconut milk canned	nuts	ml	tbsp/EL=15|can (400 ml)/Dose (400 ml)=400	canned
+12167	Roasted chestnuts	Maroni, geröstet	Maronen|Esskastanien|Edelkastanien|Kastanien	nuts	g	piece/Stück=8|bag (100 g)/Stanitzel (100 g)=100	European
+12101	Chestnuts, cooked	Maroni, gekocht	Maronen gekocht|Esskastanien gekocht	nuts	g	piece/Stück=10	European, boiled
+12088	Cashew butter	Cashewmus	Cashewbutter|Cashewcreme	nuts	g	tbsp/EL=16	plain, without salt
+12115	Coconut cream	Kokoscreme	Kokosnusscreme|Kokossahne	nuts	g	tbsp/EL=15	raw, liquid expressed from grated meat
+# ------------------------------------------------------------------ fats: fats and oils
+01145	Butter	Butter	Süßrahmbutter|Teebutter|Sauerrahmbutter|Butter ungesalzen	fats	g	tbsp/EL=14|tsp/TL=5|portion pack (10 g)/Portionsbutter (10 g)=10|block (250 g)/Packung (250 g)=250	unsalted
+01001	Butter, salted	Butter, gesalzen	Salzbutter|gesalzene Butter	fats	g	tbsp/EL=14|tsp/TL=5|portion pack (10 g)/Portionsbutter (10 g)=10	
+01003	Clarified butter	Butterschmalz	Ghee|Rindschmalz|Butterreinfett	fats	g	tbsp/EL=13|tsp/TL=4.3	butter oil, anhydrous
+04618	Margarine	Margarine	Pflanzenmargarine|Streichfett|Pflanzenbutter	fats	g	tbsp/EL=14|tsp/TL=5|portion pack (10 g)/Portionspackung (10 g)=10	80% fat, unsalted
+04128	Margarine, light	Halbfettmargarine	Diätmargarine|Margarine light|Halbfett-Margarine	fats	g	tbsp/EL=14|tsp/TL=5	about 37% fat
+04053	Olive oil	Olivenöl	Olivenöl extra vergine|natives Olivenöl	fats	g		
+04506	Sunflower oil	Sonnenblumenöl	Pflanzenöl|Speiseöl|Sonnenblumenkernöl	fats	g	tbsp/EL=13.6|tsp/TL=4.5	linoleic (about 65%)
+04582	Rapeseed oil	Rapsöl	Canola oil|Rapskernöl|canola	fats	g		
+04058	Sesame oil	Sesamöl	geröstetes Sesamöl	fats	g		
+04047	Coconut oil	Kokosöl	Kokosfett|Palmin|Kokosnussöl	fats	g		
+04042	Peanut oil	Erdnussöl	Erdnussoel	fats	g		
+04528	Walnut oil	Walnussöl	Nussöl	fats	g		
+04517	Grapeseed oil	Traubenkernöl	Traubenkern-Öl	fats	g		
+42231	Linseed oil	Leinöl	Flachsöl|flaxseed oil	fats	g	tbsp/EL=13.6|tsp/TL=4.5	cold pressed
+04002	Lard	Schweineschmalz	Schmalz|Schweinefett	fats	g	tbsp/EL=13|tsp/TL=4.3	
+04576	Goose fat	Gänseschmalz	Gänsefett	fats	g	tbsp/EL=13|tsp/TL=4.3	
+04589	Cod liver oil	Lebertran	Dorschlebertran	fats	g	tsp/TL=4.5	
+# ------------------------------------------------------------------ sweets: sugar, sweets, desserts, pastries
+12071	Marzipan	Marzipan	Marzipanrohmasse|almond paste|Mandelmasse	sweets	g	piece/Stück=10	almond paste
+19335	Sugar	Zucker	Kristallzucker|Haushaltszucker|Rübenzucker|Vanillezucker	sweets	g	tsp/TL=4.2|tbsp/EL=12.5|sugar cube/Würfelzucker=2.8	granulated
+19334	Brown sugar	Brauner Zucker	Rohrzucker|Rohrohrzucker|Kandisfarin	sweets	g	tsp/TL=4.6|tbsp/EL=14	
+19336	Powdered sugar	Puderzucker	Staubzucker|Staubzucker fein|icing sugar	sweets	g	tsp/TL=2.5|tbsp/EL=8	
+19296	Honey	Honig	Bienenhonig|Blütenhonig|Waldhonig	sweets	g	tsp/TL=7|tbsp/EL=21	
+19297	Jam	Konfitüre	Marmelade|Fruchtaufstrich|Erdbeermarmelade|Himbeermarmelade	sweets	g	tsp/TL=7|tbsp/EL=20	jams and preserves
+19719	Apricot jam	Aprikosenkonfitüre	Marillenmarmelade|Marillenkonfitüre|Aprikosenmarmelade	sweets	g	tsp/TL=7|tbsp/EL=20	
+19303	Orange marmalade	Orangenmarmelade	Orangenkonfitüre|Bitterorangenmarmelade	sweets	g	tsp/TL=7|tbsp/EL=20	
+43344	Jam, reduced sugar	Konfitüre, zuckerreduziert	Fruchtaufstrich light|Marmelade zuckerreduziert	sweets	g	tsp/TL=7|tbsp/EL=20	
+19353	Maple syrup	Ahornsirup	Ahornsaft	sweets	g	tbsp/EL=20|tsp/TL=7	
+19912	Agave syrup	Agavendicksaft	Agavensirup|Agavensaft	sweets	g	tbsp/EL=21|tsp/TL=7	
+19030	Fruit syrup	Sirup	Himbeersirup|Holundersirup|Fruchtsirup|Dicksaft	sweets	ml	tbsp/EL=15|shot (20 ml)/Schuss (20 ml)=20	density=1.32; fruit-flavored syrup, undiluted
+19364	Caramel sauce	Karamellsauce	Karamelltopping|Karamellsirup|caramel topping	sweets	g	tbsp/EL=20	butterscotch or caramel topping
+19348	Chocolate sauce	Schokoladensauce	Schokosauce|Schokotopping|chocolate fudge sauce	sweets	g	tbsp/EL=20	fudge-type syrup
+19120	Milk chocolate	Milchschokolade	Schokolade|Vollmilchschokolade|Schoki|Tafelschokolade	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19902	Dark chocolate 45–59%	Zartbitterschokolade 45–59 %	Zartbitter|Halbbitter|Halbbitterschokolade	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19903	Dark chocolate 60–69%	Bitterschokolade 60–69 %	Bitterschokolade|Edelbitter 60 %	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19904	Dark chocolate 70–85%	Bitterschokolade 70–85 %	Edelbitter|Edelbitterschokolade|dunkle Schokolade 70 %	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19087	White chocolate	Weiße Schokolade	Weißschokolade	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19132	Milk chocolate with almonds	Milchschokolade mit Mandeln	Mandelschokolade|Nussschokolade|Schokolade mit Nüssen	sweets	g	row/Riegel=12.5|bar (100 g)/Tafel (100 g)=100	
+19001	Chocolate with almond nougat	Schokolade mit Mandelnougat	Toblerone|Honig-Mandel-Nougat-Schokolade	sweets	g	piece/Stück=8	USDA: Toblerone
+19125	Chocolate hazelnut spread	Nuss-Nougat-Creme	Nutella|Schokoaufstrich|Nougatcreme|Schokocreme	sweets	g	tsp/TL=7|tbsp/EL=19	
+19109	Chocolate wafer bar	Schoko-Waffelriegel	KitKat|Kit Kat|Waffelriegel	sweets	g	bar (42 g)/Riegel (42 g)=42	USDA: Kit Kat
+19155	Chocolate peanut caramel bar	Erdnuss-Karamell-Riegel	Snickers|Erdnussriegel	sweets	g	bar (50 g)/Riegel (50 g)=50	USDA: Snickers
+19160	Chocolate caramel biscuit bar	Keks-Karamell-Riegel	Twix|Karamellkeksriegel	sweets	g	bar (25 g)/Riegel (25 g)=25	USDA: Twix
+19135	Chocolate nougat caramel bar	Schoko-Karamell-Riegel	Mars|Milky Way US|Nougatriegel	sweets	g	bar (51 g)/Riegel (51 g)=51	USDA: Milky Way (US), similar to Mars
+19142	Chocolate coconut bar	Kokos-Schokoriegel	Bounty|Kokosriegel	sweets	g	bar (28 g)/Riegel (28 g)=28	USDA: Mounds
+19141	Chocolate candies, sugar-coated	Schokolinsen	M&Ms|Smarties|Schokoladelinsen	sweets	g	handful/Handvoll=20|bag (45 g)/Beutel (45 g)=45	USDA: M&M's milk chocolate
+19140	Peanut chocolate candies	Erdnuss-Schokolinsen	M&Ms Peanut|Schoko-Erdnusslinsen	sweets	g	handful/Handvoll=20|bag (45 g)/Beutel (45 g)=45	USDA: M&M's peanut
+19126	Chocolate-coated peanuts	Schoko-Erdnüsse	Schokoerdnüsse|Erdnüsse mit Schokolade	sweets	g	handful/Handvoll=25	milk chocolate
+19127	Chocolate-coated raisins	Schoko-Rosinen	Schokorosinen|Rosinen mit Schokolade	sweets	g	handful/Handvoll=25	milk chocolate
+19138	Chocolate truffles	Trüffelpralinen	Pralinen|Trüffel|Schokotrüffel	sweets	g	piece/Stück=12	
+19106	Fruit gums	Fruchtgummi	Gummibärchen|Gummibären|Weingummi|Gummizuckerl	sweets	g	piece/Stück=2.5|handful/Handvoll=25	USDA: gumdrops, starch jelly pieces (no gelatin)
+19107	Hard candy	Bonbons	Zuckerl|Lutscher|Hustenzuckerl|Drops	sweets	g	piece/Stück=6	
+19074	Caramels	Karamellbonbons	Toffee|Kaubonbons|Karamellen|Karamellzuckerl	sweets	g	piece/Stück=10	
+19116	Marshmallows	Marshmallows	Mäusespeck|Marshmallow	sweets	g	piece/Stück=7	
+19117	Halva	Halva	Helva|Halwa	sweets	g	serving (30 g)/Portion (30 g)=30	plain
+43046	White nougat	Weißer Nougat	Türkischer Honig|Torrone|Montelimar	sweets	g	piece/Stück=10	with almonds
+19858	Sugar-coated almonds	Zuckermandeln	Dragee-Mandeln|Schokomandeln weiß|Mandeldragees	sweets	g	piece/Stück=4	
+19163	Chewing gum	Kaugummi	Bubble Gum|Kaugummis	sweets	g	piece/Stück=3	
+43060	Chewing gum, sugar-free	Kaugummi, zuckerfrei	zuckerfreier Kaugummi|Kaudragees	sweets	g	piece/Stück=1.5	atwater: polyols (sugar alcohols) provide about 2.4 kcal/g
+19165	Cocoa powder	Kakaopulver	Backkakao|Kakao ungesüßt|Kakaopulver stark entölt	sweets	g	tsp/TL=2.5|tbsp/EL=5	unsweetened; atwater: high fibre, USDA energy uses specific Atwater factors
+19095	Vanilla ice cream	Vanilleeis	Eis|Speiseeis|Vanilleeiscreme|Milchspeiseeis	sweets	g	scoop/Kugel=50	
+19270	Chocolate ice cream	Schokoladeneis	Schokoeis|Schokoladeeis	sweets	g	scoop/Kugel=50	
+19271	Strawberry ice cream	Erdbeereis	Erdbeer-Eiscreme	sweets	g	scoop/Kugel=50	
+19090	Soft-serve ice cream	Softeis	Soft-Eis|Softice	sweets	g	cone (100 g)/Tüte (100 g)=100	French vanilla
+19280	Sorbet	Sorbet	Fruchteis|Zitronensorbet|Fruchtsorbet	sweets	g	scoop/Kugel=50	USDA: lime ice
+19283	Ice pop	Wassereis	Eis am Stiel Wassereis|Eislutscher|Wassereislutscher	sweets	g	piece/Stück=60	
+01237	Chocolate-coated ice cream bar	Eis am Stiel mit Schokolade	Magnum|Schokoeis am Stiel|Eiskonfekt	sweets	g	piece/Stück=80	
+01240	Ice cream cone with nuts	Eistüte mit Schokolade und Nüssen	Cornetto|Eistüte|Nusseistüte	sweets	g	piece/Stück=75	chocolate-covered, with nuts
+42187	Frozen yogurt	Frozen Yogurt	Frozen Joghurt|Joghurteis	sweets	g	cup (150 g)/Becher (150 g)=150	
+18271	Ice cream cone, wafer	Eiswaffel	Stanitzel|Waffeltüte|Eistüte leer	sweets	g	piece/Stück=4	cake or wafer-type
+19207	Vanilla pudding	Vanillepudding	Pudding|Vanillecreme|Puddingcreme	sweets	g	serving (125 g)/Portion (125 g)=125	from mix, made with whole milk
+19189	Chocolate pudding	Schokoladenpudding	Schokopudding|Schokocreme Pudding	sweets	g	serving (125 g)/Portion (125 g)=125	from mix, made with whole milk
+19201	Vanilla pudding cup	Vanillepudding, Becher	Pudding im Becher|Vanillepudding fertig|Paula Pudding	sweets	g	cup (125 g)/Becher (125 g)=125	ready-to-eat
+19183	Chocolate pudding cup	Schokopudding, Becher	Schokopudding fertig|Schokoladenpudding im Becher|Dessert Schoko	sweets	g	cup (125 g)/Becher (125 g)=125	ready-to-eat
+19206	Custard powder	Puddingpulver	Vanillepuddingpulver|Puddingpulver Vanille	sweets	g	packet (37 g)/Päckchen (37 g)=37	vanilla pudding dry mix
+19193	Rice pudding	Milchreis	Reisbrei|Milchreis fertig	sweets	g	serving (200 g)/Portion (200 g)=200	ready-to-eat
+19094	Crème caramel	Crème Caramel	Karamellpudding|Flan|Creme Caramel	sweets	g	serving (125 g)/Portion (125 g)=125	from recipe
+19182	Chocolate mousse	Mousse au Chocolat	Schokomousse|Schokoladenmousse	sweets	g	serving (100 g)/Portion (100 g)=100	from recipe
+19173	Jelly dessert	Götterspeise	Wackelpudding|Jello|Gelee-Dessert	sweets	g	serving (125 g)/Portion (125 g)=125	prepared with water
+18246	Danish pastry, fruit	Plundergebäck mit Obst	Plunder|Kopenhagener|Obstplunder|Apfeltasche	sweets	g	piece/Stück=70	
+18245	Cheese Danish	Topfengolatsche	Quarktasche|Topfentascherl|Käseplunder|Quarkplunder	sweets	g	piece/Stück=90	USDA: Danish pastry, cheese
+18247	Nut Danish	Nussschnecke	Nussplunder|Nusskipferl|Nusszopf	sweets	g	piece/Stück=90	USDA: Danish pastry, nut
+18244	Cinnamon roll	Zimtschnecke	Zimtschnecken|Zimtplunder|Franzbrötchen	sweets	g	piece/Stück=90	USDA: Danish pastry, cinnamon
+18256	Jam doughnut	Krapfen	Faschingskrapfen|Berliner|Marillenkrapfen|Pfannkuchen Berliner	sweets	g	piece/Stück=70	yeast doughnut with jelly filling
+18254	Cream doughnut	Vanillekrapfen	Puddingkrapfen|Krapfen mit Vanillecreme|Cremekrapfen	sweets	g	piece/Stück=80	yeast doughnut with creme filling
+18255	Glazed doughnut	Donut, glasiert	Donut|Doughnut|glasierter Donut	sweets	g	piece/Stück=60	yeast-leavened
+18249	Chocolate doughnut	Schoko-Donut	Schokodonut|Donut mit Schokolade	sweets	g	piece/Stück=60	cake-type, chocolate-coated
+18274	Blueberry muffin	Heidelbeermuffin	Muffin|Blaubeermuffin|Muffins	sweets	g	piece/Stück=110	commercially prepared
+18969	Eclair	Liebesknochen	Éclair|Eclair mit Vanillecreme	sweets	g	piece/Stück=100	custard-filled, iced
+18019	Banana bread	Bananenbrot	Bananenkuchen	sweets	g	slice/Scheibe=60	from recipe
+18133	Sponge cake	Biskuit	Biskuitboden|Tortenboden|Biskuitkuchen	sweets	g	slice/Stück=40	commercially prepared
+18120	Pound cake	Rührkuchen	Sandkuchen|Gugelhupf|Marmorkuchen|Königskuchen	sweets	g	slice/Stück=60	butter
+18096	Chocolate cake	Schokoladenkuchen	Schokokuchen|Schokotorte|Schokoladentorte	sweets	g	slice/Stück=100	with chocolate frosting
+18147	Cheesecake	Cheesecake	New York Cheesecake|Frischkäsetorte	sweets	g	slice/Stück=100	commercially prepared
+18151	Brownie	Brownie	Brownies|Schokoladenbrownie	sweets	g	piece/Stück=55	commercially prepared
+18301	Apple pie	Apfelkuchen	gedeckter Apfelkuchen|Apfeltorte	sweets	g	slice/Stück=120	commercially prepared
+18354	Apple strudel	Apfelstrudel	Strudel|Apfelstrudl|Altwiener Apfelstrudel	sweets	g	piece/Stück=150	
+18155	Butter cookies	Butterplätzchen	Butterkekse dänisch|Spritzgebäck|Butterkeks	sweets	g	piece/Stück=5	commercially prepared
+28351	Tea biscuits	Mariekekse	Butterkeks|Teekekse|Petit Beurre|Leibniz	sweets	g	piece/Stück=6	USDA: Marie biscuit
+18159	Chocolate chip cookies	Schokocookies	Cookies|Schokoladenkekse	sweets	g	piece/Stück=12	commercially prepared
+18166	Chocolate sandwich cookies	Doppelkekse mit Creme	Oreo|Schoko-Doppelkekse|Cremekekse	sweets	g	piece/Stück=12	
+18423	Ladyfingers	Biskotten	Löffelbiskuits|Savoiardi|Biskotte	sweets	g	piece/Stück=11	
+18178	Oatmeal cookies	Haferkekse	Haferflockenkekse|Hafercookies	sweets	g	piece/Stück=15	commercially prepared
+18192	Shortbread cookies	Mürbteigkekse	Shortbread|Mürbeteigkekse|Mürbegebäck	sweets	g	piece/Stück=8	commercially prepared
+18209	Cream-filled wafers	Waffelschnitten	Manner Schnitten|Neapolitaner Waffeln|Haselnusswaffeln|Schnitten	sweets	g	piece/Stück=9	sugar wafers with creme filling
+28350	Chocolate biscuit sticks	Schoko-Stäbchen	Mikado|Pocky|Schokostäbchen	sweets	g	piece/Stück=1.5|pack (75 g)/Packung (75 g)=75	chocolate cream covered biscuit sticks
+28309	Coconut macaroons	Kokosbusserl	Kokosmakronen|Kokosbusserln|Kokoskekse	sweets	g	piece/Stück=12	
+18293	Pancakes	Pancakes	amerikanische Pfannkuchen|Pfannkuchen dick	sweets	g	piece/Stück=40	from recipe
+18367	Waffles	Waffeln	Belgische Waffeln|Waffel	sweets	g	piece/Stück=75	from recipe
+01225	Dulce de leche	Dulce de Leche	Milchkaramell|Karamellcreme|Milchmarmelade	sweets	g	tbsp/EL=19|tsp/TL=7	
+19089	Vanilla ice cream, premium	Vanilleeis, Premium	Rahmeis|Vanilleeis cremig|Sahneeis	sweets	g	scoop/Kugel=55	rich
+19088	Vanilla ice cream, light	Vanilleeis, light	Eis light|fettreduziertes Eis	sweets	g	scoop/Kugel=40	
+19304	Molasses	Melasse	Zuckerrübensirup|Rübensirup|Zuckersirup dunkel	sweets	g	tbsp/EL=20	
+18176	Chocolate marshmallow treats	Schaumküsse	Schwedenbomben|Schokoküsse|Schokokuss|Dickmann's	sweets	g	piece/Stück=28	USDA: marshmallow cookies, chocolate-coated
+18110	Fruitcake	Früchtekuchen	Früchtebrot|Englischer Kuchen|Fruchtkuchen	sweets	g	slice/Stück=43	commercially prepared
+01238	Ice cream sandwich	Eis-Sandwich	Eissandwich|Eiskeks	sweets	g	piece/Stück=70	
+19263	Fruit ice bar	Fruchteis am Stiel	Fruchteis-Stiel|Fruchtsaft-Eis	sweets	g	piece/Stück=77	fruit and juice bar
+# ------------------------------------------------------------------ snacks: snacks
+19411	Potato chips	Kartoffelchips	Chips|Paprikachips|Crisps|Salzchips	snacks	g	handful/Handvoll=15|bag (150 g)/Packung (150 g)=150	plain, salted
+19043	Potato chips, sour cream & onion	Chips, Sour Cream & Onion	Sour Cream Chips|Zwiebelchips	snacks	g	handful/Handvoll=15	
+19410	Stacked potato crisps	Stapelchips	Pringles|Stapelchips Original	snacks	g	handful/Handvoll=15	made from dried potatoes
+25040	Vegetable chips	Gemüsechips	Veggie Chips|Rote-Rüben-Chips	snacks	g	handful/Handvoll=15	
+19056	Tortilla chips	Tortilla-Chips	Nachos|Tortillachips|Maischips	snacks	g	handful/Handvoll=20	plain, salted
+19057	Tortilla chips, cheese	Tortilla-Chips, Käse	Nacho Cheese Chips|Doritos Käse	snacks	g	handful/Handvoll=20	nacho cheese
+19008	Cheese puffs	Käseflips	Cheetos|Käsebällchen|Flips	snacks	g	handful/Handvoll=15	corn-based, cheese-flavor
+19807	Popcorn, salted	Popcorn, gesalzen	Salzpopcorn|Popcorn salzig	snacks	g	bowl (30 g)/Schüssel (30 g)=30	oil-popped
+19039	Popcorn, sweet	Popcorn, süß	Karamellpopcorn|Kinopopcorn süß|caramel popcorn	snacks	g	bowl (50 g)/Schüssel (50 g)=50	caramel-coated
+19034	Popcorn, plain	Popcorn, natur	Popcorn ungesalzen|Luftpopcorn|air-popped popcorn	snacks	g	bowl (25 g)/Schüssel (25 g)=25	air-popped
+19812	Pretzel sticks	Salzstangen	Soletti|Salzbrezeln|Salzstangerl Knabber|pretzels	snacks	g	handful/Handvoll=20	hard, salted
+19051	Rice cakes	Reiswaffeln	Reiswaffel|Reiscracker	snacks	g	piece/Stück=9	brown rice, plain
+19419	Corn cakes	Maiswaffeln	Maiswaffel|Maiscracker	snacks	g	piece/Stück=9	
+18229	Crackers	Cracker	Kräcker|TUC|Ritz|Buttercracker	snacks	g	piece/Stück=3	standard snack-type
+18214	Cheese crackers	Käsecracker	Käsegebäck|Käsekräcker	snacks	g	piece/Stück=1	
+25070	Prawn crackers	Krupuk	Krabbenchips|Kroepoek	snacks	g	handful/Handvoll=10	
+19400	Banana chips	Bananenchips	Bananen-Chips	snacks	g	handful/Handvoll=20	
+19020	Granola bar	Müsliriegel	Getreideriegel|Corny|Haferriegel	snacks	g	bar (25 g)/Riegel (25 g)=25	soft, plain
+19024	Granola bar, chocolate	Müsliriegel mit Schokolade	Schoko-Müsliriegel|Getreideriegel Schoko	snacks	g	bar (25 g)/Riegel (25 g)=25	soft, milk chocolate coating
+25067	Protein bar	Proteinriegel	Eiweißriegel|Fitnessriegel	snacks	g	bar (50 g)/Riegel (50 g)=50	USDA: South Beach protein bar
+19002	Beef jerky	Beef Jerky	Trockenfleisch-Snack|Jerky	snacks	g	piece/Stück=20	chopped and formed
+19415	Potato sticks	Kartoffelsticks	Chipsletten|Kartoffelstäbchen	snacks	g	handful/Handvoll=15	
+19031	Rice cracker mix	Japanmischung	Japan Mix|Reiscracker-Mischung|Asia-Knabbermix	snacks	g	handful/Handvoll=25	rice-based, with peanuts
+25066	Wasabi peas	Wasabi-Erbsen	Wasabinüsse|Wasabi Erbsen	snacks	g	handful/Handvoll=25	roasted
+19048	Chocolate-coated pretzels	Schoko-Brezeln	Schokobrezeln|Schoko-Salzbrezeln	snacks	g	piece/Stück=11	confectioner's coating
+# ------------------------------------------------------------------ beverages: drinks (non-alcoholic)
+09016	Apple juice	Apfelsaft	Apfelsaft naturtrüb|Apfelsaft klar|apple juice cloudy	beverages	ml	@juice	
+09206	Orange juice, freshly squeezed	Orangensaft, frisch gepresst	frisch gepresster O-Saft|Orangensaft frisch	beverages	ml	@juice	
+09209	Orange juice	Orangensaft	O-Saft|Orangensaft aus Konzentrat|OJ	beverages	ml	@juice	
+09135	Grape juice	Traubensaft	roter Traubensaft|weißer Traubensaft	beverages	ml	@juice	
+09123	Grapefruit juice	Grapefruitsaft	Pampelmusensaft	beverages	ml	@juice	
+09273	Pineapple juice	Ananassaft		beverages	ml	@juice	
+09036	Apricot nectar	Aprikosennektar	Marillennektar|Marillensaft	beverages	ml	@juice	
+09251	Peach nectar	Pfirsichnektar	Pfirsichsaft	beverages	ml	@juice	
+09436	Mango nectar	Mangonektar	Mangosaft	beverages	ml	@juice	
+09442	Pomegranate juice	Granatapfelsaft		beverages	ml	@juice	
+14242	Cranberry juice drink	Cranberry-Saftgetränk	Cranberrysaft|Cranberrynektar	beverages	ml	@juice	
+11540	Tomato juice	Tomatensaft	Paradeissaft	beverages	ml	@juice	
+11655	Carrot juice	Karottensaft	Möhrensaft|Karottensaft naturtrüb	beverages	ml	@juice	
+11578	Vegetable juice	Gemüsesaft	Gemüsecocktail|Gemüsesaftcocktail	beverages	ml	@juice	
+01103	Chocolate milk	Schokomilch	Kakao|Schokodrink|Kakaogetränk|Schokoladenmilch	beverages	ml	glass (250 ml)/Glas (250 ml)=250|bottle (500 ml)/Flasche (0,5 l)=500	reduced fat
+01105	Hot chocolate	Heiße Schokolade	heißer Kakao|Trinkschokolade|Kakao heiß	beverages	ml	cup (200 ml)/Tasse (200 ml)=200|mug (250 ml)/Häferl (250 ml)=250	homemade with milk
+14411	Water	Wasser	Leitungswasser|Trinkwasser|stilles Wasser	beverages	ml	@water	tap water
+14121	Sparkling water	Mineralwasser, prickelnd	Sodawasser|Soda|Sprudel|Mineralwasser	beverages	ml	@water	club soda
+14209	Coffee, black	Kaffee, schwarz	Filterkaffee|Kaffee|Verlängerter|Großer Schwarzer	beverages	ml	@coffee	brewed
+14210	Espresso	Espresso	kleiner Schwarzer|Mokka|Ristretto	beverages	ml	@espresso	
+14201	Decaf coffee	Entkoffeinierter Kaffee	koffeinfreier Kaffee|Kaffee entkoffeiniert	beverages	ml	@coffee	brewed
+14214	Instant coffee powder	Löskaffee, Pulver	Instantkaffee|Nescafé|löslicher Kaffee	beverages	g	tsp/TL=1.8	
+14237	Grain coffee	Getreidekaffee	Malzkaffee|Caro|Kaffeeersatz|Feigenkaffee	beverages	ml	@coffee	prepared with water
+14355	Black tea	Schwarztee	Tee|Earl Grey|Assam|Schwarzer Tee	beverages	ml	@tea	brewed
+14278	Green tea	Grüner Tee	Grüntee|Sencha|Matcha Tee	beverages	ml	@tea	brewed
+14381	Herbal tea	Kräutertee	Früchtetee|Pfefferminztee|Hagebuttentee|Tee	beverages	ml	@tea	brewed
+14545	Chamomile tea	Kamillentee	Kamille	beverages	ml	@tea	brewed
+14199	Iced tea, lemon	Eistee, Zitrone	Eistee|Eistee Pfirsich|Ice Tea	beverages	ml	@softdrink	density=1.03; black tea, sweetened (USDA cup weight implausible)
+14148	Cola	Cola	Coca-Cola|Coke|Pepsi|Colagetränk	beverages	ml	@softdrink	
+14416	Cola, diet	Cola light	Cola Zero|Coke Zero|Diet Coke|Cola zuckerfrei	beverages	ml	@softdrink	with aspartame, contains caffeine
+14144	Lemon-lime soda	Zitronenlimonade	Sprite|7Up|Kracherl|Limo|Zitronenlimo	beverages	ml	@softdrink	
+14150	Orange soda	Orangenlimonade	Fanta|Orangenkracherl|Orangenlimo|Limo	beverages	ml	@softdrink	
+14151	Diet soda	Limonade, zuckerfrei	Light-Limonade|Limo zero|zuckerfreie Limonade	beverages	ml	@softdrink	non-cola, with aspartame
+14136	Ginger ale	Ginger Ale	Ingwerlimonade	beverages	ml	@softdrink	
+14155	Tonic water	Tonic Water	Tonic|Bitter Lemon	beverages	ml	@softdrink	
+14154	Energy drink	Energydrink	Red Bull|Energy-Drink|Energiegetränk	beverages	ml	@energy	density=1.04; USDA: Red Bull
+14156	Energy drink, sugar-free	Energydrink, zuckerfrei	Red Bull Sugarfree|Energy zero	beverages	ml	@energy	USDA: Red Bull sugar free
+14305	Non-alcoholic beer	Alkoholfreies Bier	Bier alkoholfrei|Malzbier|alkoholfrei	beverages	ml	@beer	malt beverage
+14090	Coconut water	Kokoswasser	Kokosnusswasser	beverages	ml	@juice	unsweetened
+16139	Soy drink	Sojadrink	Sojamilch|Soja Drink|Sojadrink Original	beverages	ml	@plantdrink	original and vanilla, with added calcium, vitamins A and D
+16222	Soy drink, unsweetened	Sojadrink, ungesüßt	Sojamilch ungesüßt|Soja ohne Zucker	beverages	ml	@plantdrink	with added calcium, vitamins A and D
+14091	Almond drink, unsweetened	Mandeldrink, ungesüßt	Mandelmilch|Mandeldrink|Mandel Drink	beverages	ml	@plantdrink	density=1.02; shelf stable (USDA cup weight 262 g is implausible for a water-like drink)
+14639	Rice drink	Reisdrink	Reismilch|Reis Drink	beverages	ml	@plantdrink	unsweetened
+14179	Coffee drink, milk-based	Kaffee-Milchgetränk	Caffè Latte to go|Eiskaffee Becher|Kühlregal-Kaffee|Latte Kühlregal	beverages	ml	cup (250 ml)/Becher (250 ml)=250	density=1.04; ready to drink, sweetened (USDA cup weight implausible)
+14557	Chocolate drink powder	Kakaopulver, gesüßt	Nesquik|Kaba|Trinkschokolade Pulver|Kakaogetränkepulver	beverages	g	tsp/TL=5|tbsp/EL=13	for milk, with added nutrients
+14347	Milkshake, vanilla	Milchshake, Vanille	Vanilleshake|Vanille-Milchshake	beverages	ml	cup (300 ml)/Becher (300 ml)=300	fast food
+14428	Milkshake, strawberry	Milchshake, Erdbeere	Erdbeershake|Erdbeermilchshake	beverages	ml	cup (300 ml)/Becher (300 ml)=300	fast food
+01110	Milkshake, chocolate	Milchshake, Schokolade	Schokoshake|Schokomilchshake	beverages	ml	cup (300 ml)/Becher (300 ml)=300	thick
+14016	Almond drink, vanilla	Mandeldrink, Vanille	Mandelmilch Vanille|Mandeldrink gesüßt	beverages	ml	@plantdrink	sweetened
+16166	Soy drink, chocolate	Sojadrink, Schoko	Schoko-Sojamilch|Sojadrink Kakao	beverages	ml	@plantdrink	unfortified
+14636	Fruit juice drink	Fruchtsaftgetränk	Capri-Sun|Saftgetränk|Fruchtsaftgetränk light	beverages	ml	pouch (200 ml)/Beutel (200 ml)=200|glass (250 ml)/Glas (250 ml)=250	reduced sugar, with vitamin E
+14553	Wine, non-alcoholic	Wein, alkoholfrei	alkoholfreier Wein	beverages	ml	@wine	
+# ------------------------------------------------------------------ alcohol: alcohol
+14003	Beer	Bier	Märzen|Lager|Pils|Krügerl|Seidl	alcohol	ml	@beer	regular
+14006	Light beer	Leichtbier	Light-Bier|Bier leicht	alcohol	ml	@beer	
+14251	Strong beer	Starkbier	Bockbier|Doppelbock|Bock	alcohol	ml	@beer	higher alcohol
+14106	White wine	Weißwein	Grüner Veltliner|Riesling|Wein weiß	alcohol	ml	@wine	table wine
+14096	Red wine	Rotwein	Zweigelt|Blaufränkisch|Wein rot	alcohol	ml	@wine	table wine
+14253	Rosé wine	Roséwein	Rosé|Rose|Schilcher	alcohol	ml	@wine	
+14057	Dessert wine	Dessertwein	Süßwein|Portwein|Eiswein|Sherry süß	alcohol	ml	glass (50 ml)/Glas (5 cl)=50|glass (100 ml)/Glas (0,1 l)=100	sweet
+14037	Schnapps, 40%	Schnaps, 40 %	Obstler|Obstbrand|Marillenschnaps|Williams|Schnapserl	alcohol	ml	@spirits	distilled spirits, 80 proof
+14051	Vodka	Wodka	Wodka 40 %	alcohol	ml	@spirits	80 proof
+14049	Gin	Gin	Wacholderschnaps	alcohol	ml	@spirits	90 proof
+14050	Rum	Rum	Inländer-Rum|Jamaika-Rum|Strohrum	alcohol	ml	@spirits	80 proof
+14052	Whisky	Whisky	Whiskey|Scotch|Bourbon	alcohol	ml	@spirits	86 proof
+14414	Coffee liqueur	Kaffeelikör	Kahlúa|Kaffeelikoer	alcohol	ml	@spirits	53 proof
+14415	Cream liqueur	Sahnelikör	Baileys|Cremelikör|Irish Cream	alcohol	ml	@spirits	coffee liqueur with cream, 34 proof
+14034	Liqueur, sweet	Likör	Pfefferminzlikör|Kräuterlikör|Fruchtlikör	alcohol	ml	@spirits	USDA: creme de menthe, 72 proof
+14017	Piña colada	Piña Colada	Pina Colada	alcohol	ml	@cocktail	from recipe
+14010	Daiquiri	Daiquiri	Daiquiri Cocktail	alcohol	ml	glass (120 ml)/Glas (120 ml)=120	from recipe
+43479	Sake	Sake	Reiswein	alcohol	ml	cup (60 ml)/Schälchen (60 ml)=60|glass (125 ml)/Glas (125 ml)=125	
+14536	Sherry, dry	Sherry, trocken	Fino|Dessertwein trocken|Madeira	alcohol	ml	glass (50 ml)/Glas (5 cl)=50|glass (100 ml)/Glas (0,1 l)=100	USDA: dessert wine, dry
+14531	Whiskey sour	Whiskey Sour	Whisky Sour	alcohol	ml	glass (100 ml)/Glas (100 ml)=100	
+# ------------------------------------------------------------------ condiments: sauces, condiments, vinegar
+04026	Mayonnaise	Mayonnaise	Mayo|Majonäse|Mayonnaise 80 %	condiments	g	tbsp/EL=14|tsp/TL=5	about 80% fat
+04641	Mayonnaise, light	Mayonnaise, light	Mayo light|leichte Mayonnaise|Majonäse light	condiments	g	tbsp/EL=15|tsp/TL=5	about 22% fat
+11935	Ketchup	Ketchup	Tomatenketchup|Catsup|Paradeisketchup	condiments	g	tbsp/EL=17|tsp/TL=6	
+02046	Mustard	Senf	Estragonsenf|Tafelsenf|mittelscharfer Senf|Mostrich	condiments	g	tsp/TL=5|tbsp/EL=15	yellow, prepared
+02055	Horseradish, prepared	Meerrettich	Kren|Tafelkren|Apfelkren|Sahnemeerrettich	condiments	g	tsp/TL=5|tbsp/EL=15	
+06931	Tomato sauce	Tomatensauce	Nudelsauce|Pastasauce|Sugo|Paradeissauce|Marinara	condiments	g	serving (125 g)/Portion (125 g)=125	pasta sauce, ready-to-serve
+06627	Pesto	Pesto	Pesto Genovese|Basilikumpesto|Pesto verde	condiments	g	tbsp/EL=16	shelf stable
+06150	Barbecue sauce	Barbecuesauce	BBQ-Sauce|Grillsauce	condiments	g	tbsp/EL=17	
+06112	Teriyaki sauce	Teriyakisauce	Teriyaki	condiments	g	tbsp/EL=18	
+27050	Sweet and sour sauce	Süß-saure Sauce	Süßsauer-Sauce|Asiasauce süß-sauer	condiments	g	tbsp/EL=17	
+06631	Sriracha	Sriracha	Chilisauce|scharfe Chilisauce|Sriracha-Sauce	condiments	g	tsp/TL=6|tbsp/EL=18	
+06168	Hot sauce	Scharfe Sauce	Tabasco|Chilisauce scharf|hot pepper sauce	condiments	ml	tsp/TL=5|dash/Spritzer=1	
+27049	Tartar sauce	Sauce Tartare	Remoulade|Tartarsauce	condiments	g	tbsp/EL=14	
+06164	Salsa	Salsa	Salsa-Dip|Tomatensalsa|Salsa Sauce	condiments	g	tbsp/EL=16	ready-to-serve
+06166	Béchamel sauce	Béchamelsauce	Bechamelsauce|weiße Sauce|Bechamel	condiments	g	tbsp/EL=16|serving (60 g)/Portion (60 g)=60	homemade, medium
+06930	Cheese sauce	Käsesauce	Nacho-Käsesauce|Käsedip	condiments	g	tbsp/EL=16	ready-to-serve
+06116	Gravy	Bratensauce	Bratensaft|Sauce zum Braten|Rindssauce|Natursaft	condiments	g	tbsp/EL=15|serving (60 g)/Portion (60 g)=60	beef, canned
+06618	Peanut sauce	Erdnusssauce	Satay-Sauce|Saté-Sauce	condiments	g	tbsp/EL=16	
+04135	Vinaigrette	Essig-Öl-Dressing	Marinade|Salatmarinade|Vinaigrette Dressing|Essig und Öl	condiments	g	tbsp/EL=16	home recipe, vinegar and oil
+43015	Caesar dressing	Caesar-Dressing	Caesardressing	condiments	g	tbsp/EL=15	regular
+04639	Ranch dressing	Ranch-Dressing	Joghurtdressing amerikanisch	condiments	g	tbsp/EL=15	regular
+04017	Thousand Island dressing	Thousand-Island-Dressing	Cocktailsauce|American Dressing	condiments	g	tbsp/EL=16	
+16123	Soy sauce	Sojasauce	Sojasoße|Shoyu|Kikkoman	condiments	ml	tsp/TL=5|tbsp/EL=15	made from soy and wheat
+06179	Fish sauce	Fischsauce	Nam Pla|Fischsoße	condiments	ml	tsp/TL=5|tbsp/EL=15	
+06971	Worcestershire sauce	Worcestersauce	Worcestershiresauce|Worcester-Sauce	condiments	ml	tsp/TL=5|tbsp/EL=15	
+02053	Vinegar	Essig	Tafelessig|Branntweinessig|Weißweinessig|Kräuteressig	condiments	ml	tbsp/EL=15|tsp/TL=5	distilled; atwater: energy from acetic acid, which is not a macronutrient
+02048	Apple cider vinegar	Apfelessig	Mostessig|Obstessig	condiments	ml	tbsp/EL=15|tsp/TL=5	atwater: energy from acetic acid, which is not a macronutrient
+02068	Red wine vinegar	Rotweinessig	Rotwein-Essig	condiments	ml	tbsp/EL=15|tsp/TL=5	atwater: energy from acetic acid, which is not a macronutrient
+02069	Balsamic vinegar	Balsamico	Aceto Balsamico|Balsamessig|Balsamicoessig	condiments	ml	tbsp/EL=15|tsp/TL=5	atwater: energy from acetic acid and grape must
+09152	Lemon juice	Zitronensaft	Zitrone gepresst|Saft einer Zitrone	condiments	ml	tbsp/EL=15|tsp/TL=5|juice of 1 lemon/Saft 1 Zitrone=45	raw
+09160	Lime juice	Limettensaft	Limette gepresst	condiments	ml	tbsp/EL=15|tsp/TL=5	raw
+02054	Capers	Kapern	Kapernbeeren	condiments	g	tsp/TL=4|tbsp/EL=9	canned
+16112	Miso	Miso	Misopaste	condiments	g	tbsp/EL=17	
+43406	Yeast extract spread	Hefeextrakt	Vegemite|Marmite|Vitam-R|Hefeaufstrich	condiments	g	tsp/TL=6	
+06080	Bouillon powder	Brühpulver	Suppenwürfel|Brühwürfel|Gemüsebrühe Pulver|Suppenpulver	condiments	g	tsp/TL=4|cube/Würfel=10	chicken broth or bouillon, dry
+06176	Oyster sauce	Austernsauce	Austernsoße	condiments	g	tbsp/EL=18	
+06175	Hoisin sauce	Hoisinsauce	Hoisin	condiments	g	tbsp/EL=16	
+06151	Plum sauce	Pflaumensauce	Asia-Pflaumensauce|Sweet Chili Pflaume	condiments	g	tbsp/EL=19	
+04703	Honey mustard dressing	Honig-Senf-Dressing	Honigsenfsauce|Honig-Senf-Sauce	condiments	g	tbsp/EL=15	
+04114	Italian dressing	Italienisches Dressing	Kräuterdressing|Salatdressing italienisch	condiments	g	tbsp/EL=15	commercial
+11944	Relish	Relish	Gurkenrelish|Hot-Dog-Relish	condiments	g	tbsp/EL=15	
+# ------------------------------------------------------------------ spices: spices and herbs
+02047	Salt	Salz	Speisesalz|Kochsalz|Meersalz|Jodsalz	spices	g	tsp/TL=6|pinch/Prise=0.4	
+02030	Black pepper	Schwarzer Pfeffer	Pfeffer|Pfeffer gemahlen	spices	g	tsp/TL=2.3|pinch/Prise=0.1	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02032	White pepper	Weißer Pfeffer	Pfeffer weiß	spices	g	tsp/TL=2.4|pinch/Prise=0.1	
+02028	Paprika powder	Paprikapulver	Paprika edelsüß|Paprika rosenscharf|Paprika geräuchert	spices	g	tsp/TL=2.3|tbsp/EL=6.8	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02031	Cayenne pepper	Cayennepfeffer	Chilipulver|Chiliflocken|Cayenne	spices	g	tsp/TL=1.8|pinch/Prise=0.1	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02010	Cinnamon	Zimt	Zimtpulver|Ceylon-Zimt|Kassia	spices	g	tsp/TL=2.6|pinch/Prise=0.3	ground; atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02011	Cloves	Gewürznelken	Nelken|Nägelein	spices	g	tsp/TL=2.1	ground; atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02014	Cumin	Kreuzkümmel	Kumin	spices	g	tsp/TL=2.1	seed
+02005	Caraway seeds	Kümmel	Kümmel ganz|Kümmel gemahlen	spices	g	tsp/TL=2.1	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02015	Curry powder	Currypulver	Curry	spices	g	tsp/TL=2|tbsp/EL=6.3	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02043	Turmeric	Kurkuma	Gelbwurz|Kurkumapulver	spices	g	tsp/TL=3	ground
+02020	Garlic powder	Knoblauchpulver	Knoblauchgranulat	spices	g	tsp/TL=3.1	
+02021	Ground ginger	Ingwerpulver	Ingwer gemahlen	spices	g	tsp/TL=1.8	
+11216	Ginger, fresh	Ingwer, frisch	Ingwer|Ingwerwurzel|Ingwerknolle	spices	g	tsp grated/TL gerieben=2|piece (2 cm)/Stück (2 cm)=10	root, raw
+02025	Nutmeg	Muskatnuss	Muskat|Muskatnuss gerieben	spices	g	pinch/Prise=0.2|tsp/TL=2.2	ground
+02001	Allspice	Piment	Neugewürz|Nelkenpfeffer	spices	g	tsp/TL=1.9	ground; atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02004	Bay leaf	Lorbeerblatt	Lorbeer|Lorbeerblätter	spices	g	leaf/Blatt=0.2	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02006	Cardamom	Kardamom	Kardamon	spices	g	tsp/TL=2	ground; atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02023	Marjoram, dried	Majoran, getrocknet	Majoran|Wurstkraut	spices	g	tsp/TL=0.6|tbsp/EL=1.7	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02027	Oregano, dried	Oregano, getrocknet	Oregano|Origano|Dost	spices	g	tsp/TL=1|tbsp/EL=3	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02003	Basil, dried	Basilikum, getrocknet	Basilikum gerebelt	spices	g	tsp/TL=0.7|tbsp/EL=2.1	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02036	Rosemary, dried	Rosmarin, getrocknet	Rosmarin	spices	g	tsp/TL=1.2	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02042	Thyme, dried	Thymian, getrocknet	Thymian|Quendel	spices	g	tsp/TL=1|tbsp/EL=2.7	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02038	Sage, dried	Salbei, getrocknet	Salbei	spices	g	tsp/TL=0.7	ground; atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02029	Parsley, dried	Petersilie, getrocknet	Petersilie gerebelt	spices	g	tbsp/EL=1.6	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02044	Basil, fresh	Basilikum, frisch	Basilikumblätter	spices	g	leaf/Blatt=0.5|handful/Handvoll=10	
+11297	Parsley, fresh	Petersilie, frisch	Petersil|Petersilie glatt|Petersilie kraus	spices	g	tbsp chopped/EL gehackt=4|bunch/Bund=40	
+11156	Chives	Schnittlauch	Schnittlauchröllchen|Schnittling	spices	g	tbsp chopped/EL gehackt=3|bunch/Bund=30	
+02045	Dill, fresh	Dill, frisch	Dille|Dillspitzen	spices	g	tbsp chopped/EL gehackt=3	
+11165	Coriander leaves	Koriander, frisch	Koriandergrün|Cilantro|Koriander	spices	g	tbsp chopped/EL gehackt=1|bunch/Bund=30	
+02064	Mint, fresh	Minze, frisch	Pfefferminze|Minzblätter|Minze	spices	g	leaf/Blatt=0.1|tbsp chopped/EL gehackt=3	peppermint
+02002	Anise seed	Anis	Anissamen|Aniskörner	spices	g	tsp/TL=2.1	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02018	Fennel seeds	Fenchelsamen	Fenchel gemahlen|Fenchelkörner	spices	g	tsp/TL=2	
+02013	Coriander seeds	Koriandersamen	Koriander gemahlen|Koriandersaat	spices	g	tsp/TL=1.8	atwater: high fibre, USDA energy uses specific Atwater factors (dried spice/herb)
+02041	Tarragon, dried	Estragon, getrocknet	Estragon|Dragon	spices	g	tsp/TL=0.6	atwater: USDA energy uses specific Atwater factors (dried herb)
+02050	Vanilla extract	Vanilleextrakt	Vanillearoma|Vanilleessenz	spices	g	tsp/TL=4.2	
+02024	Mustard seeds	Senfkörner	Senfsaat|Senfsamen	spices	g	tsp/TL=2	ground
+02037	Saffron	Safran	Safranfäden	spices	g	pinch/Prise=0.1|tsp/TL=0.7	
+02026	Onion powder	Zwiebelpulver	Zwiebelgranulat	spices	g	tsp/TL=2.4	
+# ------------------------------------------------------------------ dishes: soups and prepared dishes
+15128	Tuna salad	Thunfischsalat	Thunfisch-Salat|Thunfischaufstrich	dishes	g	serving (100 g)/Portion (100 g)=100	with mayonnaise
+06170	Beef broth	Rinderbrühe	Rindsuppe|Fleischsuppe|klare Suppe|Bouillon	dishes	ml	@soup	stock, home-prepared
+06172	Chicken broth	Hühnerbrühe	Hühnersuppe klar|Hendlsuppe|Hühnerfond	dishes	ml	@soup	stock, home-prepared
+06700	Vegetable broth	Gemüsebrühe	Gemüsesuppe klar|Gemüsefond|Gemüsebouillon	dishes	ml	@soup	density=1.0; ready to serve (USDA cup weight implausible)
+06419	Chicken noodle soup	Hühnernudelsuppe	Nudelsuppe|Hühnersuppe mit Nudeln	dishes	ml	@soup	density=1.02; canned, prepared with water
+06440	Minestrone	Minestrone	Gemüsesuppe italienisch	dishes	ml	@soup	canned, prepared with water
+06559	Tomato soup	Tomatensuppe	Paradeissuppe|Tomatencremesuppe	dishes	ml	@soup	canned, prepared with water
+06243	Cream of mushroom soup	Champignoncremesuppe	Pilzcremesuppe|Schwammerlsuppe|Pilzsuppe	dishes	ml	@soup	canned, prepared with milk
+06253	Cream of potato soup	Kartoffelcremesuppe	Erdäpfelsuppe|Kartoffelsuppe|Erdäpfelcremesuppe	dishes	ml	@soup	canned, prepared with milk
+06451	Pea soup	Erbsensuppe	Erbsensuppe mit Speck|Erbsenpüreesuppe	dishes	ml	@soup	split pea with ham, canned, prepared with water
+06037	Lentil soup	Linsensuppe	Linseneintopf|Linsensuppe mit Speck	dishes	ml	@soup	with ham, ready-to-serve
+06468	Vegetable soup	Gemüsesuppe	Gemüseeintopf|Gemüsecremesuppe	dishes	ml	@soup	vegetarian, canned, prepared with water
+06404	Bean soup	Bohnensuppe	Bohnensuppe mit Speck|Bohneneintopf	dishes	ml	@soup	with pork, canned, prepared with water
+27001	Hot and sour soup	Pekingsuppe	Sauer-scharf-Suppe|Peking-Suppe|scharf-saure Suppe	dishes	ml	@soup	Chinese restaurant
+27002	Wonton soup	Wan-Tan-Suppe	Wantan-Suppe|Wontonsuppe	dishes	ml	@soup	Chinese restaurant
+11934	Mashed potatoes	Kartoffelpüree	Erdäpfelpüree|Kartoffelbrei|Püree|Kartoffelstampf	dishes	g	serving (200 g)/Portion (200 g)=200	home-prepared, whole milk and butter
+11373	Potato gratin	Kartoffelgratin	Erdäpfelgratin|Gratin dauphinois|überbackene Kartoffeln	dishes	g	serving (200 g)/Portion (200 g)=200	home-prepared with butter
+11414	Potato salad with mayonnaise	Kartoffelsalat mit Mayonnaise	Erdäpfelsalat mit Mayo|Mayo-Kartoffelsalat	dishes	g	serving (150 g)/Portion (150 g)=150	home-prepared
+11391	Hash browns	Rösti	Kartoffelrösti|Erdäpfelrösti|Röstkartoffeln|Bratkartoffeln	dishes	g	serving (150 g)/Portion (150 g)=150	frozen, pan-fried in canola oil
+11672	Potato pancakes	Kartoffelpuffer	Erdäpfelpuffer|Reibekuchen|Reiberdatschi|Kartoffelpfannkuchen	dishes	g	piece/Stück=75	
+18269	French toast	Arme Ritter	Pofesen|Weckschnitte	dishes	g	slice/Scheibe=65	from recipe
+16138	Falafel	Falafel	Falafelbällchen|Felafel	dishes	g	piece/Stück=17	home-prepared
+16059	Chili con carne	Chili con Carne	Chili|Chili mit Bohnen	dishes	g	serving (250 g)/Portion (250 g)=250	with beans, canned
+22905	Beef stew	Rindfleischeintopf	Eintopf|Rindereintopf|Fleischeintopf	dishes	g	serving (250 g)/Portion (250 g)=250	canned
+36041	Lasagna	Lasagne	Lasagne Bolognese|Lasagne al forno	dishes	g	serving (300 g)/Portion (300 g)=300	with meat, restaurant
+36630	Spaghetti bolognese	Spaghetti Bolognese	Spaghetti mit Fleischsauce|Nudeln Bolognese|Spaghetti Bolo	dishes	g	serving (350 g)/Portion (350 g)=350	restaurant
+36046	Spaghetti with tomato sauce	Spaghetti mit Tomatensauce	Spaghetti Napoli|Pasta Pomodoro|Spaghetti Pomodoro	dishes	g	serving (350 g)/Portion (350 g)=350	restaurant
+36055	Ravioli with tomato sauce	Ravioli mit Tomatensauce	Käseravioli|Ravioli Pomodoro	dishes	g	serving (300 g)/Portion (300 g)=300	cheese ravioli, restaurant
+32005	Macaroni and cheese	Makkaroni mit Käse	Mac and Cheese|Käsenudeln|Käsemakkaroni	dishes	g	serving (200 g)/Portion (200 g)=200	box mix, prepared
+32025	Pierogi	Teigtaschen mit Kartoffelfüllung	Piroggen|Kärntner Kasnudeln|Schlutzkrapfen	dishes	g	piece/Stück=38	potato- or cheese-filled, frozen
+36602	Fried rice	Gebratener Reis	Nasi Goreng|Eierreis	dishes	g	serving (250 g)/Portion (250 g)=250	without meat, Chinese restaurant
+36625	Fried noodles with vegetables	Gebratene Nudeln mit Gemüse	Bami Goreng|Chow Mein|Lo Mein|gebratene Nudeln	dishes	g	serving (300 g)/Portion (300 g)=300	vegetable lo mein, Chinese restaurant
+36621	Sweet and sour chicken	Huhn süß-sauer	Hühnerfleisch süß-sauer|Hähnchen süßsauer	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36622	Sweet and sour pork	Schweinefleisch süß-sauer	Schwein süß-sauer|Schweinefleisch süßsauer	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36619	Kung pao chicken	Kung-Pao-Huhn	Hühnerfleisch scharf mit Erdnüssen|Gong Bao	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36617	Lemon chicken	Zitronenhuhn	Zitronenhähnchen|Hühnerfleisch mit Zitronensauce	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36626	Chicken with vegetables	Hühnerfleisch mit Gemüse	Huhn mit Gemüse chinesisch|Hähnchen mit Gemüse	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36603	Beef with vegetables	Rindfleisch mit Gemüse	Rind mit Gemüse chinesisch	dishes	g	serving (300 g)/Portion (300 g)=300	Chinese restaurant
+36601	Spring roll	Frühlingsrolle	Frühlingsrollen|Egg Roll	dishes	g	piece/Stück=90	egg roll, Chinese restaurant
+32013	Dumplings (gyoza)	Gyoza	Teigtaschen asiatisch|Dim Sum|Potstickers	dishes	g	piece/Stück=20	pork and vegetable, frozen
+22972	Pulled pork	Pulled Pork	Pulled Pork in BBQ-Sauce	dishes	g	serving (150 g)/Portion (150 g)=150	in barbecue sauce
+21127	Coleslaw	Coleslaw	Krautsalat amerikanisch|Cole Slaw	dishes	g	serving (100 g)/Portion (100 g)=100	fast food
+22900	Ravioli, canned	Ravioli aus der Dose	Dosenravioli|Ravioli in Tomatensauce	dishes	g	can (400 g)/Dose (400 g)=400|serving (250 g)/Portion (250 g)=250	meat-filled, in tomato sauce
+# ------------------------------------------------------------------ fastFood: fast food
+21138	French fries	Pommes frites	Pommes|Fritten	fastFood	g	small/klein=80|medium/mittel=115|large/groß=150	fried in vegetable oil
+11403	French fries, oven-baked	Pommes frites, aus dem Ofen	Ofenpommes|Backofen-Pommes|TK-Pommes	fastFood	g	serving (150 g)/Portion (150 g)=150	frozen, oven-heated
+21108	Hamburger	Hamburger	Burger|Hamburger klein	fastFood	g	piece/Stück=100	single patty, with condiments
+21090	Cheeseburger	Cheeseburger	Cheeseburger klein|Burger mit Käse	fastFood	g	piece/Stück=115	single patty, with condiments
+21094	Double cheeseburger	Doppelter Cheeseburger	Doppelcheeseburger	fastFood	g	piece/Stück=165	with condiments
+21397	Large cheeseburger with salad	Cheeseburger, groß, mit Salat	Big Burger|Whopper|Royal TS|Big Mac	fastFood	g	piece/Stück=220	large patty, with condiments, vegetables and mayonnaise
+21230	Crispy chicken burger	Chickenburger	McChicken|Hühnerburger|Chicken Burger	fastFood	g	piece/Stück=170	with lettuce and mayonnaise
+21105	Fish burger	Fischburger	Filet-o-Fish|Fischsandwich	fastFood	g	piece/Stück=140	with tartar sauce
+21229	Chicken nuggets	Chicken Nuggets	Hühnernuggets|Nuggets	fastFood	g	piece/Stück=17|6 pieces/6 Stück=100	breaded and fried
+21401	Chicken strips	Chicken Strips	Hähnchenstreifen paniert|Chicken Tenders	fastFood	g	piece/Stück=30	breaded, fried
+21469	Fried chicken, breast	Frittiertes Hähnchen, Brust	Fried Chicken|Backhendl Brust|KFC Brust	fastFood	g	piece/Stück=180	meat, skin and breading
+21472	Fried chicken wings	Frittierte Hähnchenflügel	Chicken Wings paniert|Hot Wings	fastFood	g	piece/Stück=35	meat, skin and breading
+21118	Hot dog	Hot Dog	Hotdog|Würstel im Brot	fastFood	g	piece/Stück=100	plain, with bun
+21299	Pizza Margherita	Pizza Margherita	Käsepizza|Pizza Käse|Pizza Margarita	fastFood	g	slice/Stück=105|pizza (30 cm)/ganze Pizza (30 cm)=600	pizza chain, cheese, regular crust
+21302	Pizza salami	Pizza Salami	Salamipizza|Pepperoni-Pizza|Pizza Diavolo	fastFood	g	slice/Stück=110|pizza (30 cm)/ganze Pizza (30 cm)=630	pizza chain, pepperoni, regular crust
+21304	Pizza with meat and vegetables	Pizza mit Fleisch und Gemüse	Pizza Speciale|Pizza Capricciosa|Pizza Supreme	fastFood	g	slice/Stück=120|pizza (30 cm)/ganze Pizza (30 cm)=700	pizza chain, regular crust
+21224	Frozen pizza, cheese	Tiefkühlpizza, Käse	TK-Pizza Käse|Tiefkühlpizza Margherita	fastFood	g	pizza/ganze Pizza=330	regular crust, cooked
+22903	Frozen pizza, pepperoni	Tiefkühlpizza, Salami	TK-Pizza Salami|Tiefkühlpizza Pepperoni	fastFood	g	pizza/ganze Pizza=350	regular crust, cooked
+21078	Nachos with cheese	Nachos mit Käse	Nachos mit Käsesauce|Nachos überbacken	fastFood	g	serving (200 g)/Portion (200 g)=200	
+21082	Taco	Taco	Tacos|Taco mit Rindfleisch	fastFood	g	piece/Stück=80	beef, cheese and lettuce, hard shell
+21064	Burrito	Burrito	Burrito mit Rindfleisch|Burritos	fastFood	g	piece/Stück=250	beans, cheese and beef
+21518	Chicken wrap	Chicken-Wrap	Wrap mit Huhn|Hühnerwrap|Wrap	fastFood	g	piece/Stück=230	grilled chicken, lettuce, cheese and ranch sauce
+21488	Quesadilla	Quesadilla	Quesadilla mit Huhn|Quesadillas	fastFood	g	piece/Stück=180	with chicken
+21130	Onion rings	Zwiebelringe	frittierte Zwiebelringe	fastFood	g	serving (100 g)/Portion (100 g)=100	breaded and fried
+21124	Sub sandwich, cold cuts	Sub-Sandwich mit Aufschnitt	Subway|Baguette belegt|Sandwich mit Wurst	fastFood	g	piece (15 cm)/Stück (15 cm)=230	white bread with lettuce and tomato
+21059	Fried shrimp, breaded	Garnelen, paniert	Backgarnelen|Butterfly-Garnelen|frittierte Garnelen	fastFood	g	piece/Stück=15	breaded and fried
+21032	Sundae	Eisbecher	Sundae Karamell|Eisbecher mit Karamell	fastFood	g	cup (150 g)/Becher (150 g)=150	caramel
+21021	Breakfast muffin with egg and ham	Frühstücksmuffin mit Ei und Schinken	McMuffin|Egg McMuffin	fastFood	g	piece/Stück=126	English muffin, egg, cheese, Canadian bacon
+21126	Sub sandwich, tuna	Sub-Sandwich mit Thunfisch	Thunfisch-Sub|Thunfisch-Baguette	fastFood	g	piece (15 cm)/Stück (15 cm)=237	
+21154	Sub sandwich, chicken	Sub-Sandwich mit Hähnchen	Chicken-Sub|Hühner-Baguette	fastFood	g	piece (15 cm)/Stück (15 cm)=198	oven roasted chicken
+21026	Hash brown patty	Hash Brown	Kartoffelrösti Fast Food|Rösti-Ecke	fastFood	g	piece/Stück=53	
+# ------------------------------------------------------------------ other: baking aids, supplements
+19177	Gelatin powder	Gelatine	Gelatinepulver|Blattgelatine|Speisegelatine	other	g	sheet/Blatt=1.7|tbsp/EL=7	unsweetened
+14066	Whey protein powder	Whey-Proteinpulver	Eiweißpulver|Proteinpulver|Molkenprotein|Whey	other	g	scoop (30 g)/Messlöffel (30 g)=30	
+18369	Baking powder	Backpulver	Backtriebmittel	other	g	packet (16 g)/Päckchen (16 g)=16|tsp/TL=4.6	double-acting; atwater: USDA value; carbohydrate by difference includes mineral salts
+18372	Baking soda	Natron	Speisenatron|Backsoda|Kaiser-Natron	other	g	tsp/TL=4.6	
+18374	Yeast, fresh	Hefe, frisch	Germ|Frischhefe|Würfelhefe|Frischgerm	other	g	cube (42 g)/Würfel (42 g)=42	compressed
+18375	Dry yeast	Trockenhefe	Trockengerm|Backhefe trocken	other	g	packet (7 g)/Päckchen (7 g)=7	active dry; atwater: high fibre, USDA energy uses specific Atwater factors
+11667	Spirulina powder	Spirulina-Pulver	Spirulina|Algenpulver	other	g	tsp/TL=2.3|tbsp/EL=7	dried; atwater: USDA specific factors for algae protein
+42281	Locust bean gum	Johannisbrotkernmehl	Guarkernmehl|Bindemittel|Pflanzenbindemittel	other	g	tsp/TL=3	seed gums (locust bean, guar)

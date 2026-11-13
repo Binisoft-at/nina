@@ -20,22 +20,22 @@ enum DemoData {
             NutrientValues([.energy: kcal, .protein: protein, .carbs: carbs, .fat: fat, .fiber: fiber, .sugar: sugar])
         }
         let list = [
-            DemoFood(ref: "usda:08120", name: "Oats", category: .cereals, unit: .gram, per100: n(389, 16.9, 66.3, 6.9, fiber: 10.6, sugar: 0), portion: nil),
-            DemoFood(ref: "usda:01079", name: "Milk 2%", category: .dairy, unit: .milliliter, per100: n(51, 3.4, 4.9, 2.0, sugar: 5.2), portion: ("glass", 250)),
+            DemoFood(ref: "usda:20038", name: "Oats", category: .cereals, unit: .gram, per100: n(389, 16.9, 66.3, 6.9, fiber: 10.6, sugar: 0), portion: nil),
+            DemoFood(ref: "nina:milch-1-5", name: "Milk 2%", category: .dairy, unit: .milliliter, per100: n(51, 3.4, 4.9, 2.0, sugar: 5.2), portion: ("glass", 250)),
             DemoFood(ref: "usda:09040", name: "Banana", category: .fruit, unit: .gram, per100: n(89, 1.1, 22.8, 0.3, fiber: 2.6, sugar: 12.2), portion: ("medium", 118)),
             DemoFood(ref: "usda:09003", name: "Apple", category: .fruit, unit: .gram, per100: n(52, 0.3, 13.8, 0.2, fiber: 2.4, sugar: 10.4), portion: ("medium", 182)),
             DemoFood(ref: "usda:05064", name: "Chicken breast, roasted", category: .poultry, unit: .gram, per100: n(165, 31, 0, 3.6), portion: nil),
-            DemoFood(ref: "usda:20045", name: "White rice, cooked", category: .grains, unit: .gram, per100: n(130, 2.7, 28.2, 0.3, fiber: 0.4), portion: nil),
-            DemoFood(ref: "usda:11251", name: "Lettuce", category: .vegetables, unit: .gram, per100: n(15, 1.4, 2.9, 0.2, fiber: 1.3, sugar: 0.8), portion: nil),
+            DemoFood(ref: "usda:20445", name: "White rice, cooked", category: .grains, unit: .gram, per100: n(130, 2.7, 28.2, 0.3, fiber: 0.4), portion: nil),
+            DemoFood(ref: "usda:11252", name: "Lettuce", category: .vegetables, unit: .gram, per100: n(15, 1.4, 2.9, 0.2, fiber: 1.3, sugar: 0.8), portion: nil),
             DemoFood(ref: "usda:04053", name: "Olive oil", category: .fats, unit: .gram, per100: n(884, 0, 0, 100), portion: ("tbsp", 13.5)),
-            DemoFood(ref: "nina:skyr-natur", name: "Skyr, plain", category: .dairy, unit: .gram, per100: n(63, 11, 4, 0.2, sugar: 4), portion: ("pot", 150)),
-            DemoFood(ref: "usda:20121", name: "Spaghetti, cooked", category: .grains, unit: .gram, per100: n(158, 5.8, 30.9, 0.9, fiber: 1.8, sugar: 0.6), portion: nil),
+            DemoFood(ref: "nina:skyr", name: "Skyr, plain", category: .dairy, unit: .gram, per100: n(63, 11, 4, 0.2, sugar: 4), portion: ("pot", 150)),
+            DemoFood(ref: "usda:20421", name: "Spaghetti, cooked", category: .grains, unit: .gram, per100: n(158, 5.8, 30.9, 0.9, fiber: 1.8, sugar: 0.6), portion: nil),
             DemoFood(ref: "usda:11529", name: "Tomato", category: .vegetables, unit: .gram, per100: n(18, 0.9, 3.9, 0.2, fiber: 1.2, sugar: 2.6), portion: ("medium", 123)),
             DemoFood(ref: "usda:01123", name: "Egg", category: .eggs, unit: .gram, per100: n(143, 12.6, 0.7, 9.5), portion: ("large", 50)),
-            DemoFood(ref: "nina:vollkornbrot", name: "Whole-grain bread", category: .bread, unit: .gram, per100: n(220, 8, 38, 2.5, fiber: 7.5, sugar: 3), portion: ("slice", 45)),
+            DemoFood(ref: "nina:roggenvollkornbrot", name: "Whole-grain bread", category: .bread, unit: .gram, per100: n(220, 8, 38, 2.5, fiber: 7.5, sugar: 3), portion: ("slice", 45)),
             DemoFood(ref: "usda:12061", name: "Almonds", category: .nuts, unit: .gram, per100: n(579, 21.2, 21.6, 49.9, fiber: 12.5, sugar: 4.4), portion: ("handful", 28)),
-            DemoFood(ref: "usda:15076", name: "Salmon, baked", category: .fish, unit: .gram, per100: n(206, 22.1, 0, 12.4), portion: ("fillet", 154)),
-            DemoFood(ref: "usda:11674", name: "Potatoes, boiled", category: .vegetables, unit: .gram, per100: n(87, 1.9, 20.1, 0.1, fiber: 1.8, sugar: 0.9), portion: nil),
+            DemoFood(ref: "usda:15237", name: "Salmon, baked", category: .fish, unit: .gram, per100: n(206, 22.1, 0, 12.4), portion: ("fillet", 154)),
+            DemoFood(ref: "usda:11367", name: "Potatoes, boiled", category: .vegetables, unit: .gram, per100: n(87, 1.9, 20.1, 0.1, fiber: 1.8, sugar: 0.9), portion: nil),
             DemoFood(ref: "usda:19904", name: "Dark chocolate 70%", category: .sweets, unit: .gram, per100: n(598, 7.8, 45.9, 42.6, fiber: 10.9, sugar: 24), portion: ("square", 10)),
             DemoFood(ref: "usda:14209", name: "Coffee", category: .beverages, unit: .milliliter, per100: n(1, 0.1, 0, 0), portion: ("mug", 250)),
         ]
@@ -163,7 +163,7 @@ enum DemoData {
         context.insert(rule)
 
         let skyr = Food(name: "Skyr, plain")
-        skyr.catalogID = "nina:skyr-natur"
+        skyr.catalogID = "nina:skyr"
         skyr.category = FoodCategory.dairy.rawValue
         skyr.nutrients = NutrientValues([.energy: 63, .protein: 11, .carbs: 4, .fat: 0.2, .sugar: 4]).encoded
         skyr.servings = Serving.encode([Serving(en: "pot", de: "Becher", amount: 150)])

@@ -239,7 +239,15 @@ public enum QuickParser {
                 }
                 return defaultPortion(food, count: 1)
             }
-            if food.servings.isEmpty, food.unit != .serving, quantity >= 10 {
+            // "2 eggs", "12 almonds", "1 Semmel": a count of pieces. "chicken 200": grams, because
+            // nobody eats 200 fillets – a big bare number on a food with big portions is a weight.
+            if let piece = countServing(food) {
+                if quantity >= 10, piece.amount >= 20, food.unit != .serving {
+                    return QuickAmount(amount: quantity, serving: nil, count: quantity)
+                }
+                return QuickAmount(amount: piece.amount * quantity, serving: piece, count: quantity)
+            }
+            if food.unit != .serving, quantity >= 10 {
                 return QuickAmount(amount: quantity, serving: nil, count: quantity)
             }
             return defaultPortion(food, count: quantity)
@@ -256,6 +264,24 @@ public enum QuickParser {
         let amount = food.usualAmount > 0 ? food.usualAmount * count : food.unit.basis * count
         return QuickAmount(amount: amount, serving: nil, count: amount)
     }
+
+    /// The portion a plain count refers to: a piece, an egg, a slice, a medium one …
+    static func countServing(_ food: FoodRecord) -> Serving? {
+        food.servings.first { serving in
+            let tokens = SearchText.normalize(serving.en).split(separator: " ").map(String.init)
+                + SearchText.normalize(serving.de).split(separator: " ").map(String.init)
+            return tokens.contains { countWords.contains($0) }
+        }
+    }
+
+    static let countWords: Set<String> = [
+        "piece", "pieces", "stuck", "stk", "medium", "mittelgross", "mittel", "egg", "ei", "slice", "scheibe",
+        "fillet", "filet", "half", "halfte", "clove", "zehe", "grape", "traube", "roll", "semmel", "bar", "riegel",
+        "breast", "brust", "leg", "keule", "patty", "laberl", "sausage", "wurstel", "pod", "floret", "rosschen",
+        "square", "fruit", "frucht", "cookie", "keks", "biscuit", "bun", "pretzel", "brezel", "dumpling", "knodel",
+        "pancake", "tortilla", "wrap", "croissant", "muffin", "donut", "krapfen", "scoop", "kugel", "can", "dose",
+        "bottle", "flasche", "glass", "glas", "cup", "tasse", "becher", "pot", "small", "klein", "large", "gross",
+    ]
 
     static func matchingServing(_ food: FoodRecord, group: String) -> Serving? {
         let words = portionGroups[group] ?? [group]

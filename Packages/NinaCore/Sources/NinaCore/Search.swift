@@ -107,9 +107,15 @@ public struct FoodSearchIndex: Sendable {
     struct Entry: Sendable {
         let record: FoodRecord
         let primary: [String]
+        /// Words after the first comma ("Tiefkühlpizza, Käse"): details of the main noun.
+        let details: [String]
+        /// Words after "mit"/"with" ("Cheeseburger mit Salat"): side items, matched at half weight.
+        let sides: [String]
         let primaryJoined: String
         let secondary: [String]
         let aliases: [String]
+        /// Each alias as one normalised phrase ("milch", "whole milk").
+        let aliasPhrases: Set<String>
         let brand: [String]
         let tags: [String]
         let category: [String]
@@ -117,6 +123,7 @@ public struct FoodSearchIndex: Sendable {
 
     let entries: [Entry]
     public let language: FoodLanguage
+    static let sideMarkers: Set<String> = ["mit", "with", "und", "and", "plus"]
 
     public init(_ records: [FoodRecord], language: FoodLanguage) {
         self.language = language
@@ -124,12 +131,26 @@ public struct FoodSearchIndex: Sendable {
             let primaryName = record.displayName(language)
             let primary = SearchText.tokens(primaryName)
             let otherName = language == .german ? record.name : record.nameDE
+            let comma = primaryName.firstIndex(of: ",")
+            let mainPart = comma.map { String(primaryName[..<$0]) } ?? primaryName
+            let detailPart = comma.map { String(primaryName[primaryName.index(after: $0)...]) } ?? ""
+            let main = SearchText.tokens(mainPart)
+            let split = main.firstIndex { Self.sideMarkers.contains($0) } ?? main.count
+            var sides = Array(main[split...])
+            var details = SearchText.tokens(detailPart)
+            if let detailSplit = details.firstIndex(where: { Self.sideMarkers.contains($0) }) {
+                sides += details[detailSplit...]
+                details = Array(details[..<detailSplit])
+            }
             return Entry(
                 record: record,
-                primary: primary,
+                primary: Array(main[..<split]),
+                details: details,
+                sides: sides.filter { !Self.sideMarkers.contains($0) },
                 primaryJoined: primary.joined(separator: " "),
                 secondary: SearchText.tokens(otherName),
                 aliases: record.aliases.flatMap { SearchText.tokens($0) },
+                aliasPhrases: Set(record.aliases.map { SearchText.tokens($0).joined(separator: " ") }),
                 brand: SearchText.tokens(record.brand),
                 tags: record.tags.flatMap { SearchText.tokens($0) },
                 category: SearchText.tokens(record.category.title)
@@ -172,7 +193,9 @@ public struct FoodSearchIndex: Sendable {
         for word in words {
             var best = 0.0
             best = max(best, 1.0 * bestMatch(word, in: entry.primary))
-            if best < 1 { best = max(best, 0.85 * bestMatch(word, in: entry.secondary)) }
+            if best < 0.75 { best = max(best, 0.75 * bestMatch(word, in: entry.details)) }
+            if best < 0.5 { best = max(best, 0.5 * bestMatch(word, in: entry.sides)) }
+            if best < 1 { best = max(best, 0.7 * bestMatch(word, in: entry.secondary)) }
             if best < 1 { best = max(best, 0.8 * bestMatch(word, in: entry.aliases)) }
             if best < 0.6 { best = max(best, 0.6 * bestMatch(word, in: entry.brand)) }
             if best < 0.5 { best = max(best, 0.5 * bestMatch(word, in: entry.tags)) }
@@ -183,21 +206,54 @@ public struct FoodSearchIndex: Sendable {
         var score = total / Double(words.count)
         if entry.primaryJoined == joined {
             score += 1.0
-        } else if entry.primaryJoined.hasPrefix(joined) {
+        } else if entry.aliasPhrases.contains(joined) {
+            // A curated synonym typed exactly ("Milch" → whole milk, "Paradeiser" → tomato).
+            score += 1.0
+        } else if entry.primaryJoined.hasPrefix(joined), !(words.count == 1 && isCompoundStart(words[0], of: entry.primary.first)) {
             score += 0.5
         }
-        if let first = words.first, let head = entry.primary.first, head.hasPrefix(first) { score += 0.25 }
-        score -= 0.03 * Double(max(0, entry.primary.count - words.count))
+        if let first = words.first, let head = entry.primary.first,
+           (head.hasPrefix(first) && !isCompoundStart(first, of: head)) || stems(first).contains(head) {
+            score += 0.25
+        }
+        // Longer names rank a little lower; numbers and "%" ("Vollmilch 3,5 %") don't count.
+        let nameWords = (entry.primary + entry.details).filter { $0.contains(where: \.isLetter) }.count
+        score -= 0.03 * Double(max(0, nameWords - words.count))
         return score
     }
 
-    /// 1 exact · 0.75–1 prefix · 0.45 inside the word · 0.35–0.4 one typo.
+    /// Singular forms of a plural: "eggs" → egg, "tomatoes" → tomato, "Bananen" → banane, "Nudeln" → nudel.
+    static func stems(_ word: String) -> [String] {
+        guard word.count > 3 else { return [] }
+        var result: [String] = []
+        if word.hasSuffix("es") { result.append(String(word.dropLast(2))) }
+        if word.hasSuffix("s") || word.hasSuffix("n") { result.append(String(word.dropLast())) }
+        if word.hasSuffix("en") { result.append(String(word.dropLast(2))) }
+        return result
+    }
+
+    /// A whole word typed that is only the first part of a longer compound: "käse" in "Käseflips"
+    /// (German compounds name the last part: Käseflips are flips, Bergkäse is cheese).
+    static func isCompoundStart(_ word: String, of token: String?) -> Bool {
+        guard let token, word.count >= 4 else { return false }
+        return token.count >= word.count + 3 && token.hasPrefix(word)
+    }
+
+    /// 1 exact · 0.98 plural · 0.8 end of a compound ("Vollmilch" for "milch") · 0.75–1 prefix
+    /// (0.65 when a whole word starts a longer compound) · 0.45 inside the word · 0.35–0.4 one typo.
     static func bestMatch(_ word: String, in tokens: [String]) -> Double {
         var best = 0.0
+        let singular = stems(word)
         for token in tokens {
             if token == word { return 1 }
-            if token.hasPrefix(word) {
+            if singular.contains(token) {
+                best = max(best, 0.98)
+            } else if isCompoundStart(word, of: token) {
+                best = max(best, 0.65)
+            } else if token.hasPrefix(word) {
                 best = max(best, 0.75 + 0.25 * Double(word.count) / Double(max(token.count, 1)))
+            } else if word.count >= 4, token.hasSuffix(word) {
+                best = max(best, 0.8)
             } else if word.count >= 3, token.contains(word) {
                 best = max(best, 0.45)
             } else if word.count >= 4 {

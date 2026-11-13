@@ -135,7 +135,10 @@ struct SearchTests {
         #expect(index.search("banan").first?.ref == FoodRef("usda:09040"))
         #expect(index.search("äpfel").first?.ref == FoodRef("usda:09003"))
         #expect(index.search("huhnerbrust").first?.name.hasPrefix("Chicken breast") == true)
-        #expect(index.search("chicken roasted").first?.ref == FoodRef("usda:05064"))
+        #expect(index.search("chicken breast roasted").first?.ref == FoodRef("usda:05064"))
+        #expect(index.search("paradeiser").first?.ref == FoodRef("usda:11529"))
+        #expect(index.search("Tomaten").first?.ref == FoodRef("usda:11529"))
+        #expect(index.search("semmel").first?.ref == FoodRef("usda:18353"))
         #expect(index.search("eggs").first?.ref == FoodRef("usda:01123"))
         #expect(index.search("").isEmpty)
         #expect(index.search("zzzz qqq").isEmpty)
@@ -155,6 +158,7 @@ struct SearchTests {
         let result = index.search("milch").first
         #expect(result?.displayName(.german) == "Vollmilch 3,5 %")
         #expect(result?.secondaryName(.german) == "Whole milk 3.5%")
+        #expect(index.search("Eierspeis").first?.ref == FoodRef("usda:01132"))
     }
 }
 
@@ -218,9 +222,12 @@ struct QuickParserTests {
         let egg = try #require(catalog[FoodRef("usda:01123")])
         let twoEggs = QuickParser.amount(for: QuickParser.parse("2 eggs")[0], food: egg)
         #expect(twoEggs.amount == 100)
-        #expect(twoEggs.serving?.en == "large")
+        #expect(twoEggs.serving?.en == "egg, size M")
+        let almonds = try #require(catalog[FoodRef("usda:12061")])
+        #expect(QuickParser.amount(for: QuickParser.parse("12 almonds")[0], food: almonds).amount == 12 * 1.2)
+        #expect(QuickParser.amount(for: QuickParser.parse("almonds")[0], food: almonds).amount == 25)
 
-        let milk = try #require(catalog[FoodRef("usda:01077")])
+        let milk = try #require(catalog[FoodRef("usda:01211")])
         let glass = QuickParser.amount(for: QuickParser.parse("1 glass milk")[0], food: milk)
         #expect(glass.amount == 250)
         let grams = QuickParser.amount(for: QuickParser.parse("200 g milk")[0], food: milk)
@@ -232,7 +239,7 @@ struct QuickParserTests {
 
         let oil = try #require(catalog[FoodRef("usda:04053")])
         let spoon = QuickParser.amount(for: QuickParser.parse("1 EL Olivenöl")[0], food: oil)
-        #expect(spoon.amount == 13.5)
+        #expect(spoon.amount == 14)
 
         let chicken = try #require(catalog[FoodRef("usda:05062")])
         let plainNumber = QuickParser.amount(for: QuickParser.parse("chicken 180")[0], food: chicken)
