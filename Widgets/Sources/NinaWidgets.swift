@@ -117,40 +117,57 @@ struct TodayWidgetView: View {
             }
         case .accessoryInline:
             Text(remaining >= 0 ? "\(leftText) \(unit.symbol) left" : "\(leftText) \(unit.symbol) over")
-        case .systemMedium:
-            HStack(spacing: 16) {
-                ring
-                VStack(alignment: .leading, spacing: 7) {
-                    bar(.protein, snapshot.protein, snapshot.proteinGoal)
-                    bar(.carbs, snapshot.carbs, snapshot.carbsGoal)
-                    bar(.fat, snapshot.fat, snapshot.fatGoal)
-                    HStack {
-                        Label(Fmt.volume(snapshot.water), systemImage: "drop.fill")
-                            .font(.caption)
-                            .foregroundStyle(NutrientStyle.water)
-                        Spacer()
-                        #if os(iOS)
-                        Link(destination: URL(string: "\(AppInfo.urlScheme)://water?ml=250")!) {
-                            Image(systemName: "plus.circle.fill").foregroundStyle(NutrientStyle.water)
-                        }
-                        Link(destination: URL(string: "\(AppInfo.urlScheme)://add")!) {
-                            Image(systemName: "fork.knife.circle.fill").foregroundStyle(Color.accentColor)
-                        }
-                        #endif
-                    }
-                }
-            }
-            .widgetURL(URL(string: "\(AppInfo.urlScheme)://today"))
         default:
-            VStack(spacing: 6) {
-                ring
-                if let next = snapshot.nextPlanned {
-                    Text(next).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                }
+            #if os(iOS)
+            if family == .systemMedium {
+                medium
+            } else {
+                small
             }
-            .widgetURL(URL(string: "\(AppInfo.urlScheme)://add"))
+            #else
+            small
+            #endif
         }
     }
+
+    private var small: some View {
+        VStack(spacing: 6) {
+            ring
+            if let next = snapshot.nextPlanned {
+                Text(next).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .widgetURL(URL(string: "\(AppInfo.urlScheme)://add"))
+    }
+
+    #if os(iOS)
+    /// Home Screen, medium: ring, macros, water and two buttons.
+    private var medium: some View {
+        HStack(spacing: 16) {
+            ring
+            VStack(alignment: .leading, spacing: 7) {
+                bar(.protein, snapshot.protein, snapshot.proteinGoal)
+                bar(.carbs, snapshot.carbs, snapshot.carbsGoal)
+                bar(.fat, snapshot.fat, snapshot.fatGoal)
+                HStack {
+                    Label(Fmt.volume(snapshot.water), systemImage: "drop.fill")
+                        .font(.caption)
+                        .foregroundStyle(NutrientStyle.water)
+                    Spacer()
+                    #if os(iOS)
+                    Link(destination: URL(string: "\(AppInfo.urlScheme)://water?ml=250")!) {
+                        Image(systemName: "plus.circle.fill").foregroundStyle(NutrientStyle.water)
+                    }
+                    Link(destination: URL(string: "\(AppInfo.urlScheme)://add")!) {
+                        Image(systemName: "fork.knife.circle.fill").foregroundStyle(Color.accentColor)
+                    }
+                    #endif
+                }
+            }
+        }
+        .widgetURL(URL(string: "\(AppInfo.urlScheme)://today"))
+    }
+    #endif
 
     private var ring: some View {
         ZStack {

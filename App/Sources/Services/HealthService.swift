@@ -306,7 +306,7 @@ struct HealthLedger: Codable {
     }
 
     func save() {
-        guard let url, let data = try? JSONEncoder().encode(self) else { return }
+        guard let url = Self.url, let data = try? JSONEncoder().encode(self) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
     }
