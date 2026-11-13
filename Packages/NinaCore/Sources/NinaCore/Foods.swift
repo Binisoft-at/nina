@@ -109,6 +109,16 @@ public struct Serving: Codable, Hashable, Sendable, Identifiable {
         self.amount = amount
     }
 
+    private enum CodingKeys: String, CodingKey { case en, de, amount }
+
+    /// The German label is optional in files.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(en: try container.decode(String.self, forKey: .en),
+                  de: try container.decodeIfPresent(String.self, forKey: .de) ?? "",
+                  amount: try container.decode(Double.self, forKey: .amount))
+    }
+
     public var id: String { en + "|" + NumberText.plain(amount) }
 
     public func label(_ language: FoodLanguage) -> String {

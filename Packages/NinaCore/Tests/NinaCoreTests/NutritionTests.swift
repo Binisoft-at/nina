@@ -97,6 +97,14 @@ struct SearchTests {
         #expect(apple?.servings.first?.amount == 182)
     }
 
+    @Test func oneDamagedFoodDoesNotCostTheCatalog() throws {
+        let json = #"{"version":1,"foods":[{"id":"a","en":"A","de":"A","cat":"fruit","n":{"energy":10,"protein":0,"carbs":2,"fat":0}},{"id":"broken"},{"id":"b","en":"B","de":"B","cat":"nope","n":{"energy":5,"protein":0,"carbs":1,"fat":0},"portions":[{"en":"piece","amount":50}]}]}"#
+        let catalog = try FoodCatalog.decode(Data(json.utf8))
+        #expect(catalog.foods.map(\.ref.rawValue) == ["a", "b"])
+        #expect(catalog.byRef[FoodRef("b")]?.category == .other)
+        #expect(catalog.byRef[FoodRef("b")]?.servings.first?.de == "")
+    }
+
     @Test func catalogIsConsistent() {
         var ids = Set<FoodRef>()
         for food in catalog.foods {
