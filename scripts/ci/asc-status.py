@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prints the latest App Store Connect builds of this app (processing state, TestFlight state,
-platform, version, build number), the platforms on the app record and the team's signing
-certificates. Read-only.
+platform, version, build number), the platforms on the app record, the TestFlight groups (testers
+counted by state, never named) and the team's signing certificates. Read-only.
 
 env: ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 (or ASC_KEY_PATH); BUNDLE_ID (default: APP_BUNDLE_ID
      from Config/Base.xcconfig). Synced from the Binisoft handbook.
@@ -56,7 +56,32 @@ def main():
               f"uploaded {(a.get('uploadedDate') or '?')[:16]} · processing {a.get('processingState')} · "
               f"TestFlight {beta.get('internalBuildState', '?')} · expired {a.get('expired')}")
     print()
+    testflight_groups(app["id"], [b["id"] for b in result["data"]])
+    print()
     certificates.list_all()
+
+
+def testflight_groups(app_id, build_ids):
+    """Who can install: each TestFlight group, its testers' states (counted, never named – this
+    output may be public) and which of the latest builds it has."""
+    groups, _ = asc.get_all(f"/apps/{app_id}/betaGroups", {
+        "fields[betaGroups]": "name,isInternalGroup,hasAccessToAllBuilds", "limit": "50"})
+    print(f"TestFlight groups ({len(groups)}):")
+    if not groups:
+        print("- none – create one: SETUP_CHECKLIST 3.3")
+    for group in groups:
+        a = group["attributes"]
+        testers, _ = asc.get_all(f"/betaGroups/{group['id']}/betaTesters", {"fields[betaTesters]": "state", "limit": "200"})
+        states = {}
+        for tester in testers:
+            state = tester["attributes"].get("state") or "?"
+            states[state] = states.get(state, 0) + 1
+        builds, _ = asc.get_all(f"/betaGroups/{group['id']}/builds", {"fields[builds]": "version", "limit": "200"})
+        has = sorted(b["attributes"]["version"] for b in builds if b["id"] in build_ids)
+        kind = "internal" if a.get("isInternalGroup") else "external"
+        print(f"- {a['name']} ({kind}{', all builds' if a.get('hasAccessToAllBuilds') else ''}): "
+              f"{len(testers)} tester(s) " + (", ".join(f"{n} {s}" for s, n in sorted(states.items())) or "")
+              + f" · latest builds in it: {', '.join(has) or 'none'}")
 
 
 if __name__ == "__main__":
