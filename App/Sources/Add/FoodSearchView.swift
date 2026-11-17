@@ -344,7 +344,7 @@ private struct QuickMatchRow: View {
         } label: {
             HStack(spacing: 12) {
                 if let food = match.food {
-                    CategoryBadge(category: food.category, size: 32)
+                    CategoryBadge(category: food.category, emoji: food.emoji, size: 32)
                 } else {
                     Image(systemName: match.item.isEnergyOnly ? "bolt.circle.fill" : "questionmark.circle")
                         .font(.title2)

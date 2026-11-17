@@ -281,7 +281,7 @@ struct InsightsView: View {
                 ForEach(Array(top.enumerated()), id: \.element.id) { index, rank in
                     HStack(spacing: 10) {
                         Text("\(index + 1)").font(.caption.monospacedDigit()).foregroundStyle(.secondary).frame(width: 18)
-                        CategoryBadge(category: rank.category, size: 28)
+                        CategoryBadge(category: rank.category, emoji: FoodEmoji.emoji(for: [rank.name], category: rank.category), size: 28)
                         Text(rank.name).lineLimit(1)
                         Spacer()
                         Text("\(rank.count)×").foregroundStyle(.secondary).monospacedDigit()

@@ -291,7 +291,7 @@ struct EntryRow: View {
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Mark as eaten")
             }
-            CategoryBadge(category: entry.foodCategory, size: 36)
+            CategoryBadge(category: entry.foodCategory, emoji: entry.foodEmoji, size: 36)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(entry.displayName)

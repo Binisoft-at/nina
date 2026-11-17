@@ -25,6 +25,8 @@ extension LogEntry {
     var energy: Double { values.energy }
     var ref: FoodRef { FoodRef(foodRef) }
     var foodCategory: FoodCategory { FoodCategory(rawValue: category) ?? .other }
+    /// The food's own emoji (🍌), else its category's.
+    var foodEmoji: String { FoodEmoji.emoji(for: [name], category: foodCategory) }
     var tagList: [String] { TagText.split(tags) }
     var base: BaseUnit { BaseUnit(rawValue: baseUnit) ?? .gram }
     var isQuickEntry: Bool { foodRef.isEmpty }

@@ -3,26 +3,22 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
-/// iPhone: Foods and Meals & Recipes share a tab.
+/// iPhone: Foods and Meals & Recipes share a tab. Which one shows lives in `AppModel`, so links,
+/// the tour and launch screens can open Meals & Recipes directly.
 struct FoodsHomeView: View {
-    @State private var page: Page = .foods
-
-    enum Page: String, CaseIterable, Identifiable {
-        case foods, recipes
-        var id: String { rawValue }
-        var title: String { self == .foods ? "Foods" : "Meals & Recipes" }
-    }
+    @Environment(AppModel.self) private var app
 
     var body: some View {
+        @Bindable var app = app
         Group {
-            switch page {
+            switch app.foodsPage {
             case .foods: FoodLibraryView()
             case .recipes: RecipesView()
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            Picker("Show", selection: $page) {
-                ForEach(Page.allCases) { page in Text(page.title).tag(page) }
+            Picker("Show", selection: $app.foodsPage) {
+                ForEach(FoodsPage.allCases) { page in Text(page.title).tag(page) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()

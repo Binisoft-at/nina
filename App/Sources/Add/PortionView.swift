@@ -38,7 +38,7 @@ struct PortionView: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    CategoryBadge(category: record.category, size: 54)
+                    CategoryBadge(category: record.category, emoji: record.emoji, size: 54)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(record.displayName(app.language))
                             .font(.title3.weight(.semibold))

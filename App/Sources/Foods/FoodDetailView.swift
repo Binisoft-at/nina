@@ -25,7 +25,7 @@ struct FoodDetailView: View {
         Form {
             Section {
                 HStack(spacing: 14) {
-                    CategoryBadge(category: food.category, size: 60)
+                    CategoryBadge(category: food.category, emoji: food.emoji, size: 60)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(food.displayName(app.language)).font(.title2.weight(.semibold))
                         if let other = food.secondaryName(app.language) {

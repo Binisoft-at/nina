@@ -19,7 +19,7 @@ struct FoodRow: View {
                     .frame(width: 36, height: 36)
                     .background(Color.teal.opacity(0.16), in: .rect(cornerRadius: 11, style: .continuous))
             } else {
-                CategoryBadge(category: record.category, size: 36)
+                CategoryBadge(category: record.category, emoji: record.emoji, size: 36)
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {

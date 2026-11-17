@@ -52,13 +52,15 @@ struct NutrientBar: View {
     }
 }
 
-/// The category emoji on a soft tinted tile – foods are recognisable at a glance.
+/// The food's emoji (its category's when it has none of its own) on a tile tinted by category –
+/// foods are recognisable at a glance.
 struct CategoryBadge: View {
     let category: FoodCategory
+    var emoji: String?
     var size: CGFloat = 36
 
     var body: some View {
-        Text(category.emoji)
+        Text(emoji ?? category.emoji)
             .font(.system(size: size * 0.55))
             .frame(width: size, height: size)
             .background(

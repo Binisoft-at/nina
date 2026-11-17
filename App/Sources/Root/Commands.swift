@@ -77,6 +77,8 @@ struct NinaCommands: Commands {
     private func go(_ item: SidebarItem, tab: AppTab) {
         app.sidebar = item
         app.tab = tab
+        if item == .foods { app.foodsPage = .foods }
+        if item == .recipes { app.foodsPage = .recipes }
     }
 }
 

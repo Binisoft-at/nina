@@ -203,7 +203,7 @@ struct RecipeEditor: View {
                             editingLine = line
                         } label: {
                             HStack(spacing: 10) {
-                                CategoryBadge(category: line.category, size: 30)
+                                CategoryBadge(category: line.category, emoji: FoodEmoji.emoji(for: [line.name], category: line.category), size: 30)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(line.name).foregroundStyle(.primary)
                                     Text(Fmt.amount(line.amount)).font(.caption).foregroundStyle(.secondary)

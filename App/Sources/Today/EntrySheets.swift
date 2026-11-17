@@ -71,7 +71,7 @@ struct EntryEditor: View {
             Form {
                 Section {
                     HStack(spacing: 12) {
-                        CategoryBadge(category: entry.foodCategory, size: 44)
+                        CategoryBadge(category: entry.foodCategory, emoji: entry.foodEmoji, size: 44)
                         VStack(alignment: .leading, spacing: 2) {
                             TextField("Name", text: $name)
                                 .font(.headline)

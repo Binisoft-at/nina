@@ -21,6 +21,7 @@ final class AppModel {
 
     private(set) var settings: NinaSettings
     var tab: AppTab = .today
+    var foodsPage: FoodsPage = .foods
     var sidebar: SidebarItem? = .today
     var selectedDay: DayKey
     var sheet: AppSheet?
@@ -379,6 +380,7 @@ final class AppModel {
         case "recipes":
             sidebar = .recipes
             tab = .foods
+            foodsPage = .recipes
         case "body":
             sidebar = .body
             tab = .insights

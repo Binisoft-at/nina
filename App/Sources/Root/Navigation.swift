@@ -7,6 +7,13 @@ enum AppTab: Hashable {
     case today, foods, plan, insights, search
 }
 
+/// iPhone: the Foods tab shows foods or meals & recipes.
+enum FoodsPage: String, CaseIterable, Identifiable {
+    case foods, recipes
+    var id: String { rawValue }
+    var title: String { self == .foods ? "Foods" : "Meals & Recipes" }
+}
+
 /// Mac (and iPad sidebar) sections.
 enum SidebarItem: Hashable, CaseIterable, Identifiable {
     case today, foods, recipes, plan, insights, body, trash
