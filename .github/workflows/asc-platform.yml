@@ -3,8 +3,9 @@ name: App Store Connect platform
 # Synced from the Binisoft handbook (ci/workflows) – change it there and run tools/sync.sh.
 #
 # Manual, and it changes App Store Connect: adds a platform (macOS, iOS) to the app's record, like
-# "Add Platform" on the website. Needed when the record was created for one platform only – a Mac
-# upload then fails with "Error Downloading App Information". Run it only with the owner's OK.
+# "Add Platform" on the website, for records created for one platform only – without a website
+# login. Run it only with the owner's OK. (A first Mac upload that fails with "Error Downloading App
+# Information" while the record has MAC_OS just needs a second TestFlight run – pitfall 39.)
 # Results go to the ci-output branch (folder asc-platform/):
 #   git fetch origin ci-output && git show origin/ci-output:asc-platform/status.txt
 

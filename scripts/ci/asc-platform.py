@@ -3,8 +3,8 @@
 on the website: it creates the platform's first App Store version (MARKETING_VERSION). Changes the
 team's App Store Connect – run it only with the owner's OK (HOW_WE_WORK section 4).
 
-A record created for iOS alone makes every Mac upload stop with "Error Downloading App
-Information" until it has MAC_OS.
+A record without MAC_OS can't take Mac uploads. (A brand-new record that has MAC_OS can still fail
+its first Mac upload with "Error Downloading App Information" – then just run TestFlight again.)
 
 usage: asc-platform.py macos|ios
 env:   ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 (or ASC_KEY_PATH); BUNDLE_ID and VERSION (defaults:
