@@ -6,9 +6,17 @@ import NinaCore
 /// Saved meals (logged as their foods in one tap) and recipes (logged by portion).
 struct RecipesView: View {
     @Environment(AppModel.self) private var app
-    @Query(filter: #Predicate<Recipe> { $0.deletedAt == nil }, sort: [SortDescriptor(\Recipe.sortOrder), SortDescriptor(\Recipe.name)])
-    private var recipes: [Recipe]
+    @Query(RecipesView.listed) private var recipes: [Recipe]
     @State private var query = ""
+
+    /// Not deleted, in the person's order, then by name. Spelled out with explicit types: as one
+    /// inline `@Query(filter:sort:)` expression the compiler gives up type-checking it.
+    private static var listed: FetchDescriptor<Recipe> {
+        let notDeleted = #Predicate<Recipe> { $0.deletedAt == nil }
+        let byOrder = SortDescriptor<Recipe>(\.sortOrder)
+        let byName = SortDescriptor<Recipe>(\.name)
+        return FetchDescriptor<Recipe>(predicate: notDeleted, sortBy: [byOrder, byName])
+    }
 
     private var filtered: [Recipe] {
         let needle = SearchText.normalize(query)
