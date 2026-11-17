@@ -1,0 +1,49 @@
+name: App Store Connect platform
+
+# Synced from the Binisoft handbook (ci/workflows) – change it there and run tools/sync.sh.
+#
+# Manual, and it changes App Store Connect: adds a platform (macOS, iOS) to the app's record, like
+# "Add Platform" on the website. Needed when the record was created for one platform only – a Mac
+# upload then fails with "Error Downloading App Information". Run it only with the owner's OK.
+# Results go to the ci-output branch (folder asc-platform/):
+#   git fetch origin ci-output && git show origin/ci-output:asc-platform/status.txt
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to add to the App Store Connect record
+        type: choice
+        options: [macos, ios]
+        default: macos
+
+permissions:
+  contents: write
+
+# bash with -eo pipefail, so `cmd | tee log` fails when cmd fails.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      PLATFORM: ${{ inputs.platform }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Add the platform
+        run: |
+          mkdir -p ci-logs/asc-platform
+          set -o pipefail
+          python3 scripts/ci/asc-platform.py "$PLATFORM" 2>&1 | tee ci-logs/asc-platform/status.txt
+          { echo '```'; cat ci-logs/asc-platform/status.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to ci-output/asc-platform
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/publish-output.sh ci-logs/asc-platform "asc platform run ${{ github.run_number }}" ci-output asc-platform

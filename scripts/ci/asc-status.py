@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prints the latest App Store Connect builds of this app (processing state, TestFlight state,
-platform, version, build number) and the team's signing certificates. Read-only.
+platform, version, build number), the platforms on the app record and the team's signing
+certificates. Read-only.
 
 env: ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 (or ASC_KEY_PATH); BUNDLE_ID (default: APP_BUNDLE_ID
      from Config/Base.xcconfig). Synced from the Binisoft handbook.
@@ -33,6 +34,9 @@ def main():
         sys.exit(1)
     app = apps[0]
     print(f"App: {app['attributes']['name']} ({bundle}), id {app['id']}")
+    on_record = asc.platforms(app["id"])
+    print("Platforms on the record: " + (", ".join(f"{p} ({', '.join(v)})" for p, v in sorted(on_record.items())) or "none")
+          + ("" if "MAC_OS" in on_record else "  (an app with a Mac version needs MAC_OS: 'App Store Connect platform' workflow)"))
     result = asc.request("GET", "/builds", {
         "filter[app]": app["id"], "sort": "-uploadedDate", "limit": "10",
         "include": "preReleaseVersion,buildBetaDetail",

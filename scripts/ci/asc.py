@@ -71,13 +71,17 @@ def token():
     return signing_input.decode() + "." + _b64url(_der_to_raw(der))
 
 
-def request(method, path, params=None, retries=3):
-    """GET/DELETE against the API. Retries App Store Connect 5xx answers."""
+def request(method, path, params=None, retries=3, body=None):
+    """GET/POST/PATCH/DELETE against the API; `body` is sent as JSON. Retries App Store Connect 5xx answers."""
     url = path if path.startswith("https://") else API + path
     if params:
         url += ("&" if "?" in url else "?") + urllib.parse.urlencode(params)
+    data = json.dumps(body).encode() if body is not None else None
     for attempt in range(retries + 1):
-        req = urllib.request.Request(url, method=method, headers={"Authorization": "Bearer " + token()})
+        headers = {"Authorization": "Bearer " + token()}
+        if data is not None:
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, method=method, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=60) as response:
                 body = response.read()
@@ -88,6 +92,23 @@ def request(method, path, params=None, retries=3):
                 continue
             detail = error.read().decode(errors="replace")[:500]
             raise RuntimeError(f"{method} {path} → HTTP {error.code}: {detail}") from None
+
+
+def find_app(bundle):
+    """The App Store Connect app record for a bundle ID, or None."""
+    apps, _ = get_all("/apps", {"filter[bundleId]": bundle})
+    return apps[0] if apps else None
+
+
+def platforms(app_id):
+    """{platform: [App Store version strings]} of an app record – the platforms it has (IOS, MAC_OS …)."""
+    versions, _ = get_all(f"/apps/{app_id}/appStoreVersions",
+                          {"fields[appStoreVersions]": "platform,versionString,appStoreState", "limit": "50"})
+    result = {}
+    for version in versions:
+        a = version["attributes"]
+        result.setdefault(a["platform"], []).append(f"{a['versionString']} {a.get('appStoreState', '')}".strip())
+    return result
 
 
 def get_all(path, params=None):
