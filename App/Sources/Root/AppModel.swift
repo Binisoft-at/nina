@@ -277,6 +277,12 @@ final class AppModel {
         }
     }
 
+    /// The settings as the goals & settings import and export see them (with the latest weight).
+    var settingsState: SettingsState {
+        let store = self.store
+        return SettingsState(profile: store.profile(), weight: store.weights().last?.kilograms ?? health.latestWeight ?? 0)
+    }
+
     func updateSettings(_ change: (NinaProfile) -> Void) {
         store.updateProfile(change)
     }

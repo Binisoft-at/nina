@@ -221,7 +221,7 @@ struct OpenFoodFactsTests {
     }
 }
 
-/// Writes the three AI prompts for docs/IMPORT.md: `NINA_PROMPTS_OUT=/path swift test --filter writePrompts`.
+/// Writes the AI prompts for docs/IMPORT.md: `NINA_PROMPTS_OUT=/path swift test --filter writePrompts`.
 @Suite("Prompts for the docs")
 struct PromptExportTests {
     @Test(.enabled(if: ProcessInfo.processInfo.environment["NINA_PROMPTS_OUT"] != nil))
@@ -229,6 +229,8 @@ struct PromptExportTests {
         let path = try #require(ProcessInfo.processInfo.environment["NINA_PROMPTS_OUT"])
         let meals = MealSlot.defaults.sorted { $0.minutes < $1.minutes }.map(\.name)
         let text = [
+            "### Set up Nina (everything at once)\n\n````text\n" + SetupPrompt.text(appName: "Nina") + "\n````\n",
+            "### Goals & settings\n\n````text\n" + SettingsCSV.prompt(appName: "Nina") + "\n````\n",
             "### Foods\n\n```text\n" + FoodCSV.prompt(appName: "Nina").text + "```\n",
             "### Diary\n\n```text\n" + DiaryCSV.prompt(appName: "Nina", mealNames: meals).text + "```\n",
             "### Meals & recipes\n\n```text\n" + RecipeCSV.prompt(appName: "Nina", existingNames: []).text + "```\n",

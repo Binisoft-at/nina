@@ -21,7 +21,7 @@ public struct NinaTourSnapshot: Equatable, Sendable {
 /// `version`; people who already took the tour then get just the new steps as "What's new".
 /// `swift test` checks the catalog.
 public enum NinaTour {
-    public static let version = 1
+    public static let version = 2
 
     public static let catalog = TourCatalog<NinaTourSnapshot>.standard(
         appName: "Nina",
@@ -34,6 +34,12 @@ public enum NinaTour {
                 body: "Tap + at the top. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
                 macBody: "Click + in the toolbar or press ⇧⌘N. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
                 goal: .isTrue(\.isCreateOpen)
+            ),
+            TourStep(
+                id: "setup-ai", since: 2, symbol: "sparkles", title: "Let your AI set Nina up",
+                body: "In + → Import My Data, tap Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: your goal, daily targets, meal times, foods and usual meals are set in one go – with a preview first.",
+                macBody: "In + → Import My Data, click Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: goal, targets, meal times, foods and meals are set in one go – with a preview first.",
+                goal: .none
             ),
             TourStep(
                 id: "log", symbol: "magnifyingglass", title: "Log a food",

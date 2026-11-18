@@ -16,6 +16,7 @@ The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 1):
 |---|---|---|
 | welcome | what the tour is | – (Continue) |
 | create | the central + | the create sheet opens |
+| setup-ai (since 2) | the setup prompt for another AI in + → Import My Data | read-only (Continue) |
 | log | search and add a food | an entry is eaten |
 | quick | type a whole meal like a message | another entry is eaten |
 | undo | delete and Undo | an entry is deleted and restored |

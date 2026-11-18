@@ -1,22 +1,34 @@
 import Foundation
 import BinisoftKitCore
 
-/// Which of Nina's three CSV formats a file is.
+/// Which of Nina's CSV formats a file is.
 public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
-    case foods, diary, recipes
+    case settings, foods, recipes, diary
 
     public var id: String { rawValue }
 
     public var title: String {
         switch self {
+        case .settings: "Goals & Settings"
         case .foods: "Foods"
         case .diary: "Diary"
         case .recipes: "Meals & Recipes"
         }
     }
 
+    /// For the segmented picker.
+    public var shortTitle: String {
+        switch self {
+        case .settings: "Goals"
+        case .foods: "Foods"
+        case .diary: "Diary"
+        case .recipes: "Recipes"
+        }
+    }
+
     public var subtitle: String {
         switch self {
+        case .settings: "Your body data, goal, daily targets, training days, meal times and preferences – from a few lines about you."
         case .foods: "Your foods with their nutrition values – from labels, a spreadsheet or another app."
         case .diary: "What you ate on which day – e.g. an export from another app."
         case .recipes: "Saved meals (logged together) and recipes (cooked, then eaten in portions)."
@@ -25,6 +37,9 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
 
     /// Guesses the format from the header line.
     public static func detect(_ text: String) -> ImportKind? {
+        let firstLine = text.split(whereSeparator: \.isNewline).first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map(String.init) ?? ""
+        let firstCell = firstLine.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "\t" }).first.map(String.init) ?? ""
+        if SettingsCSV.isHeader([firstCell]) { return .settings }
         let header = CSV.records(text).header.map(ImportColumns.canonical)
         let set = Set(header)
         if set.contains("recipe") || set.contains("ingredient") { return .recipes }

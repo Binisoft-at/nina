@@ -67,6 +67,14 @@ struct NinaStore {
     var settings: NinaSettings { NinaSettings(profile()) }
 
     /// Changes the profile, creating it on first use.
+    /// Goals & settings from an import: the profile, and today's weight when the file had a new one.
+    func applySettings(_ result: SettingsResult, previous: SettingsState, day: DayKey) {
+        updateProfile { profile in profile.apply(result.state, previous: previous) }
+        if let weight = result.newWeight {
+            _ = addWeight(weight, day: day, note: "import")
+        }
+    }
+
     func updateProfile(_ change: (NinaProfile) -> Void) {
         let profile = profile() ?? {
             let created = NinaProfile()

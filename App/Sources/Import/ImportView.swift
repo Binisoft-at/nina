@@ -4,9 +4,10 @@ import UniformTypeIdentifiers
 import BinisoftKit
 import NinaCore
 
-/// Import & Export in three formats – foods, diary, meals & recipes. Each has a prompt for another
-/// AI (copy → paste with your data → paste the CSV back), a file picker, a preview before anything
-/// changes, and an export. Importing the same file again updates instead of duplicating.
+/// Import & Export: one setup prompt for another AI that writes goals & settings, foods and meals &
+/// recipes at once, plus each format on its own (goals & settings, foods, meals & recipes, diary) with
+/// its prompt, a file picker, a preview before anything changes, and an export. Importing the same
+/// file again updates instead of duplicating.
 struct ImportView: View {
     let initialKind: ImportKind?
 
@@ -14,7 +15,8 @@ struct ImportView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var kind: ImportKind = .foods
     @State private var text = ""
-    @State private var preview: ImportPreview?
+    @State private var previews: [ImportPreview] = []
+    @State private var setupCopied = false
     @State private var showFilePicker = false
     @State private var exportFile: CSVFile?
     @State private var exportName = ""
@@ -25,8 +27,23 @@ struct ImportView: View {
         NavigationStack {
             Form {
                 Section {
+                    Button(setupCopied ? "Setup Prompt Copied – Paste It into Any AI" : "Copy the Setup Prompt",
+                           systemImage: setupCopied ? "checkmark" : "sparkles") {
+                        Clipboard.copy(setupText)
+                        setupCopied = true
+                    }
+                    ShareLink(item: setupText) {
+                        Label("Share the Setup Prompt", systemImage: "square.and.arrow.up")
+                    }
+                } header: {
+                    Text("Set Up Nina with Your AI")
+                } footer: {
+                    Text("Paste the prompt into ChatGPT, Claude or any AI and add a few lines about you: age, height, weight, goal, training, meal times, the foods and meals you eat (label photos work too). Paste its whole answer below – goals, settings, foods and meals are imported in one go, with a preview first.")
+                }
+
+                Section {
                     Picker("Format", selection: $kind) {
-                        ForEach(ImportKind.allCases) { kind in Text(kind.title).tag(kind) }
+                        ForEach(ImportKind.allCases) { kind in Text(kind.shortTitle).tag(kind) }
                     }
                     .pickerStyle(.segmented)
                     Text(kind.subtitle).font(.callout).foregroundStyle(.secondary)
@@ -41,7 +58,7 @@ struct ImportView: View {
                     ShareLink(item: promptText) {
                         Label("Share the Prompt", systemImage: "square.and.arrow.up")
                     }
-                    TextField("Paste the CSV the AI wrote", text: $text, axis: .vertical)
+                    TextField("Paste what the AI wrote (one or more CSV blocks)", text: $text, axis: .vertical)
                         .lineLimit(4...12)
                         .font(.callout.monospaced())
                     HStack {
@@ -57,10 +74,10 @@ struct ImportView: View {
                     Text("1. Copy the prompt. 2. Paste it into ChatGPT, Claude or any AI together with your notes, label photos, screenshots or an export. 3. Paste the CSV it writes here (or save it as a file), preview, import. Everything is read on this device.")
                 }
 
-                if let preview {
+                ForEach(Array(previews.enumerated()), id: \.offset) { _, preview in
                     Section {
                         Text(preview.summary).font(.headline)
-                        ForEach(preview.lines.prefix(10)) { line in
+                        ForEach(preview.lines.prefix(preview.visibleLines)) { line in
                             HStack {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(line.title).lineLimit(1)
@@ -72,17 +89,30 @@ struct ImportView: View {
                                 Text(line.action).font(.caption).foregroundStyle(line.action == "new" ? Brand.accent : .secondary)
                             }
                         }
-                        if preview.lines.count > 10 {
-                            Text("… and \(preview.lines.count - 10) more").foregroundStyle(.secondary)
+                        if preview.lines.count > preview.visibleLines {
+                            Text("… and \(preview.lines.count - preview.visibleLines) more").foregroundStyle(.secondary)
                         }
                         ForEach(preview.skipped.prefix(8), id: \.self) { reason in
                             Text(reason).font(.caption).foregroundStyle(.orange)
                         }
-                        Button("Import", systemImage: "square.and.arrow.down") { apply() }
-                            .primaryActionStyle()
-                            .disabled(!preview.hasChanges)
+                        if !preview.wishes.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Nina can't store these yet").font(.subheadline.weight(.semibold))
+                                ForEach(preview.wishes, id: \.self) { wish in
+                                    Text("• " + wish).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
                     } header: {
-                        Text("Preview")
+                        Text("Preview · \(preview.kind.title)")
+                    }
+                }
+                if !previews.isEmpty {
+                    Section {
+                        Button(previews.count > 1 ? "Import All" : "Import", systemImage: "square.and.arrow.down") { apply() }
+                            .primaryActionStyle()
+                            .disabled(!previews.contains(where: \.hasChanges))
                     } footer: {
                         Text("Nothing changes until you tap Import. Importing again updates instead of duplicating.")
                     }
@@ -93,6 +123,7 @@ struct ImportView: View {
                 }
 
                 Section {
+                    Button("Export Goals & Settings (CSV)", systemImage: "target") { export(.settings) }
                     Button("Export Foods (CSV)", systemImage: "carrot") { export(.foods) }
                     Button("Export Diary (CSV)", systemImage: "book") { export(.diary) }
                     Button("Export Meals & Recipes (CSV)", systemImage: "frying.pan") { export(.recipes) }
@@ -116,7 +147,6 @@ struct ImportView: View {
                 if case .failure(let error) = result { problem = error.localizedDescription }
             }
             .onChange(of: kind) { _, _ in
-                preview = nil
                 promptCopied = false
             }
             .onAppear {
@@ -130,9 +160,18 @@ struct ImportView: View {
         .sheetFrame(minWidth: 600, minHeight: 720)
     }
 
+    private var setupText: String {
+        let store = app.store
+        let tags = Array(Set(store.foods().flatMap(\.tagList))).sorted()
+        return SetupPrompt.text(appName: AppInfo.name, currentSettings: SettingsCSV.export(app.settingsState), existingTags: tags,
+                                existingRecipes: store.recipes().map(\.displayName))
+    }
+
     private var promptText: String {
         let store = app.store
         switch kind {
+        case .settings:
+            return SettingsCSV.prompt(appName: AppInfo.name, current: SettingsCSV.export(app.settingsState))
         case .foods:
             let tags = Array(Set(store.foods().flatMap(\.tagList))).sorted()
             return FoodCSV.prompt(appName: AppInfo.name, existingTags: tags).text
@@ -147,13 +186,15 @@ struct ImportView: View {
 
     private func makePreview(_ text: String) {
         problem = nil
-        if let detected = ImportKind.detect(text), detected != kind {
-            kind = detected
+        let parts = ImportBundle.parts(text)
+        if parts.isEmpty {
+            previews = [ImportPreview.make(kind: kind, text: text, app: app)]
+        } else {
+            if parts.count == 1, let only = parts.first { kind = only.kind }
+            previews = parts.map { ImportPreview.make(kind: $0.kind, text: $0.text, app: app) }
         }
-        let result = ImportPreview.make(kind: kind, text: text, app: app)
-        preview = result
-        if result.lines.isEmpty, result.skipped.isEmpty {
-            problem = "No rows found. The first line must be the header the prompt describes."
+        if previews.allSatisfy({ $0.lines.isEmpty && $0.skipped.isEmpty && $0.wishes.isEmpty }) {
+            problem = "Nothing found to import. The first line of each part must be the header the prompt describes."
         }
     }
 
@@ -176,17 +217,26 @@ struct ImportView: View {
     }
 
     private func apply() {
-        guard let preview else { return }
-        let summary = preview.apply(app: app)
-        app.refresh()
-        app.toasts.show(summary, symbol: "square.and.arrow.down.fill")
+        var summaries: [String] = []
+        // Settings first, then foods, so meals and recipes find foods imported in the same go.
+        for preview in previews.sorted(by: { order($0.kind) < order($1.kind) }) where preview.hasChanges {
+            summaries.append(preview.apply(app: app))
+            app.refresh()
+        }
+        app.toasts.show(summaries.joined(separator: " · "), symbol: "square.and.arrow.down.fill")
         dismiss()
+    }
+
+    private func order(_ kind: ImportKind) -> Int {
+        ImportKind.allCases.firstIndex(of: kind) ?? 0
     }
 
     private func export(_ kind: ImportKind) {
         let store = app.store
         let text: String
         switch kind {
+        case .settings:
+            text = SettingsCSV.export(app.settingsState)
         case .foods:
             text = FoodCSV.export(store.foods().filter { !$0.isHidden || $0.catalogID.isEmpty }.map { ($0.key, $0.draft) })
         case .diary:
@@ -214,9 +264,15 @@ struct ImportPreview {
     let skipped: [String]
     let summary: String
     let hasChanges: Bool
-    private let foodPlan: ImportPlan<FoodDraft>?
-    private let diaryPlan: ImportPlan<DiaryDraft>?
-    private let recipePlan: ImportPlan<RecipeDraft>?
+    private var foodPlan: ImportPlan<FoodDraft>?
+    private var diaryPlan: ImportPlan<DiaryDraft>?
+    private var recipePlan: ImportPlan<RecipeDraft>?
+    private var settings: (result: SettingsResult, previous: SettingsState)?
+    /// What the AI found that Nina can't store yet.
+    var wishes: [String] = []
+
+    /// Every changed setting is shown; rows of other files up to ten.
+    var visibleLines: Int { kind == .settings ? 50 : 10 }
 
     @MainActor
     static func make(kind: ImportKind, text: String, app: AppModel) -> ImportPreview {
@@ -229,6 +285,14 @@ struct ImportPreview {
             }
         }
         switch kind {
+        case .settings:
+            let previous = app.settingsState
+            let draft = SettingsCSV.parse(text)
+            let result = SettingsCSV.apply(draft, to: previous, year: Calendar.current.component(.year, from: Date()))
+            let lines = result.changes.map { Line(title: $0.title, detail: "\($0.old) → \($0.new)", action: "change") }
+            let summary = result.hasChanges ? "\(result.changes.count) setting\(result.changes.count == 1 ? "" : "s") change" : "Your settings already match"
+            return ImportPreview(kind: kind, lines: lines, skipped: draft.skipped + result.notes, summary: summary, hasChanges: result.hasChanges,
+                                 settings: (result, previous), wishes: draft.wishes)
         case .foods:
             var existing: [String: FoodDraft] = [:]
             for food in store.foods() {
@@ -240,7 +304,7 @@ struct ImportPreview {
                      action: label(entry.action))
             }
             return ImportPreview(kind: kind, lines: lines, skipped: plan.skipped, summary: plan.summary, hasChanges: plan.hasChanges,
-                                 foodPlan: plan, diaryPlan: nil, recipePlan: nil)
+                                 foodPlan: plan)
         case .diary:
             var existing: [String: DiaryDraft] = [:]
             let all = store.entries(from: DayKey(year: 2000, month: 1, day: 1), through: app.today.adding(days: 366)).filter { !$0.importKey.isEmpty }
@@ -254,7 +318,7 @@ struct ImportPreview {
                 return Line(title: draft.name, detail: "\(draft.day.rawValue) · \(draft.meal) · \(lookup)", action: label(entry.action == .create ? .create : (entry.action == .update ? .update : .unchanged)))
             }
             return ImportPreview(kind: kind, lines: lines, skipped: plan.skipped, summary: plan.summary, hasChanges: plan.hasChanges,
-                                 foodPlan: nil, diaryPlan: plan, recipePlan: nil)
+                                 diaryPlan: plan)
         case .recipes:
             var existing: [String: RecipeDraft] = [:]
             for recipe in store.recipes() { existing[RecipeCSV.key(forName: recipe.displayName)] = recipe.draft }
@@ -264,7 +328,7 @@ struct ImportPreview {
                      action: label(entry.action == .create ? .create : (entry.action == .update ? .update : .unchanged)))
             }
             return ImportPreview(kind: kind, lines: lines, skipped: plan.skipped, summary: plan.summary, hasChanges: plan.hasChanges,
-                                 foodPlan: nil, diaryPlan: nil, recipePlan: plan)
+                                 recipePlan: plan)
         }
     }
 
@@ -275,6 +339,11 @@ struct ImportPreview {
         var created = 0
         var updated = 0
         var skipped = 0
+        if let settings {
+            store.applySettings(settings.result, previous: settings.previous, day: app.today)
+            AppLog.info("Import settings: \(settings.result.changes.count) changes", category: "import")
+            return settings.result.changes.count == 1 ? "1 setting changed" : "\(settings.result.changes.count) settings changed"
+        }
         if let plan = foodPlan {
             var byKey: [String: Food] = [:]
             for food in store.foods() {

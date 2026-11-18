@@ -258,3 +258,44 @@ struct NinaSettings: Equatable {
         DayKey.today(calendar: calendar, now: now, dayStartHour: dayStartHour)
     }
 }
+
+// MARK: Goals & settings import
+
+extension SettingsState {
+    /// The profile's settings and the latest weight, as the settings import sees them.
+    init(profile: NinaProfile?, weight: Double) {
+        let settings = NinaSettings(profile)
+        self.init(sex: settings.body.sex, birthYear: profile?.birthYear ?? 0, heightCm: profile?.heightCm ?? 0, weightKg: weight,
+                  activity: settings.body.activity, goal: settings.body.goal,
+                  ratePerWeek: settings.body.ratePerWeek > 0 ? settings.body.ratePerWeek : 0.5,
+                  targetWeight: settings.targetWeight, macroSplit: settings.macroSplit, targets: settings.targets,
+                  trainingTargets: settings.trainingTargets, trainingDays: settings.trainingDays, meals: settings.meals,
+                  language: settings.language, energyUnit: settings.energyUnit, dayStartHour: settings.dayStartHour,
+                  waterGlass: settings.waterGlass, activityBonusShare: settings.activityBonusShare, focus: settings.focus)
+    }
+}
+
+extension NinaProfile {
+    /// Writes imported settings. The food language is only stored when it changed, so "follow the
+    /// device" stays as it is otherwise.
+    func apply(_ state: SettingsState, previous: SettingsState) {
+        sex = state.sex.rawValue
+        birthYear = state.birthYear
+        heightCm = state.heightCm
+        activity = state.activity.rawValue
+        goal = state.goal.rawValue
+        ratePerWeek = state.ratePerWeek
+        targetWeight = state.targetWeight
+        macroSplit = state.macroSplit.id
+        targets = state.targets.encoded
+        trainingTargets = state.trainingTargets?.encoded ?? ""
+        trainingDays = state.trainingDays.encoded
+        meals = MealSlot.encode(state.meals)
+        if state.language != previous.language { foodLanguage = state.language.rawValue }
+        energyUnit = state.energyUnit.rawValue
+        dayStartHour = state.dayStartHour
+        waterGlass = state.waterGlass
+        activityBonusShare = state.activityBonusShare
+        focusNutrients = state.focus.map(\.rawValue).joined(separator: ",")
+    }
+}
