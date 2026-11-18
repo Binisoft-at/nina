@@ -1,0 +1,42 @@
+name: TestFlight invitations
+
+# Synced from the Binisoft handbook (ci/workflows) – change it there and run tools/sync.sh.
+#
+# Manual, and it sends emails from App Store Connect: resends the TestFlight invitation to every
+# tester of the app who hasn't accepted yet (the status workflow shows them as INVITED). For
+# invitation emails that never arrived. Run it only with the owner's OK. Testers are counted, never
+# named. Results go to the ci-output branch (folder asc-invite/):
+#   git fetch origin ci-output && git show origin/ci-output:asc-invite/status.txt
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# bash with -eo pipefail, so `cmd | tee log` fails when cmd fails.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  invite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Resend invitations
+        run: |
+          mkdir -p ci-logs/asc-invite
+          set -o pipefail
+          python3 scripts/ci/asc-invite.py 2>&1 | tee ci-logs/asc-invite/status.txt
+          { echo '```'; cat ci-logs/asc-invite/status.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to ci-output/asc-invite
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/ci/publish-output.sh ci-logs/asc-invite "asc invite run ${{ github.run_number }}" ci-output asc-invite

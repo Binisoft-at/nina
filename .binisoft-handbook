@@ -1,4 +1,4 @@
-v1.1-5-g9c6934c
-# Binisoft handbook version this app follows (written by tools/sync.sh, commit 9c6934c, 2026-11-17).
+v1.1-6-g74ddf23
+# Binisoft handbook version this app follows (written by tools/sync.sh, commit 74ddf23, 2026-11-18).
 # Synced from the handbook – don't edit in the app: Vendor/BinisoftKit, scripts/ci,
-# .github/workflows/{asc-platform.yml,asc-status.yml,ci.yml,cloudkit-schema.yml,testflight.yml}
+# .github/workflows/{asc-invite.yml,asc-platform.yml,asc-status.yml,ci.yml,cloudkit-schema.yml,testflight.yml}
