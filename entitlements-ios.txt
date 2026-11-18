@@ -1,0 +1,4 @@
+ok: Nina.app has every entitlement from Config/iOS/Nina.entitlements
+ok: Nina.app/Watch/NinaWatch.app has every entitlement from Config/watchOS/NinaWatch.entitlements
+ok: Nina.app/Watch/NinaWatch.app/PlugIns/NinaWatchWidgets.appex has every entitlement from Config/WatchWidgets/NinaWatchWidgets.entitlements
+ok: Nina.app/PlugIns/NinaWidgets.appex has every entitlement from Config/Widgets/NinaWidgets.entitlements

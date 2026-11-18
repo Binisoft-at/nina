@@ -1,0 +1,3 @@
+run 13 (push) commit 207b86e5b346ab2c55c88ebfd085d4c0273e8671
+prune=success upload=success build=13
+details: https://github.com/Binisoft-at/nina/actions/runs/44361145772
