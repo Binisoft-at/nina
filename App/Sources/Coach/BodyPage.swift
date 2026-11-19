@@ -11,6 +11,8 @@ struct BodyPageView: View {
     @Environment(AppModel.self) private var app
     @State private var data: BodyPageData?
     @State private var isWide = false
+    /// The tape formula picked for sex "Prefer not to say" (device-only): the page reloads when it changes.
+    @AppStorage(BodyPageKeys.navyFormula) private var navyFormula = ""
 
     var body: some View {
         ScrollView {
@@ -30,9 +32,11 @@ struct BodyPageView: View {
         }
     }
 
-    /// Reload on every data change, when the day changes and when Apple Health weigh-ins arrive
-    /// (read live, never stored).
-    private var loadKey: String { "\(app.dataVersion)-\(app.today.rawValue)-\(app.health.weightSamples.count)" }
+    /// Reload on every data change, when the day changes, when Apple Health weigh-ins arrive
+    /// (read live, never stored) and when a tape formula is picked.
+    private var loadKey: String {
+        "\(app.dataVersion)-\(app.today.rawValue)-\(app.health.weightSamples.count)-\(navyFormula)"
+    }
 
     @ViewBuilder
     private var content: some View {
@@ -129,7 +133,7 @@ private struct BodyPageLayout: View {
     }
 
     private var tiles: some View {
-        BodyPageTilesCard(tiles: data.tiles, since: data.phaseStart)
+        BodyPageTilesCard(tiles: data.tiles, since: data.phaseStart, baseline: data.baseline, gainLine: data.gainLine)
     }
 
     @ViewBuilder
@@ -151,8 +155,8 @@ private struct BodyPageLayout: View {
         if data.isSetUp {
             BodyPageCheckInsCard(checkIns: data.checkIns)
         }
-        if let line = data.checkLine {
-            BodyPageChecksCard(line: line)
+        if let checks = data.checks {
+            BodyPageChecksCard(checks: checks)
         }
     }
 
@@ -165,6 +169,9 @@ private struct BodyPageLayout: View {
 
 /// Colours of the body page: status tones and phase goals (gain warm, maintain neutral, lose cool).
 enum BodyPageStyle {
+    /// A check that moves the scale started (creatine) on the weight chart.
+    static let event: Color = Color.indigo.opacity(0.8)
+
     static func color(_ tone: BodyPageTone) -> Color {
         switch tone {
         case .good: .green

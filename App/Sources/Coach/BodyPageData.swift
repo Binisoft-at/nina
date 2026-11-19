@@ -82,6 +82,14 @@ struct BodyPageSpan: Identifiable {
     let end: Date
 }
 
+/// A check that moves the scale started (creatine's first tick): a dashed line on the chart.
+struct BodyPageEvent: Identifiable {
+    let id: String
+    let date: Date
+    /// "Creatine started".
+    let title: String
+}
+
 /// Everything one range of the weight chart draws.
 struct BodyPageWeightChart {
     let range: BodyPageRange
@@ -99,6 +107,8 @@ struct BodyPageWeightChart {
     let target: Double?
     let review: ClosedRange<Double>?
     let phaseEnd: Date?
+    /// First ticks of checks that move the scale (creatine), inside the range.
+    let events: [BodyPageEvent]
     let yDomain: ClosedRange<Double>
 
     var isEmpty: Bool { mornings.isEmpty && others.isEmpty }
@@ -119,8 +129,12 @@ struct BodyPageWeight {
     let weeklyChange: WeightSignal.Change?
     /// The decision rate (kg/week) when valid.
     let rate: Double?
+    /// Display only: (7-day average now − 7-day average 14 days ago) ÷ 2, kg a week.
+    let crossCheck: Double?
     /// Why there is no rate yet.
     let rateNote: String?
+    /// "Creatine started 9 days ago – up to ~1 kg may be water" (28 days after the first tick).
+    let eventNotes: [String]
     /// "±0.6 kg" personal day-to-day swing.
     let noise: Double?
     let usesHealth: Bool
@@ -145,6 +159,14 @@ struct BodyPageGoal {
     let honestLine: String?
     /// "goal date likely later (~Sep 2031)".
     let outlook: String?
+
+    /// "78 kg at 14 %" (the parts that are set).
+    var goalText: String? {
+        var parts: [String] = []
+        if goal.weightKg > 0 { parts.append(Fmt.kilograms(goal.weightKg)) }
+        if goal.bodyFat > 0 { parts.append(BodyPageText.percent(goal.bodyFat)) }
+        return parts.isEmpty ? nil : parts.joined(separator: " at ")
+    }
 }
 
 /// A tape site tile: the latest value and the change since the phase start.
@@ -202,11 +224,13 @@ struct BodyPageComposition {
     let nextFull: BodySchedule.Due?
     /// Why the tape estimate is missing ("Height needed for the tape estimate").
     let tapeNote: String?
+    /// Sex is "Prefer not to say" and no tape formula was picked yet: the card asks which one.
+    let needsFormula: Bool
     /// The active phase gains weight (the glycogen note goes with the lean change).
     let isGainPhase: Bool
 
     var hasBodyFat: Bool { !series.isEmpty }
-    var isEmpty: Bool { series.isEmpty && waistToHeight == nil && nextFull == nil && tapeNote == nil }
+    var isEmpty: Bool { series.isEmpty && waistToHeight == nil && nextFull == nil && tapeNote == nil && !needsFormula }
 }
 
 /// Planned, active or done.
@@ -256,15 +280,32 @@ struct BodyPageTimeline {
     let endText: String
 }
 
-/// A saved check-in in the list.
+/// A saved check-in in the list: "avg 74.6 kg · +0.18 kg/wk · +100 kcal · Applied".
 struct BodyPageCheckIn: Identifiable {
     let id: String
     let week: DayKey
     let title: String
     let verdict: String
     let tone: BodyPageTone
+    /// "avg 74.6 kg" (the 7-day average on the check-in day).
+    let average: String?
+    /// "+0.18 kg/wk" (the decision rate).
+    let rate: String?
     let delta: String?
     let decision: String
+
+    /// "avg 74.6 kg · +0.18 kg/wk · +100 kcal · Applied".
+    var detail: String {
+        [average, rate, delta, decision].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// One line of check adherence and the days it covers.
+struct BodyPageChecks {
+    /// "Creatine 26 of 28 days · Fish oil 4 days".
+    let line: String
+    /// "Last 28 days", or "Since 3 Mar" for a newer plan.
+    let period: String
 }
 
 /// Everything the body page shows.
@@ -280,10 +321,15 @@ struct BodyPageData {
     let composition: BodyPageComposition
     let timeline: BodyPageTimeline?
     let checkIns: [BodyPageCheckIn]
-    /// "Creatine 6 of 7 days · Vitamin D 7 of 7 days" (the last 7 days).
-    let checkLine: String?
+    /// "Creatine 26 of 28 days · Vitamin D 28 of 28 days" (the last 28 days).
+    let checks: BodyPageChecks?
     /// The active phase's start: tile changes and site details count from it.
     let phaseStart: DayKey?
+    /// The baseline table: per tile site, the change from its value at the phase start (or the
+    /// first reading) to the latest standard reading.
+    let baseline: [GirthChange]
+    /// In a gain phase: "arm +0.8, chest +1.4, thigh +1.1 cm; waist +0.4 cm (no clear change)".
+    let gainLine: String?
     let measurementCount: Int
 
     /// The page for today with the app's data (typed and live Health weigh-ins).
@@ -304,17 +350,22 @@ struct BodyPageData {
         measurementCount = context.measurements.count
         due = BodyPageData.dueItems(context)
         header = BodyPageData.header(context)
-        weight = BodyPageData.weight(context)
+        let events: [ProgressWeightEvent] = plan.isSetUp ? ProgressWeightEvent.events(in: plan, ticks: store.checkTicks()) : []
+        weight = BodyPageData.weight(context, events: events)
         let routine = plan.isSetUp ? plan.routine : CoachPlan.Routine.defaults(for: sex)
-        tiles = BodyPageData.tileSites(routine: routine).map { site in
+        let sites = BodyPageData.tileSites(routine: routine)
+        tiles = sites.map { site in
             BodyPageData.tile(site, records: context.tapeRecords, since: phase?.start)
         }
+        let baseline = BodyPageData.baseline(sites, records: context.tapeRecords, since: phase?.start, calendar: context.calendar)
+        self.baseline = baseline
+        gainLine = phase?.goal == .gain ? GirthTrend.gainLine(baseline) : nil
         let composition = BodyPageData.composition(context, heightCm: heightCm)
         self.composition = composition.page
         goal = BodyPageData.goal(context, points: composition.trackingPoints, seriesTitle: composition.page.latestTitle)
         timeline = BodyPageData.timeline(context)
-        checkIns = BodyPageData.checkIns(context.checkIns, calendar: context.calendar)
-        checkLine = BodyPageData.checkLine(context, store: store)
+        checkIns = BodyPageData.checkIns(context)
+        checks = BodyPageData.checks(context, store: store)
     }
 }
 
@@ -454,7 +505,7 @@ extension BodyPageData {
 
     // MARK: Weight
 
-    static func weight(_ context: CoachContext) -> BodyPageWeight {
+    static func weight(_ context: CoachContext, events: [ProgressWeightEvent] = []) -> BodyPageWeight {
         let summary = context.summary
         let phase = context.activePhase
         let hasWeighIns = !context.weights.isEmpty || !context.healthReadings.isEmpty
@@ -465,24 +516,28 @@ extension BodyPageData {
         }
         let goalText = phase.flatMap { rateText($0) }
         var charts: [BodyPageRange: BodyPageWeightChart] = [:]
-        for range in BodyPageRange.allCases { charts[range] = chart(context, range: range) }
+        for range in BodyPageRange.allCases { charts[range] = chart(context, range: range, events: events) }
+        let eventNotes: [String] = events.compactMap { $0.note(on: context.today, calendar: context.calendar) }
         return BodyPageWeight(
             average: average,
             averagePrompt: hasWeighIns ? summary.average.prompt : nil,
             estimate: average == nil ? summary.bodyWeight?.kilograms : nil,
             weeklyChange: summary.weeklyChange,
             rate: summary.rate.value,
+            crossCheck: summary.crossCheck,
             rateNote: rateNote,
+            eventNotes: eventNotes,
             noise: summary.noise,
             usesHealth: summary.usesHealth,
             goalText: goalText,
             charts: charts,
-            summaryText: weightSummary(context),
+            summaryText: weightSummary(context, events: events),
             hasWeighIns: hasWeighIns)
     }
 
-    /// "This week +0.20 kg, inside your goal of +0.15 to +0.25 kg a week. 7-day average 76.4 kg."
-    static func weightSummary(_ context: CoachContext) -> String {
+    /// "This week +0.20 kg, inside your goal of +0.15 to +0.25 kg a week. 7-day average 76.4 kg.
+    /// Creatine started on 3 Mar."
+    static func weightSummary(_ context: CoachContext, events: [ProgressWeightEvent] = []) -> String {
         let summary = context.summary
         var parts: [String] = []
         var first: String
@@ -504,10 +559,13 @@ extension BodyPageData {
         }
         parts.append(first)
         if let average = summary.average.value { parts.append("7-day average " + Fmt.kilograms(average)) }
+        for event in events {
+            parts.append("\(event.name) started on \(Fmt.shortDay(event.day, calendar: context.calendar))")
+        }
         return parts.joined(separator: ". ") + "."
     }
 
-    static func chart(_ context: CoachContext, range: BodyPageRange) -> BodyPageWeightChart {
+    static func chart(_ context: CoachContext, range: BodyPageRange, events: [ProgressWeightEvent] = []) -> BodyPageWeightChart {
         let calendar = context.calendar
         let signal = context.signal
         let today = context.today
@@ -570,6 +628,9 @@ extension BodyPageData {
             if let low = bounds.min(), let high = bounds.max() { review = low...high }
             if let endDay = phase.end, endDay >= start, endDay <= end { phaseEnd = endDay.date(calendar: calendar) }
         }
+        let chartEvents: [BodyPageEvent] = events.filter { $0.day >= start && $0.day <= end }.map { event in
+            BodyPageEvent(id: "e-\(event.checkID)", date: event.day.date(calendar: calendar), title: event.title)
+        }
         var values: [Double] = mornings.map(\.kilograms) + others.map(\.kilograms) + averages.map(\.kilograms)
         values += corridor.flatMap { [$0.low, $0.high] }
         if let target { values.append(target) }
@@ -580,7 +641,7 @@ extension BodyPageData {
         return BodyPageWeightChart(
             range: range, start: start.date(calendar: calendar), end: end.adding(days: 1, calendar: calendar).date(calendar: calendar),
             mornings: mornings, others: others, averages: averages, trend: trend, corridor: corridor, pauses: pauses, target: target,
-            review: review, phaseEnd: phaseEnd, yDomain: low...high)
+            review: review, phaseEnd: phaseEnd, events: chartEvents, yDomain: low...high)
     }
 
     // MARK: Tape
@@ -594,6 +655,12 @@ extension BodyPageData {
         if measured.contains(.neck) { sites.append(.neck) }
         if routine.side == .left { sites = sites.map { $0.left ?? $0 } }
         return sites
+    }
+
+    /// The baseline table (site | start | last | change | real change?): the tile sites with two
+    /// standard readings or more, from the value at `since` (the phase start) to the latest.
+    static func baseline(_ sites: [BodySite], records: [BodyTapeRecord], since: DayKey?, calendar: Calendar) -> [GirthChange] {
+        GirthTrend.baseline(sites, in: records, since: since, calendar: calendar).filter { $0.from.day < $0.to.day }
     }
 
     /// A tile: the latest reading (standard or not) and the standard readings' change since `since`.
@@ -614,7 +681,7 @@ extension BodyPageData {
         let calendar = context.calendar
         let today = context.today
         let sex = context.settings.body.sex
-        let formula = NavyBodyFat.Formula(sex: sex)
+        let formula = BodyPageData.navyFormula(sex: sex)
         let tape = context.tapeRecords
         let navy = NavyBodyFat.series(formula: formula, heightCm: heightCm, records: tape, calendar: calendar)
             .map { BodyFatReading(navy: $0) }
@@ -659,12 +726,13 @@ extension BodyPageData {
         }
 
         var tapeNote: String?
+        var needsFormula = false
         if !tape.isEmpty {
             switch NavyBodyFat.estimate(formula: formula, heightCm: heightCm, records: tape, calendar: calendar) {
             case .needsHeight:
-                tapeNote = "Height " + NavyBodyFat.heightNeeded + " – add it in Goals."
+                tapeNote = "Height " + NavyBodyFat.heightNeeded + " – add it in Goals & Plan."
             case .needsFormula:
-                tapeNote = "Choose female or male in Goals to see the tape estimate."
+                needsFormula = true
             case .needsSites(let sites):
                 tapeNote = "Measure your \(BodyPageText.list(sites.map { $0.title.lowercased() })) for the tape estimate."
             case .implausible, .available:
@@ -676,8 +744,14 @@ extension BodyPageData {
             points: points, series: series, latest: latestPoint?.composition, latestDay: latestPoint?.day,
             latestTitle: tracking?.title, change: change, waistToHeight: waistToHeight, waistToHip: waistToHip,
             ffmi: ffmi, normalisedFFMI: normalised, nextFull: context.isSetUp ? context.nextFull : nil, tapeNote: tapeNote,
-            isGainPhase: context.activePhase?.goal == .gain)
+            needsFormula: needsFormula, isGainPhase: context.activePhase?.goal == .gain)
         return CompositionResult(page: page, trackingPoints: trackingPoints)
+    }
+
+    /// The tape formula: from the sex, else the one picked and remembered on this device
+    /// (`BodyPageKeys.navyFormula`).
+    static func navyFormula(sex: Sex, defaults: UserDefaults = .standard) -> NavyBodyFat.Formula? {
+        NavyBodyFat.Formula(sex: sex) ?? NavyBodyFat.Formula(rawValue: defaults.string(forKey: BodyPageKeys.navyFormula) ?? "")
     }
 
     // MARK: Goal
@@ -765,10 +839,20 @@ extension BodyPageData {
 
     // MARK: Check-ins and checks
 
-    /// The saved check-ins, newest first (`snapshots` oldest first, as the store returns them).
-    static func checkIns(_ snapshots: [CheckInSnapshot], calendar: Calendar) -> [BodyPageCheckIn] {
+    /// The saved check-ins, newest first, with the 7-day average and rate of each check-in day:
+    /// the saved numbers, or recomputed live when Apple Health weights were among them (those are
+    /// never stored).
+    static func checkIns(_ context: CoachContext) -> [BodyPageCheckIn] {
+        checkIns(context.checkIns, signal: context.signal, plan: context.plan, calendar: context.calendar)
+    }
+
+    /// `snapshots` oldest first, as the store returns them.
+    static func checkIns(_ snapshots: [CheckInSnapshot], signal: WeightSignal, plan: CoachPlan, calendar: Calendar) -> [BodyPageCheckIn] {
         snapshots.reversed().map { snapshot in
             let monday = snapshot.day.startOfWeek(calendar: calendar)
+            let weight = ProgressCheckIns.weight(of: snapshot, signal: signal, plan: plan)
+            let average: String? = weight.average.map { "avg " + Fmt.kilograms($0) }
+            let rate: String? = weight.rate.map { BodyPageText.signed($0, decimals: 2) + " kg/wk" }
             var delta: String?
             if let kcal = snapshot.deltaKcal, kcal != 0 { delta = BodyPageText.signed(kcal, decimals: 0) + " kcal" }
             let decision: String
@@ -780,42 +864,36 @@ extension BodyPageData {
             }
             return BodyPageCheckIn(id: snapshot.key(calendar: calendar), week: monday,
                                    title: "Week of " + Fmt.shortDay(monday, calendar: calendar),
-                                   verdict: snapshot.verdict?.title ?? "Saved", tone: tone(of: snapshot.verdict), delta: delta,
-                                   decision: decision)
+                                   verdict: snapshot.verdict?.title ?? "Saved", tone: tone(of: snapshot.verdict),
+                                   average: average, rate: rate, delta: delta, decision: decision)
         }
     }
 
-    /// "Creatine 6 of 7 days · Fish oil 4 days" over the last 7 days. A check still open today
-    /// doesn't count as missed yet; paused days are left out; optional checks only count the ticks.
-    static func checkLine(_ context: CoachContext, store: NinaStore) -> String? {
+    /// "Creatine 26 of 28 days · Fish oil 4 days" over the last 28 days, never before the plan was
+    /// set up ("Since 3 Mar"). A check still open today doesn't count as missed yet; paused days
+    /// are left out; optional checks only count the ticks.
+    static func checks(_ context: CoachContext, store: NinaStore) -> BodyPageChecks? {
         let plan = context.plan
         guard plan.isSetUp, !plan.checks.isEmpty else { return nil }
         let calendar = context.calendar
         let today = context.today
-        let start = today.adding(days: -6, calendar: calendar)
+        let start = ProgressChecks.windowStart(today: today, setUp: BodySchedule.setUpDay(of: plan, calendar: calendar),
+                                               calendar: calendar)
         let done = store.doneChecks(from: start, through: today)
-        let days = DayKey.range(start, through: today, calendar: calendar).filter { !plan.isPaused(on: $0) }
-        var parts: [String] = []
-        for check in plan.checks {
-            var due = 0
-            var ticked = 0
-            for day in days {
-                let isDone = done[day]?.contains(check.id) ?? false
-                let typeID = context.settings.dayType(for: day, calendar: calendar)?.id
-                let isDue = check.isDue(on: day, dayTypeID: typeID, calendar: calendar)
-                if day == today, !isDone { continue }
-                if isDue || isDone { due += 1 }
-                if isDone { ticked += 1 }
-            }
-            let name = check.name.isEmpty ? "Check" : check.name
-            if check.isOptional {
-                if ticked > 0 { parts.append("\(name) \(ticked) \(ticked == 1 ? "day" : "days")") }
-            } else if due > 0 {
-                parts.append("\(name) \(ticked) of \(due) \(due == 1 ? "day" : "days")")
-            }
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        guard let adherence = ProgressChecks.adherence(plan: plan, today: today, start: start, done: done,
+                                                       marks: context.dayTypeMarks, calendar: calendar) else { return nil }
+        let period = adherence.isShortened ? "Since " + Fmt.shortDay(adherence.start, calendar: calendar) : "Last 28 days"
+        return BodyPageChecks(line: adherence.text, period: period)
     }
+}
+
+// MARK: - Keys
+
+/// Device-only settings the body page reads.
+enum BodyPageKeys {
+    /// The tape formula picked for sex "Prefer not to say" ("male" / "female"): the measure sheet
+    /// and the composition card ask once and remember it here.
+    static let navyFormula = "nina.coach.navyFormula"
 }
 
 // MARK: - Text

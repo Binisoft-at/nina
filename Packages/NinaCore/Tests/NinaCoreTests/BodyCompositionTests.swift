@@ -397,6 +397,13 @@ struct BodyCompositionTests {
         let line = GirthTrend.gainLine([girth(.waist, 84, 84.4), girth(.thigh, 56, 57.1), girth(.arm, 34, 34.8), girth(.chest, 100, 101.4)])
         #expect(line == "arm +0.8, chest +1.4, thigh +1.1 cm; waist +0.4 cm (no clear change)")
         #expect(GirthTrend.gainLine([girth(.hip, 98, 99)]) == nil)
+        // Measured on the left side: arm_l and thigh_l stand in for arm and thigh.
+        let left = GirthTrend.gainLine([girth(.waist, 84, 84.4), girth(.thighLeft, 56, 57.1), girth(.armLeft, 34, 34.8),
+                                        girth(.chest, 100, 101.4)])
+        #expect(left == line)
+        // With both sides the right side is used.
+        let both = GirthTrend.gainLine([girth(.armLeft, 34, 36), girth(.arm, 34, 34.8), girth(.waist, 84, 84.4)])
+        #expect(both == "arm +0.8 cm; waist +0.4 cm (no clear change)")
     }
 
     @Test func waistGuardAndNote() {

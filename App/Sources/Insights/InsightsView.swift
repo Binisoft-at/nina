@@ -45,6 +45,12 @@ struct InsightData {
     let weights: [WeightPoint]
     let maintenance: Insights.Maintenance?
     let targets: DailyTargets
+    /// "Protein meals 21 of 28" over the logged days (nil without a per-meal minimum).
+    let proteinMeals: ProgressProteinMeals?
+    /// Eaten vs. target per day type (plans with 2 or more day types).
+    let typeAverages: [ProgressTypeAverage]
+    /// The long-term body goal, compact (nil without one).
+    let goal: BodyPageGoal?
 
     @MainActor
     static func load(app: AppModel, range: InsightRange) -> InsightData {
@@ -100,13 +106,18 @@ struct InsightData {
         }
         let maintenance = Insights.maintenance(totals: longTotals, weights: weightsByDay, today: today)
         return InsightData(range: range, points: points, stats: stats, streak: streak, entries: facts.filter { $0.status == .eaten },
-                           weights: weights, maintenance: maintenance, targets: settings.targets)
+                           weights: weights, maintenance: maintenance, targets: settings.targets,
+                           proteinMeals: ProgressInsights.proteinMeals(totals: totals, settings: settings),
+                           typeAverages: ProgressInsights.typeAverages(totals: totals, settings: settings),
+                           goal: ProgressInsights.goal(app: app))
     }
 }
 
 struct InsightsView: View {
     @Environment(AppModel.self) private var app
     @AppStorage("nina.insights.range") private var range: InsightRange = .month
+    /// The tape formula picked on this device (the compact body goal can depend on it).
+    @AppStorage(BodyPageKeys.navyFormula) private var navyFormula = ""
     @State private var data: InsightData?
     @State private var topNutrient: Nutrient? = nil
 
@@ -124,11 +135,17 @@ struct InsightsView: View {
                                                description: Text("Insights fill up as you log. Importing your history from another app works too."))
                     } else {
                         caloriesCard(data)
+                        if !data.typeAverages.isEmpty {
+                            ProgressTypeAveragesCard(rows: data.typeAverages, unit: unit)
+                        }
                         consistencyCard(data)
                         macrosCard(data)
                         nutrientsCard(data)
                         topFoodsCard(data)
                         rhythmCard(data)
+                    }
+                    if let goal = data.goal {
+                        ProgressGoalCard(goal: goal)
                     }
                     weightCard(data)
                 } else {
@@ -144,18 +161,24 @@ struct InsightsView: View {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Log Weight…", systemImage: "scalemass") { app.sheet = .weight(nil) }
-                    Button("Goals…", systemImage: "target") { app.sheet = .goals }
+                    Button("Goals & Plan…", systemImage: "target") { app.sheet = .goals }
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
             }
         }
-        .task(id: "\(range.rawValue)-\(app.dataVersion)-\(app.health.weights.count)") {
+        .task(id: loadKey) {
             data = InsightData.load(app: app, range: range)
         }
     }
 
     private var unit: EnergyUnit { app.energyUnit }
+
+    /// Reload on range and data changes, when Apple Health weights arrive (read live, never
+    /// stored) and when a tape formula is picked.
+    private var loadKey: String {
+        "\(range.rawValue)-\(app.dataVersion)-\(app.health.weights.count)-\(app.health.weightSamples.count)-\(navyFormula)"
+    }
 
     // MARK: Cards
 
@@ -247,6 +270,10 @@ struct InsightsView: View {
             Text("Your target split is \(split.percentText) % (protein / carbs / fat). Averages are per logged day.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+            if let protein = data.proteinMeals {
+                Divider()
+                ProgressProteinMealsRow(protein: protein)
+            }
         }
     }
 

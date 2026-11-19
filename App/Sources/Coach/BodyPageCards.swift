@@ -113,7 +113,7 @@ struct BodyPageGoalCard: View {
     let goal: BodyPageGoal
 
     var body: some View {
-        CardSection(title: "Body goal", symbol: "target", trailing: goalText) {
+        CardSection(title: "Body goal", symbol: "target", trailing: goal.goalText) {
             if goal.card.isEmpty {
                 Text(BodyGoalCard.emptyText)
                     .font(.subheadline.weight(.medium))
@@ -138,14 +138,6 @@ struct BodyPageGoalCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    /// "78 kg at 14 %".
-    private var goalText: String? {
-        var parts: [String] = []
-        if goal.goal.weightKg > 0 { parts.append(Fmt.kilograms(goal.goal.weightKg)) }
-        if goal.goal.bodyFat > 0 { parts.append(BodyPageText.percent(goal.goal.bodyFat)) }
-        return parts.isEmpty ? nil : parts.joined(separator: " at ")
     }
 
     /// "7-day average 80.2 kg · phase target 82.0 kg (+1.8) · goal 78.0 kg (−2.2)".
@@ -235,10 +227,13 @@ struct BodyPageGoalHint: View {
 // MARK: - Tape tiles
 
 /// Waist, Chest, Arm, Thigh, Hip (plus Neck): the latest value and the change since the phase
-/// start; a tap pushes the site's chart.
+/// start; a tap pushes the site's chart. In a gain phase the gain line ("arm +0.8, chest +1.4 …"),
+/// and a link to the baseline table.
 struct BodyPageTilesCard: View {
     let tiles: [BodyPageTile]
     let since: DayKey?
+    let baseline: [GirthChange]
+    let gainLine: String?
     @Environment(AppModel.self) private var app
 
     var body: some View {
@@ -252,6 +247,20 @@ struct BodyPageTilesCard: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
+            if let gainLine {
+                Text("This phase: " + gainLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !baseline.isEmpty {
+                NavigationLink {
+                    BodyPageBaselineView(rows: baseline, since: since, gainLine: gainLine)
+                } label: {
+                    BodyPageLinkRow(title: "Baseline table", detail: "Start, latest and change per site", symbol: "tablecells")
+                }
+                .buttonStyle(.plain)
             }
             Button("Measure Now", systemImage: "plus") {
                 app.measureNow()
@@ -483,7 +492,7 @@ struct BodyPageCheckInsCard: View {
     }
 }
 
-/// "Week of 7 Jan · +100 kcal · Applied" with the verdict pill.
+/// "Week of 7 Jan", "avg 74.6 kg · +0.18 kg/wk · +100 kcal · Applied" and the verdict pill.
 struct BodyPageCheckInRow: View {
     let checkIn: BodyPageCheckIn
 
@@ -493,9 +502,10 @@ struct BodyPageCheckInRow: View {
                 Text(checkIn.title)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.primary)
-                Text(detail)
+                Text(checkIn.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             Chip(text: checkIn.verdict, tint: BodyPageStyle.color(checkIn.tone), isSelected: checkIn.tone == .alert)
@@ -503,19 +513,16 @@ struct BodyPageCheckInRow: View {
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
-
-    private var detail: String {
-        [checkIn.delta, checkIn.decision].compactMap { $0 }.joined(separator: " · ")
-    }
 }
 
-/// One line of check adherence: "Creatine 6 of 7 days".
+/// One line of check adherence: "Creatine 26 of 28 days" (the last 28 days, or since the plan
+/// was set up).
 struct BodyPageChecksCard: View {
-    let line: String
+    let checks: BodyPageChecks
 
     var body: some View {
-        CardSection(title: "Daily checks", symbol: "pills", trailing: "Last 7 days") {
-            Text(line)
+        CardSection(title: "Daily checks", symbol: "pills", trailing: checks.period) {
+            Text(checks.line)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
         }
