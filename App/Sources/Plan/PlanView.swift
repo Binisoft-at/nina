@@ -189,7 +189,7 @@ struct PlanRuleEditor: View {
             Form {
                 Section {
                     if recipes.isEmpty {
-                        Text("Save a meal first (+ → New Meal, or \u{201C}Save as Meal\u{201D} on diary entries). Routines plan saved meals.")
+                        Text("Save a meal first (New Meal below, or \u{201C}Save as Meal\u{201D} on diary entries). Routines plan saved meals.")
                             .foregroundStyle(.secondary)
                         Button("New Meal…") { app.present(.recipe(nil, kind: .meal)) }
                     } else {
