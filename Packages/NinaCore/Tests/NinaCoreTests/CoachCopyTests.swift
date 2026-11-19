@@ -142,6 +142,12 @@ struct CoachCopyTests {
         #expect(text.contains("- Weekly check-in on Monday; calories are adjusted after 14–21 days of weigh-ins, by 100–150 kcal a day"))
         #expect(text.contains("- Long-term goal: 78.0 kg, 14.0 % body fat – Leaner and stronger"))
         #expect(text.contains("## Notes from my plan\n- An extra gym session counts as a gym day."))
+
+        // A gain phase's optional body-fat ceiling is part of its line.
+        var plan = CopyFixture.plan
+        plan.phases[0].bodyFatCeiling = 22
+        let withCeiling = CoachCopy.text(CopyFixture.input(plan: plan), calendar: copyUTC)
+        #expect(withCeiling.contains("target 83.0 kg; review at body fat 22.0 %; baseline"))
     }
 
     @Test func lastFourWeeks() {

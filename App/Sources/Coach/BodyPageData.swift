@@ -681,7 +681,7 @@ extension BodyPageData {
         let calendar = context.calendar
         let today = context.today
         let sex = context.settings.body.sex
-        let formula = BodyPageData.navyFormula(sex: sex)
+        let formula = PhaseBodyFat.formula(sex: sex)
         let tape = context.tapeRecords
         let navy = NavyBodyFat.series(formula: formula, heightCm: heightCm, records: tape, calendar: calendar)
             .map { BodyFatReading(navy: $0) }
@@ -748,18 +748,13 @@ extension BodyPageData {
         return CompositionResult(page: page, trackingPoints: trackingPoints)
     }
 
-    /// The tape formula: from the sex, else the one picked and remembered on this device
-    /// (`BodyPageKeys.navyFormula`).
-    static func navyFormula(sex: Sex, defaults: UserDefaults = .standard) -> NavyBodyFat.Formula? {
-        NavyBodyFat.Formula(sex: sex) ?? NavyBodyFat.Formula(rawValue: defaults.string(forKey: BodyPageKeys.navyFormula) ?? "")
-    }
-
     // MARK: Goal
 
     static func goal(_ context: CoachContext, points: [BodyCompositionPoint], seriesTitle: String?) -> BodyPageGoal? {
         let plan = context.plan
         guard plan.isSetUp, plan.longTerm.isSet else { return nil }
-        let card = BodyGoalCard(goal: plan.longTerm, points: points, goalSetOn: nil, phaseGoal: context.activePhase?.goal)
+        let card = BodyGoalCard(goal: plan.longTerm, points: points, goalSetOn: plan.longTerm.since,
+                                phaseGoal: context.activePhase?.goal)
         let now = context.summary.average.value ?? context.bodyWeight?.kilograms
         let weightRow = now.map {
             BodyGoalWeightRow(now: $0, phaseTarget: context.activePhase?.targetWeight ?? 0, longTermTarget: plan.longTerm.weightKg)
@@ -893,7 +888,7 @@ extension BodyPageData {
 enum BodyPageKeys {
     /// The tape formula picked for sex "Prefer not to say" ("male" / "female"): the measure sheet
     /// and the composition card ask once and remember it here.
-    static let navyFormula = "nina.coach.navyFormula"
+    static let navyFormula = PhaseBodyFat.formulaKey
 }
 
 // MARK: - Text

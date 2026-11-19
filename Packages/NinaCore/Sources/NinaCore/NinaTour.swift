@@ -119,8 +119,8 @@ public enum NinaTour {
             ),
             TourStep(
                 id: "measure", since: 3, symbol: "ruler", title: "Measure in seconds",
-                body: "Tap + → Measurements, type your waist and tap Save. Nina shows last time's value and the change, and the strip tells you when the next measurement is due.",
-                macBody: "Choose File → Log Measurements… (⌥⌘M), type your waist and click Save. Nina shows last time's value and the change, and the strip tells you when the next measurement is due.",
+                body: "Tap + → Measurements. One site per page, with last time's value already there: type your waist – or nudge it with − and + – and tap Done. The strip tells you when the next measurement is due.",
+                macBody: "Choose File → Log Measurements… (⌥⌘M). One site per page, with last time's value already there: type your waist and click Done. The strip tells you when the next measurement is due.",
                 goal: .increased(\.measureCount)
             ),
             TourStep(
@@ -131,8 +131,8 @@ public enum NinaTour {
             ),
             TourStep(
                 id: "checkin", since: 3, symbol: "calendar.badge.checkmark", title: "Weekly check-in",
-                body: "Once a week a card asks for a two-minute check-in: how the week went, where your weight is heading and, when the numbers call for it, a small calorie change. Nothing changes until you tap Apply, and Undo takes it back.",
-                macBody: "Once a week a card asks for a two-minute check-in: how the week went, where your weight is heading and, when the numbers call for it, a small calorie change. Nothing changes until you click Apply, and Undo (⌘Z) takes it back.",
+                body: "Once a week a card asks for a two-minute check-in in four steps: your week, your waist, how it went and next week – with a small calorie change when the numbers call for it. Nothing changes until you tap Apply, and Undo takes it back.",
+                macBody: "Once a week a card asks for a two-minute check-in in four steps: your week, your waist, how it went and next week – with a small calorie change when the numbers call for it. Nothing changes until you click Apply, and Undo (⌘Z) takes it back.",
                 goal: .none
             ),
             TourStep(

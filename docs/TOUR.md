@@ -33,13 +33,32 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | checks | 3 | the daily checks strip: tap to tick off, touch and hold for Not Today | a check is ticked done |
 | protein | 3 | the protein pill in the meal headers and the "+8 g protein to reach 25" hint in search | – (Continue) |
 | weigh-in | 3 | the weigh-in sheet from the strip or + → Weight (Mac: File → Log Weight…), a reason under More | a weigh-in is saved |
-| measure | 3 | + → Measurements (Mac: File → Log Measurements…, ⌥⌘M) | a measurement is saved |
+| measure | 3 | + → Measurements (Mac: File → Log Measurements…, ⌥⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
 | progress | 3 | Progress → Body (Mac: Body in the sidebar, ⌘6) | – (Continue) |
-| checkin | 3 | the weekly check-in card, Apply and Undo | – (Continue) |
+| checkin | 3 | the weekly check-in card and its four steps (your week, waist, how it went, next week), Apply and Undo | – (Continue) |
 | everywhere | 1 | sync, watch, widgets, Health | – (Continue) |
 | finish | 1 | where to replay | – (Done) |
 
 People who finished version 2 get "What's new" with the eight coach steps (daytype … checkin).
+
+## Coach parts without their own step
+
+These are easy to find from the steps above, so the tour only points the way. They are explained
+in [BODY.md](BODY.md):
+
+- **The check-in** (from the checkin step): four steps – your week with the pace as a bar against
+  your phase's range, the waist typed right in the check-in, how it went with optional ratings,
+  and next week. **Copy for My AI** on the last step puts your plan and the last 4 weeks on the
+  clipboard for your AI.
+- **The measure pages** (from the measure step): one site per page with **Next** and **Skip**, −/+
+  by 0.1 cm, **Same as Last Time**; a site's own page on Progress → Body has **Measure Waist** (or
+  that site) for just that site, and the link `nina://measure?mode=waist` (any site) does the same.
+- **Phases**: the pace range is one slider with two handles; a gain phase can have an optional
+  body-fat ceiling that asks for a review; after a gain of more than 12 weeks with a fat-loss phase
+  next, the review offers a 1–2 week maintenance bridge first.
+- **Reminders**: the morning notification takes the weight (Weight…) and, on a day the weekly
+  waist is due, the waist too (Waist…). "Turn on coach reminders?" is asked once per device when a
+  plan is first set up.
 
 To teach a new feature: add a step with `since: <version + 1>`, bump `NinaTour.version`; people who
 took the tour get only the new steps. `swift test` checks the catalog (`NinaTourTests.swift` and the

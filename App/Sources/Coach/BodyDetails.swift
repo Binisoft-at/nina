@@ -40,7 +40,7 @@ struct BodyDetailsSiteView: View {
         Section {
             Text("No \(site.title.lowercased()) readings yet.")
                 .foregroundStyle(.secondary)
-            Button("Measure Now", systemImage: "ruler") { app.measureNow() }
+            measureButton
         } footer: {
             Text(site.landmark)
         }
@@ -63,8 +63,16 @@ struct BodyDetailsSiteView: View {
                 LabeledContent("4-week change", value: changeText(fourWeek))
             }
             Toggle("Include readings that aren't standard", isOn: $includeAll)
+            measureButton
         } footer: {
             Text(footer)
+        }
+    }
+
+    /// Opens the measure sheet for this site only (and the other side when both are measured).
+    private var measureButton: some View {
+        Button("Measure \(site.title)", systemImage: "ruler") {
+            app.sheet = .measure(.site(site), nil)
         }
     }
 

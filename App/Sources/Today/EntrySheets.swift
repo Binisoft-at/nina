@@ -326,7 +326,7 @@ struct DayNutritionView: View {
             nutrientSection("Vitamins", Nutrient.vitamins, totals: totals, targets: targets)
             nutrientSection("Other", [.alcohol, .caffeine, .water], totals: totals, targets: targets)
             Section {
-                Text("Targets are yours where you set them (Goals); the others are the EU reference intakes for an average adult. Values a food doesn't list count as unknown, so vitamins and minerals are minimums.")
+                Text("Targets are yours where you set them (Goals & Plan); the others are the EU reference intakes for an average adult. Values a food doesn't list count as unknown, so vitamins and minerals are minimums.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

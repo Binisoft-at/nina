@@ -150,6 +150,7 @@ struct PlanEditsTests {
         var check = try #require(added.plan.check(id: "creatine"))
         #expect(check.affectsWeight)
         #expect(check.days == .daily)
+        #expect(check.remind) // like an imported check: reminded unless turned off
         check.dose = "3-5 g"
         check.timing = .meal("breakfast")
         let plan = PlanEdits.updatingCheck(check, in: added.plan)

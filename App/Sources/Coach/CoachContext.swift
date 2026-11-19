@@ -49,7 +49,7 @@ struct CoachContext {
     let reviewedPhases: Set<String>
     /// `day`'s daily checks: check id → done or skipped (missing = open).
     let checkStates: [String: CheckState]
-    /// Gain-phase ceilings reached today (waist gain, waist-to-height): they open the review.
+    /// Gain-phase ceilings reached today (waist gain, waist-to-height, body fat): they open the review.
     let ceilings: [BodyCeiling]
     /// The check-in of `day`'s week (only when loaded with `checkIn: true`).
     var checkIn: CheckInEvaluation?
@@ -111,8 +111,15 @@ struct CoachContext {
                                        hasMorningWeighIn: signal.morning(on: today) != nil, calendar: calendar)
         // The stored height, as the Body page uses it: a height without a birth year still counts.
         let heightCm = store.profile()?.heightCm ?? 0
-        let ceilings = CoachContext.reachedCeilings(phase: plan.activePhase(on: today), tape: tape, settings: settings,
-                                                    heightCm: heightCm)
+        let running = plan.activePhase(on: today)
+        // The latest tracking body fat, only needed for a gain phase's body-fat ceiling.
+        var bodyFat: Double?
+        if let running, running.goal == .gain, running.bodyFatCeiling > 0 {
+            bodyFat = PhaseBodyFat.latest(fatReadings, tape: tape, sex: settings.body.sex, heightCm: heightCm,
+                                          method: plan.routine.bodyFatMethod, on: today, calendar: calendar)
+        }
+        let ceilings = CoachContext.reachedCeilings(phase: running, tape: tape, settings: settings,
+                                                    heightCm: heightCm, bodyFat: bodyFat)
         let board = store.coachBoard(for: day, settings: settings, signal: signal, now: now, dismissed: dismissed,
                                      ceilings: ceilings)
         let fallbackWeight = CoachContext.startWeightFallback(phase: phase, weights: weights, health: health)
@@ -185,11 +192,12 @@ struct CoachContext {
     }
 
     /// The gain-phase ceilings reached (`BodyCeiling.reached`): standard waist readings since the
-    /// phase start (against the last one on or before it, else the first after it) and the
-    /// latest waist-to-height ratio. `heightCm`: the profile's stored height (0 = not entered);
-    /// the ratio needs only the height, not the birth year.
+    /// phase start (against the last one on or before it, else the first after it), the latest
+    /// waist-to-height ratio and the latest tracking body fat against the phase's optional
+    /// body-fat ceiling. `heightCm`: the profile's stored height (0 = not entered); the ratio
+    /// needs only the height, not the birth year. `bodyFat`: `PhaseBodyFat.latest` (nil = none).
     static func reachedCeilings(phase: CoachPlan.Phase?, tape: [BodyTapeRecord], settings: NinaSettings,
-                                heightCm: Double) -> [BodyCeiling] {
+                                heightCm: Double, bodyFat: Double? = nil) -> [BodyCeiling] {
         guard let phase, phase.goal == .gain, let start = phase.start else { return [] }
         let sex = settings.body.sex
         var waists: [(day: DayKey, cm: Double)] = []
@@ -197,12 +205,15 @@ struct CoachContext {
             if let cm = BodyComposition.waist(in: record.values, sex: sex) { waists.append((day: record.day, cm: cm)) }
         }
         waists.sort { $0.day < $1.day }
-        guard let latest = waists.last else { return [] }
-        let base = waists.last(where: { $0.day <= start }) ?? waists.first(where: { $0.day >= start })
         var change: Double?
-        if let base, latest.day > base.day { change = latest.cm - base.cm }
-        let ratio = heightCm > 0 ? BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) : nil
-        return BodyCeiling.reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio)
+        var ratio: Double?
+        if let latest = waists.last {
+            let base = waists.last(where: { $0.day <= start }) ?? waists.first(where: { $0.day >= start })
+            if let base, latest.day > base.day { change = latest.cm - base.cm }
+            if heightCm > 0 { ratio = BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) }
+        }
+        return BodyCeiling.reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio,
+                                   bodyFat: bodyFat, bodyFatCeiling: phase.bodyFatCeiling)
     }
 
     /// The typed or Health weight nearest the phase start (the summary's start weight when the

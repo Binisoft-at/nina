@@ -621,8 +621,9 @@ final class AppModel {
     // MARK: URLs
 
     /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2],
-    /// nina://measure?mode=weekly|full, nina://checkin, nina://daytype/<id> (no id: back to the
-    /// schedule), nina://check/<id>[?state=done|skipped|open], nina://plan, nina://progress,
+    /// nina://measure?mode=weekly|full|<site key> (waist, arm_l …: that site only), nina://checkin,
+    /// nina://daytype/<id> (no id: back to the schedule), nina://check/<id>[?state=done|skipped|open],
+    /// nina://plan, nina://progress,
     /// nina://review/<phase id> (the phase review; an unknown phase shows Today), or a CSV opened
     /// from Files.
     func open(_ url: URL) {

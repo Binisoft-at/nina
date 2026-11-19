@@ -130,7 +130,7 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
 - **Notifications**: `CoachReminders` (NinaCore) plans the coach notifications as values; the app's
   `NotificationScheduler.reschedule` adds them to the meal reminders on every data change (3-day
   window), re-registers their categories from the plan and removes delivered ones whose task is
-  done. Banner actions (Weight…, a check done, Tennis today) write through `NinaStore`. By default
+  done. Banner actions (Weight…, Waist…, a check done, Tennis today) write through `NinaStore`. By default
   only the iPhone schedules them.
 - **Apple Health stays live**: Health weigh-ins count in the weight signal but are never written
   into a mark, a measurement, the plan or a check-in snapshot (a snapshot drops its weight numbers

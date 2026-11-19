@@ -62,6 +62,17 @@ checklist – fully the first time, folded after that:
 | Neck | Just below the larynx, tape sloping slightly down at the front (needed for the tape estimate) |
 | Calf, flexed arm | Optional extras |
 
+- **One site per page**: after the guide, the time and the conditions, the measure sheet shows one
+  site per page – a small drawing of where the tape goes, last time's value in grey and the change
+  since then. Type the number, or tap **−** and **+** to move it by 0.1 cm (hold them to keep going);
+  **Same as Last Time** fills in last time's value. **Next** goes to the next site (on iPhone and iPad
+  you can also swipe), **Skip** leaves a site out, and **Done** on the last page saves everything,
+  with Undo. The last page also shows the tape estimate of body fat.
+- **Just one site**: on Progress → Body, tap a site's tile (Waist, Arm …) and then **Measure Waist**
+  (or that site's name). The sheet opens with only that site – and the other side too when you
+  measure both. The link `nina://measure?mode=waist` does the same, for example from a Shortcut; it
+  takes any site (`waist`, `hip`, `chest`, `arm`, `arm_l`, `thigh`, `thigh_l`, `neck`, `calf` …), and
+  `mode=weekly` or `mode=full` opens the weekly sites or the full set.
 - **Side**: chosen once in My Plan → Measuring (right unless you change it). Left and right are kept
   apart and never mixed.
 - **Readings**: a full set takes two readings per site and asks for a third when they differ by more
@@ -86,7 +97,9 @@ checklist – fully the first time, folded after that:
   than the method's error reads "within measurement error".
 - **Tape estimate**: worked out live from your tape values with the US Navy formula – waist and neck
   (women: narrow waist, hip and neck) plus your height. It is never saved as a value, so it always
-  follows your latest tape. It needs your height and sex in Goals & Plan → Body & Calculator.
+  follows your latest tape. It needs your height and sex in Goals & Plan → Body & Calculator. With
+  sex "Prefer not to say", Nina asks once whether to use the men's or the women's formula and then
+  uses that choice everywhere (Body page, check-in, phase review).
 - **Lean and fat mass**: body fat % × the mean of the morning weights from 3 days before to 3 days
   after that day.
   During a gain, part of a "lean" increase is water and glycogen from the extra carbs.
@@ -119,10 +132,21 @@ Today's strip shows what is due, so you never have to remember it:
 - **When**: on the check-in weekday a card appears on Today after the morning weigh-in (or from
   the morning cutoff) and stays for 3 days. File → Weekly Check-in… on the Mac, + → Check-in on
   iPhone and iPad, any time.
-- **What it shows**: your 7-day average and its change, the pace against your range, mornings
-  weighed; your waist; how the week went (days logged and on plan, average calories against the
-  targets of the day types you actually had, protein days and meals, fiber, water, checks); an
-  optional 1–5 rating of hunger, energy, sleep, training, digestion, stress and mood, and a note.
+- **Four short steps** (about two minutes):
+  1. **Your week**: your 7-day average and its change and the mornings weighed. The pace is a bar:
+     the shaded band is your phase's range, the dot is your pace this week.
+  2. **Waist**: type it right there (Nina asks for a second reading when it moved more than 1 cm).
+     Measured this morning already? Then the step is done. When a full set is due, **Full
+     Measurement** takes your waist along with the other sites; your answers so far are kept.
+  3. **How it went**: days logged and on plan, average calories against the targets of the day
+     types you actually had, protein days and meals, fiber, water, checks; an optional 1–5 rating
+     of hunger, energy, sleep, training, digestion, stress and mood, and a note.
+  4. **Next week**: the verdict with its one reason and, only when the rules below call for it,
+     a proposal.
+- **Copy for My AI** (on the last step, and on a saved week): puts your plan, the last 4 weeks and
+  your body numbers on the clipboard as plain text for your AI. Its answer is a settings block you
+  import in Goals & Plan, with a preview and Undo (see [IMPORT.md](IMPORT.md)). Nina sends nothing
+  anywhere.
 - **The rules**, in order:
   1. **Enough data**: at least 14 days and 10 morning weigh-ins since the phase start (or the last
      change). Before that: "Gathering data – first adjustment check on …".
@@ -143,15 +167,24 @@ Today's strip shows what is due, so you never have to remember it:
 
 - A **phase** has a goal (gain, maintain, lose), dates (an end can be "about"), a pace range, an
   optional review weight, target weight and body fat. A diet break is just a short maintain phase.
+- **Pace range**: one slider with two handles in the phase sheet (0.05 to 1 kg a week, in steps of
+  0.05) – drag the slow end and the fast end.
+- **Body-fat ceiling** (optional, gain phases only): a body-fat percentage at which the phase should
+  be reviewed. Nina compares it with your latest value of the body-fat method you track (the tape
+  estimate counts). Leave it empty to switch it off.
 - **Nothing switches by itself.** On the next phase's start date a card says "… starts today" with
   **Start**, **In a week** and Edit; the current phase runs on until you tap.
 - **Review**: when the 7-day average (never a single weigh-in) reaches the review weight – or in a
-  gain phase the waist grew by the limit you set (4 cm unless you change it) or waist-to-height
-  reached 0.5 – a card asks for a review: where you stand since the start (weight, lean and fat
+  gain phase the waist grew by the limit you set (4 cm unless you change it), waist-to-height
+  reached 0.5 or body fat reached your ceiling – a card asks for a review: where you stand since the start (weight, lean and fat
   mass, waist, arm, chest, how well you followed the plan), then **Keep going**, **Hold my weight**
   until the next phase, **Start** the next phase **now** or **Change the end date**. If no full
   measurement was done in the last two weeks, it offers one first. **Decide Later** asks again in
   7 days.
+- **A maintenance bridge after a long gain**: when a gain phase has run for more than 12 weeks and a
+  fat-loss phase comes next, the review (and the end of the phase) also offers **1 week at
+  maintenance first** or **2 weeks at maintenance first**. Nina adds a short maintain phase from the
+  switch day and moves the loss phase to start right after it – one message with Undo.
 - **Pause** (holiday, ill): no checks, check-ins or coach reminders, and the paused days are left
   out of every average. Afterwards "Welcome back – weigh in tomorrow morning" restarts your average.
 
@@ -162,7 +195,7 @@ on any device.
 
 | Reminder | When |
 |---|---|
-| Morning weigh-in | At your weigh-in time, until you've weighed in. Type your weight right in the notification (Weight…); checks timed for breakfast come along with a "done" button. |
+| Morning weigh-in | At your weigh-in time, until you've weighed in. Type your weight right in the notification (Weight…); on a day your weekly waist is due you can type it there too (Waist…). A number that looks wrong comes back as "Is that right?"; tap it to check in the sheet. Checks timed for breakfast come along with a "done" button. |
 | Daily checks | At the check's time or meal – only for checks with Remind on in My Plan (Taken / Not today). |
 | Evening before a full measurement | 20:00 the day before. |
 | Weekly check-in | 18:00 on the check-in day, until it's done. |
@@ -171,5 +204,8 @@ on any device.
 - Nothing before 06:00 or after 21:00, and only one before 10:00.
 - **Your iPhone sends them** by default (your Apple Watch shows them too). On iPad and Mac they are
   off unless you switch on "Also on this iPad" / "Also on this Mac".
-- When a plan is first set up, Nina asks once: "Turn on coach reminders?".
+- **"Turn on coach reminders?"** is asked once per device, right after a plan is first set up (in
+  My Plan or with an import). Your iPhone also asks when the plan arrives from another device.
+  Changing a coach reminder in Settings → Reminders → Coach counts as the answer, so it never asks
+  again.
 - Pausing coaching pauses them; meal reminders stay.

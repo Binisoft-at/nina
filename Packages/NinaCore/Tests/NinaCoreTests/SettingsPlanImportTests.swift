@@ -23,7 +23,7 @@ struct SettingsPlanImportTests {
     weight_kg,80
     activity,moderate
     goal,gain
-    rate_kg_per_week,0.1-0.2
+    rate_kg_per_week,0.15-0.25
     target_weight_kg,83
     macro_split,25/50/25
     calories,2600
@@ -51,9 +51,10 @@ struct SettingsPlanImportTests {
     phase.1.goal,gain
     phase.1.start,2030-01-07
     phase.1.end,~2030-05-31
-    phase.1.rate_kg_per_week,0.1-0.2
+    phase.1.rate_kg_per_week,0.15-0.25
     phase.1.review_weight_kg,82-83
     phase.1.target_weight_kg,83
+    phase.1.body_fat_ceiling_percent,24
     phase.1.gym.calories,2600
     phase.1.gym.macros_g,160/328/72
     phase.1.tennis.calories,2800
@@ -97,8 +98,8 @@ struct SettingsPlanImportTests {
         let draft = SettingsCSV.parse(Self.file)
         #expect(draft.skipped.isEmpty, "\(draft.skipped)")
         #expect(draft.wishes == ["Show a shopping list for my week"])
-        #expect(draft.rateRange == 0.1...0.2)
-        #expect(draft.ratePerWeek == 0.15)
+        #expect(draft.rateRange == 0.15...0.25)
+        #expect(draft.ratePerWeek == 0.2)
         let plan = draft.plan
         #expect(plan.bodyFat == 20)
         #expect(plan.bodyFatMethod == .estimate)
@@ -116,8 +117,9 @@ struct SettingsPlanImportTests {
         #expect(first?.startApprox == false)
         #expect(first?.end == planImportDay("2030-05-31"))
         #expect(first?.endApprox == true)
-        #expect(first?.rate == 0.1...0.2)
+        #expect(first?.rate == 0.15...0.25)
         #expect(first?.review == 82...83)
+        #expect(first?.bodyFatCeiling == 24)
         #expect(first?.typeOrder == ["gym", "tennis", "rest"])
         #expect(first?.byType["tennis"] == SettingsPlanDraft.Targets(calories: 2800, protein: 160, carbs: 378, fat: 72))
         let second = plan.phases?.last
@@ -159,8 +161,9 @@ struct SettingsPlanImportTests {
         #expect(first.startedAt == planImportNow)
         #expect(first.status == .active)
         #expect(first.maxWaistGainCm == 4)
-        #expect(first.rateRange == 0.1...0.2)
+        #expect(first.rateRange == 0.15...0.25)
         #expect(first.reviewMin == 82 && first.reviewMax == 83)
+        #expect(first.bodyFatCeiling == 24)
         let second = try #require(plan.phase(id: "2"))
         #expect(second.startedAt == nil)
         #expect(second.status == .planned)
@@ -186,7 +189,7 @@ struct SettingsPlanImportTests {
         #expect(result.state.trainingTargets?.energy == 2600)
         #expect(result.state.trainingDays == Weekdays([1, 3, 5]))
         #expect(result.state.goal == .gain)
-        #expect(abs(result.state.ratePerWeek - 0.15) < 0.0001)
+        #expect(abs(result.state.ratePerWeek - 0.2) < 0.0001)
         #expect(result.state.targetWeight == 83)
 
         // A new long-term goal counts from the import day.
@@ -222,7 +225,8 @@ struct SettingsPlanImportTests {
         let first = Self.imported()
         let text = SettingsCSV.export(first.state, today: Self.today)
         #expect(text.contains("phase.1.tennis.macros_g,160/378/72"))
-        #expect(text.contains("rate_kg_per_week,0.1-0.2"))
+        #expect(text.contains("rate_kg_per_week,0.15-0.25"))
+        #expect(text.contains("phase.1.body_fat_ceiling_percent,24"))
         #expect(text.contains("calories,2600")) // the baseline, not the mirrored rest-day targets
         #expect(!text.contains("training_days"))
         let draft = SettingsCSV.parse(text)
@@ -289,27 +293,54 @@ struct SettingsPlanImportTests {
 
     @Test func flatRateAndGoalMoveTheActivePhase() throws {
         let first = Self.imported()
-        let result = Self.imported("setting,value\nrate_kg_per_week,0.15 to 0.25\ntarget_weight_kg,84\n", to: first.state)
+        let result = Self.imported("setting,value\nrate_kg_per_week,0.2 to 0.3\ntarget_weight_kg,84\n", to: first.state)
         let phase = try #require(result.plan?.phase(id: "1"))
-        #expect(phase.rateRange == 0.15...0.25)
+        #expect(phase.rateRange == 0.2...0.3)
         #expect(phase.targetWeight == 84)
         #expect(result.state.targetWeight == 84)
-        #expect(result.changes.contains { $0.title == "Phase 1 · Rate" && $0.new == "0.15–0.25 kg/week" })
+        #expect(result.changes.contains { $0.title == "Phase 1 · Rate" && $0.new == "0.2–0.3 kg/week" })
     }
 
     @Test func withoutAPlanTheRangeMidpointGoesToTheProfile() {
-        let result = SettingsCSV.apply(SettingsCSV.parse("setting,value\ngoal,gain\nrate_kg_per_week,0.1–0.2\n"), to: SettingsState(), year: 2030,
+        let result = SettingsCSV.apply(SettingsCSV.parse("setting,value\ngoal,gain\nrate_kg_per_week,0.15–0.25\n"), to: SettingsState(), year: 2030,
                                        today: planImportDay("2030-01-07"))
-        #expect(result.state.ratePerWeek == 0.15)
+        #expect(result.state.ratePerWeek == 0.2)
         #expect(result.plan == nil)
-        #expect(result.changes.contains { $0.title == "Pace" && $0.new == "0.15 kg/week" })
-        for text in ["0.15", "0.1-0.2", "0.1–0.2", "0.1 to 0.2", "0,1 - 0,2", "+0.1 to +0.2 kg/week"] {
+        #expect(result.changes.contains { $0.title == "Pace" && $0.new == "0.2 kg/week" })
+        for text in ["0.2", "0.15-0.25", "0.15–0.25", "0.15 to 0.25", "0,15 - 0,25", "+0.15 to +0.25 kg/week"] {
             let range = SettingsCSV.planRange(text, 0.05...1.0)
             #expect(range != nil, "\(text)")
         }
         let tooSlow = SettingsCSV.parse("setting,value\nrate_kg_per_week,0.02\nphase.1.rate_kg_per_week,1.5\nphase.2.rate_kg_per_week,0\n")
         #expect(tooSlow.skipped.count == 2, "\(tooSlow.skipped)")
         #expect(tooSlow.plan.phases?.first { $0.id == "2" }?.rate == 0...0)
+    }
+
+    @Test func bodyFatCeilingIsOptional() throws {
+        let first = Self.imported()
+        #expect(first.changes.contains { $0.title == "Phase 1 · Body-fat ceiling" && $0.old == "–" && $0.new == "24 %" }, "\(first.changes)")
+
+        // Aliases; 0 is off; a value that can't be body fat is skipped.
+        let draft = SettingsCSV.parse("setting,value\nphase.1.body_fat_ceiling,22\nphase.2.max_body_fat_percent,0\nphase.3.body_fat_ceiling_percent,2\n")
+        #expect(draft.plan.phases?.first { $0.id == "1" }?.bodyFatCeiling == 22)
+        #expect(draft.plan.phases?.first { $0.id == "2" }?.bodyFatCeiling == 0)
+        #expect(draft.plan.phases?.first { $0.id == "3" }?.bodyFatCeiling == nil)
+        #expect(draft.skipped.count == 1, "\(draft.skipped)")
+
+        // Only gain phases use it.
+        let lose = Self.imported("setting,value\nphase.1.goal,lose\nphase.1.start,2030-01-07\nphase.1.rate_kg_per_week,0.25\nphase.1.body_fat_ceiling_percent,20\n")
+        #expect(lose.plan?.phase(id: "1")?.bodyFatCeiling == 0)
+        #expect(lose.notes.contains("phase.1.body_fat_ceiling_percent: only gain phases use it"), "\(lose.notes)")
+
+        // A rewritten phase without the row turns it off; 0 turns it off too; the export leaves it out then.
+        var phaseRows = Self.file.split(separator: "\n").map(String.init).filter { $0.hasPrefix("phase.") && !$0.contains("body_fat_ceiling") }
+        let without = Self.imported((["setting,value"] + phaseRows).joined(separator: "\n"), to: first.state)
+        #expect(without.plan?.phase(id: "1")?.bodyFatCeiling == 0)
+        #expect(without.changes.contains { $0.title == "Phase 1 · Body-fat ceiling" && $0.old == "24 %" && $0.new == "–" }, "\(without.changes)")
+        phaseRows.append("phase.1.body_fat_ceiling_percent,0")
+        let zero = Self.imported((["setting,value"] + phaseRows).joined(separator: "\n"), to: first.state)
+        #expect(zero.plan?.phase(id: "1")?.bodyFatCeiling == 0)
+        #expect(!SettingsCSV.export(zero.state, today: Self.today).contains("body_fat_ceiling"))
     }
 
     @Test func percentRatesUseTheWeight() {

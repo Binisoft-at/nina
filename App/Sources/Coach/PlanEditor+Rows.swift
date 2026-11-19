@@ -122,7 +122,7 @@ struct PlanEditorWeekFooter: View {
     }
 }
 
-/// Seven weekday chips (1 = Monday), as in Goals → Training days.
+/// Seven weekday chips (1 = Monday), as the training days in Goals & Plan.
 struct PlanEditorWeekdayChips: View {
     @Binding var days: Weekdays
 

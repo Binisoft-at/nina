@@ -283,6 +283,7 @@ public enum CoachCopy {
         }
         if phase.targetWeight > 0 { details.append("target \(fixed(phase.targetWeight, 1)) kg") }
         if phase.targetBodyFat > 0 { details.append("target body fat \(fixed(phase.targetBodyFat, 1)) %") }
+        if phase.bodyFatCeiling > 0 { details.append("review at body fat \(fixed(phase.bodyFatCeiling, 1)) %") }
         let revision = isActive ? phase.revision(on: today) : phase.revisions.first
         if let baseline = revision?.baseline {
             details.append("baseline \(targetsText(baseline))")

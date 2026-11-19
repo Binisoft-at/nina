@@ -183,14 +183,14 @@ public enum PlanEdits {
 
     // MARK: Checks
 
-    /// The plan with a new daily check (anytime, every day; "affects weight" when the name says
-    /// creatine).
+    /// The plan with a new daily check (anytime, every day, with a reminder as an imported check
+    /// gets one; "affects weight" when the name says creatine).
     public static func addingCheck(named name: String, to plan: CoachPlan) -> (plan: CoachPlan, id: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let title = trimmed.isEmpty ? "New check" : trimmed
         let id = newID(for: title, existing: plan.checks.map(\.id), fallback: "check")
         var result = plan
-        result.checks.append(CoachPlan.Check(id: id, name: title))
+        result.checks.append(CoachPlan.Check(id: id, name: title, remind: true))
         return (result, id)
     }
 

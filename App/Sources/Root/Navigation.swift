@@ -139,7 +139,7 @@ enum AppSheet: Identifiable {
     case phase(String?)
     /// The review of a phase at its checkpoint or a ceiling (`PhaseReviewSheet`).
     case phaseReview(String)
-    /// The plan editor ("Goals & Plan", `PlanEditorView`).
+    /// The plan editor ("My Plan", `PlanEditorView`).
     case plan
     case water(DayKey)
     case scanBarcode(day: DayKey, meal: String?)

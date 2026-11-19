@@ -64,13 +64,13 @@ Keys are read like every setting (`.`, spaces and `-` become `_`, upper or lower
 | Rows | What they set |
 |---|---|
 | `day_type.<id>.name`, `.emoji`, `.days` (`mon;wed;fri`, `flexible` or `default`), `.per_week`, `.workouts` | Up to 4 kinds of day with their own targets. Exactly one is the default (all other days). Gym, tennis and rest get an emoji by themselves. |
-| `phase.<n>.name`, `.goal`, `.start`, `.end`, `.rate_kg_per_week` (`0.1-0.2`), `.rate_percent_per_week`, `.review_weight_kg` (`82-83`), `.target_weight_kg`, `.target_body_fat_percent`, `.max_waist_gain_cm`, `.note` | Dated phases. Dates are `YYYY-MM-DD` or `YYYY-MM` (a start becomes the 1st, an end the last day of the month); `~` or "about" in front marks them as approximate. |
+| `phase.<n>.name`, `.goal`, `.start`, `.end`, `.rate_kg_per_week` (`0.15-0.25`), `.rate_percent_per_week`, `.review_weight_kg` (`82-83`), `.target_weight_kg`, `.target_body_fat_percent`, `.max_waist_gain_cm`, `.body_fat_ceiling_percent`, `.note` | Dated phases. Dates are `YYYY-MM-DD` or `YYYY-MM` (a start becomes the 1st, an end the last day of the month); `~` or "about" in front marks them as approximate. `.body_fat_ceiling_percent` is optional and only for gain phases: when your body fat reaches it, Nina suggests reviewing the phase (`0` or no row = off). |
 | `phase.<n>.calories`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml`, `.macros_g` (`160/328/72`) | A phase's baseline targets (for a later phase – the current phase uses the flat rows). |
 | `phase.<n>.<day type>.calories`, `.macros_g`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml` | Targets of one day type in that phase. Missing values come from the baseline; calories without carbs keep protein and fat and give carbs the rest. |
 | `check.<id>.name`, `.emoji`, `.dose`, `.when` (a meal, `08:00` or `anytime`), `.days` (`daily`, weekdays or day-type ids), `.optional`, `.remind`, `.affects_weight` | Daily checks such as a supplement (`supplement.<id>.*` works too). A new check gets a reminder unless `.remind` is `no`; a check you already have keeps its setting. Creatine is marked "affects weight" by itself. |
 | `measure.weigh_in` (`daily 07:00`), `.morning_until`, `.weekly` (`waist`), `.full` (`waist;chest;arm;thigh;hip`), `.full_every_weeks`, `.body_fat_every_weeks`, `.body_fat_method`, `.side`, `.thigh_mark`, `.two_readings` | The measuring routine. |
 | `checkin.day` (`mon`), `.adjust_after_weeks` (`2-3`), `.step_kcal` (`100-150`), `.lock_days` | The weekly check-in and calorie adjustments (`check-in.*` works too). |
-| `long_term.weight_kg`, `.body_fat_percent`, `.waist_cm`, `.date`, `.note` | The long-term goal, separate from the current phase's target weight. |
+| `long_term.weight_kg`, `.body_fat_percent`, `.waist_cm`, `.date`, `.note` | The long-term goal, separate from the current phase's target weight. A new goal weight or body-fat goal counts from the day you import it; importing the same goal again keeps its day. |
 | `meal_protein_g` (`35-45`), `protein_meals` (`4` or `breakfast;lunch;snack;dinner`) | Protein per eating occasion. |
 | `note` (one row each) | Plan notes. |
 
@@ -99,7 +99,8 @@ How an import changes the plan:
 6. **`training_days`** still works without `day_type` rows (it becomes the "Training" and "Rest" day
    types once there is a plan); next to `day_type` rows it is skipped with a note.
 7. **Checks in orange**: macros more than 5 % off the calories, overlapping phase dates (trimmed), a
-   day-type id that doesn't exist, rates outside 0.05–1 kg (or 1.5 %) per week, more than 4 day types.
+   day-type id that doesn't exist, rates outside 0.05–1 kg (or 1.5 %) per week, more than 4 day types,
+   a body-fat ceiling on a phase that isn't a gain phase (left out).
 
 Example (made-up numbers):
 
@@ -107,7 +108,7 @@ Example (made-up numbers):
 setting,value
 weight_kg,80
 goal,gain
-rate_kg_per_week,0.1-0.2
+rate_kg_per_week,0.15-0.25
 target_weight_kg,83
 calories,2600
 protein_g,160
@@ -131,7 +132,7 @@ phase.1.name,Lean gain
 phase.1.goal,gain
 phase.1.start,2030-01-07
 phase.1.end,~2030-05-31
-phase.1.rate_kg_per_week,0.1-0.2
+phase.1.rate_kg_per_week,0.15-0.25
 phase.1.review_weight_kg,82-83
 phase.1.gym.calories,2600
 phase.1.gym.macros_g,160/328/72
@@ -173,6 +174,9 @@ number is how many there will be).
   whole plan, the body values and the weight it logged.
 - The first import that sets up a plan asks once: **"Turn on coach reminders?"** (Turn On / Not
   Now). You can change them any time in Settings → Reminders → Coach.
+- **Imported checks remind you** (a supplement at its meal or time) unless the file says
+  `check.<id>.remind,no`. A check you already have keeps its reminder setting, and a check you add
+  yourself in My Plan gets a reminder too (switch off **Remind me** on the check).
 
 ## Copy for My AI
 
@@ -207,8 +211,8 @@ Apple Health weights" is switched on (iPhone and iPad; off by default).
 - **Diary and recipe rows without nutrition** (empty `kcal`): Nina looks the food up by name in the
   built-in catalog and your foods and uses the amount (`grams`, or `amount` + `unit` like
   `2` + `slice`). Rows it can't find are reported in the preview and skipped.
-- **Ranges** (rates, review weight, protein per meal, check-in steps): `0.1-0.2`, `0.1–0.2`,
-  `0.1 to 0.2`.
+- **Ranges** (rates, review weight, protein per meal, check-in steps): `0.15-0.25`, `0.15–0.25`,
+  `0.15 to 0.25`.
 - **Dates**: `2026-11-13`, `13.11.2026`, `13.11.26`, `11/13/2026`. **Meals**: `breakfast`, `lunch`,
   `dinner`, `snack` or your own meal names; `Frühstück`, `Mittagessen`, `Abendessen`, `Jause` work too.
 
@@ -258,7 +262,7 @@ You set up my nutrition app "Nina" from what I tell you: about me (body, goal, t
 | calf_cm | Calf at the widest point in cm |
 | activity | sedentary (desk job), light (exercise 1–3 days/week), moderate (3–5 days), active (6–7 days), very_active (physical job plus training) – e.g. moderate |
 | goal | lose, maintain or gain (weight) – e.g. lose |
-| rate_kg_per_week | How fast to lose or gain, kg per week: 0.05–1; a range like 0.1-0.2 is fine – e.g. 0.5 |
+| rate_kg_per_week | How fast to lose or gain, kg per week: 0.05–1; a range like 0.15-0.25 is fine – e.g. 0.5 |
 | target_weight_kg | Target weight in kg (of the current phase, if my plan has phases) – e.g. 62 |
 | macro_split | balanced, high_protein, low_carb, endurance or keto – or percent of calories as protein/carbs/fat, e.g. 30/40/30 – e.g. high_protein |
 | calories | Daily calories in kcal – only if I have a fixed number; otherwise leave it out and Nina calculates it from my body data |
@@ -292,7 +296,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 - Body fat and tape measurements I have now → body_fat_percent, body_fat_method and the *_cm rows (saved as today's values).
 - Supplements my plan names → check.ID.* (only what my plan says; never add one).
 - Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.
-- Ranges are written 0.1-0.2, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
+- Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
 - A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.
 
 | setting | value |
@@ -311,12 +315,13 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | phase.N.goal | gain, maintain or lose – e.g. gain |
 | phase.N.start | Start date YYYY-MM-DD or YYYY-MM; ~ in front = approximate. A start today or earlier means the phase is running – e.g. 2030-01-07 |
 | phase.N.end | End date, same format – e.g. ~2030-05-31 |
-| phase.N.rate_kg_per_week | kg per week, 0.05–1; a range like 0.1-0.2 is fine – e.g. 0.1-0.2 |
+| phase.N.rate_kg_per_week | kg per week, 0.05–1; a range like 0.15-0.25 is fine – e.g. 0.15-0.25 |
 | phase.N.rate_percent_per_week | Or the rate in % of body weight per week (0.05–1.5) |
 | phase.N.review_weight_kg | Weight (range) at which to review the phase – e.g. 82-83 |
 | phase.N.target_weight_kg | Target weight of the phase in kg – e.g. 83 |
 | phase.N.target_body_fat_percent | Target body fat of the phase in % |
 | phase.N.max_waist_gain_cm | Review the phase when the waist grew this much (gain phases: 4 by default) |
+| phase.N.body_fat_ceiling_percent | Gain phases: review the phase when body fat reaches this % (optional; 0 or left out = off) |
 | phase.N.calories | A later phase's daily calories (also phase.N.protein_g, carbs_g, fat_g, fiber_g, water_ml, or macros_g). Leave it out for the current phase: the flat calories, protein_g … rows are its numbers |
 | phase.N.macros_g | Protein/carbs/fat in grams in one cell – e.g. 160/278/72 |
 | phase.N.ID.calories | Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml) – e.g. 2600 |
@@ -328,7 +333,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | check.ID.when | A meal (breakfast, lunch, snack, dinner or my own), a time (08:00) or anytime – e.g. breakfast |
 | check.ID.days | daily, weekdays (mon;wed;fri) or day-type ids (gym;tennis) – e.g. daily |
 | check.ID.optional | yes when a day without it is fine – e.g. yes |
-| check.ID.remind | yes for a reminder |
+| check.ID.remind | no to turn its reminder off (on by default) |
 | check.ID.affects_weight | yes when it can move the scale (creatine – set by itself for creatine) |
 | measure.weigh_in | When I weigh myself – e.g. daily 07:00 |
 | measure.morning_until | Weigh-ins before this time count as morning weights – e.g. 11:00 |
@@ -350,7 +355,7 @@ Example with a coach plan (made-up numbers):
 setting,value
 weight_kg,80
 goal,gain
-rate_kg_per_week,0.1-0.2
+rate_kg_per_week,0.15-0.25
 target_weight_kg,83
 calories,2600
 protein_g,160
@@ -379,7 +384,7 @@ phase.1.name,Lean gain
 phase.1.goal,gain
 phase.1.start,2030-01-07
 phase.1.end,~2030-05-31
-phase.1.rate_kg_per_week,0.1-0.2
+phase.1.rate_kg_per_week,0.15-0.25
 phase.1.review_weight_kg,82-83
 phase.1.target_weight_kg,83
 phase.1.gym.calories,2600
@@ -528,7 +533,7 @@ setting,value
 | calf_cm | Calf at the widest point in cm |
 | activity | sedentary (desk job), light (exercise 1–3 days/week), moderate (3–5 days), active (6–7 days), very_active (physical job plus training) – e.g. moderate |
 | goal | lose, maintain or gain (weight) – e.g. lose |
-| rate_kg_per_week | How fast to lose or gain, kg per week: 0.05–1; a range like 0.1-0.2 is fine – e.g. 0.5 |
+| rate_kg_per_week | How fast to lose or gain, kg per week: 0.05–1; a range like 0.15-0.25 is fine – e.g. 0.5 |
 | target_weight_kg | Target weight in kg (of the current phase, if my plan has phases) – e.g. 62 |
 | macro_split | balanced, high_protein, low_carb, endurance or keto – or percent of calories as protein/carbs/fat, e.g. 30/40/30 – e.g. high_protein |
 | calories | Daily calories in kcal – only if I have a fixed number; otherwise leave it out and Nina calculates it from my body data |
@@ -562,7 +567,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 - Body fat and tape measurements I have now → body_fat_percent, body_fat_method and the *_cm rows (saved as today's values).
 - Supplements my plan names → check.ID.* (only what my plan says; never add one).
 - Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.
-- Ranges are written 0.1-0.2, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
+- Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
 - A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.
 
 | setting | value |
@@ -581,12 +586,13 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | phase.N.goal | gain, maintain or lose – e.g. gain |
 | phase.N.start | Start date YYYY-MM-DD or YYYY-MM; ~ in front = approximate. A start today or earlier means the phase is running – e.g. 2030-01-07 |
 | phase.N.end | End date, same format – e.g. ~2030-05-31 |
-| phase.N.rate_kg_per_week | kg per week, 0.05–1; a range like 0.1-0.2 is fine – e.g. 0.1-0.2 |
+| phase.N.rate_kg_per_week | kg per week, 0.05–1; a range like 0.15-0.25 is fine – e.g. 0.15-0.25 |
 | phase.N.rate_percent_per_week | Or the rate in % of body weight per week (0.05–1.5) |
 | phase.N.review_weight_kg | Weight (range) at which to review the phase – e.g. 82-83 |
 | phase.N.target_weight_kg | Target weight of the phase in kg – e.g. 83 |
 | phase.N.target_body_fat_percent | Target body fat of the phase in % |
 | phase.N.max_waist_gain_cm | Review the phase when the waist grew this much (gain phases: 4 by default) |
+| phase.N.body_fat_ceiling_percent | Gain phases: review the phase when body fat reaches this % (optional; 0 or left out = off) |
 | phase.N.calories | A later phase's daily calories (also phase.N.protein_g, carbs_g, fat_g, fiber_g, water_ml, or macros_g). Leave it out for the current phase: the flat calories, protein_g … rows are its numbers |
 | phase.N.macros_g | Protein/carbs/fat in grams in one cell – e.g. 160/278/72 |
 | phase.N.ID.calories | Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml) – e.g. 2600 |
@@ -598,7 +604,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | check.ID.when | A meal (breakfast, lunch, snack, dinner or my own), a time (08:00) or anytime – e.g. breakfast |
 | check.ID.days | daily, weekdays (mon;wed;fri) or day-type ids (gym;tennis) – e.g. daily |
 | check.ID.optional | yes when a day without it is fine – e.g. yes |
-| check.ID.remind | yes for a reminder |
+| check.ID.remind | no to turn its reminder off (on by default) |
 | check.ID.affects_weight | yes when it can move the scale (creatine – set by itself for creatine) |
 | measure.weigh_in | When I weigh myself – e.g. daily 07:00 |
 | measure.morning_until | Weigh-ins before this time count as morning weights – e.g. 11:00 |
@@ -620,7 +626,7 @@ Example with a coach plan (made-up numbers):
 setting,value
 weight_kg,80
 goal,gain
-rate_kg_per_week,0.1-0.2
+rate_kg_per_week,0.15-0.25
 target_weight_kg,83
 calories,2600
 protein_g,160
@@ -649,7 +655,7 @@ phase.1.name,Lean gain
 phase.1.goal,gain
 phase.1.start,2030-01-07
 phase.1.end,~2030-05-31
-phase.1.rate_kg_per_week,0.1-0.2
+phase.1.rate_kg_per_week,0.15-0.25
 phase.1.review_weight_kg,82-83
 phase.1.target_weight_kg,83
 phase.1.gym.calories,2600

@@ -157,6 +157,8 @@ public struct SettingsPlanDraft: Equatable, Sendable {
         public var targetWeight: Double?
         public var targetBodyFat: Double?
         public var maxWaistGainCm: Double?
+        /// Gain phases: body fat (%) that opens the review; 0 = off.
+        public var bodyFatCeiling: Double?
         public var note: String?
         /// phase.N.calories … (the phase's baseline).
         public var baseline = Targets()
@@ -361,6 +363,7 @@ extension SettingsCSV {
         ("target_weight_kg", ["target_weight", "goal_weight", "zielgewicht"]),
         ("target_body_fat_percent", ["target_body_fat", "body_fat_percent", "body_fat_goal"]),
         ("max_waist_gain_cm", ["max_waist_gain", "waist_limit_cm"]),
+        ("body_fat_ceiling_percent", ["body_fat_ceiling", "max_body_fat_percent", "max_body_fat", "body_fat_limit_percent"]),
         ("note", ["notes", "notiz"]),
     ] + targetFieldList)
 
@@ -591,7 +594,7 @@ extension SettingsCSV {
                 if let zero = numbers(in: value).first, zero == 0, numbers(in: value).count == 1 {
                     draft.plan.withPhase(id) { $0.rate = 0...0 }
                 } else {
-                    guard let rate = planRange(value, 0.05...1.0) else { return invalid + " (0.05–1 kg per week, a range like 0.1-0.2 is fine)" }
+                    guard let rate = planRange(value, 0.05...1.0) else { return invalid + " (0.05–1 kg per week, a range like 0.15-0.25 is fine)" }
                     draft.plan.withPhase(id) { $0.rate = rate }
                 }
             case "rate_percent_per_week":
@@ -609,6 +612,9 @@ extension SettingsCSV {
             case "max_waist_gain_cm":
                 guard let cm = planNumber(value, 0...20) else { return invalid + " (0–20 cm)" }
                 draft.plan.withPhase(id) { $0.maxWaistGainCm = cm }
+            case "body_fat_ceiling_percent":
+                guard let fat = planNumber(value, 0...60), fat == 0 || fat >= 3 else { return invalid + " (3–60 %, 0 = off)" }
+                draft.plan.withPhase(id) { $0.bodyFatCeiling = fat }
             default: // note
                 draft.plan.withPhase(id) { $0.note = text }
             }
@@ -732,7 +738,7 @@ extension SettingsCSV {
 
     // MARK: Value helpers
 
-    /// The numbers in a text, signs ignored: "0.1 to 0.2" → [0.1, 0.2], "160/328/72" → 3 numbers.
+    /// The numbers in a text, signs ignored: "0.15 to 0.25" → [0.15, 0.25], "160/328/72" → 3 numbers.
     static func numbers(in text: String) -> [Double] {
         var result: [Double] = []
         var current = ""
@@ -755,7 +761,7 @@ extension SettingsCSV {
         return result
     }
 
-    /// "0.15", "0.1-0.2", "0.1–0.2", "0.1 to 0.2" → a range within `bounds` (lower bound first).
+    /// "0.2", "0.15-0.25", "0.15–0.25", "0.15 to 0.25" → a range within `bounds` (lower bound first).
     static func planRange(_ text: String, _ bounds: ClosedRange<Double>) -> ClosedRange<Double>? {
         let values = numbers(in: text)
         guard (1...2).contains(values.count), values.allSatisfy({ bounds.contains($0) }) else { return nil }
@@ -1342,6 +1348,10 @@ extension SettingsCSV {
             built[index].targetWeight = row.targetWeight ?? (isActive ? draft.targetWeight : nil) ?? 0
             built[index].targetBodyFat = row.targetBodyFat ?? 0
             built[index].maxWaistGainCm = row.maxWaistGainCm ?? CoachPlan.Phase.defaultMaxWaistGain(for: goal)
+            // The body-fat ceiling only applies to gain phases (as in the phase sheet); missing = off.
+            let ceiling = row.bodyFatCeiling ?? 0
+            if ceiling > 0, goal != .gain { notes.append("phase.\(row.id).body_fat_ceiling_percent: only gain phases use it") }
+            built[index].bodyFatCeiling = goal == .gain ? ceiling : 0
             built[index].note = row.note ?? ""
 
             // Targets: the rows (missing fields from the baseline), the flat rows for the active phase.
@@ -1581,6 +1591,8 @@ extension SettingsCSV {
                 phase.targetBodyFat > 0 ? NumberText.plain(phase.targetBodyFat, decimals: 1) + " %" : "–", .phases)
             add("\(title) · Waist limit", was.map { $0.maxWaistGainCm > 0 ? "+" + NumberText.plain($0.maxWaistGainCm, decimals: 1) + " cm" : "–" } ?? "–",
                 phase.maxWaistGainCm > 0 ? "+" + NumberText.plain(phase.maxWaistGainCm, decimals: 1) + " cm" : "–", .phases)
+            add("\(title) · Body-fat ceiling", was.map { $0.bodyFatCeiling > 0 ? NumberText.plain($0.bodyFatCeiling, decimals: 1) + " %" : "–" } ?? "–",
+                phase.bodyFatCeiling > 0 ? NumberText.plain(phase.bodyFatCeiling, decimals: 1) + " %" : "–", .phases)
             add("\(title) · Note", was.map { $0.note.isEmpty ? "–" : $0.note } ?? "–", phase.note.isEmpty ? "–" : phase.note, .phases)
 
             let oldRevision = was.flatMap { currentRevision(of: $0, today: today) }
@@ -1725,6 +1737,7 @@ extension SettingsCSV {
             if phase.maxWaistGainCm != CoachPlan.Phase.defaultMaxWaistGain(for: phase.goal) {
                 add(prefix + "max_waist_gain_cm", NumberText.plain(phase.maxWaistGainCm))
             }
+            if phase.bodyFatCeiling > 0 { add(prefix + "body_fat_ceiling_percent", NumberText.plain(phase.bodyFatCeiling)) }
             if let revision = currentRevision(of: phase, today: today) {
                 // The active phase's baseline is the flat calories, protein_g … rows.
                 if let baseline = revision.baseline, phase.id != activeID {
@@ -1807,12 +1820,13 @@ extension SettingsCSV {
         Key(name: "phase.N.goal", meaning: "gain, maintain or lose", example: "gain", aliases: []),
         Key(name: "phase.N.start", meaning: "Start date YYYY-MM-DD or YYYY-MM; ~ in front = approximate. A start today or earlier means the phase is running", example: "2030-01-07", aliases: []),
         Key(name: "phase.N.end", meaning: "End date, same format", example: "~2030-05-31", aliases: []),
-        Key(name: "phase.N.rate_kg_per_week", meaning: "kg per week, 0.05–1; a range like 0.1-0.2 is fine", example: "0.1-0.2", aliases: []),
+        Key(name: "phase.N.rate_kg_per_week", meaning: "kg per week, 0.05–1; a range like 0.15-0.25 is fine", example: "0.15-0.25", aliases: []),
         Key(name: "phase.N.rate_percent_per_week", meaning: "Or the rate in % of body weight per week (0.05–1.5)", example: "", aliases: []),
         Key(name: "phase.N.review_weight_kg", meaning: "Weight (range) at which to review the phase", example: "82-83", aliases: []),
         Key(name: "phase.N.target_weight_kg", meaning: "Target weight of the phase in kg", example: "83", aliases: []),
         Key(name: "phase.N.target_body_fat_percent", meaning: "Target body fat of the phase in %", example: "", aliases: []),
         Key(name: "phase.N.max_waist_gain_cm", meaning: "Review the phase when the waist grew this much (gain phases: 4 by default)", example: "", aliases: []),
+        Key(name: "phase.N.body_fat_ceiling_percent", meaning: "Gain phases: review the phase when body fat reaches this % (optional; 0 or left out = off)", example: "", aliases: []),
         Key(name: "phase.N.calories", meaning: "A later phase's daily calories (also phase.N.protein_g, carbs_g, fat_g, fiber_g, water_ml, or macros_g). Leave it out for the current phase: the flat calories, protein_g … rows are its numbers", example: "", aliases: []),
         Key(name: "phase.N.macros_g", meaning: "Protein/carbs/fat in grams in one cell", example: "160/278/72", aliases: []),
         Key(name: "phase.N.ID.calories", meaning: "Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml)", example: "2600", aliases: []),
@@ -1850,7 +1864,7 @@ extension SettingsCSV {
         "- Body fat and tape measurements I have now → body_fat_percent, body_fat_method and the *_cm rows (saved as today's values).",
         "- Supplements my plan names → check.ID.* (only what my plan says; never add one).",
         "- Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.",
-        "- Ranges are written 0.1-0.2, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.",
+        "- Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.",
         "- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.",
     ]
 
@@ -1859,7 +1873,7 @@ extension SettingsCSV {
         "setting,value",
         "weight_kg,80",
         "goal,gain",
-        "rate_kg_per_week,0.1-0.2",
+        "rate_kg_per_week,0.15-0.25",
         "target_weight_kg,83",
         "calories,2600",
         "protein_g,160",
@@ -1888,7 +1902,7 @@ extension SettingsCSV {
         "phase.1.goal,gain",
         "phase.1.start,2030-01-07",
         "phase.1.end,~2030-05-31",
-        "phase.1.rate_kg_per_week,0.1-0.2",
+        "phase.1.rate_kg_per_week,0.15-0.25",
         "phase.1.review_weight_kg,82-83",
         "phase.1.target_weight_kg,83",
         "phase.1.gym.calories,2600",

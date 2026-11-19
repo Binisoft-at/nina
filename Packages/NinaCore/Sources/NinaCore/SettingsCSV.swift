@@ -87,7 +87,7 @@ public struct SettingsDraft: Equatable, Sendable {
     public var goal: WeightGoal?
     /// The midpoint of `rateRange` (rounded to 0.001).
     public var ratePerWeek: Double?
-    /// rate_kg_per_week as written: 0.15 or a range like 0.1-0.2 (the active phase takes the range).
+    /// rate_kg_per_week as written: 0.2 or a range like 0.15-0.25 (the active phase takes the range).
     public var rateRange: ClosedRange<Double>?
     public var targetWeight: Double?
     public var macroSplit: MacroSplit?
@@ -253,7 +253,7 @@ public enum SettingsCSV {
         Key(name: "calf_cm", meaning: "Calf at the widest point in cm", example: "", aliases: ["calf", "wade", "wade_cm", "wadenumfang"]),
         Key(name: "activity", meaning: "sedentary (desk job), light (exercise 1–3 days/week), moderate (3–5 days), active (6–7 days), very_active (physical job plus training)", example: "moderate", aliases: ["aktivitat", "activity_level"]),
         Key(name: "goal", meaning: "lose, maintain or gain (weight)", example: "lose", aliases: ["ziel", "weight_goal"]),
-        Key(name: "rate_kg_per_week", meaning: "How fast to lose or gain, kg per week: 0.05–1; a range like 0.1-0.2 is fine", example: "0.5", aliases: ["rate", "pace", "tempo", "kg_per_week"]),
+        Key(name: "rate_kg_per_week", meaning: "How fast to lose or gain, kg per week: 0.05–1; a range like 0.15-0.25 is fine", example: "0.5", aliases: ["rate", "pace", "tempo", "kg_per_week"]),
         Key(name: "target_weight_kg", meaning: "Target weight in kg (of the current phase, if my plan has phases)", example: "62", aliases: ["target_weight", "zielgewicht", "goal_weight"]),
         Key(name: "macro_split", meaning: "balanced, high_protein, low_carb, endurance or keto – or percent of calories as protein/carbs/fat, e.g. 30/40/30", example: "high_protein", aliases: ["macros", "makros", "split", "makroverteilung"]),
         Key(name: "calories", meaning: "Daily calories in kcal – only if I have a fixed number; otherwise leave it out and Nina calculates it from my body data", example: "", aliases: ["kcal", "calories_kcal", "kalorien", "energy", "daily_calories"]),
@@ -385,7 +385,7 @@ public enum SettingsCSV {
             guard let goal = map[word] else { return invalid }
             draft.goal = goal
         case "rate_kg_per_week":
-            guard let range = planRange(value, 0.05...1.0) else { return invalid + " (0.05–1 kg per week; a range like 0.1-0.2 is fine)" }
+            guard let range = planRange(value, 0.05...1.0) else { return invalid + " (0.05–1 kg per week; a range like 0.15-0.25 is fine)" }
             draft.rateRange = range
             draft.ratePerWeek = ((range.lowerBound + range.upperBound) / 2 * 1000).rounded() / 1000
         case "target_weight_kg":
@@ -598,7 +598,7 @@ public enum SettingsCSV {
     // MARK: Applying
 
     /// The settings after the file, what changes, a weight to log and today's body values. Body data
-    /// recalculates the targets with the goal calculator (as Settings → Goals does); fixed numbers in
+    /// recalculates the targets with the goal calculator (as Settings → Goals & Plan does); fixed numbers in
     /// the file win. With a coach plan (one there was, or plan rows in the file) the flat goal, rate,
     /// target weight and targets are the active phase's, and the profile mirrors the plan. `today`
     /// and `now` date the body records and a phase start the file confirms.

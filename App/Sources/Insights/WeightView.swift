@@ -143,17 +143,19 @@ private struct WeightRowContent: View {
     }
 }
 
-/// Recently Deleted: entries, foods, meals and body measurements stay 30 days.
+/// Recently Deleted: entries, foods, meals, weigh-ins and body measurements stay 30 days.
 struct TrashView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<LogEntry> { $0.deletedAt != nil }, sort: \LogEntry.time, order: .reverse) private var entries: [LogEntry]
     @Query(filter: #Predicate<Food> { $0.deletedAt != nil }) private var foods: [Food]
     @Query(filter: #Predicate<Recipe> { $0.deletedAt != nil }) private var recipes: [Recipe]
+    @Query(filter: #Predicate<WeightEntry> { $0.deletedAt != nil }, sort: \WeightEntry.time, order: .reverse)
+    private var weights: [WeightEntry]
     @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt != nil }, sort: \BodyMeasurement.time, order: .reverse)
     private var measurements: [BodyMeasurement]
 
     private var isEmpty: Bool {
-        entries.isEmpty && foods.isEmpty && recipes.isEmpty && measurements.isEmpty
+        entries.isEmpty && foods.isEmpty && recipes.isEmpty && weights.isEmpty && measurements.isEmpty
     }
 
     var body: some View {
@@ -215,13 +217,16 @@ struct TrashView: View {
                     }
                 }
             }
+            if !weights.isEmpty {
+                weightsSection
+            }
             if !measurements.isEmpty {
                 measurementsSection
             }
         }
         .overlay {
             if isEmpty {
-                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals and measurements stay here for 30 days."))
+                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals, weigh-ins and measurements stay here for 30 days."))
             }
         }
         .navigationTitle("Recently Deleted")
@@ -232,9 +237,33 @@ struct TrashView: View {
                     store.purge(entries)
                     store.purge(foods)
                     store.purge(recipes)
+                    store.purge(weights)
                     store.purge(measurements)
                 }
                 .disabled(isEmpty)
+            }
+        }
+    }
+
+    /// Deleted weigh-ins: Restore also puts the weight back into Apple Health (`app.restore`).
+    private var weightsSection: some View {
+        Section("Weigh-ins") {
+            ForEach(weights) { weight in
+                VStack(alignment: .leading) {
+                    Text(Fmt.kilograms(weight.kilograms))
+                    Text("\(Fmt.dayTitle(weight.dayKey, today: app.today)) · \(daysLeft(weight.deletedAt)) days left")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .swipeActions(edge: .leading) {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.restore(weight) }.tint(Brand.accent)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([weight]) }
+                }
+                .contextMenu {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.restore(weight) }
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([weight]) }
+                }
             }
         }
     }
