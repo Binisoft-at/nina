@@ -235,7 +235,8 @@ private struct ReminderCoachRow: View {
 extension View {
     /// "Turn on coach reminders?" – asked once per device, right after a plan was first set up.
     /// Set `isPresented` when `NotificationScheduler.shared.shouldOfferCoachReminders(before:after:)`
-    /// says so (the plan editor and the settings import do). `onAnswer` runs after either button.
+    /// says so (the plan editor, the settings import and, on iPhone, RootView do). `onAnswer` runs
+    /// after either button.
     func coachRemindersPrompt(isPresented: Binding<Bool>, onAnswer: @escaping () -> Void = {}) -> some View {
         modifier(ReminderCoachPrompt(isPresented: isPresented, onAnswer: onAnswer))
     }
@@ -266,6 +267,8 @@ private struct ReminderCoachPrompt: ViewModifier {
     private func answer(_ yes: Bool) {
         let container = app.container
         let settings = app.settings
+        // Answered right away, so no other screen asks again while the answer is being saved.
+        NotificationScheduler.shared.coachAsked = true
         Task {
             await NotificationScheduler.shared.answerCoachReminders(yes, context: container.mainContext, settings: settings)
         }

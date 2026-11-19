@@ -73,7 +73,7 @@ struct NinaCommands: Commands {
             Button("Body") { go(.body, tab: .insights) }
                 .keyboardShortcut("6")
             Divider()
-            Button("Goals…") { app.commandTarget.sheet = .goals }
+            Button("Goals & Plan…") { app.commandTarget.sheet = .goals }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
             Button("My Plan…") { app.commandTarget.sheet = .plan }
         }

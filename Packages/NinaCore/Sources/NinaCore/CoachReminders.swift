@@ -64,6 +64,8 @@ public enum CoachReminders {
         public var weighedIn: Set<DayKey> = []
         /// The latest weight: the placeholder of "Weight…".
         public var lastWeight: Double?
+        /// The latest typed tape value per site: the placeholder of "Waist…" (`lastTape(_:)`).
+        public var lastTape: [BodySite: Double] = [:]
         /// Each day's ticked checks: check id → done or skipped (missing = open).
         public var checkStates: [DayKey: [String: CheckState]] = [:]
         /// Saved check-ins ("week-2030-01-07").
@@ -100,12 +102,12 @@ public enum CoachReminders {
             case background
             /// Opens the app.
             case foreground
-            /// A text field in the banner ("Weight…").
+            /// A text field in the banner ("Weight…", "Waist…").
             case textInput(button: String, placeholder: String)
         }
 
-        /// What the app does: see `Command` (`open:<url>`, `weight`, `check.done:<id>`,
-        /// `check.skip:<id>`, `daytype:<id>`).
+        /// What the app does: see `Command` (`open:<url>`, `weight`, `tape:<site>`,
+        /// `check.done:<id>`, `check.skip:<id>`, `daytype:<id>`).
         public var id: String
         public var title: String
         public var style: Style
@@ -216,7 +218,8 @@ public enum CoachReminders {
     }
 
     /// The morning notification: the weigh-in (until done), the checks folded into it, today's
-    /// targets, a measurement due today, and "Tennis today" on a default day with a flexible
+    /// targets, a measurement due today ("Waist…" right in the banner for a one-site weekly
+    /// measurement, else a Measure button), and "Tennis today" on a default day with a flexible
     /// type still open this week.
     static func morning(on day: DayKey, _ input: Input) -> Request? {
         let plan = input.plan
@@ -244,7 +247,13 @@ public enum CoachReminders {
             let placeholder = input.lastWeight.map { NumberText.plain($0, decimals: 1) + " kg" } ?? "kg"
             actions.append(Action(id: weightActionID, title: "Weight…", style: .textInput(button: "Save", placeholder: placeholder)))
         }
-        if measure != nil { actions.append(Action(id: openPrefix + "nina://measure", title: "Measure", style: .foreground)) }
+        if let site = measure.flatMap({ bannerSite(of: $0) }) {
+            let placeholder = input.lastTape[site].map { NumberText.plain($0, decimals: 1) + " cm" } ?? "cm"
+            actions.append(Action(id: tapePrefix + site.rawValue, title: "\(site.title)…",
+                                  style: .textInput(button: "Save", placeholder: placeholder)))
+        } else if measure != nil {
+            actions.append(Action(id: openPrefix + "nina://measure", title: "Measure", style: .foreground))
+        }
         if let flexible = flexibleOffer(on: day, input) {
             actions.append(Action(id: dayTypePrefix + flexible.id, title: "\(label(of: flexible)) today", style: .background))
         }
@@ -351,6 +360,13 @@ public enum CoachReminders {
                        minutes: ClockTime.minutes(of: date, calendar: calendar), title: "Time for a phase review",
                        body: "\(name(of: phase)): \(NumberText.plain(weight, decimals: 1)) kg reached – time to review.",
                        category: category, url: "nina://review/\(phase.id)")
+    }
+
+    /// The one site of a weekly measurement, typed right into the morning banner ("Waist…"); nil
+    /// for a full set or several weekly sites (they open the measure sheet).
+    static func bannerSite(of item: BodyDueItem) -> BodySite? {
+        guard item.kind == .weekly, item.sites.count == 1 else { return nil }
+        return item.sites[0]
     }
 
     // MARK: Rules
@@ -460,6 +476,7 @@ public enum CoachReminders {
     // MARK: Actions
 
     static let weightActionID = "weight"
+    static let tapePrefix = "tape:"
     static let openPrefix = "open:"
     static let checkDonePrefix = "check.done:"
     static let checkSkipPrefix = "check.skip:"
@@ -471,6 +488,9 @@ public enum CoachReminders {
         case open(String)
         /// "Weight…": the kilograms typed (nil when the text isn't a weight).
         case weight(Double?)
+        /// "Waist…": the site and the centimeters typed (nil when the text isn't a plausible value
+        /// for that site).
+        case tape(BodySite, Double?)
         /// Taken / Not today / "Creatine done".
         case check(String, CheckState)
         /// "Tennis today".
@@ -481,6 +501,9 @@ public enum CoachReminders {
     /// other actions.
     public static func command(action id: String, text: String? = nil) -> Command? {
         if id == weightActionID { return .weight(text.flatMap(weight(from:))) }
+        if id.hasPrefix(tapePrefix), let site = BodySite(rawValue: String(id.dropFirst(tapePrefix.count))) {
+            return .tape(site, text.flatMap { centimeters(from: $0, site: site) })
+        }
         if id.hasPrefix(openPrefix) { return .open(String(id.dropFirst(openPrefix.count))) }
         if id.hasPrefix(checkDonePrefix) { return .check(String(id.dropFirst(checkDonePrefix.count)), .done) }
         if id.hasPrefix(checkSkipPrefix) { return .check(String(id.dropFirst(checkSkipPrefix.count)), .skipped) }
@@ -498,8 +521,38 @@ public enum CoachReminders {
     /// The number in a typed weight, whatever its size ("7,24 kg" → 7.24): what the weigh-in sheet
     /// is prefilled with when the weight needs a look. nil when it isn't one number.
     public static func number(from text: String) -> Double? {
+        number(from: text, units: ["kilograms", "kilogram", "kilo", "kgs", "kg"])
+    }
+
+    /// A tape value typed into the banner: "84,5", "84.5 cm" → 84.5; nil for anything that isn't
+    /// one number within the site's plausible range (waist 50–200 cm).
+    public static func centimeters(from text: String, site: BodySite) -> Double? {
+        guard let value = number(from: text, units: ["centimeters", "centimetres", "centimeter", "centimetre", "cm"]),
+              site.plausibleRange.contains(value) else { return nil }
+        return value
+    }
+
+    /// The latest typed value of each site, from the tape records (the "Waist…" placeholder).
+    public static func lastTape(_ records: [BodyTapeRecord]) -> [BodySite: Double] {
+        var result: [BodySite: Double] = [:]
+        for record in BodyTapeRecord.sorted(records) {
+            for (site, value) in record.values.sites { result[site] = value }
+        }
+        return result
+    }
+
+    /// A tape value typed into the banner needs a look before it is saved: more than 3 cm away
+    /// from the site's last reading within 7 days (`BodyReadings.isSuspiciousJump`).
+    public static func tapeNeedsALook(_ value: Double, site: BodySite, on day: DayKey, records: [BodyTapeRecord],
+                                      calendar: Calendar = .current) -> Bool {
+        guard let previous = BodyTapeRecord.sorted(records).last(where: { $0.day <= day && $0.values[site] != nil }),
+              let last = previous.values[site] else { return false }
+        return BodyReadings.isSuspiciousJump(value, previous: last, daysApart: previous.day.days(to: day, calendar: calendar))
+    }
+
+    private static func number(from text: String, units: [String]) -> Double? {
         var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        for unit in ["kilograms", "kilogram", "kilo", "kgs", "kg"] where cleaned.hasSuffix(unit) {
+        for unit in units where cleaned.hasSuffix(unit) {
             cleaned = String(cleaned.dropLast(unit.count))
             break
         }

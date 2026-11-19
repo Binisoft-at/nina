@@ -186,6 +186,47 @@ struct CoachRemindersTests {
         #expect(CoachReminders.plan(input).request("nina.coach.measure.2030-01-13") == nil)
     }
 
+    @Test func waistRightInTheMorningBanner() throws {
+        var input = reminderInput()
+        let monday = reminderDay("2030-01-14")
+        input.bodyDue[monday] = [BodyDueItem(kind: .weekly, dueDay: monday, sites: [.waist])]
+        input.lastTape = [.waist: 84.5]
+        let morning = try #require(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14"))
+        #expect(morning.body.contains("Waist today."))
+        let waist = try #require(morning.category.actions.first { $0.id == "tape:waist" })
+        #expect(waist.title == "Waist…")
+        #expect(waist.style == .textInput(button: "Save", placeholder: "84.5 cm"))
+        #expect(morning.category.actions.first?.id == "weight")
+        #expect(!morning.category.actions.contains { $0.id == "open:nina://measure" })
+
+        // Several weekly sites (and a full set) open the measure sheet instead.
+        input.bodyDue[monday] = [BodyDueItem(kind: .weekly, dueDay: monday, sites: [.waist, .hip])]
+        let several = try #require(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14"))
+        #expect(several.category.actions.contains { $0.id == "open:nina://measure" })
+        #expect(!several.category.actions.contains { $0.id.hasPrefix("tape:") })
+    }
+
+    @Test func typedTapeValues() {
+        #expect(CoachReminders.command(action: "tape:waist", text: "84,5") == .tape(.waist, 84.5))
+        #expect(CoachReminders.command(action: "tape:waist", text: " 84.5 cm ") == .tape(.waist, 84.5))
+        #expect(CoachReminders.command(action: "tape:waist", text: "8.45") == .tape(.waist, nil))
+        #expect(CoachReminders.command(action: "tape:waist", text: "84 kg") == .tape(.waist, nil))
+        #expect(CoachReminders.command(action: "tape:waist_narrow", text: "71") == .tape(.waistNarrow, 71))
+        #expect(CoachReminders.command(action: "tape:nose", text: "84") == nil)
+
+        let records = [
+            BodyTapeRecord(day: reminderDay("2030-01-07"), values: BodyValues([BodySite.waist: 84.0])),
+            BodyTapeRecord(day: reminderDay("2029-12-01"), values: BodyValues([BodySite.waist: 90.0, BodySite.hip: 100.0])),
+        ]
+        #expect(CoachReminders.lastTape(records) == [.waist: 84.0, .hip: 100.0])
+        // A change of more than 3 cm within a week needs a look; later it's fine.
+        let monday = reminderDay("2030-01-14")
+        #expect(!CoachReminders.tapeNeedsALook(84.6, site: .waist, on: monday, records: records, calendar: reminderUTC))
+        #expect(CoachReminders.tapeNeedsALook(88.0, site: .waist, on: monday, records: records, calendar: reminderUTC))
+        #expect(!CoachReminders.tapeNeedsALook(88.0, site: .waist, on: reminderDay("2030-01-21"), records: records, calendar: reminderUTC))
+        #expect(!CoachReminders.tapeNeedsALook(120.0, site: .chest, on: monday, records: records, calendar: reminderUTC))
+    }
+
     @Test func flexibleTypeOfferedOnARestDay() throws {
         // Tue 15 Jan is a rest day; no tennis yet this week.
         var input = reminderInput()

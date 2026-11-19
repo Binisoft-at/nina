@@ -1141,7 +1141,8 @@ extension SettingsCSV {
         }
         let typeIDs = Set(plan.dayTypes.map(\.id))
 
-        // Daily checks (the group replaces all checks).
+        // Daily checks (the group replaces all checks). Without a remind row a check that was there
+        // keeps its reminder setting and a new one gets a reminder (turned off with `remind,no`).
         if let checks = rows.checks {
             plan.checks = checks.map { row in
                 let name = row.name ?? row.id.prefix(1).uppercased() + row.id.dropFirst()
@@ -1165,7 +1166,9 @@ extension SettingsCSV {
                 }
                 return CoachPlan.Check(id: row.id, name: name, emoji: row.emoji ?? input.oldPlan?.check(id: row.id)?.emoji ?? "💊",
                                        dose: row.dose ?? "", timing: timing, days: days,
-                                       isOptional: row.isOptional ?? false, remind: row.remind ?? false, affectsWeight: row.affectsWeight)
+                                       isOptional: row.isOptional ?? false,
+                                       remind: row.remind ?? input.oldPlan?.check(id: row.id)?.remind ?? true,
+                                       affectsWeight: row.affectsWeight)
             }
         }
 
@@ -1819,7 +1822,7 @@ extension SettingsCSV {
         Key(name: "check.ID.when", meaning: "A meal (breakfast, lunch, snack, dinner or my own), a time (08:00) or anytime", example: "breakfast", aliases: []),
         Key(name: "check.ID.days", meaning: "daily, weekdays (mon;wed;fri) or day-type ids (gym;tennis)", example: "daily", aliases: []),
         Key(name: "check.ID.optional", meaning: "yes when a day without it is fine", example: "yes", aliases: []),
-        Key(name: "check.ID.remind", meaning: "yes for a reminder", example: "", aliases: []),
+        Key(name: "check.ID.remind", meaning: "no to turn its reminder off (on by default)", example: "", aliases: []),
         Key(name: "check.ID.affects_weight", meaning: "yes when it can move the scale (creatine – set by itself for creatine)", example: "", aliases: []),
         Key(name: "measure.weigh_in", meaning: "When I weigh myself", example: "daily 07:00", aliases: []),
         Key(name: "measure.morning_until", meaning: "Weigh-ins before this time count as morning weights", example: "11:00", aliases: []),

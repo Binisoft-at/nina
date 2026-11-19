@@ -9,14 +9,23 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        @Bindable var app = app
         navigation
             .modifier(AppChrome(app: app))
             .modifier(TourPresenter(app: app))
+            .coachRemindersPrompt(isPresented: $app.askCoachReminders)
             .onOpenURL { url in app.open(url) }
-            .onReceive(NotificationCenter.default.publisher(for: .ninaOpenURL)) { note in
-                if let url = note.object as? URL { app.open(url) }
+            .onReceive(NotificationCenter.default.publisher(for: .ninaOpenURL)) { _ in
+                // The link a notification asked for: whoever takes it first opens it, so only once.
+                if let url = NotificationScheduler.shared.takePendingURL() { app.open(url) }
+            }
+            .onChange(of: app.sheet == nil) { _, closed in
+                // "Turn on coach reminders?" waits for a closing sheet (a plan just set up there).
+                if closed { app.offerCoachRemindersIfNeeded() }
             }
             .task {
+                // A notification button tapped on a cold start can answer before this window listens.
+                if let url = NotificationScheduler.shared.takePendingURL() { app.open(url) }
                 // The tour opens by itself once after install (and as "What's new" after updates).
                 try? await Task.sleep(for: .milliseconds(900))
                 app.offerTourIfNeeded()

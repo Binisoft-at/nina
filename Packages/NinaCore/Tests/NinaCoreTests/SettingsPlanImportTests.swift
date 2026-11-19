@@ -395,6 +395,28 @@ struct SettingsPlanImportTests {
         #expect(plan.check(id: "vitd")?.name == "Vitamin D")
     }
 
+    @Test func importedChecksRemindByDefault() throws {
+        // A check without a remind row gets a reminder; `remind,no` turns it off.
+        let text = "setting,value\ncheck.vitd.name,Vitamin D\ncheck.vitd.when,breakfast\ncheck.fish.name,Fish oil\ncheck.fish.remind,no\n"
+        let first = Self.imported(text)
+        let plan = try #require(first.plan)
+        #expect(plan.check(id: "vitd")?.remind == true)
+        #expect(plan.check(id: "fish")?.remind == false)
+
+        // Without a remind row a check that was there keeps its setting (off stays off).
+        let again = Self.imported("setting,value\ncheck.vitd.name,Vitamin D\ncheck.vitd.when,breakfast\ncheck.fish.name,Fish oil\n",
+                                  to: first.state, now: planImportNow.addingTimeInterval(3600))
+        #expect(again.plan?.check(id: "fish")?.remind == false)
+        #expect(again.plan?.check(id: "vitd")?.remind == true)
+
+        // The export writes both ways, and reading it back changes nothing.
+        let exported = SettingsCSV.export(first.state, today: Self.today)
+        #expect(exported.contains("check.vitd.remind,yes"))
+        #expect(exported.contains("check.fish.remind,no"))
+        let back = Self.imported(exported, to: first.state, now: planImportNow.addingTimeInterval(3600))
+        #expect(back.changes.isEmpty, "\(back.changes)")
+    }
+
     @Test func bodyRowsAreTodaysBaseline() {
         let text = "setting,value\nbody_fat_percent,22\nbody_fat_method,InBody\nwaist_cm,90\nOberarm,34\nhüfte,100\nwade,40\n"
         let result = Self.imported(text, to: SettingsState())
