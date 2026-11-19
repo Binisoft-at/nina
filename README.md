@@ -8,7 +8,26 @@ stop logging: about 1,000 everyday foods built in (English and German, Austrian 
 type a whole meal like a message, plan meals and just confirm them, and organise everything the way
 you think.
 
+With a plan, Nina also works as your **nutrition coach who measures you**: phases with dates and a
+pace, calories that follow the kind of day (gym, tennis, rest), a morning weigh-in and the tape
+once a week, body fat every few weeks, and a two-minute check-in every week that proposes a small
+calorie change only when your numbers call for it. Nothing changes without your tap. Training
+itself stays in your training app.
+
 ## Highlights
+
+- **Coach & Body** – a plan with dated phases (gain, maintain, lose) and a pace range, up to four
+  day types with their own targets (calorie cycling), daily checks such as a supplement, protein
+  per meal and a long-term goal. Today shows the day-type chip, one strip with what's due (weigh
+  in, waist, creatine …) and at most one coach card. The weekly check-in looks at your 7-day
+  average weight, its pace and how well you followed the plan, and offers "Apply from tomorrow"
+  with Undo. Phase starts and the review weight ask before anything switches. How to measure and
+  how the check-in decides: [docs/BODY.md](docs/BODY.md).
+- **Progress** – **Body**: the 7-day average weight against your plan's corridor, the pace, tape
+  tiles with a chart per site, body fat per method with lean and fat mass, the body goal, your
+  phases on a timeline, check-ins and all weigh-ins and measurements. **Nutrition**: calories
+  against your goal, consistency streaks, macros, fiber/sugar/salt limits, top foods, eating
+  rhythm, weekday pattern and your *measured* maintenance calories.
 
 - **Today** – a calorie ring with what's left (swipe it for other days), your priority nutrients,
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
@@ -25,18 +44,21 @@ you think.
   the notification asks "Lunch planned – eaten?" with ✓ right in the banner.
 - **Meals & recipes** – meals log their foods in one tap; recipes compute per serving and per 100 g
   from the cooked weight.
-- **Insights** – calories against your goal, consistency streaks, macros, fiber/sugar/salt limits,
-  top foods, eating rhythm, weekday pattern, weight trend and your *measured* maintenance calories.
-- **Goals** – the standard calculator (Mifflin–St Jeor) with every step explained with your numbers,
-  training-day targets, and which nutrients matter most to you.
-- **Import from anywhere** – three CSV formats (foods, diary, meals & recipes) and a "Copy prompt
-  for another AI" button: paste it with label photos, notes or another app's export into any AI and
-  bring the CSV back. Preview first; importing again updates instead of duplicating.
-  Formats and prompts: [docs/IMPORT.md](docs/IMPORT.md).
-- **Apple ecosystem** – iCloud sync between all devices, Apple Health (meals and water written,
-  weight and activity read), Apple Watch app with Digital Crown amounts and dictation, complications,
-  widgets, Siri and Shortcuts ("Log food in Nina"), Mac menus and shortcuts, Liquid Glass, light and
-  dark mode.
+- **Goals & Plan** – the standard calculator (Mifflin–St Jeor) with every step explained with your
+  numbers, a pace from 0.05 to 1 kg a week, which nutrients matter most to you, and **My Plan**:
+  phases, day types, daily checks, measuring, adjustments, protein per meal, long-term goal, notes,
+  pause. On the Mac it is a tab of the Settings window.
+- **Import from anywhere** – one setup prompt for your AI that writes your goals, the whole coach
+  plan, your foods and your meals in one go, plus four CSV formats (goals & settings, foods, diary,
+  meals & recipes) with their own prompts. Preview first, with a switch per body value; importing
+  again updates instead of duplicating, and Undo puts everything back. "Copy for My AI" hands your
+  last four weeks to your AI and asks for an answer you can import. Formats and prompts:
+  [docs/IMPORT.md](docs/IMPORT.md).
+- **Apple ecosystem** – iCloud sync between all devices, Apple Health (meals, water and weight
+  written; weight and activity read live, never stored), Apple Watch app with Digital Crown amounts
+  and dictation, complications and widgets with the day type, coach reminders (weigh in right in
+  the notification), Siri and Shortcuts ("Log food in Nina"), Mac menus and shortcuts, Liquid
+  Glass, light and dark mode.
 
 ## Project layout
 
@@ -45,7 +67,7 @@ Nina follows the Binisoft handbook, Binisoft's internal app conventions (version
 
 | Path | What |
 |---|---|
-| `Packages/NinaCore` | All logic without Apple UI frameworks: nutrients, the food catalog, search, quick-add parser, goals, insights, plans, CSV formats, Open Food Facts parsing, tour catalog (tested on Linux) |
+| `Packages/NinaCore` | All logic without Apple UI frameworks: nutrients, the food catalog, search, quick-add parser, goals, insights, plans, CSV formats, Open Food Facts parsing, tour catalog, and the coach (plan, weight signal, body measurements and composition, schedule, adherence, check-in, Today board, reminders) – tested on Linux |
 | `Packages/NinaCore/Sources/NinaCore/Resources/foods.json` | The built-in food catalog (built by `scripts/build_food_db.py`, see [data/README.md](data/README.md)) |
 | `Shared` | SwiftData models, the store every change goes through, food library, formatting – compiled into the app, the Mac app and the watch app |
 | `App/Sources` | iOS + macOS SwiftUI app |

@@ -18,6 +18,8 @@ __pycache__/
 
 # Local settings
 Config/Local.xcconfig
+# Temporary worktrees of workflow runs
+.claude/worktrees/
 
 # Never in git: keys, certificates, profiles, secrets
 *.p8

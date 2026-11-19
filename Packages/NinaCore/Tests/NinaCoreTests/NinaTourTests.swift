@@ -1,0 +1,69 @@
+import Testing
+import BinisoftKitCore
+@testable import NinaCore
+
+/// The coach steps of tour version 3 (day types, daily checks, measurements, Progress, check-in).
+@Suite("Coach tour")
+struct CoachTourTests {
+    static let coachSteps = ["daytype", "plan-ahead", "checks", "measure", "progress", "checkin"]
+
+    @Test func versionThreeAddsTheCoachSteps() {
+        #expect(NinaTour.version == 3)
+        let ids = NinaTour.catalog.steps.filter { $0.since == 3 }.map(\.id)
+        #expect(ids == Self.coachSteps)
+        for step in NinaTour.catalog.steps where step.since == 3 {
+            #expect(step.macBody != step.body, "\(step.id) needs its own Mac text")
+            #expect(!step.macBody.isEmpty)
+        }
+    }
+
+    @Test func peopleWhoTookVersionTwoSeeOnlyTheCoachSteps() {
+        let ids = NinaTour.catalog.steps(newerThan: 2).map(\.id)
+        #expect(ids == ["whats-new"] + Self.coachSteps + ["finish"])
+        #expect(NinaTour.catalog.steps(newerThan: 3).isEmpty)
+        let everything = NinaTour.catalog.steps(newerThan: 0).map(\.id)
+        #expect(everything.first == "welcome")
+        #expect(everything.contains("daytype"))
+        // The coach steps come after the diary steps and before "everywhere".
+        let water = everything.firstIndex(of: "water") ?? 0
+        let daytype = everything.firstIndex(of: "daytype") ?? 0
+        let everywhere = everything.firstIndex(of: "everywhere") ?? 0
+        #expect(water < daytype)
+        #expect(daytype < everywhere)
+    }
+
+    @Test func coachStepsTickOff() {
+        var page = NinaTourSnapshot()
+        page.dayType = "rest"
+
+        var dayType = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "daytype")
+        page.dayType = "tennis"
+        let picked = dayType.observe(page)
+        #expect(picked)
+
+        var ahead = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "plan-ahead")
+        let unchanged = ahead.observe(page)
+        page.plannedDayTypes = 1
+        let planned = ahead.observe(page)
+        #expect(!unchanged)
+        #expect(planned)
+
+        var checks = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "checks")
+        page.checksDone = 1
+        let ticked = checks.observe(page)
+        #expect(ticked)
+
+        var measure = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "measure")
+        page.measureCount = 3
+        let saved = measure.observe(page)
+        #expect(saved)
+    }
+
+    @Test func readOnlyStepsSayContinue() {
+        for id in ["progress", "checkin"] {
+            let progress = TourProgress(steps: NinaTour.catalog.allSteps, start: NinaTourSnapshot(), startAt: id)
+            #expect(progress.step?.id == id)
+            #expect(progress.primaryTitle == "Continue")
+        }
+    }
+}
