@@ -305,7 +305,7 @@ struct BodySheetTapeContext {
         GirthTrend.readings(site, in: records.filter { $0.day <= day }, includeNonStandard: true).last
     }
 
-    /// The latest earlier session (for "Last time: Mon 07:10 · Morning, Before eating").
+    /// The latest earlier session (for "Last time: Mon, 7 Jan, 07:15 · Morning, Before eating").
     var lastSession: BodyTapeRecord? { records.last }
 
     /// "Arm (right)" for a sided site on the right, else the site's title.
@@ -426,7 +426,7 @@ struct BodySheetSiteState {
         self.calendar = calendar
     }
 
-    /// "Last 84.2 cm · 19 Nov", or the change once there is a value: "−0.3 cm since 19 Nov".
+    /// "Last 84.2 cm · 7 Jan", or the change once there is a value: "−0.3 cm since 7 Jan".
     var previousText: String? {
         guard let previous else { return nil }
         let date = Fmt.shortDay(previous.day, calendar: calendar)
@@ -494,7 +494,7 @@ enum BodySheetReadings {
         return BodyValues(storage)
     }
 
-    /// "Last time: Mon, 07:10 · Morning, Before eating"
+    /// "Last time: Mon, 7 Jan, 07:15 · Morning, Before eating"
     static func lastTimeText(_ record: BodyTapeRecord, calendar: Calendar) -> String {
         let date = record.time ?? record.day.date(calendar: calendar)
         let when = date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
@@ -548,11 +548,12 @@ struct BodySheetAssessmentContext {
 
     /// The value with its fat and lean mass: the device's kg when it gave both, else the body
     /// weight around that day (the morning weights' mean, the 7-day average for today) × body fat.
-    func point(bodyFat: Double, method: BodyMethod, device: String, leanKg: Double?, fatKg: Double?,
+    /// Bone mass (DEXA) is added to the device's lean mass.
+    func point(bodyFat: Double, method: BodyMethod, device: String, leanKg: Double?, fatKg: Double?, boneKg: Double?,
                time: Date) -> BodyCompositionPoint? {
         guard bodyFat > 0 else { return nil }
         let reading = BodyFatReading(day: day(for: time), time: time, bodyFat: bodyFat, method: method, device: device,
-                                     leanKg: leanKg, fatKg: fatKg)
+                                     leanKg: leanKg, fatKg: fatKg, boneKg: boneKg)
         return signal.compositionPoints([reading], today: today, typedWeight: bodyWeight?.kilograms).first
     }
 }
@@ -575,12 +576,13 @@ enum BodySheetAssessment {
         method.errorBand == nil ? method.title : "\(method.title) · \(method.errorText)"
     }
 
-    /// The record's values with body fat, lean and fat mass set (cleared ones removed); other
-    /// keys (bone mass, skinfolds) stay.
-    static func values(base: BodyValues, bodyFat: Double, leanKg: Double?, fatKg: Double?) -> BodyValues {
+    /// The record's values with body fat, lean, fat and bone mass set (cleared ones removed);
+    /// other keys (skinfolds) stay.
+    static func values(base: BodyValues, bodyFat: Double, leanKg: Double?, fatKg: Double?, boneKg: Double?) -> BodyValues {
         var storage = base.storage
         storage[BodyValues.bodyFatKey] = bodyFat
-        let optional: [(String, Double?)] = [(BodyValues.leanKey, leanKg), (BodyValues.fatKey, fatKg)]
+        let optional: [(String, Double?)] = [(BodyValues.leanKey, leanKg), (BodyValues.fatKey, fatKg),
+                                             (BodyValues.boneKey, boneKg)]
         for (key, value) in optional {
             if let value { storage[key] = value } else { storage.removeValue(forKey: key) }
         }

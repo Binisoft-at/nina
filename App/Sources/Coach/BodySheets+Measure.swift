@@ -179,7 +179,7 @@ struct MeasureSheet: View {
                                  hint: context?.hint(for: state.site) ?? state.site.landmark, texts: texts(for: state.site))
             }
         } header: {
-            Text("Centimetres")
+            Text("Centimeters")
         } footer: {
             Text("Skip a site by leaving it empty. Values to 0.1 cm.")
         }
@@ -339,9 +339,8 @@ private struct BodySheetSiteRow: View {
             Spacer()
             if let previous = state.previousText {
                 Text(previous)
-                    .font(.caption)
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
-                    .monospacedDigit()
             }
         }
     }
@@ -349,7 +348,9 @@ private struct BodySheetSiteRow: View {
     private var fields: some View {
         HStack(spacing: 8) {
             ForEach(0..<state.fieldCount, id: \.self) { index in
-                BodySheetReadingField(text: field(index), prompt: prompt(index))
+                BodySheetReadingField(text: field(index), prompt: prompt(index), label: fieldLabel(index),
+                                      fallback: state.values.first ?? state.previous?.value,
+                                      range: state.site.plausibleRange)
             }
         }
     }
@@ -360,6 +361,11 @@ private struct BodySheetSiteRow: View {
         case 1: "2nd"
         default: "3rd"
         }
+    }
+
+    /// "Waist in centimeters", or "Waist, reading 2" when a site has more than one field.
+    private func fieldLabel(_ index: Int) -> String {
+        state.fieldCount > 1 ? "\(title), reading \(index + 1)" : "\(title) in centimeters"
     }
 
     private func field(_ index: Int) -> Binding<String> {
@@ -375,10 +381,14 @@ private struct BodySheetSiteRow: View {
     }
 }
 
-/// One tape reading in cm.
+/// One tape reading in cm. VoiceOver adjusts it in 0.1 cm steps (from the first reading or the
+/// last value while it is empty).
 private struct BodySheetReadingField: View {
     @Binding var text: String
     let prompt: String
+    let label: String
+    let fallback: Double?
+    let range: ClosedRange<Double>
 
     var body: some View {
         TextField(prompt, text: $text, prompt: Text(prompt))
@@ -393,5 +403,17 @@ private struct BodySheetReadingField: View {
             #if os(iOS)
             .keyboardType(.decimalPad)
             #endif
+            .accessibilityLabel(label)
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: step(0.1)
+                case .decrement: step(-0.1)
+                default: break
+                }
+            }
+    }
+
+    private func step(_ amount: Double) {
+        text = BodySheetNumber.stepped(text, by: amount, fallback: fallback, range: range)
     }
 }

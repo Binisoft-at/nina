@@ -18,6 +18,7 @@ struct AssessmentSheet: View {
     @State private var bodyFat: String
     @State private var leanKg: String
     @State private var fatKg: String
+    @State private var boneKg: String
     @State private var time: Date
     @State private var conditions: [BodyCondition]
     @State private var conditionsEdited: Bool
@@ -34,6 +35,7 @@ struct AssessmentSheet: View {
         _bodyFat = State(initialValue: values.bodyFat.map { BodySheetNumber.text($0) } ?? "")
         _leanKg = State(initialValue: values.leanKg.map { BodySheetNumber.text($0) } ?? "")
         _fatKg = State(initialValue: values.fatKg.map { BodySheetNumber.text($0) } ?? "")
+        _boneKg = State(initialValue: values.boneKg.map { BodySheetNumber.text($0) } ?? "")
         _time = State(initialValue: record?.time ?? Date())
         _conditions = State(initialValue: record.map { BodySheetConditions.parse($0.conditions) } ?? [.morning, .fasted])
         _conditionsEdited = State(initialValue: record != nil)
@@ -53,9 +55,9 @@ struct AssessmentSheet: View {
         return !BodySheetAssessment.bodyFatRange.contains(value)
     }
 
-    /// Lean or fat mass typed but not a number, or not a sensible kg value.
+    /// Lean, fat or bone mass typed but not a number, or not a sensible kg value.
     private var massIsInvalid: Bool {
-        [leanKg, fatKg].contains { (text: String) -> Bool in
+        [leanKg, fatKg, boneKg].contains { (text: String) -> Bool in
             if BodySheetNumber.isInvalid(text) { return true }
             guard let value = BodySheetNumber.parse(text) else { return false }
             return value >= 300
@@ -71,11 +73,11 @@ struct AssessmentSheet: View {
     private var point: BodyCompositionPoint? {
         guard let context, let fat = bodyFatValue else { return nil }
         return context.point(bodyFat: fat, method: method, device: deviceName, leanKg: BodySheetNumber.parse(leanKg),
-                             fatKg: BodySheetNumber.parse(fatKg), time: time)
+                             fatKg: BodySheetNumber.parse(fatKg), boneKg: BodySheetNumber.parse(boneKg), time: time)
     }
 
     private var showsDeviceValues: Bool {
-        method != .estimate || !leanKg.isEmpty || !fatKg.isEmpty
+        method != .estimate || !leanKg.isEmpty || !fatKg.isEmpty || !boneKg.isEmpty
     }
 
     // MARK: Body
@@ -200,10 +202,11 @@ struct AssessmentSheet: View {
         Section {
             BodySheetNumberRow(title: "Lean mass", unit: "kg", text: $leanKg)
             BodySheetNumberRow(title: "Fat mass", unit: "kg", text: $fatKg)
+            BodySheetNumberRow(title: "Bone mass", unit: "kg", text: $boneKg)
         } header: {
             Text("From the device (optional)")
         } footer: {
-            Text("When your scan shows both, Nina uses them instead of working them out from your weight.")
+            Text("When your scan shows lean and fat mass, Nina uses them instead of working them out from your weight. Bone mass only when the scan lists it apart from lean mass (DEXA).")
         }
     }
 
@@ -255,7 +258,8 @@ struct AssessmentSheet: View {
         guard let fat = bodyFatValue, !massIsInvalid else { return }
         let assessment = context ?? BodySheetAssessmentContext.load(app: app, editing: record)
         let values = BodySheetAssessment.values(base: record?.bodyValues ?? BodyValues(), bodyFat: fat,
-                                                leanKg: BodySheetNumber.parse(leanKg), fatKg: BodySheetNumber.parse(fatKg))
+                                                leanKg: BodySheetNumber.parse(leanKg), fatKg: BodySheetNumber.parse(fatKg),
+                                                boneKg: BodySheetNumber.parse(boneKg))
         let unknown = record.map { BodySheetConditions.unknownTags($0.conditions) } ?? []
         let draft = BodyMeasurementDraft(day: assessment.day(for: time), time: time, kind: .assessment, values: values,
                                          method: method, device: deviceName,
