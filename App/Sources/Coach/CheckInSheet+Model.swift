@@ -30,10 +30,19 @@ struct CheckInSheetFacts {
     let mornings: Int
     /// The waist site this person measures (the narrow waist for women who use it).
     let waistSite: BodySite
-    /// The latest waist reading in the check-in's week (standard or not).
+    /// The latest waist reading of the check-in (the 7 days up to the check-in day, or up to
+    /// today while the check-in is open late; standard or not).
     let waist: GirthReading?
     /// Its change since the standard reading before (both standard).
     let waistChange: GirthChange?
+    /// The latest waist reading before today (any conditions): a new reading that moved more
+    /// than 1 cm from it asks for a second one (`BodyReadings`).
+    let lastWaist: GirthReading?
+    /// Hints from the tape and body fat (F6, F7), never a change: the waist guard in a gain
+    /// phase, the waist note in a loss phase, a low lean share of the gain.
+    let bodyHints: [String]
+    /// The protein target per kg: "160 g = 2.0 g/kg · 2.5 g/kg lean mass"; nil without a weight.
+    let proteinRatio: String?
     /// The note saved with this week's check-in ("" without one).
     let savedNote: String
     /// The full set and the body-fat assessment when due within the next 7 days (or overdue),
@@ -42,11 +51,21 @@ struct CheckInSheetFacts {
     let nextAssessment: BodySchedule.Due?
 
     var day: DayKey { evaluation.day }
+    var today: DayKey { evaluation.today }
     var result: CheckInResult { evaluation.result }
     /// "How it went": the 7 days before the check-in day.
     var week: AdherenceSummary { evaluation.weekSummary }
     var saved: CheckInSnapshot? { evaluation.saved }
     var phase: CoachPlan.Phase? { evaluation.phase }
+
+    /// The Waist step is done: the waist was measured today.
+    var waistMeasuredToday: Bool { waist?.day == today }
+
+    /// A full set is due today or overdue: the Waist step offers it instead of the waist alone.
+    var fullSetDue: Bool { nextFull.map { $0.day <= today } ?? false }
+
+    /// The pages of the live check-in (F11).
+    static let pageTitles = ["Your Week", "Waist", "How It Went", "Next Week"]
 
     /// The direction of the proposal (+1 more food, −1 less).
     var deltaSign: Double { result.delta < 0 ? -1 : 1 }
@@ -74,6 +93,24 @@ struct CheckInSheetFacts {
     var gatheringLine: String? {
         guard result.rule == .gathering, let first = result.firstAdjustmentCheck else { return nil }
         return "Gathering data – first adjustment check on \(CheckInSheetText.day(first))"
+    }
+
+    /// The phase's rate range with its direction (kg/week), for the corridor bar; nil without one.
+    var rateRange: ClosedRange<Double>? {
+        guard let phase else { return nil }
+        return WeightSignal.range(for: phase)
+    }
+
+    /// The Waist page's typed readings: how many fields to show (one; a second when the first
+    /// moved more than 1 cm since `previous`, as `BodyReadings` asks) and the value to save (the
+    /// mean of two). nil while nothing usable is typed or a reading is outside the site's range.
+    static func waistEntry(_ first: String, _ second: String, site: BodySite, previous: Double?) -> (fields: Int, value: Double?) {
+        let values = BodySheetReadings.values([first, second])
+        let fields = min(2, BodySheetReadings.fieldCount(values, base: 1, twoReadings: false, previous: previous))
+        let typed = [first, second].prefix(fields)
+        guard !values.isEmpty, !typed.contains(where: { BodySheetNumber.isInvalid($0) }),
+              values.prefix(fields).allSatisfy({ site.isPlausible($0) }) else { return (fields: fields, value: nil) }
+        return (fields: fields, value: BodySheetReadings.merged(values, count: fields))
     }
 
     /// The phase's planned range ("+0.15 to +0.25 kg/week"); nil without a range.
@@ -104,9 +141,11 @@ struct CheckInSheetFacts {
 
         let site = waistSite(sex: context.settings.body.sex, records: context.tapeRecords)
         let readings = GirthTrend.readings(site, in: context.tapeRecords, includeNonStandard: true)
-        let monday = evaluation.week
-        let sunday = monday.adding(days: 6, calendar: calendar)
-        let waist = readings.last { $0.day >= monday && $0.day <= sunday }
+        // The week's waist: the 7 days up to the check-in day, and the days after it while the
+        // check-in is still open (at most 6), so this morning's reading counts.
+        let firstDay = day.adding(days: -6, calendar: calendar)
+        let lastDay = max(day, min(context.today, day.adding(days: 6, calendar: calendar)))
+        let waist = readings.last { $0.day >= firstDay && $0.day <= lastDay }
         var change: GirthChange?
         if let waist, waist.isStandard, let before = readings.last(where: { $0.day < waist.day && $0.isStandard }) {
             change = GirthChange(site: site, from: before, to: waist)
@@ -114,10 +153,62 @@ struct CheckInSheetFacts {
         let horizon = context.today.adding(days: 7, calendar: calendar)
         let nextFull = context.nextFull.flatMap { $0.day <= horizon ? $0 : nil }
         let nextAssessment = context.nextAssessment.flatMap { $0.day <= horizon ? $0 : nil }
+        let heightCm = store.profile()?.heightCm ?? 0
+        let hints = bodyHints(context: context, phase: evaluation.phase, site: site, day: day,
+                              rate: summary.rate.value, heightCm: heightCm)
+        let ratio = proteinRatio(context: context, week: evaluation.weekSummary, day: day,
+                                 weightKg: summary.average.value ?? context.bodyWeight?.kilograms)
         return CheckInSheetFacts(evaluation: evaluation, plan: plan, state: state, summary: summary, mornings: mornings,
                                  waistSite: site, waist: waist, waistChange: change,
+                                 lastWaist: readings.last(where: { $0.day < context.today }), bodyHints: hints, proteinRatio: ratio,
                                  savedNote: store.checkInSheetNote(week: day),
                                  nextFull: nextFull, nextAssessment: nextAssessment)
+    }
+
+    /// What the tape and body fat say up to the check-in day, as hints only (F6, F7): in a gain
+    /// phase the waist guard and a lean share of the gain below 30 %, in a loss phase the waist
+    /// note. The plan never changes from them.
+    static func bodyHints(context: CoachContext, phase: CoachPlan.Phase?, site: BodySite, day: DayKey, rate: Double?,
+                          heightCm: Double) -> [String] {
+        guard let phase else { return [] }
+        let calendar = context.calendar
+        let records = context.tapeRecords.filter { $0.day <= day }
+        var hints: [String] = []
+        switch phase.goal {
+        case .gain:
+            if GirthTrend.waistGuard(phase: phase, records: records, waistSite: site, calendar: calendar) {
+                hints.append(GirthTrend.waistGuardMessage + ".")
+            }
+            if let start = phase.start,
+               let change = PhaseBodyFat.change(context: context, since: start, through: day, heightCm: heightCm),
+               change.leanShareRating?.suggestsLowEndOfRate == true {
+                hints.append(lowLeanShareHint)
+            }
+        case .lose:
+            let waist = GirthTrend.readings(site, in: records)
+            if GirthTrend.waistNote(waist: waist, ratePerWeek: rate, site: site, calendar: calendar) {
+                hints.append(GirthTrend.waistNoteMessage + ".")
+            }
+        case .maintain:
+            break
+        }
+        return hints
+    }
+
+    /// F7: below 30 % lean share the check-in suggests the low end of the rate range.
+    static let lowLeanShareHint = "Less than 30 % of your gain was lean mass – consider the low end of your rate."
+
+    /// The week's protein target per kg body weight (and lean mass once a body-fat value exists):
+    /// "160 g = 2.0 g/kg · 2.5 g/kg lean mass". The target is the week's average (the day's
+    /// without logged days); nil without a weight.
+    static func proteinRatio(context: CoachContext, week: AdherenceSummary, day: DayKey, weightKg: Double?) -> String? {
+        guard let weightKg else { return nil }
+        let grams = week.averageProteinTarget > 0 ? week.averageProteinTarget
+            : context.settings.targets(for: day, calendar: context.calendar).protein
+        let latest = context.bodyFatReadings.last { $0.day <= day }
+        guard grams > 0, let ratio = ProteinMeals.ratio(grams: grams, weightKg: weightKg, leanKg: latest?.leanKg,
+                                                        bodyFat: latest?.bodyFat) else { return nil }
+        return "\(Fmt.number(grams.rounded())) g = \(ratio.text)"
     }
 
     /// The waist site to follow: the narrow waist for women, the navel waist otherwise – or the
@@ -153,6 +244,11 @@ enum CheckInSheetText {
     /// "+1.2 cm"
     static func signedCm(_ value: Double) -> String {
         sign(value, decimals: 1) + Fmt.number(abs(value), decimals: 1) + " cm"
+    }
+
+    /// "+0.15" (two decimals, signed).
+    static func signedNumber(_ value: Double, decimals: Int = 2) -> String {
+        sign(value, decimals: decimals) + Fmt.number(abs(value), decimals: decimals)
     }
 
     /// "+0.15 kg/week"
@@ -229,6 +325,22 @@ enum CheckInSheetText {
     }
 }
 
+// MARK: - Draft
+
+/// What the person entered in a live check-in, kept in memory while they leave it to take a full
+/// measurement set (the sheet closes for that), so the ratings, note and page are back when they
+/// open the check-in again. Cleared when the check-in is saved.
+struct CheckInSheetDraft {
+    var ratings: CheckInRatings
+    var note: String
+    var page: Int
+    /// The week was saved already and this is a redo.
+    var redo: Bool
+
+    /// By week (the Monday the sheet was opened with). Memory only.
+    @MainActor static var byWeek: [DayKey: CheckInSheetDraft] = [:]
+}
+
 // MARK: - Saving
 
 extension NinaStore {
@@ -252,6 +364,23 @@ extension NinaStore {
 }
 
 extension AppModel {
+    /// Saves the check-in's waist reading now: a tape record of the waist site with the
+    /// automatic conditions (morning and fasted before the cutoff with nothing eaten logged yet),
+    /// like the measure sheet. Its toast's Undo moves it to the trash.
+    func checkInSaveWaist(_ centimetres: Double, site: BodySite) {
+        let store = self.store
+        let calendar = store.calendar
+        let now = Date()
+        let settings = self.settings
+        let day = DayKey(date: now, calendar: calendar, dayStartHour: settings.dayStartHour)
+        let eaten = store.bodySheetHasEaten(on: day, before: now)
+        let conditions = BodyProtocol.automatic(at: now, cutoffMinutes: settings.plan.routine.morningCutoffMinutes,
+                                                hasEaten: eaten, calendar: calendar)
+        let draft = BodyMeasurementDraft(day: day, time: now, kind: .tape, values: BodyValues([site: centimetres]),
+                                         conditions: BodyProtocol.encode(conditions))
+        saveMeasurement(draft)
+    }
+
     /// Saves the week's check-in from the sheet with the ratings, the waist and the note, and the
     /// person's decision: `.applied`/`.edited` moves the active phase by `delta` kcal a day from
     /// tomorrow (`store.applyCheckIn`), `.kept` ("Not now") and nil (no proposal) only save it.

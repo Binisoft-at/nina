@@ -21,10 +21,14 @@ enum PlanEditorData {
 
     // MARK: Setting up and phases
 
-    /// "Set Up My Plan": day types from the training days and one phase from today, following the goal.
-    static func setUp(app: AppModel) {
-        let plan = PlanEdits.settingUp(storedPlan(app), from: app.settingsState, on: app.today)
+    /// "Set Up My Plan": day types from the training days and one phase from today, following the
+    /// goal. Returns the plan before and after (for "Turn on coach reminders?").
+    @discardableResult
+    static func setUp(app: AppModel) -> (before: CoachPlan, after: CoachPlan) {
+        let before = storedPlan(app)
+        let plan = PlanEdits.settingUp(before, from: app.settingsState, on: app.today)
         save(plan, app: app, message: "Plan set up – your first phase starts today", symbol: "sparkles")
+        return (before: before, after: storedPlan(app))
     }
 
     static func deletePhase(_ id: String, app: AppModel) {
@@ -57,11 +61,23 @@ enum PlanEditorData {
         save(plan, app: app, message: "\(typeLabel(cleaned)) saved")
     }
 
+    /// Deletes a day type; checks that were only on its days are due every day again. Undo puts
+    /// the whole plan back.
     static func deleteDayType(_ id: String, app: AppModel) {
-        var plan = storedPlan(app)
-        guard let type = plan.dayType(id: id) else { return }
-        plan.dayTypes.removeAll { $0.id == id }
-        save(plan, app: app, message: "Deleted \u{201C}\(type.name)\u{201D}", symbol: "trash.fill")
+        let stored = storedPlan(app)
+        guard let type = stored.dayType(id: id) else { return }
+        let plan = PlanEdits.deletingDayType(id, in: stored)
+        let freed = stored.checks.filter { check in
+            guard case .dayTypes(let ids) = check.days else { return false }
+            return ids == [id]
+        }
+        var message = "Deleted \u{201C}\(type.name)\u{201D}"
+        if freed.count == 1, let check = freed.first {
+            message += " – \(check.name) is now every day"
+        } else if freed.count > 1 {
+            message += " – \(freed.count) checks are now every day"
+        }
+        save(plan, app: app, message: message, symbol: "trash.fill")
     }
 
     /// The baseline of the active phase (targets of days without their own) from today.
@@ -136,11 +152,12 @@ enum PlanEditorData {
         save(plan, app: app, message: "Protein per meal saved")
     }
 
+    /// Saves the long-term goal; a new weight or body-fat goal counts from today (`since`).
     static func saveLongTerm(_ goal: CoachPlan.LongTerm, app: AppModel) {
         var plan = storedPlan(app)
         var cleaned = goal
         cleaned.note = goal.note.trimmingCharacters(in: .whitespacesAndNewlines)
-        plan.longTerm = cleaned
+        plan.longTerm = cleaned.stamped(after: plan.longTerm, on: app.today)
         save(plan, app: app, message: "Long-term goal saved", symbol: "flag.checkered")
     }
 

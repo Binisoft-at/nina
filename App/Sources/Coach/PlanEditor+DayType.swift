@@ -152,7 +152,7 @@ struct PlanEditorDayTypeView: View {
                 dismiss()
             }
         } footer: {
-            Text("Days you marked with it go back to the schedule.")
+            Text("Days you marked with it go back to the schedule. Daily checks only on these days are due every day again.")
         }
     }
 

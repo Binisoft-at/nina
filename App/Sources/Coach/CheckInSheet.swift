@@ -2,11 +2,14 @@ import SwiftUI
 import BinisoftKit
 import NinaCore
 
-/// The weekly check-in of the week starting on `week` (a Monday) (`AppSheet.checkIn`): how the
-/// week went, the weight and the waist, how it felt, then the verdict with its one reason and the
-/// proposal – Apply from tomorrow (Undo restores the plan), Not now, or Edit the step. A week
-/// already saved opens read-only from its snapshot, with Redo. Owns its NavigationStack and
-/// `.sheetFrame`.
+/// The weekly check-in of the week starting on `week` (a Monday) (`AppSheet.checkIn`), in four
+/// steps of about two minutes (F11): 1. Your week – the 7-day average, the changes and the rate
+/// as a corridor bar with the target band; 2. Waist – typed right here (the full set when one is
+/// due), done when measured this morning; 3. How it went, with the optional ratings and a note;
+/// 4. Next week – the verdict with its one reason and the proposal: Apply from tomorrow (Undo
+/// restores the plan), Not now, or Edit the step, and Copy for My AI. A week already saved opens
+/// read-only from its snapshot, with Redo. Leaving for a full measurement set keeps the answers
+/// (`CheckInSheetDraft`). Owns its NavigationStack and `.sheetFrame`.
 struct CheckInSheet: View {
     let week: DayKey
     @Environment(AppModel.self) private var app
@@ -18,6 +21,14 @@ struct CheckInSheet: View {
     @State private var note = ""
     @State private var step: Double = 0
     @State private var editingStep = false
+    /// The live check-in's step: 0 Your week, 1 Waist, 2 How it went, 3 Next week.
+    @State private var page = 0
+    /// The waist typed on the Waist step (a second reading when the first moved more than 1 cm).
+    @State private var waistFirst = ""
+    @State private var waistSecond = ""
+    @AppStorage("nina.coach.copyIncludesHealth") private var copyIncludesHealth = false
+
+    private var lastPage: Int { CheckInSheetFacts.pageTitles.count - 1 }
 
     var body: some View {
         NavigationStack {
@@ -26,7 +37,7 @@ struct CheckInSheet: View {
                 .inlineNavigationTitle()
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(isEditing ? "Cancel" : "Close") { dismiss() }
+                        Button(isEditing ? "Cancel" : "Close", action: close)
                     }
                     if canSaveFromToolbar {
                         ToolbarItem(placement: .confirmationAction) {
@@ -36,6 +47,8 @@ struct CheckInSheet: View {
                 }
         }
         .task(id: app.dataVersion) { load() }
+        // Saving the waist and Copy for My AI keep the sheet open: their messages show here.
+        .toasts(app.toasts, bottomPadding: 16)
         .sheetFrame(minWidth: 520, minHeight: 680)
     }
 
@@ -72,16 +85,33 @@ struct CheckInSheet: View {
 
     private func liveForm(_ facts: CheckInSheetFacts) -> some View {
         Form {
-            CheckInHowItWent(facts: facts, unit: app.energyUnit)
+            CheckInStepHeader(page: page)
+            pageContent(facts)
+            CheckInPager(page: page, lastPage: lastPage, onBack: back, onNext: { next(facts) })
+        }
+        .formStyle(.grouped)
+        // A new step starts at its top.
+        .id(page)
+    }
+
+    @ViewBuilder
+    private func pageContent(_ facts: CheckInSheetFacts) -> some View {
+        switch page {
+        case 0:
             CheckInWeightSection(facts: facts)
-            CheckInBodySection(facts: facts, onMeasure: measureNow)
+        case 1:
+            CheckInWaistStep(facts: facts, first: $waistFirst, second: $waistSecond,
+                             onSave: { saveWaist(facts) }, onFullSet: measureFullSet)
+        case 2:
+            CheckInHowItWent(facts: facts, unit: app.energyUnit)
             CheckInFeelings(ratings: $ratings, note: $note)
+        default:
             CheckInNextWeek(facts: facts, unit: app.energyUnit, step: $step, editing: $editingStep,
                             followUp: followUpTitle(facts),
                             onApply: { apply(facts) }, onKeep: { commit(facts, decision: .kept) },
-                            onSave: { commit(facts, decision: nil) }, onFollowUp: { followUp(facts) })
+                            onSave: { commit(facts, decision: nil) }, onFollowUp: { followUp(facts) },
+                            onCopy: copyForAI)
         }
-        .formStyle(.grouped)
     }
 
     /// What a check-in without a proposal leads to: the phase review once the review weight is
@@ -98,13 +128,14 @@ struct CheckInSheet: View {
     private func followUp(_ facts: CheckInSheetFacts) {
         guard let phase = facts.phase else { return }
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: nil, delta: 0)
+        CheckInSheetDraft.byWeek[week] = nil
         app.present(facts.result.rule == .checkpoint ? .phaseReview(phase.id) : .phase(phase.id))
     }
 
     private func savedForm(_ facts: CheckInSheetFacts, saved: CheckInSnapshot) -> some View {
         Form {
             CheckInSavedSections(facts: facts, saved: saved, unit: app.energyUnit, note: facts.savedNote,
-                                 canRedo: facts.state == .ready, onRedo: { redo = true })
+                                 canRedo: facts.state == .ready, onRedo: startRedo, onCopy: copyForAI)
         }
         .formStyle(.grouped)
     }
@@ -117,9 +148,9 @@ struct CheckInSheet: View {
         return facts.saved == nil || redo
     }
 
-    /// Without a proposal the toolbar saves; with one the decision buttons do.
+    /// Without a proposal the toolbar saves on the last step; with one the decision buttons do.
     private var canSaveFromToolbar: Bool {
-        guard isEditing, let facts else { return false }
+        guard isEditing, page == lastPage, let facts else { return false }
         return !facts.result.hasProposal
     }
 
@@ -129,9 +160,37 @@ struct CheckInSheet: View {
         facts = loaded
         guard !prefilled else { return }
         prefilled = true
-        ratings = loaded.saved?.ratings ?? CheckInRatings()
-        note = loaded.savedNote
         step = abs(loaded.result.delta)
+        if let draft = CheckInSheetDraft.byWeek[week] {
+            // Back from a full measurement set: the answers so far.
+            ratings = draft.ratings
+            note = draft.note
+            redo = draft.redo
+            page = min(max(0, draft.page), lastPage)
+        } else {
+            ratings = loaded.saved?.ratings ?? CheckInRatings()
+            note = loaded.savedNote
+        }
+    }
+
+    // MARK: Steps
+
+    private func back() {
+        page = max(0, page - 1)
+    }
+
+    /// The next step; a waist typed but not saved yet is saved on the way.
+    private func next(_ facts: CheckInSheetFacts) {
+        if page == 1, !facts.waistMeasuredToday,
+           CheckInSheetFacts.waistEntry(waistFirst, waistSecond, site: facts.waistSite, previous: facts.lastWaist?.value).value != nil {
+            saveWaist(facts)
+        }
+        page = min(lastPage, page + 1)
+    }
+
+    private func startRedo() {
+        redo = true
+        page = 0
     }
 
     // MARK: Actions
@@ -142,12 +201,14 @@ struct CheckInSheet: View {
         let decision: CheckInDecision = abs(delta - facts.result.delta) < 0.5 ? .applied : .edited
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: decision,
                           delta: delta)
+        CheckInSheetDraft.byWeek[week] = nil
         dismiss()
     }
 
     private func commit(_ facts: CheckInSheetFacts, decision: CheckInDecision?) {
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: decision,
                           delta: 0)
+        CheckInSheetDraft.byWeek[week] = nil
         dismiss()
     }
 
@@ -156,13 +217,97 @@ struct CheckInSheet: View {
         commit(facts, decision: nil)
     }
 
+    /// Cancel drops what was entered; Close leaves a saved week as it is.
+    private func close() {
+        CheckInSheetDraft.byWeek[week] = nil
+        dismiss()
+    }
+
     private func openPlan() {
         app.present(.plan)
     }
 
-    /// The weekly sites, or the full set when one is due today.
-    private func measureNow() {
-        app.measureNow()
+    /// Saves the typed waist (a tape record of this morning, with Undo); the step then shows it as done.
+    private func saveWaist(_ facts: CheckInSheetFacts) {
+        let entry = CheckInSheetFacts.waistEntry(waistFirst, waistSecond, site: facts.waistSite, previous: facts.lastWaist?.value)
+        guard let value = entry.value else { return }
+        app.checkInSaveWaist(value, site: facts.waistSite)
+        waistFirst = ""
+        waistSecond = ""
+    }
+
+    /// The full set closes this sheet: the answers so far wait in memory until it opens again.
+    private func measureFullSet() {
+        CheckInSheetDraft.byWeek[week] = CheckInSheetDraft(ratings: ratings, note: note, page: page, redo: redo)
+        app.present(.measure(.full, nil))
+    }
+
+    /// "Copy for My AI": the plan, the last 4 weeks and the body numbers as text (Apple Health
+    /// weigh-ins only when switched on in the plan editor).
+    private func copyForAI() {
+        #if os(iOS)
+        let includeHealth = copyIncludesHealth
+        #else
+        let includeHealth = false
+        #endif
+        Clipboard.copy(PlanEditorData.aiText(app: app, includeHealth: includeHealth))
+        app.toasts.show("Copied – paste it into your AI", symbol: "doc.on.clipboard.fill")
+    }
+}
+
+// MARK: - Steps
+
+/// "Step 2 of 4 · Waist" with a bar of four segments.
+private struct CheckInStepHeader: View {
+    let page: Int
+
+    private var titles: [String] { CheckInSheetFacts.pageTitles }
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Step \(page + 1) of \(titles.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(titles[min(max(0, page), titles.count - 1)])
+                    .font(.title3.weight(.semibold))
+                HStack(spacing: 4) {
+                    ForEach(0..<titles.count, id: \.self) { (index: Int) in
+                        Capsule()
+                            .fill(index <= page ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.secondary.opacity(0.2)))
+                            .frame(height: 4)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+            .accessibilityElement(children: .combine)
+        }
+    }
+}
+
+/// Back and Next under each step.
+private struct CheckInPager: View {
+    let page: Int
+    let lastPage: Int
+    let onBack: () -> Void
+    let onNext: () -> Void
+
+    var body: some View {
+        Section {
+            HStack(spacing: 12) {
+                if page > 0 {
+                    Button("Back", systemImage: "chevron.left", action: onBack)
+                        .buttonStyle(.bordered)
+                }
+                Spacer(minLength: 0)
+                if page < lastPage {
+                    Button("Next", systemImage: "chevron.right", action: onNext)
+                        .primaryActionStyle()
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .listRowBackground(Color.clear)
+        }
     }
 }
 
@@ -241,6 +386,9 @@ private struct CheckInHowItWent: View {
     @ViewBuilder
     private var proteinRows: some View {
         LabeledContent("Protein days", value: CheckInSheetText.count(week.proteinDays, of: week.days))
+        if let ratio = facts.proteinRatio {
+            LabeledContent("Protein target", value: ratio)
+        }
         if week.proteinMealsTarget > 0 {
             LabeledContent("Protein meals", value: CheckInSheetText.count(week.proteinMeals, of: week.proteinMealsTarget))
         }
@@ -288,8 +436,102 @@ private struct CheckInHowItWent: View {
     }
 }
 
-/// "Weight": the 7-day average, the changes, the rate against the range with the status words
-/// Progress uses, the window and the gathering line.
+/// The week's rate as a corridor bar (F11 step 1): the phase's range as a band, the tolerance
+/// as its lighter edges, and the rate as a dot in the status colour, with both ends of the range
+/// labelled ("+0.15", "+0.25").
+private struct CheckInRateBar: View {
+    let rate: Double
+    let range: ClosedRange<Double>
+    let tolerance: Double
+    let tint: Color
+    /// The status words ("In range", "Slower than planned"); nil while gathering.
+    let status: String?
+
+    private let height: CGFloat = 44
+
+    var body: some View {
+        GeometryReader { (proxy: GeometryProxy) in
+            bar(width: proxy.size.width)
+        }
+        .frame(height: height)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    /// The kg/week the bar spans: the range with its tolerance and the rate, plus 0.1 each side.
+    private var domain: ClosedRange<Double> {
+        let low = min(range.lowerBound - tolerance, rate) - 0.1
+        let high = max(range.upperBound + tolerance, rate) + 0.1
+        return low...max(high, low + 0.01)
+    }
+
+    private func x(_ value: Double, width: CGFloat) -> CGFloat {
+        let span = domain.upperBound - domain.lowerBound
+        let fraction = min(max((value - domain.lowerBound) / span, 0), 1)
+        return CGFloat(fraction) * width
+    }
+
+    private func bar(width: CGFloat) -> some View {
+        let outerLow = x(range.lowerBound - tolerance, width: width)
+        let outerHigh = x(range.upperBound + tolerance, width: width)
+        let innerLow = x(range.lowerBound, width: width)
+        let innerHigh = x(range.upperBound, width: width)
+        let dot = x(rate, width: width)
+        return ZStack(alignment: .topLeading) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.15))
+                .frame(width: width, height: 10)
+                .offset(y: 5)
+            Rectangle()
+                .fill(Color.green.opacity(0.25))
+                .frame(width: max(2, outerHigh - outerLow), height: 10)
+                .offset(x: outerLow, y: 5)
+            Rectangle()
+                .fill(Color.green.opacity(0.6))
+                .frame(width: max(2, innerHigh - innerLow), height: 10)
+                .offset(x: innerLow, y: 5)
+            Circle()
+                .fill(tint)
+                .overlay { Circle().strokeBorder(Color.white, lineWidth: 2) }
+                .frame(width: 20, height: 20)
+                .offset(x: min(max(0, dot - 10), width - 20))
+            labels(low: innerLow, high: innerHigh, width: width)
+        }
+        .frame(width: width, height: height, alignment: .topLeading)
+    }
+
+    /// Both ends of the range under the band; one "+0.15 to +0.25" when they're too close.
+    @ViewBuilder
+    private func labels(low: CGFloat, high: CGFloat, width: CGFloat) -> some View {
+        if high - low < 56 {
+            label("\(lowText) to \(highText)", at: (low + high) / 2, width: width)
+        } else {
+            label(lowText, at: low, width: width)
+            label(highText, at: high, width: width)
+        }
+    }
+
+    private func label(_ text: String, at center: CGFloat, width: CGFloat) -> some View {
+        Text(text)
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(.secondary)
+            .fixedSize()
+            .position(x: min(max(center, 24), max(24, width - 24)), y: 34)
+    }
+
+    private var lowText: String { CheckInSheetText.signedNumber(range.lowerBound) }
+    private var highText: String { CheckInSheetText.signedNumber(range.upperBound) }
+
+    private var accessibilityText: String {
+        var text = "Rate \(CheckInSheetText.signedNumber(rate)) kg a week. Your range \(lowText) to \(highText) kg a week."
+        if let status { text += " \(status)." }
+        return text
+    }
+}
+
+
+/// Step 1, "Your week": the 7-day average, the changes, the rate against the range with the
+/// status words Progress uses (and as a corridor bar), the window and the gathering line.
 private struct CheckInWeightSection: View {
     let facts: CheckInSheetFacts
 
@@ -307,6 +549,11 @@ private struct CheckInWeightSection: View {
             }
             LabeledContent("Rate") {
                 rateView
+            }
+            if let value = rate.value, let range = facts.rateRange {
+                CheckInRateBar(rate: value, range: range, tolerance: facts.plan.adjust.tolerance, tint: statusTint,
+                               status: summary.status?.title)
+                    .padding(.vertical, 4)
             }
             if let planned = facts.plannedRange {
                 LabeledContent("Planned", value: planned)
@@ -340,6 +587,11 @@ private struct CheckInWeightSection: View {
         return summary.average.prompt ?? "Not enough weigh-ins yet"
     }
 
+    private var statusTint: Color {
+        guard let status = summary.status else { return Color.secondary }
+        return CheckInSheetStyle.tint(CheckInVerdict(status))
+    }
+
     private var rateText: String {
         guard let value = rate.value else { return "Not enough data yet" }
         return CheckInSheetText.rate(value)
@@ -354,34 +606,157 @@ private struct CheckInWeightSection: View {
     }
 }
 
-/// "Body": the waist measured this week and its change, else a way to measure it.
-private struct CheckInBodySection: View {
+/// Step 2, "Waist": typed right here. Done (and skipped) when the waist was measured today; the
+/// full set instead when one is due; otherwise one field, and a second when the reading moved
+/// more than 1 cm since last time. The tape and body-fat hints follow.
+private struct CheckInWaistStep: View {
     let facts: CheckInSheetFacts
-    let onMeasure: () -> Void
+    @Binding var first: String
+    @Binding var second: String
+    let onSave: () -> Void
+    let onFullSet: () -> Void
+
+    private var entry: (fields: Int, value: Double?) {
+        CheckInSheetFacts.waistEntry(first, second, site: facts.waistSite, previous: facts.lastWaist?.value)
+    }
 
     var body: some View {
         Section {
-            if let waist = facts.waist {
-                LabeledContent(facts.waistSite.title, value: "\(Fmt.number(waist.value, decimals: 1)) cm")
-                if let change = facts.waistChange {
-                    LabeledContent("Since \(Fmt.shortDay(change.from.day))", value: changeText(change))
-                }
-                if !waist.isStandard {
-                    Text("Not a morning, fasted reading – it stays out of your trends.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("No waist measured this week.")
-                    .foregroundStyle(.secondary)
-                Button("Measure Now", systemImage: "ruler", action: onMeasure)
-            }
+            rows
         } header: {
-            Text("Body")
+            Text(facts.waistSite.title)
+        } footer: {
+            Text(footer)
+        }
+        if !facts.bodyHints.isEmpty {
+            CheckInHintsSection(hints: facts.bodyHints)
         }
     }
 
-    private func changeText(_ change: GirthChange) -> String {
+    @ViewBuilder
+    private var rows: some View {
+        if facts.waistMeasuredToday, let waist = facts.waist {
+            CheckInWaistDone(facts: facts, waist: waist)
+            if facts.fullSetDue {
+                Button("Full Measurement", systemImage: "ruler", action: onFullSet)
+            }
+        } else if facts.fullSetDue {
+            Text("A full measurement set is due – it takes your waist along with the other sites.")
+            Button("Full Measurement", systemImage: "ruler", action: onFullSet)
+                .primaryActionStyle()
+        } else {
+            entryRows
+        }
+    }
+
+    @ViewBuilder
+    private var entryRows: some View {
+        if let waist = facts.waist {
+            LabeledContent("Measured \(Fmt.shortDay(waist.day))", value: CheckInWaistText.cm(waist.value))
+        }
+        CheckInWaistField(title: entry.fields > 1 ? "First reading" : "Today", text: $first)
+        if entry.fields > 1 {
+            CheckInWaistField(title: "Second reading", text: $second)
+            Text("That's more than 1 cm from last time – measure once more to be sure.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        if entry.value == nil, !(first.isEmpty && second.isEmpty) {
+            Text(rangeHint)
+                .font(.footnote)
+                .foregroundStyle(Color.orange)
+        }
+        Button("Save Waist", systemImage: "checkmark.circle.fill", action: onSave)
+            .disabled(entry.value == nil)
+    }
+
+    /// "Enter a number from 40 to 200 cm."
+    private var rangeHint: String {
+        let range = facts.waistSite.plausibleRange
+        return "Enter a number from \(Fmt.number(range.lowerBound)) to \(Fmt.number(range.upperBound)) cm."
+    }
+
+    private var footer: String {
+        if facts.waistMeasuredToday { return "Done for this week." }
+        if facts.fullSetDue {
+            return "Your answers so far are kept – open the check-in again after measuring."
+        }
+        var text = "In the morning before eating, relaxed, at the same spot each time."
+        if let last = facts.lastWaist {
+            text += " Last time: \(CheckInWaistText.cm(last.value)) on \(Fmt.shortDay(last.day))."
+        }
+        return text + " No tape at hand? Skip with Next."
+    }
+}
+
+/// The waist measured today: its value, the change since the reading before and a note when it
+/// wasn't a morning, fasted reading.
+private struct CheckInWaistDone: View {
+    let facts: CheckInSheetFacts
+    let waist: GirthReading
+
+    var body: some View {
+        Label("Measured today", systemImage: "checkmark.circle.fill")
+            .foregroundStyle(Color.green)
+        LabeledContent(facts.waistSite.title, value: CheckInWaistText.cm(waist.value))
+        if let change = facts.waistChange {
+            LabeledContent("Since \(Fmt.shortDay(change.from.day))", value: CheckInWaistText.change(change))
+        }
+        if !waist.isStandard {
+            Text("Not a morning, fasted reading – it stays out of your trends.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// A typed waist reading: "Today [84.5] cm".
+private struct CheckInWaistField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                TextField("–", text: $text)
+                    .labelsHidden()
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 90)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    #endif
+                Text("cm")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+/// Hints from the tape and body fat (waist guard, waist note, lean share): never a change.
+private struct CheckInHintsSection: View {
+    let hints: [String]
+
+    var body: some View {
+        Section {
+            ForEach(hints, id: \.self) { (hint: String) in
+                Label(hint, systemImage: "lightbulb")
+            }
+        } header: {
+            Text("Worth knowing")
+        } footer: {
+            Text("Only hints: your targets change only when you choose.")
+        }
+    }
+}
+
+private enum CheckInWaistText {
+    /// "84.5 cm"
+    static func cm(_ value: Double) -> String {
+        "\(Fmt.number(value, decimals: 1)) cm"
+    }
+
+    /// "+1.2 cm", with "no clear change" within the site's MDC.
+    static func change(_ change: GirthChange) -> String {
         let value = CheckInSheetText.signedCm(change.change)
         return change.isClear ? value : "\(value) · \(GirthTrend.noClearChange)"
     }
@@ -456,6 +831,8 @@ private struct CheckInNextWeek: View {
     let onKeep: () -> Void
     let onSave: () -> Void
     let onFollowUp: () -> Void
+    /// "Copy for My AI".
+    let onCopy: () -> Void
 
     private var result: CheckInResult { facts.result }
     private var delta: Double { facts.deltaSign * (step > 0 ? step : abs(result.delta)) }
@@ -490,6 +867,7 @@ private struct CheckInNextWeek: View {
                 Text("Your targets stay as they are.")
             }
         }
+        CheckInCopySection(onCopy: onCopy)
     }
 
     private var verdictRow: some View {
@@ -604,6 +982,7 @@ private struct CheckInSavedSections: View {
     let note: String
     let canRedo: Bool
     let onRedo: () -> Void
+    let onCopy: () -> Void
 
     var body: some View {
         Section {
@@ -663,6 +1042,10 @@ private struct CheckInSavedSections: View {
                 Text("How you felt")
             }
         }
+        if !facts.bodyHints.isEmpty {
+            CheckInHintsSection(hints: facts.bodyHints)
+        }
+        CheckInCopySection(onCopy: onCopy)
         if canRedo {
             Section {
                 Button("Redo Check-in", systemImage: "arrow.counterclockwise", action: onRedo)
@@ -690,6 +1073,19 @@ private struct CheckInSavedSections: View {
 
     private var rate: Double? {
         saved.usesHealthWeights ? facts.summary.rate.value : saved.rate
+    }
+}
+
+/// "Copy for My AI" (F16): plain text on the clipboard, nothing sent anywhere.
+private struct CheckInCopySection: View {
+    let onCopy: () -> Void
+
+    var body: some View {
+        Section {
+            Button("Copy for My AI", systemImage: "doc.on.clipboard", action: onCopy)
+        } footer: {
+            Text("Your plan, the last 4 weeks and your body numbers as text to paste into your AI. Its answer can be imported in Goals & Plan.")
+        }
     }
 }
 

@@ -89,6 +89,10 @@ struct SettingsView: View {
                 Button("Replay the Tour", systemImage: "graduationcap") { app.startTour() }
                 Button(hintsReset ? "Hints Come Back at the Next Launch" : "Show Hints Again", systemImage: "lightbulb") {
                     BinisoftTips.requestReset()
+                    // The coach's one-time tips (Body page, measuring guide) come back too.
+                    for key in ["nina.body.tip.highCarb", "nina.body.tip.glycogen", "nina.coach.measureGuideSeen"] {
+                        UserDefaults.standard.removeObject(forKey: key)
+                    }
                     hintsReset = true
                 }
                 .disabled(hintsReset)

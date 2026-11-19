@@ -68,6 +68,48 @@ struct CoachPlanTests {
         #expect(decoded.routine.side == .both)
     }
 
+    @Test func goalSetDateAndBodyFatCeilingRoundTrip() throws {
+        // Without them the text stays exactly as before (no new keys).
+        let text = Self.plan.encoded
+        #expect(!text.contains("\"since\""))
+        #expect(!text.contains("bodyFatCeiling"))
+
+        var plan = Self.plan
+        let day = coachDay("2030-02-11")
+        plan.longTerm = CoachPlan.LongTerm(weightKg: 79, bodyFat: 13, note: "More muscle").stamped(after: Self.plan.longTerm, on: day)
+        #expect(plan.longTerm.since == day)
+        plan.phases[0].bodyFatCeiling = 18
+        let encoded = plan.encoded
+        #expect(encoded.contains("\"since\":\"2030-02-11\""))
+        #expect(encoded.contains("\"bodyFatCeiling\":"))
+        let decoded = CoachPlan(encoded: encoded)
+        #expect(decoded == plan)
+        #expect(decoded.encoded == encoded)
+        #expect(decoded.longTerm.since == day)
+        #expect(decoded.phases.first?.bodyFatCeiling == 18)
+        #expect(decoded.phases.last?.bodyFatCeiling == 0)
+
+        // Read leniently: a broken day is no day, a text number is a number, a negative ceiling is off.
+        let lenient = CoachPlan(encoded: """
+        {"longTerm": {"weightKg": 78, "since": "soon"}, "phases": [{"id": "1", "bodyFatCeiling": "17.5"}, {"id": "2", "bodyFatCeiling": -3}]}
+        """)
+        #expect(lenient.longTerm.since == nil)
+        #expect(lenient.phases.first?.bodyFatCeiling == 17.5)
+        #expect(lenient.phases.last?.bodyFatCeiling == 0)
+
+        // Saving the same goal again keeps its day; a new number restarts it; no goal, no day.
+        let later = coachDay("2030-04-01")
+        #expect(plan.longTerm.stamped(after: plan.longTerm, on: later).since == day)
+        var note = plan.longTerm
+        note.note = "Leaner"
+        note.waistCm = 81
+        #expect(note.stamped(after: plan.longTerm, on: later).since == day)
+        var lighter = plan.longTerm
+        lighter.weightKg = 77.5
+        #expect(lighter.stamped(after: plan.longTerm, on: later).since == later)
+        #expect(CoachPlan.LongTerm(waistCm: 81).stamped(after: plan.longTerm, on: later).since == nil)
+    }
+
     @Test func emptyAndBrokenTextIsAnEmptyPlan() {
         #expect(CoachPlan(encoded: "") == CoachPlan())
         #expect(CoachPlan(encoded: "   ") == CoachPlan())
