@@ -17,7 +17,7 @@ private let planImportNow = Date(timeIntervalSince1970: 1_894_003_200)
 
 @Suite("Settings import: coach plan")
 struct SettingsPlanImportTests {
-    /// Shaped like a real plan an AI wrote from a coach's notes – with invented numbers.
+    /// A complete plan file as an AI writes one. All values are made up.
     static let file = """
     setting,value
     weight_kg,80
@@ -81,9 +81,9 @@ struct SettingsPlanImportTests {
     check.creatine.optional,yes
     meal_protein_g,35-45
     protein_meals,4
-    note,An extra gym session counts as a gym day: pick Gym on that day.
-    note,Keep sleep and recovery in mind on tennis days.
-    note,The fat-loss start depends on progress.
+    note,Stretch for ten minutes after each session.
+    note,Bring a water bottle to every training.
+    note,Plan the next phase together with the review.
     not_supported,Show a shopping list for my week
     """
 

@@ -3,21 +3,25 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
-/// The plan editor, Settings → "Goals & Plan" (F15): phases, day types with their targets in the
-/// running phase, daily checks, measuring and adjustments, protein per meal, the long-term goal,
-/// notes from the plan, pausing, and "Import from my AI", "Export" and "Copy for my AI".
+/// The plan editor, "My Plan" (Settings → Goals & Plan → My Plan, F15): phases, day types with
+/// their targets in the running phase, daily checks, measuring and adjustments, protein per meal,
+/// the long-term goal, notes from the plan, pausing, and "Import from My AI", "Export" and "Copy
+/// for My AI".
 ///
 /// No NavigationStack of its own: it is pushed from Settings (Goals & Plan), shown as a tab of the
-/// Mac Settings window, and wrapped in one for `AppSheet.plan`. `showsDone`: a Done button (as a
-/// sheet). Every change is saved with `app.updatePlan` (toast with Undo); the pages for one part
-/// save when you go back. The phase sheet and the import open from here (not through `app.sheet`),
+/// Mac Settings window, and wrapped in one for `AppSheet.plan` and `.planGoal`. `showsDone`: a
+/// Done button (as a sheet). `initialRoute`: a page pushed once when it first appears. Every
+/// change is saved with `app.updatePlan` (toast with Undo); the pages for one part save when you
+/// go back. The phase sheet and the import open from here (not through `app.sheet`),
 /// so the editor stays underneath and they also work in the Mac Settings window.
 struct PlanEditorView: View {
     let showsDone: Bool
+    var initialRoute: PlanEditorRoute? = nil
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var sheet: PlanEditorSheet?
     @State private var pushed: PlanEditorRoute?
+    @State private var openedInitialRoute = false
     @State private var naming: PlanEditorNaming = .dayType
     @State private var isNaming = false
     @State private var newName = ""
@@ -30,6 +34,15 @@ struct PlanEditorView: View {
     @AppStorage("nina.coach.copyIncludesHealth") private var copyIncludesHealth = false
 
     private var plan: CoachPlan { app.settings.plan }
+    /// Export, Copy Export and Copy for My AI carry Apple Health weights only when switched on
+    /// (iPhone and iPad).
+    private var includesHealth: Bool {
+        #if os(iOS)
+        copyIncludesHealth
+        #else
+        false
+        #endif
+    }
     private var today: DayKey { app.today }
 
     var body: some View {
@@ -48,7 +61,7 @@ struct PlanEditorView: View {
             aiSection
         }
         .formStyle(.grouped)
-        .navigationTitle("Goals & Plan")
+        .navigationTitle("My Plan")
         .inlineNavigationTitle()
         .toolbar {
             if showsDone {
@@ -70,11 +83,22 @@ struct PlanEditorView: View {
         }
         .coachRemindersPrompt(isPresented: $askReminders)
         .task(id: app.dataVersion) {
-            exportText = PlanEditorData.exportText(app: app)
+            exportText = PlanEditorData.exportText(app: app, includeHealth: includesHealth)
             proteinRatio = PlanEditorData.proteinRatio(app: app)
         }
-        // The editor is in a sheet or the Mac Settings window: its Undo toasts show here.
-        .toasts(app.toasts, bottomPadding: 16)
+        .onChange(of: copyIncludesHealth) { _, _ in
+            exportText = PlanEditorData.exportText(app: app, includeHealth: includesHealth)
+        }
+        .onAppear(perform: openInitialRoute)
+        // In the Mac Settings window its Undo toasts show here (in a sheet, the sheet shows them).
+        .ownToasts(app.toasts)
+    }
+
+    /// Once, not again when that page goes back to the editor.
+    private func openInitialRoute() {
+        guard let initialRoute, !openedInitialRoute else { return }
+        openedInitialRoute = true
+        pushed = initialRoute
     }
 
     // MARK: Sections
@@ -284,7 +308,7 @@ struct PlanEditorView: View {
     private var aiFooter: String {
         let text = "Import from My AI reads the settings file your AI wrote, with a preview first. Export writes your goals and the whole plan in that format. Copy for My AI adds your last 4 weeks and body numbers and asks for an answer you can import."
         #if os(iOS)
-        return text + " Weights from Apple Health are only included when you switch them on."
+        return text + " Export, Copy Export and Copy for My AI include weights from Apple Health only when you switch them on."
         #else
         return text
         #endif
@@ -297,6 +321,7 @@ struct PlanEditorView: View {
         switch route {
         case .dayType(let id): PlanEditorDayTypeView(typeID: id)
         case .check(let id): PlanEditorCheckView(checkID: id)
+        case .longTerm: PlanEditorLongTermView()
         }
     }
 
@@ -363,12 +388,7 @@ struct PlanEditorView: View {
     }
 
     private func copyForAI() {
-        #if os(iOS)
-        let includeHealth = copyIncludesHealth
-        #else
-        let includeHealth = false
-        #endif
-        Clipboard.copy(PlanEditorData.aiText(app: app, includeHealth: includeHealth))
+        Clipboard.copy(PlanEditorData.aiText(app: app, includeHealth: includesHealth))
         app.toasts.show("Copied – paste it into your AI", symbol: "doc.on.clipboard.fill")
     }
 }
@@ -377,6 +397,7 @@ struct PlanEditorView: View {
 enum PlanEditorRoute: Hashable {
     case dayType(String)
     case check(String)
+    case longTerm
 }
 
 /// The sheets the plan editor opens itself (one at a time).

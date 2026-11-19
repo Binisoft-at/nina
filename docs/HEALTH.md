@@ -27,9 +27,11 @@ respected: Nina writes *its own* diary to Health, and reads Health values only l
   can't be edited or deleted in Nina.
 - **Weigh-ins typed in Nina** – in the weigh-in sheet or in the morning notification's Weight… field
   – are written to Health when weight sharing is on (Settings → Apple Health).
-- **Copy for My AI** (Goals & Plan → My Plan) only goes to the clipboard. It includes Health
-  weigh-ins only when "Include Apple Health weights" is switched on (iPhone and iPad; off by
-  default, remembered on that device).
+- **Copy for My AI**, **Export Goals & Plan** and **Copy Export** (Goals & Plan → My Plan), and the
+  goals & settings export and prompts in Import & Export, only go where you send them. They include
+  Health weigh-ins only when "Include Apple Health weights" is switched on (iPhone and iPad; off by
+  default, remembered on that device); otherwise the weight in them is your latest weigh-in typed
+  in Nina.
 - **Tape and body fat** are typed in Nina. The tape estimate of body fat is worked out live from
   them and never stored. More in [BODY.md](BODY.md).
 

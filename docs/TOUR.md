@@ -20,8 +20,8 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | id | Since | Teaches | Ticks off when |
 |---|---|---|---|
 | welcome | 1 | what the tour is | – (Continue) |
-| create | 1 | the central + | the create sheet opens |
-| setup-ai | 2 | the setup prompt for another AI in + → Import My Data | – (Continue) |
+| create | 1 | Create… in the ⋯ menu at the top of Today (Mac: the Create button in the toolbar, ⇧⌘N) | the create sheet opens |
+| setup-ai | 2 | the setup prompt for another AI in ⋯ → Create… → Import My Data (Mac: Create → Import My Data) | – (Continue) |
 | log | 1 | search and add a food | an entry is eaten |
 | quick | 1 | type a whole meal like a message | another entry is eaten |
 | undo | 1 | delete and Undo | an entry is deleted and restored |
@@ -32,8 +32,8 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | plan-ahead | 3 | touch and hold (Mac: right-click) a day in the week strip to pick its type | another day gets a day type |
 | checks | 3 | the daily checks strip: tap to tick off, touch and hold for Not Today | a check is ticked done |
 | protein | 3 | the protein pill in the meal headers and the "+8 g protein to reach 25" hint in search | – (Continue) |
-| weigh-in | 3 | the weigh-in sheet from the strip or + → Weight (Mac: File → Log Weight…), a reason under More | a weigh-in is saved |
-| measure | 3 | + → Measurements (Mac: File → Log Measurements…, ⌥⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
+| weigh-in | 3 | the weigh-in sheet from the strip or ⋯ → Create… → Weight (Mac: File → Log Weight…), a reason under More | a weigh-in is saved |
+| measure | 3 | ⋯ → Create… → Measurements (Mac: File → Log Measurements…, ⌥⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
 | progress | 3 | Progress → Body (Mac: Body in the sidebar, ⌘6) | – (Continue) |
 | checkin | 3 | the weekly check-in card and its four steps (your week, waist, how it went, next week), Apply and Undo | – (Continue) |
 | everywhere | 1 | sync, watch, widgets, Health | – (Continue) |

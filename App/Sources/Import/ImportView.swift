@@ -147,8 +147,9 @@ struct ImportView: View {
     }
 
     /// The current goals, settings and the whole coach plan (the active phase's numbers as of today).
+    /// A weight from Apple Health only with "Include Apple Health weights" (My Plan) switched on.
     private var settingsExport: String {
-        SettingsCSV.export(app.settingsState, today: app.today)
+        SettingsCSV.export(app.exportSettingsState(includeHealth: PlanEditorData.includesHealth), today: app.today)
     }
 
     private var promptText: String {

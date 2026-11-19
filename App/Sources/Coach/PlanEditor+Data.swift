@@ -190,9 +190,22 @@ enum PlanEditorData {
 
     // MARK: Export and "Copy for my AI"
 
-    /// The goals & settings file with the whole plan (Import & Export writes the same).
-    static func exportText(app: AppModel) -> String {
-        SettingsCSV.export(app.settingsState, today: app.today)
+    /// "Include Apple Health weights" (iPhone and iPad, this device only, off by default; the
+    /// plan editor's and the check-in's `@AppStorage("nina.coach.copyIncludesHealth")`): whether
+    /// Export, Copy Export, Copy for My AI and the import's prompts carry weights from Apple Health.
+    /// Always off on the Mac, which has no Apple Health.
+    static var includesHealth: Bool {
+        #if os(iOS)
+        UserDefaults.standard.bool(forKey: "nina.coach.copyIncludesHealth")
+        #else
+        false
+        #endif
+    }
+
+    /// The goals & settings file with the whole plan (Import & Export writes the same). Its
+    /// weight is the latest weigh-in typed in Nina; Apple Health's only with `includeHealth`.
+    static func exportText(app: AppModel, includeHealth: Bool) -> String {
+        SettingsCSV.export(app.exportSettingsState(includeHealth: includeHealth), today: app.today)
     }
 
     /// "Copy for my AI": the plan, the last four weeks and the body numbers. Weigh-ins from Apple
@@ -205,8 +218,7 @@ enum PlanEditorData {
         let weights = store.weights()
         var readings = weights.map(\.reading)
         if includeHealth { readings += app.healthWeightReadings }
-        var state = app.settingsState
-        state.weightKg = weights.last?.kilograms ?? (includeHealth ? app.health.latestWeight ?? 0 : 0)
+        let state = app.exportSettingsState(includeHealth: includeHealth)
         let measurements = store.measurements()
         let bodyFat = (measurements.compactMap(\.bodyFatReading) + weights.compactMap(\.bodyFatReading)).sorted { $0.day < $1.day }
         let incomplete = Set(store.dayMarks(.event, from: start, through: today).filter { $0.key == "incompleteLog" }.map(\.dayKey))
@@ -374,5 +386,16 @@ enum PlanEditorData {
         let latest = app.store.bodyFatReadings().last
         guard let ratio = ProteinMeals.ratio(grams: grams, weightKg: weight, leanKg: latest?.leanKg, bodyFat: latest?.bodyFat) else { return nil }
         return "\(Fmt.number(grams)) g a day = \(ratio.text)"
+    }
+}
+
+extension AppModel {
+    /// The settings as an export or a prompt writes them: like `settingsState`, but the weight is
+    /// the latest weigh-in typed in Nina, and Apple Health's latest weight only with
+    /// `includeHealth`. (The import still compares with `settingsState`.)
+    func exportSettingsState(includeHealth: Bool) -> SettingsState {
+        var state = settingsState
+        state.weightKg = store.weights().last?.kilograms ?? (includeHealth ? health.latestWeight ?? 0 : 0)
+        return state
     }
 }

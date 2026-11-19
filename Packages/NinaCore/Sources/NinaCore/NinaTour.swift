@@ -40,15 +40,15 @@ public enum NinaTour {
         replayHint: "Settings or Help → Nina Tour",
         steps: [
             TourStep(
-                id: "create", symbol: "plus.circle", title: "Everything starts at +",
-                body: "Tap + at the top. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
-                macBody: "Click + in the toolbar or press ⇧⌘N. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
+                id: "create", symbol: "plus.circle", title: "Everything starts at Create",
+                body: "Tap ⋯ at the top, then Create…: foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
+                macBody: "Click Create in the toolbar or press ⇧⌘N: foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
                 goal: .isTrue(\.isCreateOpen)
             ),
             TourStep(
                 id: "setup-ai", since: 2, symbol: "sparkles", title: "Let your AI set Nina up",
-                body: "In + → Import My Data, tap Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: your goal, daily targets, meal times, foods and usual meals are set in one go – with a preview first.",
-                macBody: "In + → Import My Data, click Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: goal, targets, meal times, foods and meals are set in one go – with a preview first.",
+                body: "In ⋯ → Create… → Import My Data, tap Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: your goal, daily targets, meal times, foods and usual meals are set in one go – with a preview first.",
+                macBody: "In Create → Import My Data, click Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: goal, targets, meal times, foods and meals are set in one go – with a preview first.",
                 goal: .none
             ),
             TourStep(
@@ -113,13 +113,13 @@ public enum NinaTour {
             ),
             TourStep(
                 id: "weigh-in", since: 3, symbol: "scalemass", title: "Weigh in",
-                body: "Each morning, tap Weigh in in the strip – or + → Weight. Your last weight is already there: adjust it and tap Save. A salty dinner or a late meal? Pick it under More, and that morning won't count for your pace.",
+                body: "Each morning, tap Weigh in in the strip – or ⋯ → Create… → Weight. Your last weight is already there: adjust it and tap Save. A salty dinner or a late meal? Pick it under More, and that morning won't count for your pace.",
                 macBody: "Each morning, click Weigh in in the strip, or choose Log Weight… in the File menu. Your last weight is already there: adjust it and click Save. A salty dinner or a late meal? Pick it under More, and that morning won't count for your pace.",
                 goal: .increased(\.weighIns)
             ),
             TourStep(
                 id: "measure", since: 3, symbol: "ruler", title: "Measure in seconds",
-                body: "Tap + → Measurements. One site per page, with last time's value already there: type your waist – or nudge it with − and + – and tap Done. The strip tells you when the next measurement is due.",
+                body: "Tap ⋯ → Create… → Measurements. One site per page, with last time's value already there: type your waist – or nudge it with − and + – and tap Done. The strip tells you when the next measurement is due.",
                 macBody: "Choose File → Log Measurements… (⌥⌘M). One site per page, with last time's value already there: type your waist and click Done. The strip tells you when the next measurement is due.",
                 goal: .increased(\.measureCount)
             ),
@@ -138,7 +138,7 @@ public enum NinaTour {
             TourStep(
                 id: "everywhere", symbol: "applewatch", title: "Everywhere you are",
                 body: "Nina syncs through your iCloud with your Mac and Apple Watch. Log from the watch, see what's left in widgets, and send everything to Apple Health in Settings.",
-                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals & Plan, Apple Health, meals and the import.",
+                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals & Plan, My Plan, Apple Health, meals and the import.",
                 goal: .none
             ),
         ]

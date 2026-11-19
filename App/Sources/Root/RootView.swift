@@ -120,6 +120,7 @@ private struct MacSidebarSummary: View {
 #endif
 
 /// The sheets any screen can open, toasts and undo. Shared by the window and the tour's practice page.
+/// While an app sheet is up, the sheet shows the toasts (SheetToasts.swift): once, and on top.
 struct AppChrome: ViewModifier {
     @Bindable var app: AppModel
 
@@ -130,7 +131,7 @@ struct AppChrome: ViewModifier {
                     .environment(app)
                     .modelContainer(app.container)
             }
-            .toasts(app.toasts)
+            .toasts(app.sheet == nil ? app.toasts : ToastCenter.silent)
             .undoableChanges(in: app.container.mainContext)
     }
 }
@@ -138,12 +139,19 @@ struct AppChrome: ViewModifier {
 /// Editors that own their NavigationStack (and `.sheetFrame`) are returned bare: the food,
 /// recipe, entry and weigh-in editors, `MeasureSheet`, `AssessmentSheet`, `CheckInSheet`,
 /// `PhaseSheet`, `PhaseReviewSheet`. Screens that are also pushed elsewhere (`GoalsView`,
-/// `PlanEditorView`, `SettingsView` …) are wrapped here.
+/// `PlanEditorView`, `SettingsView` …) are wrapped here. Every sheet shows the toasts – also the
+/// Undo of the save that opened it (a full set, then body fat).
 private struct SheetContent: View {
     let sheet: AppSheet
     @Environment(AppModel.self) private var app
 
     var body: some View {
+        content
+            .sheetToasts(app.toasts)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch sheet {
         case .create:
             NinaCreateSheet()
@@ -182,6 +190,9 @@ private struct SheetContent: View {
             PhaseReviewSheet(phaseID: id)
         case .plan:
             NavigationStack { PlanEditorView(showsDone: true) }
+                .sheetFrame(minWidth: 580, minHeight: 700)
+        case .planGoal:
+            NavigationStack { PlanEditorView(showsDone: true, initialRoute: .longTerm) }
                 .sheetFrame(minWidth: 580, minHeight: 700)
         case .water(let day):
             WaterAmountView(day: day)

@@ -1,16 +1,17 @@
 # Nina – import and export
 
-**Set up everything at once:** + → Import My Data → **Copy the Setup Prompt**. Paste it into
-ChatGPT, Claude or any AI, add a few lines about you (age, height, weight, goal, training, meal
-times) and the foods and meals you eat (product names, label photos, your own dishes), and paste its
-whole answer back. It writes up to three CSV blocks – goals & settings, foods, meals & recipes – and
-Nina imports them together, settings first, with a preview of every change.
+**Set up everything at once:** ⋯ → Create… → Import My Data → **Copy the Setup Prompt** (on the
+Mac: Create in the toolbar → Import My Data). Paste it into ChatGPT, Claude or any AI, add a few
+lines about you (age, height, weight, goal, training, meal times) and the foods and meals you eat
+(product names, label photos, your own dishes), and paste its whole answer back. It writes up to
+three CSV blocks – goals & settings, foods, meals & recipes – and Nina imports them together,
+settings first, with a preview of every change.
 
 Each format also works on its own, with its own **"Copy the prompt for another AI"** button in
-Settings → Import & Export (or + → Import My Data): paste the prompt into any AI together with your
-data – photos of nutrition labels, product names, notes, screenshots, another app's export (Yazio,
-MyFitnessPal …) – and paste the CSV it writes back into Nina. Nina shows a preview first; nothing
-changes until you tap Import. Everything is read on the device.
+Settings → Import & Export (or ⋯ → Create… → Import My Data): paste the prompt into any AI
+together with your data – photos of nutrition labels, product names, notes, screenshots, another
+app's export (Yazio, MyFitnessPal …) – and paste the CSV it writes back into Nina. Nina shows a
+preview first; nothing changes until you tap Import. Everything is read on the device.
 
 Importing the same file again **updates instead of duplicating**: rows are matched by their `id`
 column (or, without one, by their content). The exports use the same formats, so you can export,
@@ -51,7 +52,9 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
   The preview lists them under "Not supported".
 - Settings → Import & Export → **Export Goals & Settings (CSV)** writes the same format, including
   the whole coach plan. So do **Export Goals & Plan** and **Copy Export** at the bottom of Settings →
-  Goals & Plan → My Plan.
+  Goals & Plan → My Plan. Their `weight_kg` is your latest weigh-in typed in Nina; a weight from
+  Apple Health goes in only when "Include Apple Health weights" (My Plan, iPhone and iPad) is
+  switched on. The same holds for the prompts that carry your current settings.
 
 ## Coach plan
 

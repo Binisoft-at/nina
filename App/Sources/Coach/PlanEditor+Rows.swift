@@ -122,9 +122,12 @@ struct PlanEditorWeekFooter: View {
     }
 }
 
-/// Seven weekday chips (1 = Monday), as the training days in Goals & Plan.
+/// Seven weekday chips (1 = Monday), as the training days in Goals & Plan. VoiceOver reads the
+/// whole day and whether it is picked.
 struct PlanEditorWeekdayChips: View {
     @Binding var days: Weekdays
+
+    private static let names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
     var body: some View {
         HStack(spacing: 6) {
@@ -147,6 +150,8 @@ struct PlanEditorWeekdayChips: View {
                             in: .rect(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Self.names[weekday - 1])
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 

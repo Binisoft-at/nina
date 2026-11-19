@@ -93,7 +93,7 @@ struct CheckInSheetFacts {
         return options.sorted()
     }
 
-    /// "Gathering data – first adjustment check on Mon 7 Dec" while the rate window is too short.
+    /// "Gathering data – first adjustment check on Mon 21 Jan" while the rate window is too short.
     var gatheringLine: String? {
         guard result.rule == .gathering, let first = result.firstAdjustmentCheck else { return nil }
         return "Gathering data – first adjustment check on \(CheckInSheetText.day(first))"
@@ -274,7 +274,7 @@ enum CheckInSheetText {
         BodyPageText.range(range) + " kg a week"
     }
 
-    /// "Mon 7 Dec"
+    /// "Mon 21 Jan"
     static func day(_ day: DayKey, calendar: Calendar = .current) -> String {
         day.date(calendar: calendar).formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
     }

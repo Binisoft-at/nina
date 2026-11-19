@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import NinaCore
 
-// A file with exactly the keys of a real coach plan an AI wrote (gain then cut, gym/tennis/rest,
-// creatine, protein per meal, notes) – every number and date is made up.
+// A complete plan file that uses every plan key (two phases, three day types, a daily check,
+// protein per meal, notes). All values are made up.
 
 private var previewUTC: Calendar {
     var calendar = Calendar(identifier: .gregorian)
@@ -75,9 +75,9 @@ struct SettingsImportPreviewTests {
     check.creatine.optional,yes
     meal_protein_g,35-45
     protein_meals,4
-    note,An extra gym session on a tennis week counts as a gym day.
-    note,Keep training hard and recover well.
-    note,The lean-out start depends on progress.
+    note,Walk after dinner.
+    note,Drink water during training.
+    note,Check shoes before the summer.
     """
 
     static let today = DayKey(year: 2030, month: 2, day: 4)

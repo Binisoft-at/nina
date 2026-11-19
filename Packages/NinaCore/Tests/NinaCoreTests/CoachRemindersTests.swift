@@ -206,6 +206,34 @@ struct CoachRemindersTests {
         #expect(!several.category.actions.contains { $0.id.hasPrefix("tape:") })
     }
 
+    /// No weekly sites and body fat more often than the full set: some mornings only body fat is
+    /// due. The banner's button opens the body-fat sheet, not the (empty) tape pager.
+    @Test func onlyBodyFatDueOpensTheBodyFatSheet() throws {
+        let monday = reminderDay("2030-01-14")
+        let routine = CoachPlan.Routine(weeklySites: [], fullEveryWeeks: 8, bodyFatEveryWeeks: 4)
+        let start = reminderDay("2029-12-17")
+        let body = BodySchedule(routine: routine, start: start, fullDays: [start], assessmentDays: [start])
+        let due = body.dueItems(on: monday, calendar: reminderUTC)
+        #expect(due.map(\.kind) == [.assessment])
+
+        var input = reminderInput()
+        input.bodyDue[monday] = due
+        let morning = try #require(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14"))
+        #expect(morning.body.contains("Body fat today."))
+        let open = try #require(morning.category.actions.first { $0.id.hasPrefix("open:") })
+        #expect(open.id == "open:nina://measure?mode=assessment")
+        #expect(open.title == "Body Fat")
+        #expect(open.style == .foreground)
+        #expect(!morning.category.actions.contains { $0.id == "open:nina://measure" })
+        #expect(CoachReminders.command(action: open.id) == .open("nina://measure?mode=assessment"))
+
+        // A full set that includes body fat still opens the tape pager.
+        input.bodyDue[monday] = [BodyDueItem(kind: .full, dueDay: monday, sites: [.waist, .chest], includesAssessment: true)]
+        let full = try #require(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14"))
+        #expect(full.category.actions.contains { $0.id == "open:nina://measure" })
+        #expect(!full.category.actions.contains { $0.id.hasSuffix("mode=assessment") })
+    }
+
     @Test func typedTapeValues() {
         #expect(CoachReminders.command(action: "tape:waist", text: "84,5") == .tape(.waist, 84.5))
         #expect(CoachReminders.command(action: "tape:waist", text: " 84.5 cm ") == .tape(.waist, 84.5))

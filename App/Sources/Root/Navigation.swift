@@ -141,6 +141,8 @@ enum AppSheet: Identifiable {
     case phaseReview(String)
     /// The plan editor ("My Plan", `PlanEditorView`).
     case plan
+    /// The plan editor opened on its Long-Term Goal page (the body page's "Add a Goal…").
+    case planGoal
     case water(DayKey)
     case scanBarcode(day: DayKey, meal: String?)
     case dayNutrition(DayKey)
@@ -169,6 +171,7 @@ enum AppSheet: Identifiable {
         case .phase(let id): "phase-" + (id ?? "new")
         case .phaseReview(let id): "phase-review-" + id
         case .plan: "coach-plan"
+        case .planGoal: "coach-plan-goal"
         case .water(let day): "water-\(day)"
         case .scanBarcode: "scan"
         case .dayNutrition(let day): "nutrition-\(day)"
