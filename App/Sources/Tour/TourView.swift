@@ -46,6 +46,7 @@ private struct PracticePage: View {
     @Query(filter: #Predicate<WaterLog> { $0.deletedAt == nil }) private var water: [WaterLog]
     @Query(filter: #Predicate<DayMark> { $0.deletedAt == nil }) private var marks: [DayMark]
     @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt == nil }) private var measurements: [BodyMeasurement]
+    @Query(filter: #Predicate<WeightEntry> { $0.deletedAt == nil }) private var weights: [WeightEntry]
 
     var body: some View {
         NavigationStack {
@@ -75,7 +76,7 @@ private struct PracticePage: View {
     }
 
     /// The coach parts of the practice day: today's day type, days planned ahead in the week
-    /// strip, ticked checks and saved measurements.
+    /// strip, ticked checks, weigh-ins and saved measurements.
     private func fillCoach(_ snapshot: inout NinaTourSnapshot) {
         let today = app.today
         let dayTypes: [String: String] = marks.dayTypeMap
@@ -83,6 +84,7 @@ private struct PracticePage: View {
         snapshot.plannedDayTypes = dayTypes.keys.filter { $0 != today.rawValue }.count
         snapshot.checksDone = marks.filter { $0.markKind == .check && $0.checkState == .done }.count
         snapshot.measureCount = measurements.count
+        snapshot.weighIns = weights.count
     }
 }
 

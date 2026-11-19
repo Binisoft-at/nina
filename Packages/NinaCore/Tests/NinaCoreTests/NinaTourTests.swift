@@ -2,10 +2,11 @@ import Testing
 import BinisoftKitCore
 @testable import NinaCore
 
-/// The coach steps of tour version 3 (day types, daily checks, measurements, Progress, check-in).
+/// The coach steps of tour version 3 (day types, daily checks, protein per meal, weigh-in,
+/// measurements, Progress, check-in).
 @Suite("Coach tour")
 struct CoachTourTests {
-    static let coachSteps = ["daytype", "plan-ahead", "checks", "measure", "progress", "checkin"]
+    static let coachSteps = ["daytype", "plan-ahead", "checks", "protein", "weigh-in", "measure", "progress", "checkin"]
 
     @Test func versionThreeAddsTheCoachSteps() {
         #expect(NinaTour.version == 3)
@@ -53,6 +54,11 @@ struct CoachTourTests {
         let ticked = checks.observe(page)
         #expect(ticked)
 
+        var weighIn = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "weigh-in")
+        page.weighIns = 9
+        let weighed = weighIn.observe(page)
+        #expect(weighed)
+
         var measure = TourProgress(steps: NinaTour.catalog.allSteps, start: page, startAt: "measure")
         page.measureCount = 3
         let saved = measure.observe(page)
@@ -60,7 +66,7 @@ struct CoachTourTests {
     }
 
     @Test func readOnlyStepsSayContinue() {
-        for id in ["progress", "checkin"] {
+        for id in ["protein", "progress", "checkin"] {
             let progress = TourProgress(steps: NinaTour.catalog.allSteps, start: NinaTourSnapshot(), startAt: id)
             #expect(progress.step?.id == id)
             #expect(progress.primaryTitle == "Continue")

@@ -87,7 +87,8 @@ checklist – fully the first time, folded after that:
 - **Tape estimate**: worked out live from your tape values with the US Navy formula – waist and neck
   (women: narrow waist, hip and neck) plus your height. It is never saved as a value, so it always
   follows your latest tape. It needs your height and sex in Goals & Plan → Body & Calculator.
-- **Lean and fat mass**: body fat % × the morning weights around that day (the 7-day average).
+- **Lean and fat mass**: body fat % × the mean of the morning weights from 3 days before to 3 days
+  after that day.
   During a gain, part of a "lean" increase is water and glycogen from the extra carbs.
 
 ## The measuring schedule

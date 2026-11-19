@@ -21,6 +21,8 @@ public struct NinaTourSnapshot: Equatable, Sendable {
     public var checksDone = 0
     /// Body measurements saved (tape and body fat).
     public var measureCount = 0
+    /// Weigh-ins saved in Nina.
+    public var weighIns = 0
 
     public init() {}
 }
@@ -102,6 +104,18 @@ public enum NinaTour {
                 body: "What your plan asks for every day – creatine, say – sits in the strip under the summary. Tap Creatine to tick it off. Touch and hold it for Not Today.",
                 macBody: "What your plan asks for every day – creatine, say – sits in the strip under the summary. Click Creatine to tick it off. Right-click it for Not Today.",
                 goal: .increased(\.checksDone)
+            ),
+            TourStep(
+                id: "protein", since: 3, symbol: "fork.knife", title: "Protein per meal",
+                body: "With a protein minimum in your plan, each meal header shows a pill like 17 / 25 g. It fills once the meal has enough. When you add food, search says what's missing: +8 g protein to reach 25.",
+                macBody: "With a protein minimum in your plan, each meal header shows a pill like 17 / 25 g. It fills once the meal has enough. When you add food (⌘N), search says what's missing: +8 g protein to reach 25.",
+                goal: .none
+            ),
+            TourStep(
+                id: "weigh-in", since: 3, symbol: "scalemass", title: "Weigh in",
+                body: "Each morning, tap Weigh in in the strip – or + → Weight. Your last weight is already there: adjust it and tap Save. A salty dinner or a late meal? Pick it under More, and that morning won't count for your pace.",
+                macBody: "Each morning, click Weigh in in the strip, or choose Log Weight… in the File menu. Your last weight is already there: adjust it and click Save. A salty dinner or a late meal? Pick it under More, and that morning won't count for your pace.",
+                goal: .increased(\.weighIns)
             ),
             TourStep(
                 id: "measure", since: 3, symbol: "ruler", title: "Measure in seconds",
