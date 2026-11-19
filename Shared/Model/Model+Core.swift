@@ -180,6 +180,24 @@ extension WeightEntry {
     var dayKey: DayKey { DayKey(day) ?? DayKey(date: time) }
 }
 
+extension BodyMeasurement {
+    var dayKey: DayKey { DayKey(day) ?? DayKey(date: time) }
+    var recordKind: BodyRecordKind { BodyRecordKind(rawValue: kind) ?? .tape }
+    var bodyValues: BodyValues { BodyValues(encoded: values) }
+    var bodyMethod: BodyMethod? { BodyMethod(rawValue: method) }
+    /// Morning and fasted with no exception tag.
+    var isStandard: Bool { BodyProtocol.isStandard(conditions) }
+}
+
+extension DayMark {
+    var dayKey: DayKey { DayKey(day) ?? DayKey(date: time) }
+    var markKind: DayMarkKind? { DayMarkKind(rawValue: kind) }
+    /// The text values ("state=done").
+    var metaText: KeyValueText { KeyValueText(encoded: meta) }
+    /// The number values ("avg7=80.4;rate=0.15").
+    var numbers: KeyValueText { KeyValueText(encoded: values) }
+}
+
 extension PlanRule {
     var days: Weekdays { Weekdays(encoded: weekdays) }
     var recipeUUID: UUID? { UUID(uuidString: recipeID) }

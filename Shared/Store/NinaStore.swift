@@ -406,6 +406,8 @@ struct NinaStore {
         sweep(WaterLog.self)
         sweep(WeightEntry.self)
         sweep(PlanRule.self)
+        sweep(BodyMeasurement.self)
+        sweep(DayMark.self)
         guard count > 0 else { return }
         AppLog.info("Emptied \(count) record(s) from the trash", category: "store")
         save()

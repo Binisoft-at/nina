@@ -276,6 +276,8 @@ final class NinaProfile {
     /// Nutrients shown first everywhere (the person's priorities), "protein,carbs,fat".
     var focusNutrients: String = "protein,carbs,fat"
     var waterGlass: Double = 250
+    /// CoachPlan JSON ("" = no plan).
+    var coachPlan: String = ""
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
 
@@ -289,9 +291,80 @@ final class NinaProfile {
     }
 }
 
+/// A body measurement typed into Nina: tape values in cm or a body-fat assessment (values from
+/// Apple Health are read live and never stored here). Navy body fat is computed live, never stored.
+@Model
+final class BodyMeasurement {
+    var uuid: UUID = UUID()
+    var day: String = ""
+    var time: Date = Date()
+    /// "tape" | "assessment"
+    var kind: String = "tape"
+    /// BodyValues k=v, cm or kg/%: "waist=84.0;chest=101.5;arm=34.5"
+    /// assessments: "bodyFat=20;leanKg=64;fatKg=16;boneKg=3.1;sf_chest=12"
+    var values: String = ""
+    /// assessments: dexa|bodpod|bia_pro|scale|skinfold|estimate
+    var method: String = ""
+    /// e.g. "InBody 570": separates BIA series
+    var device: String = ""
+    /// comma tags: "morning,fasted" or "after_training,high_salt"
+    var conditions: String = ""
+    var note: String = ""
+    var importKey: String = ""
+    var createdAt: Date = Date()
+    var modifiedAt: Date = Date()
+    var deletedAt: Date?
+
+    init(day: DayKey, time: Date, kind: BodyRecordKind, values: BodyValues) {
+        let now = Date()
+        self.uuid = UUID()
+        self.day = day.rawValue
+        self.time = time
+        self.kind = kind.rawValue
+        self.values = values.encoded
+        self.createdAt = now
+        self.modifiedAt = now
+    }
+}
+
+/// A small record for a day: the day type picked by hand, a ticked daily check, a weekly check-in,
+/// a phase decision or a day event (see DayMarkKind).
+@Model
+final class DayMark {
+    var uuid: UUID = UUID()
+    var day: String = ""
+    var time: Date = Date()
+    /// "dayType" | "check" | "checkIn" | "phase" | "event"
+    var kind: String = ""
+    /// day-type id | check id | "week-2030-01-07" | phase id | event name
+    var key: String = ""
+    /// numbers k=v (like NutrientValues.encoded)
+    var values: String = ""
+    /// text k=v: "state=done", "verdict=slower;applied=yes;phase=1"
+    var meta: String = ""
+    var note: String = ""
+    var importKey: String = ""
+    var createdAt: Date = Date()
+    var modifiedAt: Date = Date()
+    var deletedAt: Date?
+
+    init(day: DayKey, kind: DayMarkKind, key: String, time: Date = Date()) {
+        let now = Date()
+        self.uuid = UUID()
+        self.day = day.rawValue
+        self.time = time
+        self.kind = kind.rawValue
+        self.key = key
+        self.createdAt = now
+        self.modifiedAt = now
+    }
+}
+
 extension LogEntry: SoftDeletable {}
 extension Food: SoftDeletable {}
 extension Recipe: SoftDeletable {}
 extension WaterLog: SoftDeletable {}
 extension WeightEntry: SoftDeletable {}
 extension PlanRule: SoftDeletable {}
+extension BodyMeasurement: SoftDeletable {}
+extension DayMark: SoftDeletable {}

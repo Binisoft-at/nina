@@ -9,6 +9,7 @@ import BinisoftKit
 enum Persistence {
     static let models: [any PersistentModel.Type] = [
         LogEntry.self, Food.self, Recipe.self, RecipeItem.self, WaterLog.self, WeightEntry.self, PlanRule.self, NinaProfile.self,
+        BodyMeasurement.self, DayMark.self,
     ]
 
     #if DEBUG

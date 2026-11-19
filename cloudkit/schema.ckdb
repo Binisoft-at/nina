@@ -9,6 +9,57 @@
 
 DEFINE SCHEMA
 
+    RECORD TYPE CD_BodyMeasurement (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_conditions STRING,
+        CD_createdAt  TIMESTAMP,
+        CD_day        STRING,
+        CD_deletedAt  TIMESTAMP,
+        CD_device     STRING,
+        CD_entityName STRING,
+        CD_importKey  STRING,
+        CD_kind       STRING,
+        CD_method     STRING,
+        CD_modifiedAt TIMESTAMP,
+        CD_note       STRING,
+        CD_time       TIMESTAMP,
+        CD_uuid       STRING,
+        CD_values     STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CD_DayMark (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_createdAt  TIMESTAMP,
+        CD_day        STRING,
+        CD_deletedAt  TIMESTAMP,
+        CD_entityName STRING,
+        CD_importKey  STRING,
+        CD_key        STRING,
+        CD_kind       STRING,
+        CD_meta       STRING,
+        CD_modifiedAt TIMESTAMP,
+        CD_note       STRING,
+        CD_time       TIMESTAMP,
+        CD_uuid       STRING,
+        CD_values     STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
     RECORD TYPE CD_Food (
         "___createTime" TIMESTAMP,
         "___createdBy"  REFERENCE,
@@ -91,6 +142,7 @@ DEFINE SCHEMA
         CD_activity           STRING,
         CD_activityBonusShare DOUBLE,
         CD_birthYear          INT64,
+        CD_coachPlan          STRING,
         CD_createdAt          TIMESTAMP,
         CD_dayStartHour       INT64,
         CD_energyUnit         STRING,
