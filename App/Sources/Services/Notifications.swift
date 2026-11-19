@@ -25,10 +25,22 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     static let coachReviewKey = "nina.coach.reminders.review"
     /// The "is that right?" notification after a weight typed into the banner that needs a look.
     static let weighCheckID = "nina.weigh.check"
+    /// The same for a tape value ("Waist…").
+    static let tapeCheckID = "nina.tape.check"
 
     private var center: UNUserNotificationCenter { UNUserNotificationCenter.current() }
     /// The coach categories registered last (they follow the plan).
     private var coachCategories: [CoachReminders.Category]?
+    /// A nina:// link a notification asked to open that no window has opened yet: on a cold start
+    /// the answer can come before the window listens, so RootView also takes it when it appears.
+    private var pendingURL: URL?
+
+    /// The link a notification asked to open, once (nil when there is none or it was opened).
+    func takePendingURL() -> URL? {
+        let url = pendingURL
+        pendingURL = nil
+        return url
+    }
 
     func activate() {
         center.delegate = self
@@ -207,6 +219,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
             input.bodyDue[day] = schedule.dueItems(on: day)
         }
         input.lastWeight = store.weightReadings(adding: health).max { $0.time < $1.time }?.kilograms
+        input.lastTape = CoachReminders.lastTape(store.tapeRecords())
         input.checkInKeys = store.checkInKeys()
         input.lastFullSet = schedule.fullDays.last
         input.checkpoint = signal.checkpointCrossing(in: plan, through: today)
@@ -324,9 +337,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         case "skip":
             store.setStatus(entries, .skipped)
         case "log":
-            if let url = URL(string: "\(AppInfo.urlScheme)://add") {
-                NotificationCenter.default.post(name: .ninaOpenURL, object: url)
-            }
+            open("\(AppInfo.urlScheme)://add")
         default:
             break
         }
@@ -357,6 +368,8 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
             followUp(store)
         case .weight(let kilograms):
             if logWeight(kilograms, typed: text ?? "", store: store) { followUp(store) }
+        case .tape(let site, let centimeters):
+            if logTape(site, centimeters, typed: text ?? "", store: store) { followUp(store) }
         }
     }
 
@@ -395,9 +408,49 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         return false
     }
 
-    /// Opens a nina:// URL in the app (after a moment, so a window that is just starting listens).
+    /// "Waist…" in the morning banner: a plausible value is saved as a tape measurement for today
+    /// (morning and fasted when typed before the morning cutoff with nothing eaten logged yet,
+    /// else "later"). Anything else – not a number, outside the site's range, more than 3 cm from
+    /// a reading in the last 7 days – comes back as "Is that right?", which opens the measure
+    /// sheet. Returns whether it was saved.
+    @discardableResult
+    private func logTape(_ site: BodySite, _ centimeters: Double?, typed: String, store: NinaStore) -> Bool {
+        let settings = store.settings
+        let calendar = store.calendar
+        let now = Date()
+        let today = settings.today(now: now)
+        if let centimeters,
+           !CoachReminders.tapeNeedsALook(centimeters, site: site, on: today, records: store.tapeRecords(), calendar: calendar) {
+            let hasEaten = store.entries(on: today).contains { $0.entryStatus == .eaten && $0.time <= now }
+            let conditions = BodyProtocol.automatic(at: now, cutoffMinutes: settings.plan.routine.morningCutoffMinutes,
+                                                    hasEaten: hasEaten, calendar: calendar)
+            let values = BodyValues([site: centimeters])
+            store.addMeasurement(BodyMeasurementDraft(day: today, time: now, kind: .tape, values: values,
+                                                      conditions: BodyProtocol.encode(conditions)))
+            AppLog.info("Tape value saved from a notification", category: "notifications")
+            return true
+        }
+        let shown = typed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let content = UNMutableNotificationContent()
+        content.title = shown.isEmpty ? "\(site.title) – is that right?" : "\(site.title) \(shown) – is that right?"
+        if centimeters == nil {
+            content.body = "That doesn't look like a value in centimeters. Tap to measure in \(AppInfo.name)."
+        } else {
+            let limit = NumberText.plain(BodyReadings.jumpLimit, decimals: 1)
+            content.body = "That's more than \(limit) cm from last time. Tap to check it in \(AppInfo.name) before it's saved."
+        }
+        content.userInfo = ["coach": Self.tapeCheckID, "url": "\(AppInfo.urlScheme)://measure?mode=weekly"]
+        content.sound = .default
+        center.add(UNNotificationRequest(identifier: Self.tapeCheckID, content: content, trigger: nil))
+        return false
+    }
+
+    /// Opens a nina:// URL in the app: kept as pending and announced after a moment, so a window
+    /// that is just starting listens. Whoever takes it first opens it (RootView's `.task` on a cold
+    /// start, else its `.onReceive`), so it opens once.
     private func open(_ link: String) {
         guard let url = URL(string: link) else { return }
+        pendingURL = url
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(600))
             NotificationCenter.default.post(name: .ninaOpenURL, object: url)
@@ -406,6 +459,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
 }
 
 extension Notification.Name {
-    /// A URL the app should open (from a notification action).
+    /// A notification asked to open a URL: RootView takes it with
+    /// `NotificationScheduler.shared.takePendingURL()` (posted by `NotificationScheduler` only).
     static let ninaOpenURL = Notification.Name("at.binisoft.nina.openURL")
 }

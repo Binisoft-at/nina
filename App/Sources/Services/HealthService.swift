@@ -270,13 +270,65 @@ final class HealthService {
         }
     }
 
+    /// A new weigh-in typed in Nina goes to Apple Health (marked `NinaWeight`, so Nina never reads
+    /// it back as a Health weigh-in).
     func writeWeight(_ kilograms: Double, date: Date) async {
-        guard isAvailable, options.contains(.weight),
-              store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized else { return }
+        guard canWriteWeight else { return }
+        await saveWeightSample(kilograms, date: date)
+        await refreshReadings()
+    }
+
+    /// An edited weigh-in: the sample Nina wrote for the old weight and time leaves Apple Health
+    /// and the new one is written, so Health doesn't keep both.
+    func replaceWeight(old: (kilograms: Double, date: Date), new: (kilograms: Double, date: Date)) async {
+        guard canWriteWeight else { return }
+        await deleteWeightSamples(kilograms: old.kilograms, date: old.date)
+        await saveWeightSample(new.kilograms, date: new.date)
+        await refreshReadings()
+    }
+
+    /// A deleted or undone weigh-in: the sample Nina wrote for it leaves Apple Health. Returns
+    /// whether there was one (only then does an Undo write it back).
+    @discardableResult
+    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool {
+        guard canWriteWeight else { return false }
+        let removed = await deleteWeightSamples(kilograms: kilograms, date: date)
+        await refreshReadings()
+        return removed > 0
+    }
+
+    private var canWriteWeight: Bool {
+        isAvailable && options.contains(.weight)
+            && store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized
+    }
+
+    private func saveWeightSample(_ kilograms: Double, date: Date) async {
         let sample = HKQuantitySample(type: HKQuantityType(.bodyMass), quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kilograms),
                                       start: date, end: date, metadata: ["NinaWeight": "1"])
-        try? await store.save(sample)
-        await refreshReadings()
+        do {
+            try await store.save(sample)
+        } catch {
+            lastError = error.localizedDescription
+            AppLog.warning("Health weight write failed: \(error.localizedDescription)", category: "health")
+        }
+    }
+
+    /// Deletes the body-mass samples Nina wrote at `date` (within a second) with that weight
+    /// (within 0.05 kg); returns how many. Health only lets an app delete its own samples:
+    /// weigh-ins from scales and other apps always stay.
+    @discardableResult
+    private func deleteWeightSamples(kilograms: Double, date: Date) async -> Int {
+        let kilo = HKUnit.gramUnit(with: .kilo)
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: date.addingTimeInterval(-1), end: date.addingTimeInterval(1), options: []),
+            HKQuery.predicateForObjects(withMetadataKey: "NinaWeight"),
+            HKQuery.predicateForQuantitySamples(with: .greaterThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms - 0.05)),
+            HKQuery.predicateForQuantitySamples(with: .lessThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms + 0.05)),
+        ])
+        let type = HKQuantityType(.bodyMass)
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+            store.deleteObjects(of: type, predicate: predicate) { _, count, _ in continuation.resume(returning: count) }
+        }
     }
 
     private static func unit(_ text: String) -> HKUnit {
@@ -293,6 +345,9 @@ final class HealthService {
     func scheduleSync(container: ModelContainer) {}
     func syncNow(container: ModelContainer) async {}
     func writeWeight(_ kilograms: Double, date: Date) async {}
+    func replaceWeight(old: (kilograms: Double, date: Date), new: (kilograms: Double, date: Date)) async {}
+    @discardableResult
+    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool { false }
     #endif
 }
 

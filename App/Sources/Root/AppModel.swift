@@ -40,11 +40,14 @@ final class AppModel {
     private(set) var coachDismissals: [String: DayKey] = [:]
     /// iPhone: Recently Deleted is pushed from Settings.
     var showTrash = false
+    /// iPhone: "Turn on coach reminders?" is on screen (RootView shows it; asked once per device).
+    var askCoachReminders = false
     /// Grows with every data change (views that compute from fetches refresh on it).
     private(set) var dataVersion = 0
 
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var coachQuestionPending = false
 
     init(container: ModelContainer, mode: StorageMode, launch: LaunchOptions = .current, isSandbox: Bool = false) {
         self.container = container
@@ -120,6 +123,7 @@ final class AppModel {
         WidgetBridge.publish(store.todaySnapshot())
         health.scheduleSync(container: container)
         NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings)
+        offerCoachRemindersIfNeeded()
     }
 
     /// The app came to the foreground: a new day may have started, plans and Health need a look.
@@ -358,23 +362,47 @@ final class AppModel {
         return setCheck(checkID, on: day, state: current == .done ? nil : .done, toast: toast)
     }
 
-    /// Logs a weigh-in (also to Apple Health when that's on) with Undo.
+    /// Logs a weigh-in (also to Apple Health when that's on) with Undo; Undo takes it out of
+    /// Apple Health again.
     @discardableResult
     func logWeight(_ kilograms: Double, day: DayKey? = nil, time: Date = Date(), bodyFat: Double = 0, note: String = "") -> WeightEntry {
         let entry = store.addWeight(kilograms, day: day ?? DayKey.today(now: time, dayStartHour: settings.dayStartHour),
                                     time: time, bodyFat: bodyFat, note: note)
+        let health = self.health
+        let write: Task<Void, Never> = Task { await health.writeWeight(kilograms, date: time) }
         toasts.show("Weight \(Fmt.kilograms(kilograms)) saved", symbol: "scalemass.fill") { [weak self] in
             _ = self?.store.trash([entry])
+            Task {
+                await write.value
+                await health.deleteWeight(kilograms, date: time)
+            }
         }
-        Task { [weak self] in await self?.health.writeWeight(kilograms, date: time) }
         return entry
     }
 
+    /// Deletes a weigh-in (30-day trash) and the sample Nina wrote for it in Apple Health; Undo
+    /// brings both back (the Health sample only when there was one).
     func trash(_ weight: WeightEntry) {
+        let kilograms = weight.kilograms, time = weight.time
         let trashed = store.trash([weight])
+        let health = self.health
+        let delete: Task<Bool, Never> = Task { await health.deleteWeight(kilograms, date: time) }
         toasts.show("Weigh-in deleted", symbol: "trash.fill") { [weak self] in
             self?.store.restore(trashed)
+            Task {
+                guard await delete.value else { return }
+                await health.replaceWeight(old: (kilograms, time), new: (kilograms, time))
+            }
         }
+    }
+
+    /// Brings a weigh-in back from Recently Deleted, and its sample back to Apple Health (written
+    /// once: one that is still there is replaced).
+    func restore(_ weight: WeightEntry) {
+        let kilograms = weight.kilograms, time = weight.time
+        store.restore([weight])
+        let health = self.health
+        Task { await health.replaceWeight(old: (kilograms, time), new: (kilograms, time)) }
     }
 
     /// Adds a body measurement, or changes `editing`, with Undo.
@@ -560,14 +588,43 @@ final class AppModel {
         TourSchedule().markSeen(NinaTour.catalog)
         tour = nil
         tourModel = nil
+        offerCoachRemindersIfNeeded()
+    }
+
+    // MARK: Coach reminders
+
+    /// iPhone, which sends the coach's reminders by default: asks once per device "Turn on coach
+    /// reminders?" (and with it for notification permission) as soon as a plan is set up – also a
+    /// plan set up on another device and synced, or before this question existed. Waits until no
+    /// sheet or tour is on screen (RootView calls it again when a sheet closes). The settings
+    /// import and the plan editor ask on their own; the answer counts on every path.
+    func offerCoachRemindersIfNeeded() {
+        guard wantsCoachRemindersQuestion, !coachQuestionPending else { return }
+        coachQuestionPending = true
+        Task { @MainActor [weak self] in
+            // Once a closing sheet is gone.
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard let self else { return }
+            self.coachQuestionPending = false
+            if self.wantsCoachRemindersQuestion { self.askCoachReminders = true }
+        }
+    }
+
+    /// Nothing else on screen or about to open (the tour or its "What's new" comes first).
+    private var wantsCoachRemindersQuestion: Bool {
+        guard PlatformInfo.isPhone, !isSandbox, !launch.isDemo, !askCoachReminders,
+              sheet == nil, tour == nil, tourModel == nil,
+              NotificationScheduler.shared.shouldOfferCoachReminders(before: CoachPlan(), after: settings.plan) else { return false }
+        return TourSchedule().stepsToOffer(NinaTour.catalog).isEmpty
     }
 
     // MARK: URLs
 
     /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2],
     /// nina://measure?mode=weekly|full, nina://checkin, nina://daytype/<id> (no id: back to the
-    /// schedule), nina://check/<id>[?state=done|skipped|open], nina://plan, nina://progress, or a
-    /// CSV opened from Files.
+    /// schedule), nina://check/<id>[?state=done|skipped|open], nina://plan, nina://progress,
+    /// nina://review/<phase id> (the phase review; an unknown phase shows Today), or a CSV opened
+    /// from Files.
     func open(_ url: URL) {
         if url.scheme == AppInfo.urlScheme {
             let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -608,6 +665,12 @@ final class AppModel {
                 present(.plan)
             case "progress":
                 showProgress(.body)
+            case "review":
+                if let path, settings.plan.phase(id: path) != nil {
+                    present(.phaseReview(path))
+                } else {
+                    show(day: today)
+                }
             default:
                 show(day: today)
             }
@@ -662,6 +725,10 @@ final class AppModel {
             sheet = .checkIn(currentCheckInWeek)
         case "myplan":
             sheet = .plan
+        case "phase":
+            sheet = .phase(demoPhaseID)
+        case "review":
+            if let id = demoPhaseID { sheet = .phaseReview(id) }
         case "create":
             sheet = .create
         case "add":
@@ -682,6 +749,11 @@ final class AppModel {
             break
         }
         if launch.startTour { startTour() }
+    }
+
+    /// The phase the `phase` and `review` screenshots show: the active one, else the first.
+    private var demoPhaseID: String? {
+        settings.plan.activePhase(on: today)?.id ?? settings.plan.phases.first?.id
     }
 }
 
