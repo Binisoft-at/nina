@@ -961,26 +961,24 @@ public enum BodyCeiling: String, Codable, Sendable, CaseIterable {
 
     /// The ceilings reached in a gain phase from its standard waist readings (any order;
     /// `waists`: day and cm). The base is the last reading on or before the phase start, else the
-    /// first after it; the change since the start compares the latest reading with it. The
+    /// first after it (the baseline tape of a phase imported with an earlier start, or taken the
+    /// morning after); the change since the start compares the latest reading with it. The
     /// waist-to-height ceiling (`heightCm` 0 = unknown) fires only once the ratio rose to 0.5 or
-    /// more during the phase: not from the base reading alone when it was taken by the start (a
-    /// person who starts at 0.5 or more isn't asked to review on day 1), and not when the base
-    /// was already at 0.5 or more. A first reading after the start counts on its own.
+    /// more during the phase: a later reading at 0.5 or more while the base was below it. The base
+    /// reading alone never opens it (a person who starts at 0.5 or more isn't asked to review as
+    /// soon as the baseline tape is saved), nor does a later one when the base was already there.
     public static func reached(phase: CoachPlan.Phase, waists: [(day: DayKey, cm: Double)], heightCm: Double,
                                bodyFat: Double? = nil, bodyFatCeiling: Double = 0) -> [BodyCeiling] {
         guard phase.goal == .gain, let start = phase.start else { return [] }
         let sorted = waists.filter { $0.cm > 0 }.sorted { $0.day < $1.day }
         var change: Double?
         var ratio: Double?
-        if let latest = sorted.last, let base = sorted.last(where: { $0.day <= start }) ?? sorted.first(where: { $0.day >= start }) {
-            if latest.day > base.day { change = latest.cm - base.cm }
+        if let latest = sorted.last, let base = sorted.last(where: { $0.day <= start }) ?? sorted.first(where: { $0.day >= start }),
+           latest.day > base.day {
+            change = latest.cm - base.cm
             if heightCm > 0, let now = BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) {
-                if latest.day > base.day {
-                    let before = BodyComposition.waistToHeight(waistCm: base.cm, heightCm: heightCm) ?? 0
-                    if before < BodyComposition.waistToHeightGuideline - 1e-9 { ratio = now }
-                } else if base.day > start {
-                    ratio = now
-                }
+                let before = BodyComposition.waistToHeight(waistCm: base.cm, heightCm: heightCm) ?? 0
+                if before < BodyComposition.waistToHeightGuideline - 1e-9 { ratio = now }
             }
         }
         return reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio, bodyFat: bodyFat,

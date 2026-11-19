@@ -100,11 +100,12 @@ struct BodyDetailsSiteView: View {
     }
 
     /// Deletes this site's reading only: the other sites measured in the same session stay. The
-    /// whole record goes to the trash only when this was its last site. Both toasts have Undo.
+    /// whole record goes to the trash only when nothing else is left in it (a value of a site this
+    /// build doesn't know yet counts, so it isn't lost). Both toasts have Undo.
     private func delete(_ row: BodyDetailsSiteData.Row) {
         var draft = row.measurement.draft
         draft.values[site] = nil
-        if draft.values.sites.isEmpty {
+        if draft.values.isEmpty {
             app.trash(row.measurement)
         } else {
             _ = app.saveMeasurement(draft, editing: row.measurement, message: "\(site.title) reading deleted")

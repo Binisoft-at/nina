@@ -362,8 +362,11 @@ struct CoachScenarioTests {
     }
 
     @Test func scenarioEndToEnd() {
-        var log: [String] = []
-        func note(_ s: String) { log.append(s); print("SCN " + s) }
+        // The day-by-day log is printed only on request (NINA_SCENARIO_LOG=1), so CI logs stay short.
+        let printLog = ProcessInfo.processInfo.environment["NINA_SCENARIO_LOG"] != nil
+        func note(_ s: String) {
+            if printLog { print("SCN " + s) }
+        }
 
         let start = d("2030-01-03")
         let importNow = start.date(minutes: 6 * 60 + 30, calendar: cal)

@@ -176,11 +176,12 @@ Today's strip shows what is due, so you never have to remember it:
   **Start**, **In a week** and Edit; the current phase runs on until you tap.
 - **Review**: when the 7-day average (never a single weigh-in) reaches the review weight – or in a
   gain phase the waist grew by the limit you set (4 cm unless you change it), waist-to-height
-  reached 0.5 or body fat reached your ceiling – a card asks for a review: where you stand since the start (weight, lean and fat
+  rose to 0.5 since the start or body fat reached your ceiling – a card asks for a review: where you stand since the start (weight, lean and fat
   mass, waist, arm, chest, how well you followed the plan), then **Keep going**, **Hold my weight**
   until the next phase, **Start** the next phase **now** or **Change the end date**. If no full
   measurement was done in the last two weeks, it offers one first. **Decide Later** asks again in
-  7 days.
+  7 days. A decision on a waist or body-fat review doesn't use up the review weight: when the
+  7-day average reaches it later, that review still comes.
 - **A maintenance bridge after a long gain**: when a gain phase has run for more than 12 weeks and a
   fat-loss phase comes next, the review (and the end of the phase) also offers **1 week at
   maintenance first** or **2 weeks at maintenance first**. Nina adds a short maintain phase from the

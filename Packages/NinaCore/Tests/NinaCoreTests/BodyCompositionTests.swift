@@ -492,9 +492,12 @@ struct BodyCompositionTests {
         #expect(reached([("2030-01-07", 91), ("2030-01-14", 91.5)]).isEmpty)
         // Rising to 0.5 during the phase opens it.
         #expect(reached([("2030-01-07", 88.5), ("2030-02-04", 90.2)]) == [.waistToHeight])
-        // No reading by the start: the first one after it counts on its own.
-        #expect(reached([("2030-01-14", 90.5)]) == [.waistToHeight])
+        // No reading by the start: the first one after it is the base (a phase imported with an
+        // earlier start, or the baseline taken the morning after) and never opens it on its own.
+        #expect(reached([("2030-01-14", 90.5)]).isEmpty)
         #expect(reached([("2030-01-14", 85)]).isEmpty)
+        #expect(reached([("2030-01-14", 88), ("2030-02-11", 90.5)]) == [.waistToHeight])
+        #expect(reached([("2030-01-14", 90.5), ("2030-02-11", 91)]).isEmpty)
         // The waist gain since the start (against the last reading on or before it), any order.
         #expect(reached([("2030-02-25", 84.1), ("2029-12-30", 79.5), ("2030-01-06", 80)], height: 0) == [.waistGain])
         #expect(reached([("2030-01-06", 80), ("2030-02-25", 83.9)], height: 0).isEmpty)

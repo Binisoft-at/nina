@@ -412,9 +412,10 @@ struct ImportPreview {
                 let existing = entry.action == .update ? byKey[entry.key] : nil
                 if let existing { undo.foodDrafts.append(ImportFoodState(food: existing, draft: existing.draft)) }
                 let food = store.saveFood(entry.record, editing: existing, source: .imported)
+                // New for Undo whenever no food was changed (also an update whose food is gone).
+                if existing == nil { undo.foods.append(food) }
                 if entry.action == .create {
                     food.importKey = entry.key
-                    undo.foods.append(food)
                     created += 1
                 } else {
                     updated += 1
