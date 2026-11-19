@@ -321,7 +321,8 @@ struct WeightSignalTests {
         #expect(WeightSignal.range(for: maintain) == -0.1...0.1)
         #expect(WeightSignal.status(rate: 0.12, phase: maintain) == .inRange)
         #expect(WeightSignal.status(rate: 0.2, phase: maintain) == .faster)
-        #expect(WeightSignal.status(rate: -0.2, phase: maintain) == .slower)
+        // Maintaining, moving either way is faster than planned (the check-in's words too).
+        #expect(WeightSignal.status(rate: -0.2, phase: maintain) == .faster)
 
         // A gain phase without a rate has nothing to compare with.
         let open = CoachPlan.Phase(id: "4", goal: .gain, start: weightDay("2030-09-01"))

@@ -187,12 +187,16 @@ struct BodyScheduleTests {
         #expect(BodySchedule.checkpointCrossed(avg7History: loss, threshold: 74, goal: .maintain) == nil)
         #expect(BodySchedule.checkpointCrossed(avg7History: [:], threshold: 74, goal: .lose) == nil)
 
-        var cut = CoachPlan.Phase(id: "2", goal: .lose, start: schedDay("2030-04-01"), reviewMin: 73, reviewMax: 74)
+        // A cut fires at the lower review bound too (as on the weight card): 74–75 → 74.
+        var cut = CoachPlan.Phase(id: "2", goal: .lose, start: schedDay("2030-04-01"), reviewMin: 74, reviewMax: 75)
         #expect(BodySchedule.reviewThreshold(of: cut) == 74)
+        #expect(BodySchedule.reviewThreshold(of: cut) == WeightSignal.checkpoint(of: cut))
         #expect(BodySchedule.checkpointCrossed(avg7History: loss, phase: cut) == schedDay("2030-04-03"))
-        cut.reviewMax = 0
+        cut.reviewMin = 73
         #expect(BodySchedule.reviewThreshold(of: cut) == 73)
         #expect(BodySchedule.checkpointCrossed(avg7History: loss, phase: cut) == nil)
+        cut.reviewMin = 0
+        #expect(BodySchedule.reviewThreshold(of: cut) == 75)
         #expect(BodySchedule.reviewThreshold(of: CoachPlan.Phase(id: "3", goal: .maintain, reviewMin: 80)) == nil)
         #expect(BodySchedule.reviewThreshold(of: CoachPlan.Phase(id: "4", goal: .gain)) == nil)
         #expect(BodySchedule.reviewThreshold(of: CoachPlan.Phase(id: "5", goal: .gain, reviewMax: 83)) == 83)

@@ -31,12 +31,13 @@ public enum Adherence {
     }
 
     /// Meals that reached the protein minimum: of `meals` (meal slot ids; empty = every meal with
-    /// something eaten), the ones with at least `minimum` g protein, at most `count` (0 = no cap).
-    /// Without a minimum nothing is counted.
+    /// something eaten), the ones with at least `minimum` g protein in whole grams, as the meal
+    /// header pill shows it (`ProteinMeals.reaches`), at most `count` (0 = no cap). Without a
+    /// minimum nothing is counted.
     public static func proteinMeals(byMeal: [String: NutrientValues], minimum: Double, meals: [String] = [], count: Int = 0) -> Int {
         guard minimum > 0 else { return 0 }
         let ids = meals.isEmpty ? Array(byMeal.keys) : meals
-        let reached = Set(ids).filter { (byMeal[$0]?.value(.protein) ?? 0) + 1e-9 >= minimum }.count
+        let reached = Set(ids).filter { ProteinMeals.reaches(byMeal[$0]?.value(.protein) ?? 0, minimum: minimum) }.count
         return count > 0 ? min(reached, count) : reached
     }
 }

@@ -552,6 +552,17 @@ public struct WeightSignal: Equatable, Sendable {
         /// Outside the range (slower or faster).
         public var isOutside: Bool { self == .slower || self == .faster }
 
+        /// The word for a rate outside the range, in the phase's direction: gaining above the
+        /// range or losing below it is faster, the other side slower; while maintaining, moving
+        /// either way is faster than planned. The check-in uses the same words.
+        public static func outside(above: Bool, goal: WeightGoal) -> Status {
+            switch goal {
+            case .gain: above ? .faster : .slower
+            case .lose: above ? .slower : .faster
+            case .maintain: .faster
+            }
+        }
+
         /// "Off track" (red) only after `count` check-ins in a row outside the range (`recent`
         /// oldest first, the latest last).
         public static func isOffTrack(_ recent: [Status], inARow count: Int = 2) -> Bool {
@@ -584,14 +595,13 @@ public struct WeightSignal: Equatable, Sendable {
     }
 
     /// In range (with the tolerance), slower or faster than planned (in the phase's direction;
-    /// a maintain phase counts upward as faster), or gathering data without a valid rate. nil
-    /// without a range to compare with.
+    /// a maintain phase moving either way is faster, see `Status.outside`), or gathering data
+    /// without a valid rate. nil without a range to compare with.
     public static func status(rate: Double?, phase: CoachPlan.Phase, tolerance: Double = defaultTolerance) -> Status? {
         guard range(for: phase) != nil else { return nil }
         guard let rate, let offset = WeightSignal.deviation(rate, phase: phase, tolerance: tolerance) else { return .gathering }
         if offset == 0 { return .inRange }
-        let above = offset > 0
-        return phase.goal == .lose ? (above ? .slower : .faster) : (above ? .faster : .slower)
+        return .outside(above: offset > 0, goal: phase.goal)
     }
 
     // MARK: Unusual readings and sanity

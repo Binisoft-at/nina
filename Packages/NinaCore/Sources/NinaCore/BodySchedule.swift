@@ -266,29 +266,23 @@ public struct BodySchedule: Equatable, Sendable {
 
     // MARK: Review checkpoint
 
-    /// The weight that fires a phase's review checkpoint: the bound of the review range reached
-    /// first (gain: the lower bound, loss: the upper bound; the other one when only one is set).
-    /// nil for maintain phases or without a review range.
+    /// The weight that fires a phase's review checkpoint: the lower bound of the review range
+    /// (the upper one when only that is set), as `WeightSignal.checkpoint(of:)`. nil for maintain
+    /// phases or without a review range.
     public static func reviewThreshold(of phase: CoachPlan.Phase) -> Double? {
-        let low = phase.reviewMin > 0 ? phase.reviewMin : nil
-        let high = phase.reviewMax > 0 ? phase.reviewMax : nil
-        switch phase.goal {
-        case .gain: return low ?? high
-        case .lose: return high ?? low
-        case .maintain: return nil
-        }
+        WeightSignal.checkpoint(of: phase)
     }
 
     /// The first day (from `since` on) whose 7-day average reached `threshold`: at or above it
-    /// while gaining, at or below it while losing. Single weigh-ins never count; pass valid 7-day
-    /// averages only. nil while maintaining or until it happens.
+    /// while gaining, at or below it while losing (`WeightSignal.hasReached`). Single weigh-ins
+    /// never count; pass valid 7-day averages only (`WeightSignal.averageHistory`). nil while
+    /// maintaining or until it happens.
     public static func checkpointCrossed(avg7History: [DayKey: Double], threshold: Double, goal: WeightGoal,
                                          since: DayKey? = nil) -> DayKey? {
         guard threshold > 0, goal != .maintain else { return nil }
-        let slack = 1e-9
         return avg7History.filter { entry in
             guard entry.value.isFinite, since.map({ entry.key >= $0 }) ?? true else { return false }
-            return goal == .gain ? entry.value >= threshold - slack : entry.value <= threshold + slack
+            return WeightSignal.hasReached(entry.value, checkpoint: threshold, goal: goal)
         }.keys.min()
     }
 

@@ -495,7 +495,7 @@ public enum SettingsCSV {
                 }
             }
             guard count > 0 || !names.isEmpty else { return invalid }
-            draft.plan.proteinMeals = SettingsPlanDraft.ProteinMeals(count: count, names: names)
+            draft.plan.proteinMeals = SettingsPlanDraft.ProteinMealCount(count: count, names: names)
         case "note":
             draft.plan.notes = (draft.plan.notes ?? []) + [value]
         case "not_supported":

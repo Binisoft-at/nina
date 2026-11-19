@@ -219,7 +219,8 @@ public struct SettingsPlanDraft: Equatable, Sendable {
         public var isEmpty: Bool { self == CheckIn() }
     }
 
-    public struct ProteinMeals: Equatable, Sendable {
+    /// protein_meals: a count or meal names. (Not `ProteinMeals`, which is the per-meal protein logic.)
+    public struct ProteinMealCount: Equatable, Sendable {
         /// 0 = one per listed meal.
         public var count: Int
         /// Meal names as written (matched with the meals when applied).
@@ -238,7 +239,7 @@ public struct SettingsPlanDraft: Equatable, Sendable {
 
     /// meal_protein_g: "35-45" (a single value = minimum only).
     public var mealProtein: ClosedRange<Double>?
-    public var proteinMeals: ProteinMeals?
+    public var proteinMeals: ProteinMealCount?
     /// note rows (nil = none in the file).
     public var notes: [String]?
     public var longTerm = LongTerm()

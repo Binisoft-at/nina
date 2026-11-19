@@ -30,6 +30,18 @@ public enum CheckInVerdict: String, Codable, Sendable, CaseIterable, Identifiabl
     }
 }
 
+extension CheckInVerdict {
+    /// The verdict for a weight status (Progress, widget and watch use the same words).
+    public init(_ status: WeightSignal.Status) {
+        switch status {
+        case .inRange: self = .inRange
+        case .slower: self = .slower
+        case .faster: self = .faster
+        case .gathering: self = .gathering
+        }
+    }
+}
+
 /// The one-word status line of a check-in.
 public enum CheckInStatus: String, Codable, Sendable, CaseIterable, Identifiable {
     case onTrack
@@ -225,7 +237,10 @@ public enum CheckInEngine {
 
     /// The rule that decided a check-in.
     public enum Rule: String, Codable, Sendable, CaseIterable {
-        case noPhase, paused, checkpoint, gathering
+        case noPhase, paused, checkpoint
+        /// The active phase has no weekly rate to compare with (a gain or loss phase without one).
+        case noRate
+        case gathering
         /// Adherence gate: too few logged days.
         case logging
         /// Adherence gate: the average intake is too far from the targets.
@@ -273,6 +288,10 @@ public enum CheckInEngine {
         if input.checkpointReached {
             return CheckInResult(verdict: .checkpoint, deviation: deviation, status: weekStatus, rule: .checkpoint,
                                  reason: "Review weight reached – time to review your phase.")
+        }
+        guard WeightSignal.range(for: phase) != nil else {
+            return CheckInResult(verdict: .gathering, status: weekStatus, rule: .noRate,
+                                 reason: "This phase has no weekly rate yet – set one to get proposals.")
         }
 
         // 1. Window.
@@ -399,23 +418,19 @@ public enum CheckInEngine {
 
     // MARK: Pieces
 
-    /// Which side of the phase's signed range (± tolerance) a rate is on; nil inside it.
-    public static func deviation(rate: Double, phase: CoachPlan.Phase, tolerance: Double = 0.03) -> Deviation? {
-        let range = phase.signedRateRange
-        let slack = max(0, tolerance)
-        if rate < range.lowerBound - slack - 1e-9 { return .below }
-        if rate > range.upperBound + slack + 1e-9 { return .above }
-        return nil
+    /// Which side of the phase's range (± tolerance) a rate is on; nil inside it, or when the
+    /// phase has no range. The range is `WeightSignal.range(for:)` (a maintain phase without a
+    /// rate of its own keeps ±0.1 kg/week), so Progress and the check-in always agree.
+    public static func deviation(rate: Double, phase: CoachPlan.Phase, tolerance: Double = WeightSignal.defaultTolerance) -> Deviation? {
+        guard let offset = WeightSignal.deviation(rate, phase: phase, tolerance: max(0, tolerance)), offset != 0 else { return nil }
+        return offset > 0 ? .above : .below
     }
 
     /// "Slower" or "faster" for a side: gaining below the range is slower, losing below it (more
     /// than planned) is faster; while maintaining, moving either way is faster than planned.
+    /// The same words as `WeightSignal.Status`.
     public static func verdict(for deviation: Deviation, goal: WeightGoal) -> CheckInVerdict {
-        switch goal {
-        case .gain: deviation == .below ? .slower : .faster
-        case .lose: deviation == .below ? .faster : .slower
-        case .maintain: .faster
-        }
+        CheckInVerdict(WeightSignal.Status.outside(above: deviation == .above, goal: goal))
     }
 
     /// The step for a rate (rule 5): d = signed midpoint − rate, raw = d × 1,100 kcal,
