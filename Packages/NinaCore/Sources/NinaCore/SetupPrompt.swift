@@ -67,7 +67,7 @@ public enum SetupPrompt {
         let foods = FoodCSV.prompt(appName: appName, existingTags: existingTags)
         let recipes = RecipeCSV.prompt(appName: appName, existingNames: existingRecipes)
         var lines: [String] = []
-        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you: about me (body, goal, training, habits, meal times, preferences), the foods I eat (product names, label photos, my own dishes) and my usual meals and recipes.")
+        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you: about me (body, goal, training, habits, meal times, preferences), my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements), the foods I eat (product names, label photos, my own dishes) and my usual meals and recipes.")
         lines.append("")
         lines.append("## Output rules")
         lines.append("- Answer with up to THREE csv code blocks and nothing else, in this order. Each block starts with its header line. Leave a block out when my notes have nothing for it.")
@@ -82,6 +82,8 @@ public enum SetupPrompt {
         lines.append(contentsOf: SettingsCSV.settingsRules)
         lines.append("")
         lines.append(contentsOf: SettingsCSV.settingsTable.dropFirst())
+        lines.append("")
+        lines.append(contentsOf: SettingsCSV.planSection(heading: "### Coach plan (in block 1, only if my notes describe one)"))
         if !currentSettings.isEmpty {
             lines.append("")
             lines.append("My current settings (change only what my notes say):")

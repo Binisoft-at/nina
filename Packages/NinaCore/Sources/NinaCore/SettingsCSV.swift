@@ -27,6 +27,9 @@ public struct SettingsState: Equatable, Sendable {
     public var waterGlass: Double
     public var activityBonusShare: Double
     public var focus: [Nutrient]
+    /// The coach plan (nil or empty = no plan). With an active phase, goal, rate, target weight,
+    /// targets and training days above mirror it (`CoachPlan.mirror(on:)`).
+    public var plan: CoachPlan?
 
     public init(sex: Sex = .unspecified, birthYear: Int = 0, heightCm: Double = 0, weightKg: Double = 0,
                 activity: ActivityLevel = .light, goal: WeightGoal = .maintain, ratePerWeek: Double = 0.5,
@@ -34,7 +37,7 @@ public struct SettingsState: Equatable, Sendable {
                 trainingTargets: DailyTargets? = nil, trainingDays: Weekdays = Weekdays([]),
                 meals: [MealSlot] = MealSlot.defaults, language: FoodLanguage = .english, energyUnit: EnergyUnit = .kcal,
                 dayStartHour: Int = 0, waterGlass: Double = 250, activityBonusShare: Double = 0,
-                focus: [Nutrient] = [.protein, .carbs, .fat]) {
+                focus: [Nutrient] = [.protein, .carbs, .fat], plan: CoachPlan? = nil) {
         self.sex = sex
         self.birthYear = birthYear
         self.heightCm = heightCm
@@ -54,6 +57,7 @@ public struct SettingsState: Equatable, Sendable {
         self.waterGlass = waterGlass
         self.activityBonusShare = activityBonusShare
         self.focus = focus
+        self.plan = plan
     }
 
     /// Extra calories on training days (0 when training targets are off).
@@ -81,7 +85,10 @@ public struct SettingsDraft: Equatable, Sendable {
     public var weightKg: Double?
     public var activity: ActivityLevel?
     public var goal: WeightGoal?
+    /// The midpoint of `rateRange` (rounded to 0.001).
     public var ratePerWeek: Double?
+    /// rate_kg_per_week as written: 0.15 or a range like 0.1-0.2 (the active phase takes the range).
+    public var rateRange: ClosedRange<Double>?
     public var targetWeight: Double?
     public var macroSplit: MacroSplit?
     /// Percentages written as "30/40/30" (protein/carbs/fat).
@@ -104,7 +111,9 @@ public struct SettingsDraft: Equatable, Sendable {
     public var waterGlass: Double?
     public var activityBonusShare: Double?
     public var focus: [Nutrient]?
-    /// Things the AI found in my notes that Nina can't store yet (rows with setting "not_supported").
+    /// The coach-plan rows and today's body values.
+    public var plan = SettingsPlanDraft()
+    /// Real wishes: what I want the app to do that no setting covers (rows with setting "not_supported").
     public var wishes: [String] = []
     /// Rows that couldn't be read, with the reason.
     public var skipped: [String] = []
@@ -121,7 +130,8 @@ public struct SettingsDraft: Equatable, Sendable {
     public static func == (lhs: SettingsDraft, rhs: SettingsDraft) -> Bool {
         lhs.sex == rhs.sex && lhs.birthYear == rhs.birthYear && lhs.age == rhs.age && lhs.heightCm == rhs.heightCm
             && lhs.weightKg == rhs.weightKg && lhs.activity == rhs.activity && lhs.goal == rhs.goal
-            && lhs.ratePerWeek == rhs.ratePerWeek && lhs.targetWeight == rhs.targetWeight && lhs.macroSplit == rhs.macroSplit
+            && lhs.ratePerWeek == rhs.ratePerWeek && lhs.rateRange == rhs.rateRange && lhs.targetWeight == rhs.targetWeight
+            && lhs.macroSplit == rhs.macroSplit && lhs.plan == rhs.plan
             && lhs.macroPercent?.protein == rhs.macroPercent?.protein && lhs.macroPercent?.carbs == rhs.macroPercent?.carbs
             && lhs.macroPercent?.fat == rhs.macroPercent?.fat && lhs.calories == rhs.calories && lhs.protein == rhs.protein
             && lhs.carbs == rhs.carbs && lhs.fat == rhs.fat && lhs.fiber == rhs.fiber && lhs.sugarMax == rhs.sugarMax
@@ -133,12 +143,26 @@ public struct SettingsDraft: Equatable, Sendable {
     }
 }
 
-/// One line of the preview: "Calories 2200 → 1900 kcal".
+/// One line of the preview: "Calories 2200 → 1900 kcal", in a group ("Targets").
 public struct SettingsChange: Equatable, Sendable, Identifiable {
-    public var id: String { title }
+    public var id: String { "\(group.rawValue):\(title)" }
     public let title: String
     public let old: String
     public let new: String
+    public let group: SettingsGroup
+    /// Body lines: the value's key ("bodyFat", "waist" …) for `SettingsResult.removingBodyValues(_:)`.
+    public let key: String
+
+    public init(title: String, old: String, new: String, group: SettingsGroup = .preferences, key: String = "") {
+        self.title = title
+        self.old = old
+        self.new = new
+        self.group = group
+        self.key = key
+    }
+
+    /// A day type, phase, check or note the file no longer has.
+    public var isRemoval: Bool { new == "removed" }
 }
 
 /// The result of applying a settings file to the current settings.
@@ -147,10 +171,53 @@ public struct SettingsResult: Equatable, Sendable {
     public var changes: [SettingsChange]
     /// A weight to log today (when the file has one that differs from the latest).
     public var newWeight: Double?
-    /// Settings the file gave that couldn't be used, with the reason.
+    /// Settings the file gave that couldn't be used, and checks of what it says (orange in the preview).
     public var notes: [String]
+    /// Today's body values from the file (baseline assessment and tape record).
+    public var bodyRecords: [SettingsBodyRecord] = []
+    /// Rows with setting not_supported.
+    public var wishes: [String] = []
 
-    public var hasChanges: Bool { !changes.isEmpty || newWeight != nil }
+    /// The coach plan after the import (nil or empty = no plan).
+    public var plan: CoachPlan? { state.plan }
+
+    public var hasChanges: Bool { !changes.isEmpty || newWeight != nil || !bodyRecords.isEmpty }
+
+    /// Without the body values the person unticked in the preview (the `key` of their lines).
+    public func removingBodyValues(_ keys: Set<String>) -> SettingsResult {
+        var copy = self
+        copy.bodyRecords = bodyRecords.compactMap { record in
+            var record = record
+            for key in keys { record.values[key] = nil }
+            if record.kind == .assessment, record.values.bodyFat == nil { return nil }
+            return record.values.isEmpty ? nil : record
+        }
+        copy.changes.removeAll { $0.group == .body && !$0.key.isEmpty && keys.contains($0.key) }
+        return copy
+    }
+
+    /// The preview lines by group (Body · Targets · Day types (3) · Phases (2) · …), wishes last.
+    public var sections: [SettingsSection] {
+        let plan = state.plan.flatMap { $0.isEmpty ? nil : $0 }
+        var result: [SettingsSection] = []
+        for group in SettingsGroup.allCases {
+            let lines = group == .notSupported
+                ? wishes.map { SettingsChange(title: $0, old: "", new: "", group: .notSupported) }
+                : changes.filter { $0.group == group }
+            guard !lines.isEmpty else { continue }
+            var title = group.title
+            if let plan {
+                switch group {
+                case .dayTypes: title += " (\(plan.dayTypes.count))"
+                case .phases: title += " (\(plan.phases.count))"
+                case .checks: title += " (\(plan.checks.count))"
+                default: break
+                }
+            }
+            result.append(SettingsSection(group: group, title: title, changes: lines))
+        }
+        return result
+    }
 }
 
 /// Nina's goals & settings file: two columns, `setting,value`, one row per setting – what another AI
@@ -171,10 +238,20 @@ public enum SettingsCSV {
         Key(name: "age", meaning: "Age in years, if the birth year isn't known", example: "", aliases: ["alter"]),
         Key(name: "height_cm", meaning: "Height in cm", example: "171", aliases: ["height", "grosse", "korpergrosse"]),
         Key(name: "weight_kg", meaning: "Current weight in kg (logged as today's weight)", example: "67.3", aliases: ["weight", "gewicht", "current_weight"]),
+        Key(name: "body_fat_percent", meaning: "Body fat in %, if I know it (saved as today's body-fat value)", example: "", aliases: ["body_fat", "korperfett", "kfa", "body_fat_pct", "bodyfat"]),
+        Key(name: "body_fat_method", meaning: "How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scale, skinfold, navy (tape) or estimate (the default)", example: "", aliases: ["body_fat_source", "korperfett_methode"]),
+        Key(name: "neck_cm", meaning: "Neck circumference in cm, just below the larynx (today's tape values; also chest_cm, arm_cm, waist_cm, hip_cm, thigh_cm, calf_cm)", example: "", aliases: ["neck", "hals", "halsumfang"]),
+        Key(name: "chest_cm", meaning: "Chest at nipple height in cm", example: "", aliases: ["chest", "brust", "brustumfang"]),
+        Key(name: "arm_cm", meaning: "Relaxed upper arm in cm", example: "", aliases: ["arm", "upper_arm_cm", "upper_arm", "oberarm", "oberarm_cm"]),
+        Key(name: "waist_cm", meaning: "Waist at the navel in cm", example: "", aliases: ["waist", "bauchumfang", "taille", "bauchumfang_cm", "taille_cm"]),
+        Key(name: "waist_narrow_cm", meaning: "Narrowest waist in cm (women's tape estimate)", example: "", aliases: ["narrow_waist_cm", "narrow_waist"]),
+        Key(name: "hip_cm", meaning: "Hip at the widest point in cm", example: "", aliases: ["hip", "hips", "hufte", "huftumfang", "hufte_cm"]),
+        Key(name: "thigh_cm", meaning: "Thigh halfway between hip crease and kneecap in cm", example: "", aliases: ["thigh", "oberschenkel", "oberschenkel_cm"]),
+        Key(name: "calf_cm", meaning: "Calf at the widest point in cm", example: "", aliases: ["calf", "wade", "wade_cm", "wadenumfang"]),
         Key(name: "activity", meaning: "sedentary (desk job), light (exercise 1–3 days/week), moderate (3–5 days), active (6–7 days), very_active (physical job plus training)", example: "moderate", aliases: ["aktivitat", "activity_level"]),
         Key(name: "goal", meaning: "lose, maintain or gain (weight)", example: "lose", aliases: ["ziel", "weight_goal"]),
-        Key(name: "rate_kg_per_week", meaning: "How fast to lose or gain, kg per week (0.25–1)", example: "0.5", aliases: ["rate", "pace", "tempo", "kg_per_week"]),
-        Key(name: "target_weight_kg", meaning: "Target weight in kg", example: "62", aliases: ["target_weight", "zielgewicht", "goal_weight"]),
+        Key(name: "rate_kg_per_week", meaning: "How fast to lose or gain, kg per week: 0.05–1; a range like 0.1-0.2 is fine", example: "0.5", aliases: ["rate", "pace", "tempo", "kg_per_week"]),
+        Key(name: "target_weight_kg", meaning: "Target weight in kg (of the current phase, if my plan has phases)", example: "62", aliases: ["target_weight", "zielgewicht", "goal_weight"]),
         Key(name: "macro_split", meaning: "balanced, high_protein, low_carb, endurance or keto – or percent of calories as protein/carbs/fat, e.g. 30/40/30", example: "high_protein", aliases: ["macros", "makros", "split", "makroverteilung"]),
         Key(name: "calories", meaning: "Daily calories in kcal – only if I have a fixed number; otherwise leave it out and Nina calculates it from my body data", example: "", aliases: ["kcal", "calories_kcal", "kalorien", "energy", "daily_calories"]),
         Key(name: "protein_g", meaning: "Daily protein in g (only a fixed number)", example: "", aliases: ["protein", "eiweiss"]),
@@ -185,7 +262,9 @@ public enum SettingsCSV {
         Key(name: "saturated_fat_max_g", meaning: "Most saturated fat per day in g", example: "", aliases: ["saturated_fat", "gesattigte_fettsauren"]),
         Key(name: "salt_max_g", meaning: "Most salt per day in g", example: "", aliases: ["salt", "salz", "salt_g"]),
         Key(name: "water_ml", meaning: "Daily water goal in ml", example: "2500", aliases: ["water", "wasser", "water_goal"]),
-        Key(name: "training_days", meaning: "Weekdays with more calories, e.g. mon;wed;fri – or none", example: "mon;wed;fri", aliases: ["trainingstage", "training", "workout_days"]),
+        Key(name: "meal_protein_g", meaning: "Protein per protein meal in g, a range like 35-45 (or just a minimum)", example: "", aliases: ["protein_per_meal_g", "protein_per_meal", "eiweiss_pro_mahlzeit"]),
+        Key(name: "protein_meals", meaning: "Protein meals per day (4) – or which meals, separated by ; (breakfast;lunch;snack;dinner)", example: "", aliases: ["protein_meals_per_day", "protein_meal_count"]),
+        Key(name: "training_days", meaning: "Weekdays with more calories, e.g. mon;wed;fri – or none (with a coach plan use day_type rows instead)", example: "mon;wed;fri", aliases: ["trainingstage", "training", "workout_days"]),
         Key(name: "training_extra_kcal", meaning: "Extra kcal on training days (mostly carbs), e.g. 300", example: "300", aliases: ["training_kcal", "training_calories", "extra_kcal"]),
         Key(name: "meals", meaning: "My meals with their usual time and an emoji, separated by ;", example: "Breakfast 07:30 🥐;Lunch 12:30 🥗;Snack 16:00 🍎;Dinner 19:00 🍝", aliases: ["mahlzeiten", "meal_times"]),
         Key(name: "food_names", meaning: "english or german", example: "german", aliases: ["food_language", "language", "sprache"]),
@@ -194,7 +273,8 @@ public enum SettingsCSV {
         Key(name: "water_glass_ml", meaning: "Size of one glass of water in ml", example: "300", aliases: ["glass", "glass_ml", "glas"]),
         Key(name: "add_burned_calories", meaning: "none, half or all – how much of the calories burned (Apple Health) is added to the day", example: "half", aliases: ["burned_calories", "activity_bonus"]),
         Key(name: "focus_nutrients", meaning: "Up to 4 nutrients shown first, separated by ; (protein, carbs, fat, fiber, sugar, saturated fat, salt, water …)", example: "protein;fiber;sugar", aliases: ["focus", "priorities", "prioritaten"]),
-        Key(name: "not_supported", meaning: "Anything from my notes that doesn't fit one of the settings above (one row each) – Nina lists it so I can ask for it", example: "", aliases: ["unsupported", "wish", "note"]),
+        Key(name: "note", meaning: "Advice from my plan that isn't a setting (training, recovery, timing) – one row each; Nina keeps it in my plan", example: "", aliases: ["plan_note", "notiz", "notes", "hinweis"]),
+        Key(name: "not_supported", meaning: "Only a real wish: something I want the app to do that no row covers (one row each) – Nina lists it so I can ask for it", example: "", aliases: ["unsupported", "wish"]),
     ]
 
     static let canonical: [String: String] = {
@@ -224,15 +304,23 @@ public enum SettingsCSV {
             guard let rawKey = row.first?.trimmingCharacters(in: .whitespaces), !rawKey.isEmpty else { continue }
             // A value with the delimiter in it that wasn't quoted: join the rest back together.
             let value = row.dropFirst().joined(separator: String(delimiter)).trimmingCharacters(in: .whitespaces)
-            guard let key = canonical[ImportColumns.normalize(rawKey)] else {
+            let normalized = ImportColumns.normalize(rawKey)
+            if let key = canonical[normalized] {
+                if value.isEmpty { continue }
+                if let problem = read(key, value, into: &draft) {
+                    draft.skipped.append("\(key): \(problem)")
+                }
+            } else if let planRow = planRow(normalized), planRow != .unknown {
+                if value.isEmpty { continue }
+                if let problem = readPlan(planRow, key: rawKey, value, into: &draft) {
+                    draft.skipped.append("\(rawKey): \(problem)")
+                }
+            } else {
                 draft.skipped.append("\(rawKey): not a setting Nina knows")
-                continue
-            }
-            if value.isEmpty { continue }
-            if let problem = read(key, value, into: &draft) {
-                draft.skipped.append("\(key): \(problem)")
             }
         }
+        // Second pass: day-type ids are checked once every row is read (day types may come last).
+        validatePlan(&draft)
         return draft
     }
 
@@ -280,8 +368,9 @@ public enum SettingsCSV {
             guard let goal = map[word] else { return invalid }
             draft.goal = goal
         case "rate_kg_per_week":
-            guard let rate = number(0.05...1.5) else { return invalid }
-            draft.ratePerWeek = rate
+            guard let range = planRange(value, 0.05...1.0) else { return invalid + " (0.05–1 kg per week; a range like 0.1-0.2 is fine)" }
+            draft.rateRange = range
+            draft.ratePerWeek = ((range.lowerBound + range.upperBound) / 2 * 1000).rounded() / 1000
         case "target_weight_kg":
             guard let weight = number(25...300) else { return invalid }
             draft.targetWeight = weight
@@ -382,6 +471,33 @@ public enum SettingsCSV {
             }
             guard !focus.isEmpty else { return invalid }
             draft.focus = Array(focus.prefix(4))
+        case "body_fat_percent":
+            guard let fat = number(3...60) else { return invalid + " (3–60 %)" }
+            draft.plan.bodyFat = fat
+        case "body_fat_method":
+            guard let method = bodyMethod(named: value) else { return invalid + " (\(methodNames))" }
+            draft.plan.bodyFatMethod = method
+        case "neck_cm", "chest_cm", "arm_cm", "waist_cm", "waist_narrow_cm", "hip_cm", "thigh_cm", "calf_cm":
+            guard let site = bodySite(named: key), let cm = ImportColumns.number(value), site.isPlausible(cm) else { return invalid }
+            draft.plan.tape[site] = cm
+        case "meal_protein_g":
+            guard let range = planRange(value, 5...150) else { return invalid + " (grams like 35-45)" }
+            draft.plan.mealProtein = range
+        case "protein_meals":
+            var count = 0
+            var names: [String] = []
+            for item in ImportColumns.list(value) {
+                if item.first?.isNumber == true, let number = numbers(in: item).first {
+                    guard (1...10).contains(number) else { return invalid + " (1–10 meals)" }
+                    count = Int(number)
+                } else {
+                    names.append(item)
+                }
+            }
+            guard count > 0 || !names.isEmpty else { return invalid }
+            draft.plan.proteinMeals = SettingsPlanDraft.ProteinMeals(count: count, names: names)
+        case "note":
+            draft.plan.notes = (draft.plan.notes ?? []) + [value]
         case "not_supported":
             draft.wishes.append(value)
         default:
@@ -464,11 +580,18 @@ public enum SettingsCSV {
 
     // MARK: Applying
 
-    /// The settings after the file, what changes, and a weight to log. Body data recalculates the
-    /// targets with the goal calculator (as Settings → Goals does); fixed numbers in the file win.
-    public static func apply(_ draft: SettingsDraft, to current: SettingsState, year: Int) -> SettingsResult {
+    /// The settings after the file, what changes, a weight to log and today's body values. Body data
+    /// recalculates the targets with the goal calculator (as Settings → Goals does); fixed numbers in
+    /// the file win. With a coach plan (one there was, or plan rows in the file) the flat goal, rate,
+    /// target weight and targets are the active phase's, and the profile mirrors the plan. `today`
+    /// and `now` date the body records and a phase start the file confirms.
+    public static func apply(_ draft: SettingsDraft, to current: SettingsState, year: Int, today: DayKey = DayKey.today(),
+                             now: Date = Date(), calendar: Calendar = .current) -> SettingsResult {
         var state = current
         var notes: [String] = []
+        let oldPlan = current.plan.flatMap { $0.isEmpty ? nil : $0 }
+        let planMode = oldPlan != nil || draft.plan.hasPlanRows
+        let flatOld = flatTargets(current, today: today)
         if let sex = draft.sex { state.sex = sex }
         if let birthYear = draft.birthYear {
             state.birthYear = birthYear
@@ -490,11 +613,11 @@ public enum SettingsCSV {
             } ?? state.macroSplit
         }
 
-        // Daily targets.
+        // Daily targets (with a plan: the active phase's baseline).
         let bodyGiven = draft.sex != nil || draft.birthYear != nil || draft.age != nil || draft.heightCm != nil || draft.weightKg != nil
             || draft.activity != nil || draft.goal != nil || draft.ratePerWeek != nil || draft.macroSplit != nil || draft.macroPercent != nil
         let canCalculate = state.birthYear > 0 && state.heightCm > 0 && state.weightKg > 0
-        var targets = current.targets
+        var targets = flatOld
         if bodyGiven {
             if canCalculate {
                 let body = BodyProfile(sex: state.sex, age: max(10, year - state.birthYear), heightCm: state.heightCm, weightKg: state.weightKg,
@@ -532,16 +655,26 @@ public enum SettingsCSV {
             // Fixed macros without fixed calories: the calories follow the macros.
             targets.energy = ((targets.protein * 4 + targets.carbs * 4 + targets.fat * 9) / 10).rounded() * 10
         }
+        if let calories = draft.calories, let protein = draft.protein, let carbs = draft.carbs, let fat = draft.fat,
+           let problem = macroProblem(calories: calories, protein: protein, carbs: carbs, fat: fat) {
+            notes.append("calories: \(problem)")
+        }
         state.targets = targets
 
-        // Training days.
-        let extra = draft.trainingExtra ?? (current.trainingTargets != nil ? current.trainingExtra : 300)
-        if let days = draft.trainingDays {
+        // Training days (with day_type rows the day types replace them).
+        let typeRows = planMode && draft.plan.dayTypes != nil
+        if typeRows, draft.trainingDays != nil || draft.trainingExtra != nil {
+            notes.append("training_days: skipped – the day_type rows set the day types")
+        }
+        let trainingDays = typeRows ? nil : draft.trainingDays
+        let trainingExtra = typeRows ? nil : draft.trainingExtra
+        let extra = trainingExtra ?? (current.trainingTargets != nil ? current.trainingExtra : 300)
+        if let days = trainingDays {
             state.trainingDays = days
             state.trainingTargets = days.isEmpty ? nil : SettingsState.training(targets, extra: extra)
         } else if current.trainingTargets != nil {
             state.trainingTargets = SettingsState.training(targets, extra: extra)
-        } else if draft.trainingExtra != nil {
+        } else if trainingExtra != nil {
             notes.append("training_extra_kcal needs training_days (e.g. mon;wed;fri).")
         }
 
@@ -561,66 +694,117 @@ public enum SettingsCSV {
         if let share = draft.activityBonusShare { state.activityBonusShare = share }
         if let focus = draft.focus { state.focus = focus }
 
+        // The coach plan.
+        if planMode {
+            let input = PlanInput(current: current, oldPlan: oldPlan, flatOld: flatOld, flatNew: targets, today: today, now: now, calendar: calendar)
+            applyPlan(draft, input, state: &state, notes: &notes)
+        }
+
+        // Today's body values: the baseline assessment and tape record.
+        var records: [SettingsBodyRecord] = []
+        if let fat = draft.plan.bodyFat {
+            records.append(SettingsBodyRecord(day: today, kind: .assessment, values: BodyValues([BodyValues.bodyFatKey: fat]),
+                                              method: draft.plan.bodyFatMethod ?? .estimate))
+        } else if draft.plan.bodyFatMethod != nil {
+            notes.append("body_fat_method needs body_fat_percent.")
+        }
+        if !draft.plan.tape.isEmpty {
+            records.append(SettingsBodyRecord(day: today, kind: .tape, values: BodyValues(draft.plan.tape)))
+        }
+
         var newWeight: Double?
         if let weight = draft.weightKg, abs(weight - current.weightKg) >= 0.05 { newWeight = weight }
-        var changes = changes(from: current, to: state)
+        var changes = changes(from: current, to: state, today: today)
         if let newWeight {
-            changes.removeAll { $0.title == "Weight" }
-            changes.insert(SettingsChange(title: "Weight (logged today)", old: current.weightKg > 0 ? kg(current.weightKg) : "–", new: kg(newWeight)), at: 0)
+            changes.removeAll { $0.title == "Weight" && $0.group == .body }
+            changes.insert(SettingsChange(title: "Weight (logged today)", old: current.weightKg > 0 ? kg(current.weightKg) : "–", new: kg(newWeight), group: .body), at: 0)
         }
-        return SettingsResult(state: state, changes: changes, newWeight: newWeight, notes: notes)
+        var bodyLines: [SettingsChange] = []
+        for record in records {
+            if record.kind == .assessment, let fat = record.values.bodyFat {
+                bodyLines.append(SettingsChange(title: "Body fat (today)", old: "–",
+                                                new: NumberText.plain(fat, decimals: 1) + " % · " + (record.method ?? .estimate).title,
+                                                group: .body, key: BodyValues.bodyFatKey))
+            } else {
+                let sites = record.values.sites
+                for site in BodySite.allCases {
+                    guard let cm = sites[site] else { continue }
+                    bodyLines.append(SettingsChange(title: "\(site.title) (today)", old: "–", new: NumberText.plain(cm, decimals: 1) + " cm",
+                                                    group: .body, key: site.rawValue))
+                }
+            }
+        }
+        let insertAt = changes.firstIndex { $0.group != .body } ?? changes.count
+        changes.insert(contentsOf: bodyLines, at: insertAt)
+        return SettingsResult(state: state, changes: changes, newWeight: newWeight, notes: notes, bodyRecords: records, wishes: draft.wishes)
     }
 
     static func kg(_ value: Double) -> String { NumberText.plain(value, decimals: 1) + " kg" }
 
-    /// Every setting that differs, in plain words.
-    public static func changes(from old: SettingsState, to new: SettingsState) -> [SettingsChange] {
+    /// Every setting that differs, in plain words and by group. With an active phase its goal, rate
+    /// and target weight are listed under Phases; the flat targets are the active phase's baseline.
+    public static func changes(from old: SettingsState, to new: SettingsState, today: DayKey = DayKey.today()) -> [SettingsChange] {
         var result: [SettingsChange] = []
-        func add(_ title: String, _ a: String, _ b: String) {
-            if a != b { result.append(SettingsChange(title: title, old: a, new: b)) }
+        func add(_ title: String, _ a: String, _ b: String, _ group: SettingsGroup) {
+            if a != b { result.append(SettingsChange(title: title, old: a, new: b, group: group)) }
         }
-        func g(_ value: Double) -> String { NumberText.plain(value.rounded(), decimals: 0) + " g" }
-        add("Sex", old.sex.title, new.sex.title)
-        add("Born", old.birthYear > 0 ? String(old.birthYear) : "–", new.birthYear > 0 ? String(new.birthYear) : "–")
-        add("Height", old.heightCm > 0 ? NumberText.plain(old.heightCm, decimals: 0) + " cm" : "–", new.heightCm > 0 ? NumberText.plain(new.heightCm, decimals: 0) + " cm" : "–")
-        add("Weight", old.weightKg > 0 ? kg(old.weightKg) : "–", new.weightKg > 0 ? kg(new.weightKg) : "–")
-        add("Activity", old.activity.title, new.activity.title)
-        add("Goal", old.goal.title, new.goal.title)
-        if new.goal != .maintain { add("Pace", NumberText.plain(old.ratePerWeek) + " kg/week", NumberText.plain(new.ratePerWeek) + " kg/week") }
-        add("Target weight", old.targetWeight > 0 ? kg(old.targetWeight) : "–", new.targetWeight > 0 ? kg(new.targetWeight) : "–")
-        add("Macro split", old.macroSplit.name, new.macroSplit.name)
-        add("Calories", NumberText.plain(old.targets.energy, decimals: 0) + " kcal", NumberText.plain(new.targets.energy, decimals: 0) + " kcal")
-        add("Protein", g(old.targets.protein), g(new.targets.protein))
-        add("Carbohydrates", g(old.targets.carbs), g(new.targets.carbs))
-        add("Fat", g(old.targets.fat), g(new.targets.fat))
-        add("Fiber", g(old.targets.fiber), g(new.targets.fiber))
-        add("Sugar (max)", g(old.targets.sugarMax), g(new.targets.sugarMax))
-        add("Saturated fat (max)", g(old.targets.saturatedFatMax), g(new.targets.saturatedFatMax))
-        add("Salt (max)", NumberText.plain(old.targets.sodiumMax * 2.5 / 1000, decimals: 1) + " g", NumberText.plain(new.targets.sodiumMax * 2.5 / 1000, decimals: 1) + " g")
-        add("Water", NumberText.plain(old.targets.water, decimals: 0) + " ml", NumberText.plain(new.targets.water, decimals: 0) + " ml")
-        func training(_ state: SettingsState) -> String {
-            guard state.trainingTargets != nil, !state.trainingDays.isEmpty else { return "off" }
-            return "\(state.trainingDays.summary), +\(NumberText.plain(state.trainingExtra, decimals: 0)) kcal"
+        let newPlan = new.plan.flatMap { $0.isEmpty ? nil : $0 }
+        let phaseRules = newPlan?.activePhase(on: today) != nil
+        let typesRule = newPlan?.isSetUp == true
+        add("Sex", old.sex.title, new.sex.title, .body)
+        add("Born", old.birthYear > 0 ? String(old.birthYear) : "–", new.birthYear > 0 ? String(new.birthYear) : "–", .body)
+        add("Height", old.heightCm > 0 ? NumberText.plain(old.heightCm, decimals: 0) + " cm" : "–", new.heightCm > 0 ? NumberText.plain(new.heightCm, decimals: 0) + " cm" : "–", .body)
+        add("Weight", old.weightKg > 0 ? kg(old.weightKg) : "–", new.weightKg > 0 ? kg(new.weightKg) : "–", .body)
+        add("Activity", old.activity.title, new.activity.title, .body)
+        if !phaseRules {
+            add("Goal", old.goal.title, new.goal.title, .targets)
+            if new.goal != .maintain { add("Pace", NumberText.plain(old.ratePerWeek) + " kg/week", NumberText.plain(new.ratePerWeek) + " kg/week", .targets) }
+            add("Target weight", old.targetWeight > 0 ? kg(old.targetWeight) : "–", new.targetWeight > 0 ? kg(new.targetWeight) : "–", .targets)
         }
-        add("Training days", training(old), training(new))
+        add("Macro split", old.macroSplit.name, new.macroSplit.name, .targets)
+        let a = flatTargets(old, today: today), b = flatTargets(new, today: today)
+        add("Calories", NumberText.plain(a.energy, decimals: 0) + " kcal", NumberText.plain(b.energy, decimals: 0) + " kcal", .targets)
+        add("Protein", g(a.protein), g(b.protein), .targets)
+        add("Carbohydrates", g(a.carbs), g(b.carbs), .targets)
+        add("Fat", g(a.fat), g(b.fat), .targets)
+        add("Fiber", g(a.fiber), g(b.fiber), .targets)
+        add("Sugar (max)", g(a.sugarMax), g(b.sugarMax), .targets)
+        add("Saturated fat (max)", g(a.saturatedFatMax), g(b.saturatedFatMax), .targets)
+        add("Salt (max)", NumberText.plain(a.sodiumMax * 2.5 / 1000, decimals: 1) + " g", NumberText.plain(b.sodiumMax * 2.5 / 1000, decimals: 1) + " g", .targets)
+        add("Water", NumberText.plain(a.water, decimals: 0) + " ml", NumberText.plain(b.water, decimals: 0) + " ml", .targets)
+        if !typesRule {
+            func training(_ state: SettingsState) -> String {
+                guard state.trainingTargets != nil, !state.trainingDays.isEmpty else { return "off" }
+                return "\(state.trainingDays.summary), +\(NumberText.plain(state.trainingExtra, decimals: 0)) kcal"
+            }
+            add("Training days", training(old), training(new), .targets)
+        }
+        result += planChanges(from: old, to: new, today: today)
         func meals(_ slots: [MealSlot]) -> String {
             slots.sorted { $0.minutes < $1.minutes }.map { "\($0.emoji) \($0.name) \(ClockTime.text($0.minutes))" }.joined(separator: ", ")
         }
-        add("Meals", meals(old.meals), meals(new.meals))
-        add("Food names", old.language.title, new.language.title)
-        add("Energy unit", old.energyUnit.rawValue, new.energyUnit.rawValue)
-        add("Day starts at", "\(old.dayStartHour):00", "\(new.dayStartHour):00")
-        add("Glass of water", NumberText.plain(old.waterGlass, decimals: 0) + " ml", NumberText.plain(new.waterGlass, decimals: 0) + " ml")
+        add("Meals", meals(old.meals), meals(new.meals), .preferences)
+        add("Food names", old.language.title, new.language.title, .preferences)
+        add("Energy unit", old.energyUnit.rawValue, new.energyUnit.rawValue, .preferences)
+        add("Day starts at", "\(old.dayStartHour):00", "\(new.dayStartHour):00", .preferences)
+        add("Glass of water", NumberText.plain(old.waterGlass, decimals: 0) + " ml", NumberText.plain(new.waterGlass, decimals: 0) + " ml", .preferences)
         func bonus(_ share: Double) -> String { share >= 1 ? "all" : (share > 0 ? "half" : "none") }
-        add("Burned calories added", bonus(old.activityBonusShare), bonus(new.activityBonusShare))
-        add("Shown first", old.focus.map(\.title).joined(separator: ", "), new.focus.map(\.title).joined(separator: ", "))
+        add("Burned calories added", bonus(old.activityBonusShare), bonus(new.activityBonusShare), .preferences)
+        add("Shown first", old.focus.map(\.title).joined(separator: ", "), new.focus.map(\.title).joined(separator: ", "), .preferences)
+        if result.isEmpty, old.plan.flatMap({ $0.isEmpty ? nil : $0 }) != newPlan {
+            // A plan change no line describes (e.g. the order of the day types).
+            result.append(SettingsChange(title: "Coach plan", old: "", new: "updated", group: .phases))
+        }
         return result
     }
 
     // MARK: Writing
 
-    /// The current settings as a file (export, and what the AI can start from).
-    public static func export(_ state: SettingsState) -> String {
+    /// The current settings as a file (export, and what the AI can start from). With a coach plan the
+    /// flat goal, rate, target weight and targets are the active phase's on `today`, and the whole
+    /// plan follows in the dotted format (day_type.*, phase.N.*, check.*, measure.*, checkin.*, note).
+    public static func export(_ state: SettingsState, today: DayKey = DayKey.today()) -> String {
+        let plan = state.plan.flatMap { $0.isEmpty ? nil : $0 }
         var rows: [[String]] = [["setting", "value"]]
         func add(_ key: String, _ value: String) { if !value.isEmpty { rows.append([key, value]) } }
         add("sex", state.sex.rawValue)
@@ -629,23 +813,27 @@ public enum SettingsCSV {
         if state.weightKg > 0 { add("weight_kg", NumberText.plain(state.weightKg, decimals: 1)) }
         add("activity", state.activity == .veryActive ? "very_active" : state.activity.rawValue)
         add("goal", state.goal.rawValue)
-        add("rate_kg_per_week", NumberText.plain(state.ratePerWeek))
+        let rate = plan != nil ? flatRate(state, today: today) : state.ratePerWeek...state.ratePerWeek
+        add("rate_kg_per_week", rangeValue(rate.lowerBound, rate.upperBound))
         if state.targetWeight > 0 { add("target_weight_kg", NumberText.plain(state.targetWeight, decimals: 1)) }
         add("macro_split", splitName(state.macroSplit))
-        add("calories", NumberText.plain(state.targets.energy, decimals: 0))
-        add("protein_g", NumberText.plain(state.targets.protein, decimals: 0))
-        add("carbs_g", NumberText.plain(state.targets.carbs, decimals: 0))
-        add("fat_g", NumberText.plain(state.targets.fat, decimals: 0))
-        add("fiber_g", NumberText.plain(state.targets.fiber, decimals: 0))
-        add("sugar_max_g", NumberText.plain(state.targets.sugarMax, decimals: 0))
-        add("saturated_fat_max_g", NumberText.plain(state.targets.saturatedFatMax, decimals: 0))
-        add("salt_max_g", NumberText.plain(state.targets.sodiumMax * 2.5 / 1000, decimals: 1))
-        add("water_ml", NumberText.plain(state.targets.water, decimals: 0))
-        if state.trainingTargets != nil, !state.trainingDays.isEmpty {
-            add("training_days", state.trainingDays.days.sorted().map { Weekdays.shortNames[$0 - 1].lowercased() }.joined(separator: ";"))
-            add("training_extra_kcal", NumberText.plain(state.trainingExtra, decimals: 0))
-        } else {
-            add("training_days", "none")
+        let targets = flatTargets(state, today: today)
+        add("calories", NumberText.plain(targets.energy, decimals: 0))
+        add("protein_g", NumberText.plain(targets.protein, decimals: 0))
+        add("carbs_g", NumberText.plain(targets.carbs, decimals: 0))
+        add("fat_g", NumberText.plain(targets.fat, decimals: 0))
+        add("fiber_g", NumberText.plain(targets.fiber, decimals: 0))
+        add("sugar_max_g", NumberText.plain(targets.sugarMax, decimals: 0))
+        add("saturated_fat_max_g", NumberText.plain(targets.saturatedFatMax, decimals: 0))
+        add("salt_max_g", NumberText.plain(targets.sodiumMax * 2.5 / 1000, decimals: 1))
+        add("water_ml", NumberText.plain(targets.water, decimals: 0))
+        if plan?.isSetUp != true {
+            if state.trainingTargets != nil, !state.trainingDays.isEmpty {
+                add("training_days", state.trainingDays.days.sorted().map { Weekdays.shortNames[$0 - 1].lowercased() }.joined(separator: ";"))
+                add("training_extra_kcal", NumberText.plain(state.trainingExtra, decimals: 0))
+            } else {
+                add("training_days", "none")
+            }
         }
         add("meals", state.meals.map { "\($0.name) \(ClockTime.text($0.minutes)) \($0.emoji)" }.joined(separator: ";"))
         add("food_names", state.language == .german ? "german" : "english")
@@ -654,6 +842,7 @@ public enum SettingsCSV {
         add("water_glass_ml", NumberText.plain(state.waterGlass, decimals: 0))
         add("add_burned_calories", state.activityBonusShare >= 1 ? "all" : (state.activityBonusShare > 0 ? "half" : "none"))
         add("focus_nutrients", state.focus.map { $0 == .sodium ? "salt" : $0.title.lowercased() }.joined(separator: ";"))
+        rows += planRows(state, today: today)
         return CSV.write(rows)
     }
 
@@ -670,7 +859,7 @@ public enum SettingsCSV {
     /// The prompt for another AI: everything I tell it about me becomes this file.
     public static func prompt(appName: String, current: String? = nil) -> String {
         var lines: [String] = []
-        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you about myself (body, goal, training, habits, my meals and their times, preferences). Write the settings as a CSV with two columns.")
+        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you about myself (body, goal, training, habits, my meals and their times, preferences) and from my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements). Write the settings as a CSV with two columns.")
         lines.append("")
         lines.append("## Output rules")
         lines.append("- Answer with ONE csv code block and nothing else. The first line is exactly this header:")
@@ -678,6 +867,8 @@ public enum SettingsCSV {
         lines.append(contentsOf: settingsRules)
         lines.append("")
         lines.append(contentsOf: settingsTable)
+        lines.append("")
+        lines.append(contentsOf: planSection(heading: "## Coach plan (only if my notes describe one)"))
         if let current, !current.isEmpty {
             lines.append("")
             lines.append("## My current settings in \(appName) (change only what my notes say)")
@@ -695,7 +886,8 @@ public enum SettingsCSV {
         "- One row per setting. Leave out every setting my notes don't say anything about – only the rows in the file change.",
         "- Prefer my body data (birth_year or age, height_cm, weight_kg, activity, goal, rate_kg_per_week) over fixed numbers: Nina calculates calories and macros from them with the Mifflin–St Jeor formula. Write calories or grams only if I give fixed numbers (e.g. from a dietitian).",
         "- Put a value in \"double quotes\" if it contains a comma. Decimal point, not comma (67.5). No units inside number cells.",
-        "- Anything I mention that doesn't fit a setting (e.g. allergies, a diet I follow, a medication, a reminder I want): one row each with setting not_supported – the app shows the list.",
+        "- Advice from my plan that isn't a setting (training, recovery, timing tips): one row each with setting note – Nina keeps it in my plan.",
+        "- Only a real wish that no row covers (e.g. allergies, a diet I follow, a medication, a reminder I want): one row each with setting not_supported – the app shows the list.",
     ]
 
     static var settingsTable: [String] {
