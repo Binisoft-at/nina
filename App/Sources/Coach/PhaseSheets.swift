@@ -51,11 +51,13 @@ struct PhaseSheet: View {
         .sheetFrame(minWidth: 540, minHeight: 720)
     }
 
-    /// A new phase gets a starting rate and the waist check that fit its goal.
+    /// A new phase gets a starting rate and the waist check that fit its goal (a rate the person
+    /// set themselves stays).
     private func goalChanged(to goal: WeightGoal) {
         guard isNew, loaded else { return }
         draft.maxWaistGainCm = CoachPlan.Phase.defaultMaxWaistGain(for: goal)
-        if goal != .maintain, draft.rateMax <= 0 {
+        let defaults: [ClosedRange<Double>] = [PhaseSheetPlan.defaultRate(for: .gain), PhaseSheetPlan.defaultRate(for: .lose)]
+        if goal != .maintain, draft.rateMax <= 0 || defaults.contains(draft.rateRange) {
             let range = PhaseSheetPlan.defaultRate(for: goal)
             draft.rateMin = range.lowerBound
             draft.rateMax = range.upperBound
@@ -193,8 +195,11 @@ struct PhaseSheet: View {
         var high = PhaseSheetFormat.number(reviewMaxText)
         if low > 0, high > 0, low > high { swap(&low, &high) }
         if phase.goal == .maintain {
-            phase.rateMin = 0
-            phase.rateMax = 0
+            // A maintain phase keeps its own band (an imported ±rate); a gain or loss rate goes.
+            if original?.goal != .maintain {
+                phase.rateMin = 0
+                phase.rateMax = 0
+            }
             low = 0
             high = 0
         } else if !reviewOn {
@@ -211,7 +216,14 @@ struct PhaseSheet: View {
         let current = app.store.settings.plan
         var plan = PhaseSheetPlan.placing(builtPhase(), in: current)
         if current.isEmpty { plan.routine = CoachPlan.Routine.defaults(for: app.settings.body.sex) }
-        if let calculation { plan = calculation.applied(to: plan) }
+        if let calculation {
+            // The calculated targets hold from their day on: a later revision (a check-in applied
+            // from tomorrow) would otherwise take over again.
+            if let index = plan.phases.firstIndex(where: { $0.id == calculation.phaseID }) {
+                plan.phases[index].revisions.removeAll { $0.from > calculation.day }
+            }
+            plan = calculation.applied(to: plan)
+        }
         return plan
     }
 
@@ -258,7 +270,7 @@ struct PhaseSheet: View {
 /// Typed numbers of the phase sheet (0 = none).
 private enum PhaseSheetFormat {
     static func text(_ value: Double) -> String {
-        value > 0 ? NumberText.plain(value, decimals: 1) : ""
+        value > 0 ? NumberText.plain(value, decimals: 2) : ""
     }
 
     static func number(_ text: String) -> Double {
@@ -463,7 +475,7 @@ private struct PhaseSheetGoals: View {
     }
 }
 
-/// A number typed into a row: "Target weight [80.5] kg".
+/// A number typed into a row: "Target weight [74.5] kg".
 private struct PhaseSheetNumberField: View {
     let title: String
     @Binding var text: String

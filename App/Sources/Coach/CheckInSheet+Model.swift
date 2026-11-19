@@ -36,6 +36,10 @@ struct CheckInSheetFacts {
     let waistChange: GirthChange?
     /// The note saved with this week's check-in ("" without one).
     let savedNote: String
+    /// The full set and the body-fat assessment when due within the next 7 days (or overdue),
+    /// for "Next week".
+    let nextFull: BodySchedule.Due?
+    let nextAssessment: BodySchedule.Due?
 
     var day: DayKey { evaluation.day }
     var result: CheckInResult { evaluation.result }
@@ -107,9 +111,13 @@ struct CheckInSheetFacts {
         if let waist, waist.isStandard, let before = readings.last(where: { $0.day < waist.day && $0.isStandard }) {
             change = GirthChange(site: site, from: before, to: waist)
         }
+        let horizon = context.today.adding(days: 7, calendar: calendar)
+        let nextFull = context.nextFull.flatMap { $0.day <= horizon ? $0 : nil }
+        let nextAssessment = context.nextAssessment.flatMap { $0.day <= horizon ? $0 : nil }
         return CheckInSheetFacts(evaluation: evaluation, plan: plan, state: state, summary: summary, mornings: mornings,
                                  waistSite: site, waist: waist, waistChange: change,
-                                 savedNote: store.checkInSheetNote(week: day))
+                                 savedNote: store.checkInSheetNote(week: day),
+                                 nextFull: nextFull, nextAssessment: nextAssessment)
     }
 
     /// The waist site to follow: the narrow waist for women, the navel waist otherwise – or the

@@ -160,8 +160,9 @@ struct CheckInSheet: View {
         app.present(.plan)
     }
 
+    /// The weekly sites, or the full set when one is due today.
     private func measureNow() {
-        app.present(.measure(.weekly, nil))
+        app.measureNow()
     }
 }
 
@@ -468,6 +469,7 @@ private struct CheckInNextWeek: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            dueRows
         } header: {
             Text("Next week")
         }
@@ -498,6 +500,21 @@ private struct CheckInNextWeek: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(CheckInSheetStyle.tint(result.status))
         }
+    }
+
+    /// The measurements due in the coming week.
+    @ViewBuilder
+    private var dueRows: some View {
+        if let due = facts.nextFull {
+            LabeledContent("Full measurement", value: dueText(due))
+        }
+        if let due = facts.nextAssessment {
+            LabeledContent("Body-fat assessment", value: dueText(due))
+        }
+    }
+
+    private func dueText(_ due: BodySchedule.Due) -> String {
+        due.day <= facts.evaluation.today ? "Due now" : CheckInSheetText.day(due.day)
     }
 
     /// The engine's sentence; while gathering, the Weight section already says when.
