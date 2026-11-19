@@ -75,9 +75,12 @@ struct BodyPageWeightCard: View {
     }
 
     private var noteLines: [String] {
-        var lines: [String] = []
+        var lines: [String] = weight.eventNotes.map { $0 + "." }
         if let prompt = weight.averagePrompt { lines.append(prompt + ".") }
         if let note = weight.rateNote { lines.append(note) }
+        if let crossCheck = weight.crossCheck {
+            lines.append("Cross-check (2-week change of the average): " + BodyPageText.signed(crossCheck, decimals: 2) + " kg a week.")
+        }
         if let noise = weight.noise {
             lines.append("Your normal day-to-day swing: ±\(Fmt.kilograms(noise)).")
         }
@@ -238,6 +241,14 @@ struct BodyPageWeightChartView: View {
                     Text("Phase end").font(.caption2).foregroundStyle(.secondary)
                 }
         }
+        ForEach(chart.events) { event in
+            RuleMark(x: .value("Started", event.date))
+                .lineStyle(StrokeStyle(lineWidth: 1, dash: [2, 3]))
+                .foregroundStyle(BodyPageStyle.event)
+                .annotation(position: .top, alignment: .leading) {
+                    Text(event.title).font(.caption2).foregroundStyle(.secondary)
+                }
+        }
     }
 }
 
@@ -265,6 +276,9 @@ struct BodyPageWeightLegend: View {
                     if !chart.pauses.isEmpty {
                         item("Paused", shape: AnyView(RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.25)).frame(width: 12, height: 9)))
                     }
+                    if !chart.events.isEmpty {
+                        item("Check started", shape: AnyView(Capsule().fill(BodyPageStyle.event).frame(width: 2, height: 10)))
+                    }
                 }
             }
         }
@@ -276,7 +290,7 @@ struct BodyPageWeightLegend: View {
     }
 
     private var hasSecondRow: Bool {
-        !chart.corridor.isEmpty || chart.hasTagged || !chart.pauses.isEmpty
+        !chart.corridor.isEmpty || chart.hasTagged || !chart.pauses.isEmpty || !chart.events.isEmpty
     }
 
     private func item(_ title: String, shape: AnyView) -> some View {
@@ -295,6 +309,8 @@ struct BodyPageCompositionCard: View {
     let composition: BodyPageComposition
     let today: DayKey
     @AppStorage("nina.body.tip.glycogen") private var glycogenSeen = false
+    /// Device-only, shared with the measure sheet; the page reloads when it changes.
+    @AppStorage(BodyPageKeys.navyFormula) private var navyFormula = ""
 
     var body: some View {
         CardSection(title: "Body composition", symbol: "percent", trailing: composition.latestTitle) {
@@ -324,6 +340,9 @@ struct BodyPageCompositionCard: View {
             }
             if showsGlycogenNote {
                 glycogenNote
+            }
+            if composition.needsFormula {
+                formulaPicker
             }
             ratios
             ForEach(footLines, id: \.self) { line in
@@ -368,6 +387,23 @@ struct BodyPageCompositionCard: View {
             Spacer(minLength: 4)
             Button("OK") { glycogenSeen = true }
                 .font(.footnote.weight(.semibold))
+        }
+    }
+
+    /// Sex "Prefer not to say": asks once which tape formula to use and remembers it on this device.
+    private var formulaPicker: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Pick a formula for the tape estimate (your sex is set to “Prefer not to say”). Nina remembers it on this device.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Picker("Tape formula", selection: $navyFormula) {
+                ForEach(NavyBodyFat.Formula.allCases) { formula in
+                    Text(formula.title).tag(formula.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
         }
     }
 

@@ -1050,9 +1050,11 @@ public enum GirthTrend {
     }
 
     /// The gain-phase line: "arm +0.8, chest +1.4, thigh +1.1 cm; waist +0.4 cm (no clear change)".
-    /// nil without arm, chest, thigh and waist changes.
+    /// nil without arm, chest, thigh and waist changes. Left-side sites (`arm_l`, `thigh_l`) count
+    /// as arm and thigh when the right side isn't there.
     public static func gainLine(_ changes: [GirthChange]) -> String? {
-        let bySite = Dictionary(changes.map { ($0.site, $0) }, uniquingKeysWith: { first, _ in first })
+        let bySite = Dictionary(changes.sorted { !$0.site.isLeft && $1.site.isLeft }.map { ($0.site.base, $0) },
+                                uniquingKeysWith: { first, _ in first })
         let muscles = [BodySite.arm, .chest, .thigh].compactMap { site in
             bySite[site].map { "\(site.rawValue) \(BodyCompositionText.signed($0.change))" }
         }

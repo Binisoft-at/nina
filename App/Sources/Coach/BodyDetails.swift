@@ -377,7 +377,8 @@ enum BodyDetailsText {
 
 // MARK: - All check-ins
 
-/// Every saved check-in, newest first; a tap opens that week's check-in.
+/// Every saved check-in, newest first, with its 7-day average, rate and decision; a tap opens
+/// that week's check-in.
 struct BodyDetailsCheckInsView: View {
     @Environment(AppModel.self) private var app
     @State private var rows: [BodyPageCheckIn] = []
@@ -400,9 +401,14 @@ struct BodyDetailsCheckInsView: View {
             }
         }
         .navigationTitle("Check-ins")
-        .task(id: app.dataVersion) {
-            let store = app.store
-            rows = BodyPageData.checkIns(store.checkIns(), calendar: store.calendar)
+        .task(id: loadKey) {
+            rows = BodyPageData.checkIns(CoachContext.load(app: app, day: app.today))
         }
+    }
+
+    /// Reload on data changes and when Apple Health weigh-ins arrive (the average and rate of a
+    /// check-in that used them are recomputed live, never stored).
+    private var loadKey: String {
+        "\(app.dataVersion)-\(app.health.weightSamples.count)"
     }
 }
