@@ -4,7 +4,10 @@ import Charts
 import BinisoftKit
 import NinaCore
 
-/// Weigh-ins (typed in Nina, plus Apple Health's if allowed) with the trend line.
+/// All weigh-ins (Progress → Body → All weigh-ins): the ones typed in Nina and, when allowed,
+/// the ones from Apple Health (a scale or another app). Health weigh-ins are read live on this
+/// device, marked with a heart and not editable; Nina's open the weigh-in sheet on tap and
+/// swipe to delete with Undo.
 struct WeightView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<WeightEntry> { $0.deletedAt == nil }, sort: \WeightEntry.time, order: .reverse)
@@ -13,85 +16,39 @@ struct WeightView: View {
     private struct Row: Identifiable {
         let id: String
         let day: DayKey
+        let time: Date
         let kilograms: Double
+        let bodyFat: Double
+        let note: String
         let entry: WeightEntry?
     }
 
+    /// Nina's weigh-ins and the live Health ones (never stored), newest first.
     private var rows: [Row] {
-        var byDay: [DayKey: Row] = [:]
-        for (day, kilograms) in app.health.weights {
-            byDay[day] = Row(id: "health-\(day.rawValue)", day: day, kilograms: kilograms, entry: nil)
+        var rows: [Row] = entries.map { entry in
+            Row(id: entry.uuid.uuidString, day: entry.dayKey, time: entry.time, kilograms: entry.kilograms,
+                bodyFat: entry.bodyFat, note: entry.note, entry: entry)
         }
-        for entry in entries {
-            byDay[entry.dayKey] = Row(id: entry.uuid.uuidString, day: entry.dayKey, kilograms: entry.kilograms, entry: entry)
+        let dayStartHour = app.settings.dayStartHour
+        for (index, sample) in app.health.weightSamples.enumerated() {
+            rows.append(Row(id: "health-\(index)-\(sample.date.timeIntervalSince1970)",
+                            day: DayKey(date: sample.date, dayStartHour: dayStartHour), time: sample.date,
+                            kilograms: sample.kilograms, bodyFat: 0, note: "", entry: nil))
         }
-        return byDay.values.sorted { $0.day > $1.day }
+        return rows.sorted { $0.time > $1.time }
     }
 
     var body: some View {
         let rows = self.rows
-        let weights = Dictionary(uniqueKeysWithValues: rows.map { ($0.day, $0.kilograms) })
-        let trend = Insights.weightTrend(weights, through: app.today)
         List {
-            if !rows.isEmpty {
-                Section {
-                    Chart {
-                        ForEach(trend.suffix(120), id: \.day) { point in
-                            if !point.weight.isNaN {
-                                PointMark(x: .value("Day", point.day.date(), unit: .day), y: .value("Weight", point.weight))
-                                    .foregroundStyle(Color.secondary.opacity(0.6))
-                                    .symbolSize(16)
-                            }
-                            if let value = point.trend {
-                                LineMark(x: .value("Day", point.day.date(), unit: .day), y: .value("Trend", value))
-                                    .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Brand.accent)
-                            }
-                        }
-                        if app.settings.targetWeight > 0 {
-                            RuleMark(y: .value("Target", app.settings.targetWeight))
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .chartYScale(domain: .automatic(includesZero: false))
-                    .frame(height: 200)
-                    if let latest = trend.last?.trend {
-                        LabeledContent("Trend weight", value: Fmt.kilograms(latest))
-                    }
-                    if app.settings.targetWeight > 0, let latest = trend.last?.trend {
-                        LabeledContent("To your target", value: Fmt.kilograms(latest - app.settings.targetWeight))
-                    }
-                }
-            }
             Section {
                 ForEach(rows) { row in
-                    HStack {
-                        Text(Fmt.dayTitle(row.day, today: app.today))
-                        Spacer()
-                        Text(Fmt.kilograms(row.kilograms)).monospacedDigit()
-                        if row.entry == nil {
-                            Image(systemName: "heart.fill").foregroundStyle(.pink).font(.caption)
-                                .help("From Apple Health")
-                        }
-                    }
-                    .contentShape(.rect)
-                    .onTapGesture {
-                        if let entry = row.entry { app.sheet = .weight(entry) }
-                    }
-                    .swipeActions {
-                        if let entry = row.entry {
-                            Button("Delete", systemImage: "trash", role: .destructive) {
-                                let trashed = app.store.trash([entry])
-                                app.toasts.show("Weigh-in deleted", symbol: "trash.fill") { app.store.restore(trashed) }
-                            }
-                        }
-                    }
+                    rowView(row)
                 }
-            } header: {
-                Text("Weigh-ins")
             } footer: {
-                Text(app.health.readsWeight ? "♥ = from Apple Health (read on this device, never synced by Nina)." : "Allow Apple Health in Settings to include the weigh-ins from your scale.")
+                if !rows.isEmpty {
+                    Text(footer)
+                }
             }
         }
         .overlay {
@@ -99,19 +56,90 @@ struct WeightView: View {
                 ContentUnavailableView {
                     Label("No weigh-ins yet", systemImage: "scalemass")
                 } description: {
-                    Text("Weigh yourself in the morning, after the bathroom, before breakfast – the trend does the rest.")
+                    Text("Weigh yourself in the morning, after the bathroom, before breakfast – the 7-day average does the rest.")
                 } actions: {
                     Button("Log Weight") { app.sheet = .weight(nil) }
                         .buttonStyle(.borderedProminent)
                 }
             }
         }
-        .navigationTitle("Weight")
+        .navigationTitle("Weigh-ins")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { app.sheet = .weight(nil) } label: { Label("Log Weight", systemImage: "plus") }
             }
         }
+    }
+
+    private var footer: String {
+        app.health.readsWeight
+            ? "♥ = from Apple Health: read on this device, never stored or synced by Nina. Change those in the Health app."
+            : "Allow Apple Health in Settings to include the weigh-ins from your scale."
+    }
+
+    @ViewBuilder
+    private func rowView(_ row: Row) -> some View {
+        if let entry = row.entry {
+            Button {
+                app.sheet = .weight(entry)
+            } label: {
+                WeightRowContent(day: row.day, today: app.today, kilograms: row.kilograms, detail: detail(row), isHealth: false)
+            }
+            .buttonStyle(.plain)
+            .swipeActions {
+                Button("Delete", systemImage: "trash", role: .destructive) { app.trash(entry) }
+            }
+            .contextMenu {
+                Button("Edit", systemImage: "pencil") { app.sheet = .weight(entry) }
+                Button("Delete", systemImage: "trash", role: .destructive) { app.trash(entry) }
+            }
+        } else {
+            WeightRowContent(day: row.day, today: app.today, kilograms: row.kilograms, detail: detail(row), isHealth: true)
+        }
+    }
+
+    /// "07:12 · Salty, Poor sleep · 20.1 % body fat · note", "07:12 · Apple Health".
+    private func detail(_ row: Row) -> String {
+        var parts = [Fmt.time(row.time)]
+        if row.entry == nil { parts.append("Apple Health") }
+        let tags = WeightSignal.Tag.parse(row.note).map(\.title)
+        if !tags.isEmpty { parts.append(tags.joined(separator: ", ")) }
+        if row.bodyFat > 0 { parts.append(BodyPageText.percent(row.bodyFat) + " body fat") }
+        let note = WeightSignal.Tag.note(row.note, setting: []).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty { parts.append(note) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// One weigh-in row: day, detail line, kilograms, a heart for Apple Health.
+private struct WeightRowContent: View {
+    let day: DayKey
+    let today: DayKey
+    let kilograms: Double
+    let detail: String
+    let isHealth: Bool
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Fmt.dayTitle(day, today: today))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 8)
+            Text(Fmt.kilograms(kilograms))
+                .monospacedDigit()
+            if isHealth {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(.pink)
+                    .font(.caption)
+                    .accessibilityLabel("From Apple Health")
+            }
+        }
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -195,12 +223,18 @@ struct WeightEditor: View {
     }
 }
 
-/// Recently Deleted: entries, foods and meals stay 30 days.
+/// Recently Deleted: entries, foods, meals and body measurements stay 30 days.
 struct TrashView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<LogEntry> { $0.deletedAt != nil }, sort: \LogEntry.time, order: .reverse) private var entries: [LogEntry]
     @Query(filter: #Predicate<Food> { $0.deletedAt != nil }) private var foods: [Food]
     @Query(filter: #Predicate<Recipe> { $0.deletedAt != nil }) private var recipes: [Recipe]
+    @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt != nil }, sort: \BodyMeasurement.time, order: .reverse)
+    private var measurements: [BodyMeasurement]
+
+    private var isEmpty: Bool {
+        entries.isEmpty && foods.isEmpty && recipes.isEmpty && measurements.isEmpty
+    }
 
     var body: some View {
         List {
@@ -261,21 +295,49 @@ struct TrashView: View {
                     }
                 }
             }
+            if !measurements.isEmpty {
+                measurementsSection
+            }
         }
         .overlay {
-            if entries.isEmpty, foods.isEmpty, recipes.isEmpty {
-                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods and meals stay here for 30 days."))
+            if isEmpty {
+                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals and measurements stay here for 30 days."))
             }
         }
         .navigationTitle("Recently Deleted")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Empty", role: .destructive) {
-                    app.store.purge(entries)
-                    app.store.purge(foods)
-                    app.store.purge(recipes)
+                    let store = app.store
+                    store.purge(entries)
+                    store.purge(foods)
+                    store.purge(recipes)
+                    store.purge(measurements)
                 }
-                .disabled(entries.isEmpty && foods.isEmpty && recipes.isEmpty)
+                .disabled(isEmpty)
+            }
+        }
+    }
+
+    /// Deleted tape measurements and body-fat values: restore or delete for good.
+    private var measurementsSection: some View {
+        Section("Measurements") {
+            ForEach(measurements) { measurement in
+                VStack(alignment: .leading) {
+                    Text(BodyDetailsText.title(measurement))
+                    Text("\(Fmt.dayTitle(measurement.dayKey, today: app.today)) · \(daysLeft(measurement.deletedAt)) days left")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .swipeActions(edge: .leading) {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([measurement]) }.tint(Brand.accent)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([measurement]) }
+                }
+                .contextMenu {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([measurement]) }
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([measurement]) }
+                }
             }
         }
     }
