@@ -1,0 +1,5 @@
+Bundle layout of Nina.app:
+Debug-iphonesimulator/Nina.app
+Debug-iphonesimulator/Nina.app/PlugIns/NinaWidgets.appex
+Debug-iphonesimulator/Nina.app/Watch/NinaWatch.app
+Debug-iphonesimulator/Nina.app/Watch/NinaWatch.app/PlugIns/NinaWatchWidgets.appex

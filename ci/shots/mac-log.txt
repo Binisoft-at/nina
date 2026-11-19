@@ -1,0 +1,762 @@
+Timestamp               Ty Process[PID:TID]
+2026-11-19 18:53:07.163 A  Nina[39108:1b1bb] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:53:07.164 A  Nina[39108:1b1bb] (libsystem_info.dylib) Resolve user group list
+2026-11-19 18:53:07.164 A  Nina[39108:1b1bb] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:53:08.007 A  Nina[39108:1b1bd] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:53:08.019 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0x10098bfd0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-19 18:53:08.019 Df Nina[39108:1b216] [com.apple.xpc:connection] [0x10098c5b0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.agent
+2026-11-19 18:53:08.083 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-11-19 18:53:08.121 Df Nina[39108:1b216] [com.apple.TipKit:TipKit • Log] Tips configuring shared environment
+2026-11-19 18:53:08.121 Df Nina[39108:1b216] [com.apple.TipKit:TipKit • Log] Tips configuring shared datastore
+2026-11-19 18:53:08.122 Df Nina[39108:1b1bd] [com.apple.UserNotifications:Connections] [at.binisoft.nina] Creating a user notification center
+2026-11-19 18:53:08.125 Df Nina[39108:1b217] [com.apple.xpc:connection] [0x100992cc0] activating connection: mach=true listener=false peer=false name=com.apple.usernotifications.listener
+2026-11-19 18:53:08.219 A  Nina[39108:1b1bd] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:53:08.243 Df Nina[39108:1b217] [com.apple.TipKit:TipKit • Datastore] <private>
+2026-11-19 18:53:09.309 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5180] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.launchservicesd
+2026-11-19 18:53:09.312 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5a40] activating connection: mach=true listener=false peer=false name=com.apple.pasteboard.1
+2026-11-19 18:53:09.313 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5b80] activating connection: mach=true listener=false peer=false name=com.apple.distributed_notifications@Uv3
+2026-11-19 18:53:09.328 Df Nina[39108:1b1bd] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:09.332 A  Nina[39108:1b1bd] (TCC) TCCAccessRequest() IPC
+2026-11-19 18:53:09.332 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] activating connection: mach=true listener=false peer=false name=com.apple.tccd.system
+2026-11-19 18:53:09.346 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] invalidated after the last release of the connection object
+2026-11-19 18:53:09.347 Df Nina[39108:1b1bd] [com.apple.SkyLight:default] server port 0x00005313, session port 0x00005313
+2026-11-19 18:53:09.357 Df Nina[39108:1b1bd] [com.apple.SkyLight:default] New connection 0x546f3 main
+2026-11-19 18:53:09.360 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] CHECKIN: pid=39108
+2026-11-19 18:53:09.365 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] CHECKEDIN: pid=39108 asn=0x0-0x33033 foreground=1
+2026-11-19 18:53:09.365 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:09.365 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] Connection returned listener port: 0x4503
+2026-11-19 18:53:09.367 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaeea4600] activating connection: mach=false listener=false peer=true name=com.apple.xpc.anonymous.0xcaf0f5cc0.peer[127].0xcaeea4600
+2026-11-19 18:53:09.368 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] FRONTLOGGING: version 1
+2026-11-19 18:53:09.368 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] Registered, pid=39108 ASN=0x0,0x33033
+2026-11-19 18:53:09.368 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5e00] activating connection: mach=true listener=false peer=false name=com.apple.analyticsd
+2026-11-19 18:53:09.380 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] Connection returned listener port: 0x4503
+2026-11-19 18:53:09.381 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] BringForward: pid=39108 asn=0x0-0x33033 bringForward=1 foreground=1 uiElement=0 launchedByLS=1 modifiersCount=1 allDisabled=1
+2026-11-19 18:53:09.381 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] BringFrontModifier: pid=39108 asn=0x0-0x33033 Modifier 0 hideAfter=0 hideOthers=0 dontMakeFrontmost=0 mouseDown=0/0 seed=0/0
+2026-11-19 18:53:09.381 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] BringForward: pid=39108 asn=0x0-0x33033
+2026-11-19 18:53:09.381 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] SetFrontProcess: asn=0x0-0x33033 options=0
+2026-11-19 18:53:09.427 Df Nina[39108:1b23e] [com.apple.xpc:connection] [0xcaf0f5f40] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-19 18:53:09.437 Df Nina[39108:1b1bd] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:09.465 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) Could not get size of EAN data (IOConnectCallScalarMethod kAppleNVMeEANGetSize returned 0xE00002E2)
+2026-11-19 18:53:09.466 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) Failed to copy 'aptk' from EAN
+2026-11-19 18:53:09.466 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) Failed to copy APTicket properties. Falling back to default policy.
+2026-11-19 18:53:09.466 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) Creating default MGSysConfigPolicy
+2026-11-19 18:53:09.466 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) CFDictionaryRef copySyscfgDictionary(void) enumeration of <private> failed.
+2026-11-19 18:53:09.466 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) Failed to find key <private>
+2026-11-19 18:53:09.490 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] Connection returned listener port: 0x4503
+2026-11-19 18:53:09.537 Df Nina[39108:1b1bd] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:09.542 Df Nina[39108:1b1bd] [com.apple.AppKit:Appearance] Post-registration system appearance: (HLTB: 1)
+2026-11-19 18:53:09.550 Df Nina[39108:1b1bd] [com.apple.FrontBoard:Common] FBSWorkspace: endpoint monitoring is disabled.
+2026-11-19 18:53:09.550 Df Nina[39108:1b1bd] [com.apple.FrontBoard:Common] FBSWorkspace: default shell endpoint is disabled.
+2026-11-19 18:53:09.550 Df Nina[39108:1b1bd] [com.apple.runningboard:connection] Initializing connection
+2026-11-19 18:53:09.551 Df Nina[39108:1b1bd] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-19 18:53:09.551 Df Nina[39108:1b216] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-19 18:53:09.551 Df Nina[39108:1b216] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-19 18:53:09.551 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f6300] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-19 18:53:09.551 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] Connection returned listener port: 0x4503
+2026-11-19 18:53:09.563 A  Nina[39108:1b217] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:09.582 Df Nina[39108:1b216] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-19 18:53:09.582 Df Nina[39108:1b216] [com.apple.runningboard:connection] Identity resolved as app<application.at.binisoft.nina.3021051.3028934(501)>
+2026-11-19 18:53:09.613 A  Nina[39108:1b216] (AppIntents) appintents:register process
+2026-11-19 18:53:09.719 A  Nina[39108:1b21b] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:09.720 Df Nina[39108:1b1bd] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-11-19 18:53:09.720 Df Nina[39108:1b1bd] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:09.720 Df Nina[39108:1b1bd] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:09.720 Df Nina[39108:1b1bd] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:09.788 Df Nina[39108:1b216] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.788 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f6440] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:09.788 Df Nina[39108:1b216] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:09.789 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f66c0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:09.922 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f66c0] Connection returned listener port: 0xa603
+2026-11-19 18:53:09.932 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f6440] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:09.932 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:09.932 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.933 A  Nina[39108:1b21b] (AppIntents) appintents:register process
+2026-11-19 18:53:09.934 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.934 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f6bc0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:09.934 E  Nina[39108:1b216] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.934 E  Nina[39108:1b216] [com.apple.AppKit:Application] Error registering app with intents framework: Error Domain=NSCocoaErrorDomain Code=4097 UserInfo={NSDebugDescription=<private>}
+2026-11-19 18:53:09.934 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:09.934 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f66c0] Connection returned listener port: 0xa603
+2026-11-19 18:53:09.935 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f6bc0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:09.935 Df Nina[39108:1b216] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:09.935 E  Nina[39108:1b21b] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.935 E  Nina[39108:1b21b] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.935 Df Nina[39108:1b216] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.935 A  Nina[39108:1b216] (AppIntents) appintents:register process
+2026-11-19 18:53:09.937 Df Nina[39108:1b216] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.937 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f6e40] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:09.937 Df Nina[39108:1b216] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:09.938 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f66c0] Connection returned listener port: 0xa603
+2026-11-19 18:53:09.939 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f6e40] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:09.939 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:09.940 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.940 A  Nina[39108:1b21b] (AppIntents) appintents:register process
+2026-11-19 18:53:09.940 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:09.940 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f70c0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:09.941 E  Nina[39108:1b216] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.941 E  Nina[39108:1b216] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.941 Df Nina[39108:1b21b] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:09.941 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f66c0] Connection returned listener port: 0xa603
+2026-11-19 18:53:09.942 Df Nina[39108:1b216] [com.apple.xpc:connection] [0xcaf0f70c0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:09.942 Df Nina[39108:1b216] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:09.942 E  Nina[39108:1b216] [com.apple.appintents:Connection] Will NOT re-try to establish the connection
+2026-11-19 18:53:09.942 E  Nina[39108:1b21b] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:09.942 E  Nina[39108:1b21b] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:10.383 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:10.387 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) couldn't load support library
+2026-11-19 18:53:10.387 Df Nina[39108:1b1bd] (libMobileGestalt.dylib) called dummy function!
+2026-11-19 18:53:10.389 Df Nina[39108:1b1bd] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.gms.availability.notification
+2026-11-19 18:53:10.389 Df Nina[39108:1b1bd] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.os-eligibility-domain.change.greymatter
+2026-11-19 18:53:10.389 Df Nina[39108:1b1bd] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.language.changed
+2026-11-19 18:53:10.389 Df Nina[39108:1b1bd] [com.apple.WritingTools:Default] isAvailable value changed: isMDMAllowed = true, gmAvailable (current) = false
+2026-11-19 18:53:10.391 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:10.452 Df Nina[39108:1b1bd] [com.apple.AppKit:Appearance] NSApp cache appearance:
+-NSRequiresAquaSystemAppearance: 0
+-appearance: (null)
+-effectiveAppearance: <NSCompositeAppearance: 0xcaf059a40
+ (
+    "<NSAquaAppearance: 0xcaf059ae0>",
+    "<NSSystemAppearance: 0xcaf0594a0>"
+)>
+2026-11-19 18:53:10.480 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:10.481 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:10.544 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f7200] activating connection: mach=true listener=false peer=false name=com.apple.dock.fullscreen
+2026-11-19 18:53:10.561 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7340] activating connection: mach=true listener=false peer=false name=com.apple.fonts
+2026-11-19 18:53:10.666 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7480] activating connection: mach=true listener=false peer=false name=com.apple.appkit.restoration_storage
+2026-11-19 18:53:10.668 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f75c0] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.appleevents
+2026-11-19 18:53:10.669 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f5cc0] Connection returned listener port: 0x4503
+2026-11-19 18:53:10.669 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] SignalReady: pid=39108 asn=0x0-0x33033
+2026-11-19 18:53:10.669 Df Nina[39108:1b1bd] [com.apple.processmanager:front-35286506] SIGNAL: pid=39108 asn=0x0x-0x33033
+2026-11-19 18:53:10.671 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:10.678 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7840] activating connection: mach=false listener=false peer=false name=com.apple.ViewBridgeAuxiliary
+2026-11-19 18:53:10.698 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7700] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:10.698 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7980] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:10.698 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7980] Connection returned listener port: 0xbe03
+2026-11-19 18:53:10.701 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7840] invalidated after the last release of the connection object
+2026-11-19 18:53:10.702 Df Nina[39108:1b1bd] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:10.728 Df Nina[39108:1b1bd] [com.apple.AppKit:StateRestoration] -[NSApplication _reopenWindowsAsNecessaryIncludingRestorableState:withFullFidelity:completionHandler:] shouldRestoreState=1 hasPersistentStateToRestore=0 shouldStillRestoreStateAfterPrompting=0
+2026-11-19 18:53:10.728 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7840] activating connection: mach=true listener=false peer=false name=com.apple.window_proxies
+2026-11-19 18:53:10.729 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7840] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-19 18:53:10.730 Df Nina[39108:1b1bd] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:10.754 Df Nina[39108:1b21b] [com.apple.corespotlight:index] (<private>) deleteSearchableItemsWithDomainIdentifiers, protectionClass:(null), domainIdentifiers number:1
+2026-11-19 18:53:10.755 A  Nina[39108:1b21b] (CoreSpotlight) delete-domains
+2026-11-19 18:53:10.756 Df Nina[39108:1b23e] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:10.756 Df Nina[39108:1b23e] (CoreSpotlight) sConnectionName: com.apple.spotlight.IndexAgent
+2026-11-19 18:53:10.756 Df Nina[39108:1b23e] (CoreSpotlight) Start service name com.apple.spotlight.IndexAgent
+2026-11-19 18:53:10.756 Df Nina[39108:1b23e] [com.apple.xpc:connection] [0xcaf0f7840] activating connection: mach=true listener=false peer=false name=com.apple.spotlight.IndexAgent
+2026-11-19 18:53:10.818 Df Nina[39108:1b21b] [com.apple.BoardServices:XPCErrors] [C:1] Alloc <private>
+2026-11-19 18:53:10.818 Df Nina[39108:1b21b] [com.apple.xpc:connection] [0xcaf0f7ac0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:10.917 A  Nina[39108:1b21b] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:10.917 Df Nina[39108:1b21b] [com.apple.corespotlight:index] *warn* MailCS ======%%% _setMailMessageAttributes skip:1
+2026-11-19 18:53:10.917 A  Nina[39108:1b21b] (CoreSpotlight) index-items
+2026-11-19 18:53:10.917 Df Nina[39108:1b21b] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:10.919 Df Nina[39108:1b21b] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:10.987 Df Nina[39108:1b1bd] [com.apple.xpc:connection] [0xcaf0f7c00] activating connection: mach=false listener=false peer=false name=com.apple.hiservices-xpcservice
+2026-11-19 18:53:11.108 Df Nina[39108:1b1bd] [com.apple.AppKit:Screen] NSApplication._react(to:) dock
+2026-11-19 18:53:11.108 Df Nina[39108:1b1bd] [com.apple.AppKit:Screen] NSApplication._react(to:) reactions=83
+2026-11-19 18:53:12.346 Df Nina[39108:1b1bd] [at.binisoft.nina:app] launch: No window after launch – sending a reopen event
+2026-11-19 18:53:12.414 A  Nina[39108:1b1bd] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:13.742 Df Nina[39108:1b1bd] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:13.762 Df Nina[39108:1b217] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-11-19 18:53:13.763 Df Nina[39108:1b217] [com.apple.xpc:session] [0xcad8fa6c0] Session created.
+2026-11-19 18:53:13.763 Df Nina[39108:1b217] [com.apple.xpc:session] [0xcad8fa6c0] Session created from connection [0xcafe908c0]
+2026-11-19 18:53:13.763 Df Nina[39108:1b217] [com.apple.xpc:connection] [0xcafe908c0] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-11-19 18:53:13.764 Df Nina[39108:1b217] [com.apple.xpc:session] [0xcad8fa6c0] Session activated
+2026-11-19 18:53:14.859 Df Nina[39108:1b1bd] (AppKit) WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.
+2026-11-19 18:53:15.023 Df Nina[39108:1b1bd] (AppKit) WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.
+2026-11-19 18:53:15.831 A  Nina[39108:1b21b] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:15.851 A  Nina[39108:1b21b] (CoreSpotlight) index-items
+2026-11-19 18:53:15.852 Df Nina[39108:1b21b] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:15.854 Df Nina[39108:1b23e] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:15.855 Df Nina[39108:1b1bd] [com.apple.AppKit:AutomaticTermination] void _updateToReflectAutomaticTerminationState(void) Setting _kLSApplicationWouldBeTerminatedByTALKey=0
+2026-11-19 18:53:16.032 A  Nina[39108:1b21b] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:16.208 Df Nina[39108:1b23e] [com.apple.TipKit:TipKit • Core] <private>
+2026-11-19 18:53:16.208 Df Nina[39108:1b23e] [com.apple.TipKit:TipKit • Core] <private>
+2026-11-19 18:53:16.210 Df Nina[39108:1b23e] [com.apple.TipKit:TipKit • Core] <private>
+2026-11-19 18:53:17.703 Df Nina[39108:1b217] [com.apple.launchservices:db] NotifyToken::RegisterDispatch(user.uid.501.com.apple.LaunchServices.database) fired for session key <private>
+2026-11-19 18:53:21.674 Df Nina[39108:1b217] [com.apple.launchservices:default] LSExceptions shared instance invalidated for timeout.
+2026-11-19 18:53:21.675 Df Nina[39108:1b250] [com.apple.CoreAnalytics:client] Received configuration update from daemon (initial)
+2026-11-19 18:53:26.829 A  Nina[39822:1b931] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:53:26.839 Df Nina[39822:1b931] [com.apple.xpc:connection] [0x104abb8d0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-19 18:53:26.839 Df Nina[39822:1b939] [com.apple.xpc:connection] [0x104abbeb0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.agent
+2026-11-19 18:53:26.843 Df Nina[39822:1b931] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-11-19 18:53:26.845 Df Nina[39822:1b93a] [com.apple.TipKit:TipKit • Log] Tips configuring shared environment
+2026-11-19 18:53:26.845 Df Nina[39822:1b93a] [com.apple.TipKit:TipKit • Log] Tips configuring shared datastore
+2026-11-19 18:53:26.845 Df Nina[39822:1b931] [com.apple.UserNotifications:Connections] [at.binisoft.nina] Creating a user notification center
+2026-11-19 18:53:26.848 Df Nina[39822:1b939] [com.apple.xpc:connection] [0x104abe3d0] activating connection: mach=true listener=false peer=false name=com.apple.usernotifications.listener
+2026-11-19 18:53:26.878 A  Nina[39822:1b931] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:53:26.887 Df Nina[39822:1b93a] [com.apple.TipKit:TipKit • Datastore] <private>
+2026-11-19 18:53:27.537 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101900] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.launchservicesd
+2026-11-19 18:53:27.539 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101a40] activating connection: mach=true listener=false peer=false name=com.apple.pasteboard.1
+2026-11-19 18:53:27.541 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101b80] activating connection: mach=true listener=false peer=false name=com.apple.distributed_notifications@Uv3
+2026-11-19 18:53:27.547 Df Nina[39822:1b931] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:27.548 A  Nina[39822:1b931] (TCC) TCCAccessRequest() IPC
+2026-11-19 18:53:27.548 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] activating connection: mach=true listener=false peer=false name=com.apple.tccd.system
+2026-11-19 18:53:27.553 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] invalidated after the last release of the connection object
+2026-11-19 18:53:27.554 Df Nina[39822:1b931] [com.apple.SkyLight:default] server port 0x00004213, session port 0x00004213
+2026-11-19 18:53:27.562 Df Nina[39822:1b931] [com.apple.SkyLight:default] New connection 0x53f93 main
+2026-11-19 18:53:27.563 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] CHECKIN: pid=39822
+2026-11-19 18:53:27.568 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] CHECKEDIN: pid=39822 asn=0x0-0x34034 foreground=1
+2026-11-19 18:53:27.569 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:27.569 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] Connection returned listener port: 0x5103
+2026-11-19 18:53:27.569 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba20d8480] activating connection: mach=false listener=false peer=true name=com.apple.xpc.anonymous.0xba3101cc0.peer[127].0xba20d8480
+2026-11-19 18:53:27.570 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] FRONTLOGGING: version 1
+2026-11-19 18:53:27.570 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] Registered, pid=39822 ASN=0x0,0x34034
+2026-11-19 18:53:27.570 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101e00] activating connection: mach=true listener=false peer=false name=com.apple.analyticsd
+2026-11-19 18:53:27.572 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] Connection returned listener port: 0x5103
+2026-11-19 18:53:27.572 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] BringForward: pid=39822 asn=0x0-0x34034 bringForward=1 foreground=1 uiElement=0 launchedByLS=1 modifiersCount=1 allDisabled=1
+2026-11-19 18:53:27.572 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] BringFrontModifier: pid=39822 asn=0x0-0x34034 Modifier 0 hideAfter=0 hideOthers=0 dontMakeFrontmost=0 mouseDown=0/0 seed=0/0
+2026-11-19 18:53:27.572 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] BringForward: pid=39822 asn=0x0-0x34034
+2026-11-19 18:53:27.572 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] SetFrontProcess: asn=0x0-0x34034 options=0
+2026-11-19 18:53:27.588 Df Nina[39822:1b931] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:27.597 Df Nina[39822:1b962] [com.apple.xpc:connection] [0xba3101f40] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-19 18:53:27.607 Df Nina[39822:1b931] (libMobileGestalt.dylib) Could not get size of EAN data (IOConnectCallScalarMethod kAppleNVMeEANGetSize returned 0xE00002E2)
+2026-11-19 18:53:27.608 Df Nina[39822:1b931] (libMobileGestalt.dylib) Failed to copy 'aptk' from EAN
+2026-11-19 18:53:27.608 Df Nina[39822:1b931] (libMobileGestalt.dylib) Failed to copy APTicket properties. Falling back to default policy.
+2026-11-19 18:53:27.608 Df Nina[39822:1b931] (libMobileGestalt.dylib) Creating default MGSysConfigPolicy
+2026-11-19 18:53:27.609 Df Nina[39822:1b931] (libMobileGestalt.dylib) CFDictionaryRef copySyscfgDictionary(void) enumeration of <private> failed.
+2026-11-19 18:53:27.609 Df Nina[39822:1b931] (libMobileGestalt.dylib) Failed to find key <private>
+2026-11-19 18:53:27.628 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] Connection returned listener port: 0x5103
+2026-11-19 18:53:27.644 Df Nina[39822:1b931] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:27.650 Df Nina[39822:1b931] [com.apple.AppKit:Appearance] Post-registration system appearance: (HLTB: 1)
+2026-11-19 18:53:27.658 Df Nina[39822:1b931] [com.apple.FrontBoard:Common] FBSWorkspace: endpoint monitoring is disabled.
+2026-11-19 18:53:27.658 Df Nina[39822:1b931] [com.apple.FrontBoard:Common] FBSWorkspace: default shell endpoint is disabled.
+2026-11-19 18:53:27.659 Df Nina[39822:1b931] [com.apple.runningboard:connection] Initializing connection
+2026-11-19 18:53:27.659 Df Nina[39822:1b931] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-19 18:53:27.659 Df Nina[39822:1b939] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-19 18:53:27.659 Df Nina[39822:1b939] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-19 18:53:27.659 Df Nina[39822:1b939] [com.apple.xpc:connection] [0xba3102300] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-19 18:53:27.659 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] Connection returned listener port: 0x5103
+2026-11-19 18:53:27.659 A  Nina[39822:1b962] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:27.660 Df Nina[39822:1b939] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-19 18:53:27.660 Df Nina[39822:1b939] [com.apple.runningboard:connection] Identity resolved as app<application.at.binisoft.nina.3021051.3028934(501)>
+2026-11-19 18:53:27.676 A  Nina[39822:1b962] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:27.696 A  Nina[39822:1b939] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:27.698 Df Nina[39822:1b931] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-11-19 18:53:27.698 Df Nina[39822:1b931] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:27.699 Df Nina[39822:1b931] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:27.699 Df Nina[39822:1b931] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:28.326 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:28.342 Df Nina[39822:1b931] (libMobileGestalt.dylib) couldn't load support library
+2026-11-19 18:53:28.342 Df Nina[39822:1b931] (libMobileGestalt.dylib) called dummy function!
+2026-11-19 18:53:28.346 Df Nina[39822:1b931] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.gms.availability.notification
+2026-11-19 18:53:28.346 Df Nina[39822:1b931] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.os-eligibility-domain.change.greymatter
+2026-11-19 18:53:28.346 Df Nina[39822:1b931] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.language.changed
+2026-11-19 18:53:28.346 Df Nina[39822:1b931] [com.apple.WritingTools:Default] isAvailable value changed: isMDMAllowed = true, gmAvailable (current) = false
+2026-11-19 18:53:28.354 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:28.371 Df Nina[39822:1b931] [com.apple.AppKit:Appearance] NSApp cache appearance:
+-NSRequiresAquaSystemAppearance: 0
+-appearance: (null)
+-effectiveAppearance: <NSCompositeAppearance: 0xba30817c0
+ (
+    "<NSAquaAppearance: 0xba3081860>",
+    "<NSSystemAppearance: 0xba3081360>"
+)>
+2026-11-19 18:53:28.378 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:28.379 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:28.407 Df Nina[39822:1b93c] [com.apple.xpc:connection] [0xba3102800] activating connection: mach=true listener=false peer=false name=com.apple.dock.fullscreen
+2026-11-19 18:53:28.416 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102940] activating connection: mach=true listener=false peer=false name=com.apple.fonts
+2026-11-19 18:53:28.455 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102a80] activating connection: mach=true listener=false peer=false name=com.apple.appkit.restoration_storage
+2026-11-19 18:53:28.457 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102bc0] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.appleevents
+2026-11-19 18:53:28.458 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3101cc0] Connection returned listener port: 0x5103
+2026-11-19 18:53:28.459 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] SignalReady: pid=39822 asn=0x0-0x34034
+2026-11-19 18:53:28.459 Df Nina[39822:1b931] [com.apple.processmanager:front-35286506] SIGNAL: pid=39822 asn=0x0x-0x34034
+2026-11-19 18:53:28.471 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:28.494 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102e40] activating connection: mach=false listener=false peer=false name=com.apple.ViewBridgeAuxiliary
+2026-11-19 18:53:28.506 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102d00] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:28.506 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102f80] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:28.506 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102f80] Connection returned listener port: 0xf003
+2026-11-19 18:53:28.507 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102e40] invalidated after the last release of the connection object
+2026-11-19 18:53:28.511 Df Nina[39822:1b931] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:28.515 Df Nina[39822:1b931] [com.apple.AppKit:StateRestoration] -[NSApplication _reopenWindowsAsNecessaryIncludingRestorableState:withFullFidelity:completionHandler:] shouldRestoreState=1 hasPersistentStateToRestore=0 shouldStillRestoreStateAfterPrompting=0
+2026-11-19 18:53:28.515 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102e40] activating connection: mach=true listener=false peer=false name=com.apple.window_proxies
+2026-11-19 18:53:28.515 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3102e40] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-19 18:53:28.516 Df Nina[39822:1b931] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:28.526 Df Nina[39822:1b939] [com.apple.corespotlight:index] (<private>) deleteSearchableItemsWithDomainIdentifiers, protectionClass:(null), domainIdentifiers number:1
+2026-11-19 18:53:28.526 A  Nina[39822:1b939] (CoreSpotlight) delete-domains
+2026-11-19 18:53:28.526 Df Nina[39822:1b999] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:28.526 Df Nina[39822:1b999] (CoreSpotlight) sConnectionName: com.apple.spotlight.IndexAgent
+2026-11-19 18:53:28.526 Df Nina[39822:1b999] (CoreSpotlight) Start service name com.apple.spotlight.IndexAgent
+2026-11-19 18:53:28.526 Df Nina[39822:1b999] [com.apple.xpc:connection] [0xba3102e40] activating connection: mach=true listener=false peer=false name=com.apple.spotlight.IndexAgent
+2026-11-19 18:53:28.549 Df Nina[39822:1b999] [com.apple.BoardServices:XPCErrors] [C:1] Alloc <private>
+2026-11-19 18:53:28.549 Df Nina[39822:1b999] [com.apple.xpc:connection] [0xba31030c0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:28.561 A  Nina[39822:1b93a] (AppIntents) appintents:register process
+2026-11-19 18:53:28.629 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:28.629 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103200] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:28.630 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:28.631 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103340] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:28.644 A  Nina[39822:1b939] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:28.644 Df Nina[39822:1b939] [com.apple.corespotlight:index] *warn* MailCS ======%%% _setMailMessageAttributes skip:1
+2026-11-19 18:53:28.644 A  Nina[39822:1b939] (CoreSpotlight) index-items
+2026-11-19 18:53:28.644 Df Nina[39822:1b939] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:28.644 Df Nina[39822:1b962] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:28.776 Df Nina[39822:1b931] [com.apple.xpc:connection] [0xba3103480] activating connection: mach=false listener=false peer=false name=com.apple.hiservices-xpcservice
+2026-11-19 18:53:28.824 Df Nina[39822:1b931] [com.apple.AppKit:Screen] NSApplication._react(to:) dock
+2026-11-19 18:53:28.824 Df Nina[39822:1b931] [com.apple.AppKit:Screen] NSApplication._react(to:) reactions=83
+2026-11-19 18:53:29.013 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103340] Connection returned listener port: 0xec0b
+2026-11-19 18:53:29.122 Df Nina[39822:1b962] [com.apple.xpc:connection] [0xba3103200] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:29.122 Df Nina[39822:1b962] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:29.123 Df Nina[39822:1b962] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.123 A  Nina[39822:1b962] (AppIntents) appintents:register process
+2026-11-19 18:53:29.123 Df Nina[39822:1b962] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.123 Df Nina[39822:1b962] [com.apple.xpc:connection] [0xba3103840] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:29.123 Df Nina[39822:1b962] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:29.123 Df Nina[39822:1b962] [com.apple.xpc:connection] [0xba3103340] Connection returned listener port: 0xec0b
+2026-11-19 18:53:29.124 E  Nina[39822:1b93a] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.124 E  Nina[39822:1b93a] [com.apple.AppKit:Application] Error registering app with intents framework: Error Domain=NSCocoaErrorDomain Code=4097 UserInfo={NSDebugDescription=<private>}
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103840] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:29.125 E  Nina[39822:1b962] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.125 E  Nina[39822:1b962] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.125 A  Nina[39822:1b93a] (AppIntents) appintents:register process
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103ac0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:29.125 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103340] Connection returned listener port: 0xec0b
+2026-11-19 18:53:29.126 Df Nina[39822:1b962] [com.apple.xpc:connection] [0xba3103ac0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:29.126 Df Nina[39822:1b962] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:29.126 E  Nina[39822:1b93a] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.127 E  Nina[39822:1b93a] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.127 Df Nina[39822:1b998] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.127 A  Nina[39822:1b998] (AppIntents) appintents:register process
+2026-11-19 18:53:29.127 Df Nina[39822:1b998] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:29.127 Df Nina[39822:1b998] [com.apple.xpc:connection] [0xba3103d40] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:29.127 Df Nina[39822:1b998] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:29.127 Df Nina[39822:1b998] [com.apple.xpc:connection] [0xba3103340] Connection returned listener port: 0xec0b
+2026-11-19 18:53:29.128 Df Nina[39822:1b93a] [com.apple.xpc:connection] [0xba3103d40] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:29.128 Df Nina[39822:1b93a] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:29.128 E  Nina[39822:1b93a] [com.apple.appintents:Connection] Will NOT re-try to establish the connection
+2026-11-19 18:53:29.128 E  Nina[39822:1b998] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:29.128 E  Nina[39822:1b998] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:30.071 Df Nina[39822:1b931] [at.binisoft.nina:app] launch: No window after launch – sending a reopen event
+2026-11-19 18:53:30.080 A  Nina[39822:1b931] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:30.778 Df Nina[39822:1b931] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:30.779 Df Nina[39822:1b998] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-11-19 18:53:30.779 Df Nina[39822:1b998] [com.apple.xpc:session] [0xba1ae0870] Session created.
+2026-11-19 18:53:30.779 Df Nina[39822:1b998] [com.apple.xpc:session] [0xba1ae0870] Session created from connection [0xba4039400]
+2026-11-19 18:53:30.779 Df Nina[39822:1b998] [com.apple.xpc:connection] [0xba4039400] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-11-19 18:53:30.779 Df Nina[39822:1b998] [com.apple.xpc:session] [0xba1ae0870] Session activated
+2026-11-19 18:53:30.890 Df Nina[39822:1b931] (AppKit) WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.
+2026-11-19 18:53:31.331 Df Nina[39822:1b931] (AppKit) WARNING: Application performed a reentrant operation in its NSTableView delegate. This warning will become an assert in the future.
+2026-11-19 18:53:32.036 A  Nina[39822:1b962] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:32.037 A  Nina[39822:1b962] (CoreSpotlight) index-items
+2026-11-19 18:53:32.037 Df Nina[39822:1b962] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:32.038 Df Nina[39822:1b998] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:32.108 A  Nina[39822:1b962] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:33.405 Df Nina[39822:1b931] [com.apple.AppKit:AutomaticTermination] void _updateToReflectAutomaticTerminationState(void) Setting _kLSApplicationWouldBeTerminatedByTALKey=0
+2026-11-19 18:53:39.496 Df Nina[39822:1b998] [com.apple.CoreAnalytics:client] Received configuration update from daemon (initial)
+2026-11-19 18:53:39.711 Df Nina[39822:1b998] [com.apple.launchservices:default] LSExceptions shared instance invalidated for timeout.
+2026-11-19 18:53:40.493 Df Nina[39822:1b998] [com.apple.CoreAnalytics:client] Entering exit handler.
+2026-11-19 18:53:40.493 Df Nina[39822:1b998] [com.apple.CoreAnalytics:client] Queueing exit procedure onto XPC queue. Any further messages sent will be discarded. activeSendTransactions=0
+2026-11-19 18:53:41.964 A  Nina[40951:1c38a] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:53:41.986 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x100eb7900] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-19 18:53:41.987 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x100eb7ee0] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.agent
+2026-11-19 18:53:41.994 Df Nina[40951:1c38a] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-11-19 18:53:41.994 Df Nina[40951:1c38a] [com.apple.UserNotifications:Connections] [at.binisoft.nina] Creating a user notification center
+2026-11-19 18:53:41.994 Df Nina[40951:1c39b] [com.apple.TipKit:TipKit • Log] Tips configuring shared environment
+2026-11-19 18:53:41.994 Df Nina[40951:1c39b] [com.apple.TipKit:TipKit • Log] Tips configuring shared datastore
+2026-11-19 18:53:41.995 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x100eba910] activating connection: mach=true listener=false peer=false name=com.apple.usernotifications.listener
+2026-11-19 18:53:42.015 A  Nina[40951:1c38a] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:53:42.020 Df Nina[40951:1c39b] [com.apple.TipKit:TipKit • Datastore] <private>
+2026-11-19 18:53:42.794 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913d180] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.launchservicesd
+2026-11-19 18:53:42.795 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913da40] activating connection: mach=true listener=false peer=false name=com.apple.pasteboard.1
+2026-11-19 18:53:42.796 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913db80] activating connection: mach=true listener=false peer=false name=com.apple.distributed_notifications@Uv3
+2026-11-19 18:53:42.805 Df Nina[40951:1c38a] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:42.805 A  Nina[40951:1c38a] (TCC) TCCAccessRequest() IPC
+2026-11-19 18:53:42.806 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] activating connection: mach=true listener=false peer=false name=com.apple.tccd.system
+2026-11-19 18:53:42.812 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] invalidated after the last release of the connection object
+2026-11-19 18:53:42.813 Df Nina[40951:1c38a] [com.apple.SkyLight:default] server port 0x0000530f, session port 0x0000530f
+2026-11-19 18:53:42.822 Df Nina[40951:1c38a] [com.apple.SkyLight:default] New connection 0x401eb main
+2026-11-19 18:53:42.824 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] CHECKIN: pid=40951
+2026-11-19 18:53:42.830 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] CHECKEDIN: pid=40951 asn=0x0-0x35035 foreground=1
+2026-11-19 18:53:42.831 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:42.831 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] Connection returned listener port: 0x4603
+2026-11-19 18:53:42.832 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x9080d0480] activating connection: mach=false listener=false peer=true name=com.apple.xpc.anonymous.0x90913dcc0.peer[127].0x9080d0480
+2026-11-19 18:53:42.834 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] FRONTLOGGING: version 1
+2026-11-19 18:53:42.834 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] Registered, pid=40951 ASN=0x0,0x35035
+2026-11-19 18:53:42.835 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913de00] activating connection: mach=true listener=false peer=false name=com.apple.analyticsd
+2026-11-19 18:53:42.837 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] Connection returned listener port: 0x4603
+2026-11-19 18:53:42.837 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] BringForward: pid=40951 asn=0x0-0x35035 bringForward=1 foreground=1 uiElement=0 launchedByLS=1 modifiersCount=1 allDisabled=1
+2026-11-19 18:53:42.837 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] BringFrontModifier: pid=40951 asn=0x0-0x35035 Modifier 0 hideAfter=0 hideOthers=0 dontMakeFrontmost=0 mouseDown=0/0 seed=0/0
+2026-11-19 18:53:42.837 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] BringForward: pid=40951 asn=0x0-0x35035
+2026-11-19 18:53:42.837 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] SetFrontProcess: asn=0x0-0x35035 options=0
+2026-11-19 18:53:42.846 Df Nina[40951:1c38a] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) Could not get size of EAN data (IOConnectCallScalarMethod kAppleNVMeEANGetSize returned 0xE00002E2)
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) Failed to copy 'aptk' from EAN
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) Failed to copy APTicket properties. Falling back to default policy.
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) Creating default MGSysConfigPolicy
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) CFDictionaryRef copySyscfgDictionary(void) enumeration of <private> failed.
+2026-11-19 18:53:42.855 Df Nina[40951:1c38a] (libMobileGestalt.dylib) Failed to find key <private>
+2026-11-19 18:53:42.863 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] Connection returned listener port: 0x4603
+2026-11-19 18:53:42.871 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913e1c0] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-19 18:53:42.876 Df Nina[40951:1c38a] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:53:42.877 Df Nina[40951:1c38a] [com.apple.AppKit:Appearance] Post-registration system appearance: (HLTB: 1)
+2026-11-19 18:53:42.881 Df Nina[40951:1c38a] [com.apple.FrontBoard:Common] FBSWorkspace: endpoint monitoring is disabled.
+2026-11-19 18:53:42.881 Df Nina[40951:1c38a] [com.apple.FrontBoard:Common] FBSWorkspace: default shell endpoint is disabled.
+2026-11-19 18:53:42.881 Df Nina[40951:1c38a] [com.apple.runningboard:connection] Initializing connection
+2026-11-19 18:53:42.881 Df Nina[40951:1c38a] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-19 18:53:42.881 Df Nina[40951:1c39a] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-19 18:53:42.881 Df Nina[40951:1c39a] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-19 18:53:42.881 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x90913e300] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-19 18:53:42.881 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] Connection returned listener port: 0x4603
+2026-11-19 18:53:42.882 A  Nina[40951:1c39c] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:42.884 Df Nina[40951:1c39a] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-19 18:53:42.884 Df Nina[40951:1c39a] [com.apple.runningboard:connection] Identity resolved as app<application.at.binisoft.nina.3021051.3028934(501)>
+2026-11-19 18:53:42.904 A  Nina[40951:1c39c] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:42.905 Df Nina[40951:1c38a] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-11-19 18:53:42.906 Df Nina[40951:1c38a] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:42.906 Df Nina[40951:1c38a] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:42.906 Df Nina[40951:1c38a] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:53:42.908 A  Nina[40951:1c39b] (AppIntents) appintents:register process
+2026-11-19 18:53:42.909 Df Nina[40951:1c39b] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.909 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913e440] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:42.910 Df Nina[40951:1c39b] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:42.925 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913e580] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:42.943 A  Nina[40951:1c3d8] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:42.959 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913e580] Connection returned listener port: 0x8603
+2026-11-19 18:53:42.962 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x90913e440] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:42.962 Df Nina[40951:1c39a] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:42.963 E  Nina[40951:1c39b] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.963 E  Nina[40951:1c39b] [com.apple.AppKit:Application] Error registering app with intents framework: Error Domain=NSCocoaErrorDomain Code=4097 UserInfo={NSDebugDescription=<private>}
+2026-11-19 18:53:42.963 Df Nina[40951:1c39a] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.963 A  Nina[40951:1c39a] (AppIntents) appintents:register process
+2026-11-19 18:53:42.963 Df Nina[40951:1c39a] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.963 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x90913ebc0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:42.972 Df Nina[40951:1c39a] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:42.972 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x90913e580] Connection returned listener port: 0x8603
+2026-11-19 18:53:42.973 Df Nina[40951:1c3d8] [com.apple.xpc:connection] [0x90913ebc0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:42.973 Df Nina[40951:1c3d8] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:42.973 Df Nina[40951:1c3d8] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.973 A  Nina[40951:1c3d8] (AppIntents) appintents:register process
+2026-11-19 18:53:42.973 Df Nina[40951:1c3d8] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.973 Df Nina[40951:1c3d8] [com.apple.xpc:connection] [0x90913ee40] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:42.974 E  Nina[40951:1c39a] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.974 E  Nina[40951:1c39a] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.974 Df Nina[40951:1c3d8] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:42.974 Df Nina[40951:1c3d8] [com.apple.xpc:connection] [0x90913e580] Connection returned listener port: 0x8603
+2026-11-19 18:53:42.975 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x90913ee40] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:42.975 Df Nina[40951:1c39a] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:42.975 E  Nina[40951:1c3d8] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.975 E  Nina[40951:1c3d8] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.975 Df Nina[40951:1c39c] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.975 A  Nina[40951:1c39c] (AppIntents) appintents:register process
+2026-11-19 18:53:42.975 Df Nina[40951:1c39c] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:53:42.975 Df Nina[40951:1c39c] [com.apple.xpc:connection] [0x90913f0c0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:53:42.975 Df Nina[40951:1c39c] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:53:42.975 Df Nina[40951:1c39c] [com.apple.xpc:connection] [0x90913e580] Connection returned listener port: 0x8603
+2026-11-19 18:53:42.976 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913f0c0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:53:42.976 Df Nina[40951:1c39b] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:53:42.976 E  Nina[40951:1c39b] [com.apple.appintents:Connection] Will NOT re-try to establish the connection
+2026-11-19 18:53:42.976 E  Nina[40951:1c39c] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:42.976 E  Nina[40951:1c39c] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:53:43.042 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:43.045 Df Nina[40951:1c38a] (libMobileGestalt.dylib) couldn't load support library
+2026-11-19 18:53:43.045 Df Nina[40951:1c38a] (libMobileGestalt.dylib) called dummy function!
+2026-11-19 18:53:43.046 Df Nina[40951:1c38a] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.gms.availability.notification
+2026-11-19 18:53:43.046 Df Nina[40951:1c38a] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.os-eligibility-domain.change.greymatter
+2026-11-19 18:53:43.046 Df Nina[40951:1c38a] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.language.changed
+2026-11-19 18:53:43.046 Df Nina[40951:1c38a] [com.apple.WritingTools:Default] isAvailable value changed: isMDMAllowed = true, gmAvailable (current) = false
+2026-11-19 18:53:43.049 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:43.062 Df Nina[40951:1c38a] [com.apple.AppKit:Appearance] NSApp cache appearance:
+-NSRequiresAquaSystemAppearance: 0
+-appearance: (null)
+-effectiveAppearance: <NSCompositeAppearance: 0x9090817c0
+ (
+    "<NSAquaAppearance: 0x9090815e0>",
+    "<NSSystemAppearance: 0x909081360>"
+)>
+2026-11-19 18:53:43.070 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:43.071 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:43.109 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913f200] activating connection: mach=true listener=false peer=false name=com.apple.dock.fullscreen
+2026-11-19 18:53:43.116 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f340] activating connection: mach=true listener=false peer=false name=com.apple.fonts
+2026-11-19 18:53:43.148 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f480] activating connection: mach=true listener=false peer=false name=com.apple.appkit.restoration_storage
+2026-11-19 18:53:43.148 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f5c0] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.appleevents
+2026-11-19 18:53:43.149 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913dcc0] Connection returned listener port: 0x4603
+2026-11-19 18:53:43.150 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] SignalReady: pid=40951 asn=0x0-0x35035
+2026-11-19 18:53:43.150 Df Nina[40951:1c38a] [com.apple.processmanager:front-35286506] SIGNAL: pid=40951 asn=0x0x-0x35035
+2026-11-19 18:53:43.152 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:53:43.160 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f840] activating connection: mach=false listener=false peer=false name=com.apple.ViewBridgeAuxiliary
+2026-11-19 18:53:43.179 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f700] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:43.179 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f980] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:53:43.179 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f980] Connection returned listener port: 0xb603
+2026-11-19 18:53:43.180 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f840] invalidated after the last release of the connection object
+2026-11-19 18:53:43.187 Df Nina[40951:1c38a] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:43.190 Df Nina[40951:1c38a] [com.apple.AppKit:StateRestoration] -[NSApplication _reopenWindowsAsNecessaryIncludingRestorableState:withFullFidelity:completionHandler:] shouldRestoreState=1 hasPersistentStateToRestore=0 shouldStillRestoreStateAfterPrompting=0
+2026-11-19 18:53:43.190 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f840] activating connection: mach=true listener=false peer=false name=com.apple.window_proxies
+2026-11-19 18:53:43.190 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913f840] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-19 18:53:43.192 Df Nina[40951:1c38a] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:53:43.203 Df Nina[40951:1c39a] [com.apple.corespotlight:index] (<private>) deleteSearchableItemsWithDomainIdentifiers, protectionClass:(null), domainIdentifiers number:1
+2026-11-19 18:53:43.203 A  Nina[40951:1c39a] (CoreSpotlight) delete-domains
+2026-11-19 18:53:43.203 Df Nina[40951:1c39c] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:43.203 Df Nina[40951:1c39c] (CoreSpotlight) sConnectionName: com.apple.spotlight.IndexAgent
+2026-11-19 18:53:43.203 Df Nina[40951:1c39c] (CoreSpotlight) Start service name com.apple.spotlight.IndexAgent
+2026-11-19 18:53:43.203 Df Nina[40951:1c39c] [com.apple.xpc:connection] [0x90913f840] activating connection: mach=true listener=false peer=false name=com.apple.spotlight.IndexAgent
+2026-11-19 18:53:43.220 Df Nina[40951:1c39b] [com.apple.BoardServices:XPCErrors] [C:1] Alloc <private>
+2026-11-19 18:53:43.221 Df Nina[40951:1c39b] [com.apple.xpc:connection] [0x90913fac0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:53:43.265 Df Nina[40951:1c39b] [com.apple.CoreAnalytics:client] Received configuration update from daemon (initial)
+2026-11-19 18:53:43.318 A  Nina[40951:1c39b] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:43.318 Df Nina[40951:1c39b] [com.apple.corespotlight:index] *warn* MailCS ======%%% _setMailMessageAttributes skip:1
+2026-11-19 18:53:43.318 A  Nina[40951:1c39b] (CoreSpotlight) index-items
+2026-11-19 18:53:43.318 Df Nina[40951:1c39b] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:43.319 Df Nina[40951:1c39a] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:43.365 Df Nina[40951:1c38a] [com.apple.AppKit:Screen] NSApplication._react(to:) dock
+2026-11-19 18:53:43.365 Df Nina[40951:1c38a] [com.apple.AppKit:Screen] NSApplication._react(to:) reactions=83
+2026-11-19 18:53:43.449 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90913fd40] activating connection: mach=false listener=false peer=false name=com.apple.hiservices-xpcservice
+2026-11-19 18:53:44.815 Df Nina[40951:1c38a] [at.binisoft.nina:app] launch: No window after launch – sending a reopen event
+2026-11-19 18:53:44.823 A  Nina[40951:1c38a] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:53:45.187 Df Nina[40951:1c38a] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:53:45.189 Df Nina[40951:1c39a] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-11-19 18:53:45.189 Df Nina[40951:1c39a] [com.apple.xpc:session] [0x9078c8280] Session created.
+2026-11-19 18:53:45.189 Df Nina[40951:1c39a] [com.apple.xpc:session] [0x9078c8280] Session created from connection [0x909bbea80]
+2026-11-19 18:53:45.189 Df Nina[40951:1c39a] [com.apple.xpc:connection] [0x909bbea80] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-11-19 18:53:45.189 Df Nina[40951:1c39a] [com.apple.xpc:session] [0x9078c8280] Session activated
+2026-11-19 18:53:45.982 A  Nina[40951:1c3bf] (CoreSpotlight) end-index-batch
+2026-11-19 18:53:45.983 A  Nina[40951:1c3bf] (CoreSpotlight) index-items
+2026-11-19 18:53:45.983 Df Nina[40951:1c3bf] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:45.984 Df Nina[40951:1c3bf] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:53:46.327 E  Nina[40951:1c3d8] (Metal) unable to find air64_v27 slice or a compatible one in binary archive '<private>' 
+ available slices: <private>
+2026-11-19 18:53:46.334 E  Nina[40951:1c38a] (libCoreFSCache.dylib) fopen failed for data file: errno = 2 (No such file or directory)
+2026-11-19 18:53:46.334 Df Nina[40951:1c38a] (libCoreFSCache.dylib) Invalidating cache
+2026-11-19 18:53:46.334 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90a0008c0] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-11-19 18:53:46.335 Df Nina[40951:1c38a] [com.apple.xpc:connection] [0x90a000a00] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-11-19 18:53:46.335 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.606 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.613 E  Nina[40951:1c38a] (libCoreFSCache.dylib) fopen failed for data file: errno = 2 (No such file or directory)
+2026-11-19 18:53:46.613 Df Nina[40951:1c38a] (libCoreFSCache.dylib) Invalidating cache
+2026-11-19 18:53:46.613 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.642 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.650 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.656 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.660 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.662 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.667 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.670 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.672 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.676 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.685 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.688 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.693 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.694 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.695 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.709 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.712 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.741 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.745 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.750 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.767 A  Nina[40951:1c3bf] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.781 E  Nina[40951:1c39a] (Metal) unable to find air64_v27 slice or a compatible one in binary archive '<private>' 
+ available slices: <private>
+2026-11-19 18:53:46.789 A  Nina[40951:1c39b] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.802 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.817 A  Nina[40951:1c39b] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.819 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.822 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.828 A  Nina[40951:1c39b] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.830 A  Nina[40951:1c39b] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.833 A  Nina[40951:1c3d8] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.837 A  Nina[40951:1c39b] (Metal) Metal Compiling Shader
+2026-11-19 18:53:46.896 A  Nina[40951:1c3d8] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:53:48.106 Df Nina[40951:1c38a] [com.apple.AppKit:AutomaticTermination] void _updateToReflectAutomaticTerminationState(void) Setting _kLSApplicationWouldBeTerminatedByTALKey=0
+2026-11-19 18:53:54.135 Df Nina[40951:1c39a] [com.apple.launchservices:default] LSExceptions shared instance invalidated for timeout.
+2026-11-19 18:53:54.931 Df Nina[40951:1c39a] [com.apple.UIIntelligenceSupport:xpc] Received agent launch notification with agent PID: 41534
+2026-11-19 18:53:54.960 Df Nina[40951:1c39a] [com.apple.UIIntelligenceSupport:xpc] Connection established with agent PID: 41534
+2026-11-19 18:54:02.270 A  Nina[41634:1ca88] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:54:02.271 A  Nina[41634:1ca88] (libsystem_info.dylib) Resolve user group list
+2026-11-19 18:54:02.271 A  Nina[41634:1ca88] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:54:02.448 A  Nina[41634:1ca89] (libsystem_info.dylib) Retrieve User by ID
+2026-11-19 18:54:02.499 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x104a27b90] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.daemon
+2026-11-19 18:54:02.499 Df Nina[41634:1ca90] [com.apple.xpc:connection] [0x104a28170] activating connection: mach=true listener=false peer=false name=com.apple.cfprefsd.agent
+2026-11-19 18:54:02.507 Df Nina[41634:1ca89] (libMobileGestalt.dylib) No persisted cache on this platform.
+2026-11-19 18:54:02.508 Df Nina[41634:1ca91] [com.apple.TipKit:TipKit • Log] Tips configuring shared environment
+2026-11-19 18:54:02.508 Df Nina[41634:1ca91] [com.apple.TipKit:TipKit • Log] Tips configuring shared datastore
+2026-11-19 18:54:02.508 Df Nina[41634:1ca89] [com.apple.UserNotifications:Connections] [at.binisoft.nina] Creating a user notification center
+2026-11-19 18:54:02.510 Df Nina[41634:1ca92] [com.apple.xpc:connection] [0x104a2a770] activating connection: mach=true listener=false peer=false name=com.apple.usernotifications.listener
+2026-11-19 18:54:02.526 A  Nina[41634:1ca91] (libsystem_info.dylib) Membership API: translate identifier
+2026-11-19 18:54:02.532 Df Nina[41634:1ca91] [com.apple.TipKit:TipKit • Datastore] <private>
+2026-11-19 18:54:03.133 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105900] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.launchservicesd
+2026-11-19 18:54:03.134 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105a40] activating connection: mach=true listener=false peer=false name=com.apple.pasteboard.1
+2026-11-19 18:54:03.134 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105b80] activating connection: mach=true listener=false peer=false name=com.apple.distributed_notifications@Uv3
+2026-11-19 18:54:03.141 Df Nina[41634:1ca89] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:54:03.141 A  Nina[41634:1ca89] (TCC) TCCAccessRequest() IPC
+2026-11-19 18:54:03.141 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] activating connection: mach=true listener=false peer=false name=com.apple.tccd.system
+2026-11-19 18:54:03.147 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] invalidated after the last release of the connection object
+2026-11-19 18:54:03.148 Df Nina[41634:1ca89] [com.apple.SkyLight:default] server port 0x00005213, session port 0x00005213
+2026-11-19 18:54:03.162 Df Nina[41634:1ca89] [com.apple.SkyLight:default] New connection 0x348b7 main
+2026-11-19 18:54:03.163 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] CHECKIN: pid=41634
+2026-11-19 18:54:03.169 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] CHECKEDIN: pid=41634 asn=0x0-0x36036 foreground=1
+2026-11-19 18:54:03.169 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:54:03.169 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] Connection returned listener port: 0x4803
+2026-11-19 18:54:03.171 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] FRONTLOGGING: version 1
+2026-11-19 18:54:03.171 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] Registered, pid=41634 ASN=0x0,0x36036
+2026-11-19 18:54:03.172 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105e00] activating connection: mach=true listener=false peer=false name=com.apple.analyticsd
+2026-11-19 18:54:03.173 Df Nina[41634:1ca90] [com.apple.xpc:connection] [0x7f80c0480] activating connection: mach=false listener=false peer=true name=com.apple.xpc.anonymous.0x7f9105cc0.peer[127].0x7f80c0480
+2026-11-19 18:54:03.173 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] Connection returned listener port: 0x4803
+2026-11-19 18:54:03.174 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] BringForward: pid=41634 asn=0x0-0x36036 bringForward=1 foreground=1 uiElement=0 launchedByLS=1 modifiersCount=1 allDisabled=1
+2026-11-19 18:54:03.174 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] BringFrontModifier: pid=41634 asn=0x0-0x36036 Modifier 0 hideAfter=0 hideOthers=0 dontMakeFrontmost=0 mouseDown=0/0 seed=0/0
+2026-11-19 18:54:03.174 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] BringForward: pid=41634 asn=0x0-0x36036
+2026-11-19 18:54:03.174 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] SetFrontProcess: asn=0x0-0x36036 options=0
+2026-11-19 18:54:03.180 Df Nina[41634:1ca89] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) Could not get size of EAN data (IOConnectCallScalarMethod kAppleNVMeEANGetSize returned 0xE00002E2)
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) Failed to copy 'aptk' from EAN
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) Failed to copy APTicket properties. Falling back to default policy.
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) Creating default MGSysConfigPolicy
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) CFDictionaryRef copySyscfgDictionary(void) enumeration of <private> failed.
+2026-11-19 18:54:03.195 Df Nina[41634:1ca89] (libMobileGestalt.dylib) Failed to find key <private>
+2026-11-19 18:54:03.200 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] Connection returned listener port: 0x4803
+2026-11-19 18:54:03.202 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f91061c0] activating connection: mach=true listener=false peer=false name=com.apple.lsd.mapdb
+2026-11-19 18:54:03.205 Df Nina[41634:1ca89] [com.apple.AppKit:Appearance] Current system appearance, (HLTB: 1), (SLS: 0)
+2026-11-19 18:54:03.208 Df Nina[41634:1ca89] [com.apple.AppKit:Appearance] Post-registration system appearance: (HLTB: 1)
+2026-11-19 18:54:03.212 Df Nina[41634:1ca89] [com.apple.FrontBoard:Common] FBSWorkspace: endpoint monitoring is disabled.
+2026-11-19 18:54:03.212 Df Nina[41634:1ca89] [com.apple.FrontBoard:Common] FBSWorkspace: default shell endpoint is disabled.
+2026-11-19 18:54:03.212 Df Nina[41634:1ca89] [com.apple.runningboard:connection] Initializing connection
+2026-11-19 18:54:03.212 Df Nina[41634:1ca89] [com.apple.runningboard:process] Removing all cached process handles
+2026-11-19 18:54:03.212 Df Nina[41634:1ca91] [com.apple.runningboard:connection] Sending handshake request attempt #1 to server
+2026-11-19 18:54:03.212 Df Nina[41634:1ca91] [com.apple.runningboard:connection] Creating connection to com.apple.runningboard
+2026-11-19 18:54:03.212 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9106300] activating connection: mach=true listener=false peer=false name=com.apple.runningboard
+2026-11-19 18:54:03.213 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] Connection returned listener port: 0x4803
+2026-11-19 18:54:03.213 A  Nina[41634:1ca9c] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:54:03.214 Df Nina[41634:1ca91] [com.apple.runningboard:connection] Handshake succeeded
+2026-11-19 18:54:03.214 Df Nina[41634:1ca91] [com.apple.runningboard:connection] Identity resolved as app<application.at.binisoft.nina.3021051.3028934(501)>
+2026-11-19 18:54:03.214 A  Nina[41634:1caa6] (AppIntents) appintents:register process
+2026-11-19 18:54:03.219 Df Nina[41634:1caa6] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.220 Df Nina[41634:1caa6] [com.apple.xpc:connection] [0x7f9106440] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:54:03.220 Df Nina[41634:1caa6] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:54:03.220 Df Nina[41634:1caa6] [com.apple.xpc:connection] [0x7f9106580] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:54:03.225 Df Nina[41634:1caa6] [com.apple.xpc:connection] [0x7f9106580] Connection returned listener port: 0x8303
+2026-11-19 18:54:03.226 A  Nina[41634:1ca9c] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:54:03.226 Df Nina[41634:1ca89] [com.apple.dt.xctest:Default] Registering for test daemon availability notify post.
+2026-11-19 18:54:03.227 Df Nina[41634:1ca89] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:54:03.227 Df Nina[41634:1ca89] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:54:03.227 Df Nina[41634:1ca89] [com.apple.dt.xctest:Default] notify_get_state check indicated test daemon not ready.
+2026-11-19 18:54:03.254 Df Nina[41634:1ca9c] [com.apple.xpc:connection] [0x7f9106440] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:54:03.256 Df Nina[41634:1ca9c] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:54:03.256 Df Nina[41634:1ca9c] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.257 A  Nina[41634:1ca9c] (AppIntents) appintents:register process
+2026-11-19 18:54:03.257 Df Nina[41634:1ca9c] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.257 Df Nina[41634:1ca9c] [com.apple.xpc:connection] [0x7f9106bc0] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:54:03.257 E  Nina[41634:1caa6] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.258 E  Nina[41634:1caa6] [com.apple.AppKit:Application] Error registering app with intents framework: Error Domain=NSCocoaErrorDomain Code=4097 UserInfo={NSDebugDescription=<private>}
+2026-11-19 18:54:03.258 Df Nina[41634:1ca9c] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:54:03.258 Df Nina[41634:1ca9c] [com.apple.xpc:connection] [0x7f9106580] Connection returned listener port: 0x8303
+2026-11-19 18:54:03.282 A  Nina[41634:1ca92] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:54:03.314 Df Nina[41634:1ca92] [com.apple.xpc:connection] [0x7f9106bc0] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:54:03.314 Df Nina[41634:1ca92] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:54:03.324 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:54:03.330 Df Nina[41634:1ca89] (libMobileGestalt.dylib) couldn't load support library
+2026-11-19 18:54:03.330 Df Nina[41634:1ca89] (libMobileGestalt.dylib) called dummy function!
+2026-11-19 18:54:03.331 Df Nina[41634:1ca89] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.gms.availability.notification
+2026-11-19 18:54:03.331 Df Nina[41634:1ca89] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.os-eligibility-domain.change.greymatter
+2026-11-19 18:54:03.331 Df Nina[41634:1ca89] [com.apple.GenerativeModels:availability] registering darwin observer for name: com.apple.language.changed
+2026-11-19 18:54:03.331 Df Nina[41634:1ca89] [com.apple.WritingTools:Default] isAvailable value changed: isMDMAllowed = true, gmAvailable (current) = false
+2026-11-19 18:54:03.335 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:54:03.347 Df Nina[41634:1caa6] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.347 A  Nina[41634:1caa6] (AppIntents) appintents:register process
+2026-11-19 18:54:03.347 Df Nina[41634:1caa6] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.347 Df Nina[41634:1caa6] [com.apple.xpc:connection] [0x7f9106940] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:54:03.348 Df Nina[41634:1caa6] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:54:03.348 E  Nina[41634:1ca9c] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.348 E  Nina[41634:1ca9c] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.348 Df Nina[41634:1caa6] [com.apple.xpc:connection] [0x7f9106580] Connection returned listener port: 0x8303
+2026-11-19 18:54:03.348 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9106940] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:54:03.348 Df Nina[41634:1ca91] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:54:03.348 Df Nina[41634:1ca91] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.348 A  Nina[41634:1ca91] (AppIntents) appintents:register process
+2026-11-19 18:54:03.349 Df Nina[41634:1ca91] [com.apple.appintents:Connection] Created a new Process Instance Registry XPC connection (inactive)
+2026-11-19 18:54:03.349 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9106e40] activating connection: mach=true listener=false peer=false name=com.apple.linkd.autoShortcut
+2026-11-19 18:54:03.349 E  Nina[41634:1caa6] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.349 E  Nina[41634:1caa6] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.349 Df Nina[41634:1ca91] [com.apple.appintents:Connection] Activated connection to linkd (ApplicationService)
+2026-11-19 18:54:03.349 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9106580] Connection returned listener port: 0x8303
+2026-11-19 18:54:03.349 Df Nina[41634:1ca9c] [com.apple.xpc:connection] [0x7f9106e40] Re-initialization successful; calling out to event handler with XPC_ERROR_CONNECTION_INTERRUPTED
+2026-11-19 18:54:03.349 Df Nina[41634:1ca9c] [com.apple.appintents:Connection] Process Instance Registry XPC connection has been interrupted
+2026-11-19 18:54:03.349 E  Nina[41634:1ca9c] [com.apple.appintents:Connection] Will NOT re-try to establish the connection
+2026-11-19 18:54:03.349 E  Nina[41634:1ca91] [com.apple.appintents:Connection] Unable to get synchronousRemoteObjectProxy, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.349 E  Nina[41634:1ca91] [com.apple.appintents:Connection] Unable to re-register with Process Instance Registry, error: Error Domain=NSCocoaErrorDomain Code=4097 "connection to service named com.apple.linkd.autoShortcut" UserInfo={NSDebugDescription=connection to service named com.apple.linkd.autoShortcut}
+2026-11-19 18:54:03.350 Df Nina[41634:1ca89] [com.apple.AppKit:Appearance] NSApp cache appearance:
+-NSRequiresAquaSystemAppearance: 0
+-appearance: (null)
+-effectiveAppearance: <NSCompositeAppearance: 0x7f90857c0
+ (
+    "<NSAquaAppearance: 0x7f90855e0>",
+    "<NSSystemAppearance: 0x7f90852c0>"
+)>
+2026-11-19 18:54:03.364 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:54:03.364 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:54:03.386 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9107200] activating connection: mach=true listener=false peer=false name=com.apple.dock.fullscreen
+2026-11-19 18:54:03.393 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107340] activating connection: mach=true listener=false peer=false name=com.apple.fonts
+2026-11-19 18:54:03.408 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107480] activating connection: mach=true listener=false peer=false name=com.apple.appkit.restoration_storage
+2026-11-19 18:54:03.408 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f91075c0] activating connection: mach=true listener=false peer=false name=com.apple.coreservices.appleevents
+2026-11-19 18:54:03.409 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9105cc0] Connection returned listener port: 0x4803
+2026-11-19 18:54:03.409 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] SignalReady: pid=41634 asn=0x0-0x36036
+2026-11-19 18:54:03.409 Df Nina[41634:1ca89] [com.apple.processmanager:front-35286506] SIGNAL: pid=41634 asn=0x0x-0x36036
+2026-11-19 18:54:03.411 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From System CFPrefsD
+2026-11-19 18:54:03.461 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107840] activating connection: mach=false listener=false peer=false name=com.apple.ViewBridgeAuxiliary
+2026-11-19 18:54:03.472 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107700] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:54:03.472 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107980] activating connection: mach=false listener=true peer=false name=(anonymous)
+2026-11-19 18:54:03.472 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107980] Connection returned listener port: 0xef03
+2026-11-19 18:54:03.472 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107840] invalidated after the last release of the connection object
+2026-11-19 18:54:03.473 Df Nina[41634:1ca89] [com.apple.AppKit:AutomaticTermination] void _NSDisableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:54:03.491 Df Nina[41634:1ca89] [com.apple.AppKit:StateRestoration] -[NSApplication _reopenWindowsAsNecessaryIncludingRestorableState:withFullFidelity:completionHandler:] shouldRestoreState=1 hasPersistentStateToRestore=0 shouldStillRestoreStateAfterPrompting=0
+2026-11-19 18:54:03.491 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107840] activating connection: mach=true listener=false peer=false name=com.apple.window_proxies
+2026-11-19 18:54:03.491 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107840] invalidated because the current process cancelled the connection by calling xpc_connection_cancel()
+2026-11-19 18:54:03.492 Df Nina[41634:1ca89] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) Restoring windows
+2026-11-19 18:54:03.497 Df Nina[41634:1ca91] [com.apple.corespotlight:index] (<private>) deleteSearchableItemsWithDomainIdentifiers, protectionClass:(null), domainIdentifiers number:1
+2026-11-19 18:54:03.497 A  Nina[41634:1ca91] (CoreSpotlight) delete-domains
+2026-11-19 18:54:03.498 Df Nina[41634:1ca91] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:54:03.498 Df Nina[41634:1ca91] (CoreSpotlight) sConnectionName: com.apple.spotlight.IndexAgent
+2026-11-19 18:54:03.498 Df Nina[41634:1ca91] (CoreSpotlight) Start service name com.apple.spotlight.IndexAgent
+2026-11-19 18:54:03.498 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9107840] activating connection: mach=true listener=false peer=false name=com.apple.spotlight.IndexAgent
+2026-11-19 18:54:03.511 Df Nina[41634:1ca91] [com.apple.BoardServices:XPCErrors] [C:1] Alloc <private>
+2026-11-19 18:54:03.511 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9107ac0] activating connection: mach=false listener=false peer=false name=(anonymous)
+2026-11-19 18:54:03.610 A  Nina[41634:1ca90] (CoreSpotlight) end-index-batch
+2026-11-19 18:54:03.611 Df Nina[41634:1ca90] [com.apple.corespotlight:index] *warn* MailCS ======%%% _setMailMessageAttributes skip:1
+2026-11-19 18:54:03.611 A  Nina[41634:1ca90] (CoreSpotlight) index-items
+2026-11-19 18:54:03.611 Df Nina[41634:1ca90] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:54:03.611 Df Nina[41634:1ca90] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:54:03.730 Df Nina[41634:1caa6] [com.apple.CoreAnalytics:client] Received configuration update from daemon (initial)
+2026-11-19 18:54:03.755 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9107c00] activating connection: mach=false listener=false peer=false name=com.apple.hiservices-xpcservice
+2026-11-19 18:54:03.760 Df Nina[41634:1ca89] [com.apple.AppKit:Screen] NSApplication._react(to:) dock
+2026-11-19 18:54:03.760 Df Nina[41634:1ca89] [com.apple.AppKit:Screen] NSApplication._react(to:) reactions=83
+2026-11-19 18:54:05.081 Df Nina[41634:1ca89] [at.binisoft.nina:app] launch: No window after launch – sending a reopen event
+2026-11-19 18:54:05.090 A  Nina[41634:1ca89] (CoreFoundation) Loading Preferences From User CFPrefsD
+2026-11-19 18:54:05.467 Df Nina[41634:1ca89] [com.apple.AppKit:AutomaticTermination] void _NSEnableAutomaticTerminationAndLog(NSString *) No windows open yet
+2026-11-19 18:54:05.469 Df Nina[41634:1ca91] [com.apple.UIIntelligenceSupport:xpc] establishing connection to agent
+2026-11-19 18:54:05.469 Df Nina[41634:1ca91] [com.apple.xpc:session] [0x7f7835f90] Session created.
+2026-11-19 18:54:05.469 Df Nina[41634:1ca91] [com.apple.xpc:session] [0x7f7835f90] Session created from connection [0x7f9b1a940]
+2026-11-19 18:54:05.469 Df Nina[41634:1ca91] [com.apple.xpc:connection] [0x7f9b1a940] activating connection: mach=true listener=false peer=false name=com.apple.uiintelligencesupport.agent
+2026-11-19 18:54:05.470 Df Nina[41634:1ca91] [com.apple.xpc:session] [0x7f7835f90] Session activated
+2026-11-19 18:54:05.471 Df Nina[41634:1ca92] [com.apple.UIIntelligenceSupport:xpc] Connection established with agent PID: 41534
+2026-11-19 18:54:06.433 E  Nina[41634:1caa6] (Metal) unable to find air64_v27 slice or a compatible one in binary archive '<private>' 
+ available slices: <private>
+2026-11-19 18:54:06.441 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9f34780] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-11-19 18:54:06.441 Df Nina[41634:1ca89] [com.apple.xpc:connection] [0x7f9f348c0] activating connection: mach=false listener=false peer=false name=com.apple.MTLCompilerService
+2026-11-19 18:54:06.442 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.520 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.527 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.558 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.561 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.568 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.571 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.582 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.623 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.634 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.637 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.640 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.642 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.648 A  Nina[41634:1ca91] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.650 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.654 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.655 A  Nina[41634:1ca91] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.657 A  Nina[41634:1caa6] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.675 A  Nina[41634:1ca9c] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.677 A  Nina[41634:1ca91] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.683 A  Nina[41634:1ca92] (Metal) Metal Compiling Shader
+2026-11-19 18:54:06.709 A  Nina[41634:1ca92] (CoreSpotlight) end-index-batch
+2026-11-19 18:54:06.709 A  Nina[41634:1ca92] (CoreSpotlight) index-items
+2026-11-19 18:54:06.710 Df Nina[41634:1ca92] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:54:06.711 Df Nina[41634:1ca91] [com.apple.corespotlight:index] CSInlineDonation:<private>: Skipping donation (feature flag disabled)
+2026-11-19 18:54:06.750 A  Nina[41634:1ca91] (RunningBoardServices) didChangeInheritances
+2026-11-19 18:54:08.385 Df Nina[41634:1ca89] [com.apple.AppKit:AutomaticTermination] void _updateToReflectAutomaticTerminationState(void) Setting _kLSApplicationWouldBeTerminatedByTALKey=0
+2026-11-19 18:54:14.195 Df Nina[41634:1ca92] [com.apple.launchservices:default] LSExceptions shared instance invalidated for timeout.

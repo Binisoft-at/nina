@@ -1,0 +1,3 @@
+App: Nina - Your Nutrition Buddy (at.binisoft.nina), id 6835965585
+Platforms before: IOS, MAC_OS
+MAC_OS is already on the record – nothing to do.

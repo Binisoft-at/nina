@@ -1,0 +1,15 @@
+App: Nina - Your Nutrition Buddy (at.binisoft.nina), id 6835965585
+Platforms on the record: IOS (1.0 PREPARE_FOR_SUBMISSION), MAC_OS (1.0 PREPARE_FOR_SUBMISSION)
+
+Latest builds (4):
+- MAC_OS 1.0.0 (13) · uploaded 2026-11-18T10:02 · processing VALID · TestFlight IN_BETA_TESTING · expired False
+- IOS    1.0.0 (13) · uploaded 2026-11-18T09:57 · processing VALID · TestFlight IN_BETA_TESTING · expired False
+- MAC_OS 1.0.0 (8) · uploaded 2026-11-17T09:56 · processing VALID · TestFlight IN_BETA_TESTING · expired False
+- IOS    1.0.0 (6) · uploaded 2026-11-17T08:37 · processing VALID · TestFlight IN_BETA_TESTING · expired False
+
+TestFlight groups (1):
+- Binisoft Team (internal, all builds): 1 tester(s) 1 INSTALLED · latest builds in it: 13, 13, 6, 8
+
+17 certificate(s) on the team: DEVELOPER_ID_APPLICATION 1, DEVELOPMENT 8, DISTRIBUTION 2, IOS_DISTRIBUTION 2, MAC_INSTALLER_DISTRIBUTION 1, PASS_TYPE_ID 3
+0 of them created by CI ("Created via API" development).
+(People's and other projects' certificates are counted, not named – this output may be public.)
