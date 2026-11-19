@@ -92,6 +92,33 @@ struct CoachGlueTests {
         #expect(result.delta == 100)
     }
 
+    @Test func howItWentStartsWhenThePlanWasSetUp() throws {
+        // Set up on Thursday 10 Jan (import), every day since on plan; first check-in Monday 14 Jan.
+        let thursday = glueDay("2030-01-10"), monday = glueDay("2030-01-14")
+        var plan = GlueFixture.plan()
+        plan.phases[0].start = thursday
+        plan.phases[0].startedAt = thursday.date(minutes: 6 * 60 + 30, calendar: glueUTC)
+        plan.phases[0].revisions[0].from = thursday
+        var input = CheckInInput(day: monday, plan: plan, fallback: GlueFixture.rest)
+        input.use(signal: GlueFixture.signal(GlueFixture.readings(through: monday).filter { $0.day >= thursday }))
+        let week = input.weekDays(calendar: glueUTC)
+        #expect(week == DayKey.range(thursday, through: glueDay("2030-01-13"), calendar: glueUTC))
+        let summary = GlueFixture.adherence(week, plan: plan)
+        #expect(summary.days == 4)
+        #expect(summary.loggedDays == 4)
+        #expect(summary.grade == .good)
+        input.use(window: GlueFixture.adherence(input.adherenceDays(calendar: glueUTC), plan: plan), week: summary)
+        let result = CheckInEngine.evaluate(input, calendar: glueUTC)
+        #expect(result.rule == .gathering)
+        #expect(result.status == .onTrack)
+        // The week after: the full 7 days; a check-in on the set-up day has no "How it went" yet.
+        var later = CheckInInput(day: glueDay("2030-01-21"), plan: plan, fallback: GlueFixture.rest)
+        later.use(signal: GlueFixture.signal([]))
+        #expect(later.weekDays(calendar: glueUTC).count == 7)
+        let setUpDay = CheckInInput(day: thursday, plan: plan, fallback: GlueFixture.rest)
+        #expect(setUpDay.weekDays(calendar: glueUTC).isEmpty)
+    }
+
     @Test func tooFewWeighInsKeepGathering() {
         let plan = GlueFixture.plan()
         // Only the last 9 mornings weighed.
@@ -105,7 +132,7 @@ struct CoachGlueTests {
         #expect(result.verdict == .gathering)
     }
 
-    @Test func checkpointStopsTheCheckInUntilReviewed() {
+    @Test func checkpointStopsTheCheckInUntilReviewed() throws {
         let plan = GlueFixture.plan()
         // Rising 0.7 kg a week from 80: the 7-day average passes 82 kg in week 4.
         let signal = GlueFixture.signal(GlueFixture.readings(perWeek: 0.7))
@@ -119,9 +146,14 @@ struct CoachGlueTests {
         input.use(signal: signal)
         #expect(input.checkpointReached)
         #expect(CheckInEngine.evaluate(input, calendar: glueUTC).verdict == .checkpoint)
-        input.use(signal: signal, reviewed: true)
+        let crossed = try #require(crossing)
+        // A decision on the crossing day (or later) ends it; one from before (a ceiling review) doesn't.
+        input.use(signal: signal, reviews: ["1": crossed])
         #expect(!input.checkpointReached)
         #expect(CheckInEngine.evaluate(input, calendar: glueUTC).verdict != .checkpoint)
+        input.use(signal: signal, reviews: ["1": crossed.adding(days: -1, calendar: glueUTC)])
+        #expect(input.checkpointReached)
+        #expect(CheckInEngine.evaluate(input, calendar: glueUTC).verdict == .checkpoint)
     }
 
     @Test func statusAndVerdictUseTheSameWords() {

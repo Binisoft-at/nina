@@ -39,11 +39,15 @@ public enum CoachCopy {
         /// The current settings file (`SettingsCSV.export`), shown so the AI can copy unchanged rows; "" = left out.
         public var currentSettings: String
         public var appName: String
+        /// The tape-estimate formula: the profile's sex, else the one picked on the device (the
+        /// app's `PhaseBodyFat.formula(sex:)`); nil = `NavyBodyFat.Formula(sex: state.sex)`.
+        public var navyFormula: NavyBodyFat.Formula?
 
         public init(today: DayKey, state: SettingsState, readings: [WeightSignal.Reading] = [], includeHealth: Bool = false,
                     totals: [DayKey: DayTotals] = [:], dayTypeMarks: [String: String] = [:], doneChecks: [DayKey: Set<String>] = [:],
                     incompleteDays: Set<DayKey> = [], tape: [BodyTapeRecord] = [], bodyFat: [BodyFatReading] = [],
-                    checkIns: [CheckInSnapshot] = [], currentSettings: String = "", appName: String = "Nina") {
+                    checkIns: [CheckInSnapshot] = [], currentSettings: String = "", appName: String = "Nina",
+                    navyFormula: NavyBodyFat.Formula? = nil) {
             self.today = today
             self.state = state
             self.readings = readings
@@ -57,6 +61,7 @@ public enum CoachCopy {
             self.checkIns = checkIns
             self.currentSettings = currentSettings
             self.appName = appName
+            self.navyFormula = navyFormula
         }
 
         /// The plan (empty without one).
@@ -402,7 +407,7 @@ public enum CoachCopy {
             lines.append("- No tape measurements yet")
         }
         var readings = context.input.bodyFat
-        let formula = NavyBodyFat.Formula(sex: context.state.sex)
+        let formula = context.input.navyFormula ?? NavyBodyFat.Formula(sex: context.state.sex)
         if context.state.heightCm > 0, formula != nil,
            let estimate = NavyBodyFat.estimate(formula: formula, heightCm: context.state.heightCm, records: context.input.tape,
                                                calendar: context.calendar).estimate {
@@ -415,7 +420,8 @@ public enum CoachCopy {
             lines.append("- Body fat by method:")
             for item in series {
                 guard let latest = item.latest else { continue }
-                var text = "  - \(item.title): \(fixed(latest.bodyFat, 1)) % on \(latest.day.rawValue) (typical error \(item.method.errorText) points)"
+                let error = item.method.errorBand != nil ? "typical error \(item.method.errorText) points" : "error unknown"
+                var text = "  - \(item.title): \(fixed(latest.bodyFat, 1)) % on \(latest.day.rawValue) (\(error))"
                 if item.count > 1, let first = item.first {
                     text += "; first \(fixed(first.bodyFat, 1)) % on \(first.day.rawValue), \(item.count) values"
                 }

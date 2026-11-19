@@ -72,7 +72,7 @@ struct PhaseSheet: View {
         Form {
             PhaseSheetBasics(draft: $draft, isDone: isDone, isStarted: isStarted, today: app.today)
             if draft.goal != .maintain {
-                PhaseSheetRate(draft: $draft, weightKg: weightKg, isDone: isDone)
+                PhaseSheetRate(draft: $draft, weightKg: weightKg, isDone: isDone, unit: app.energyUnit)
             }
             PhaseSheetGoals(draft: $draft, reviewOn: $reviewOn, reviewMin: $reviewMinText, reviewMax: $reviewMaxText,
                             targetWeight: $targetWeightText, targetFat: $targetFatText, bodyFatCeiling: $bodyFatCeilingText,
@@ -172,7 +172,9 @@ struct PhaseSheet: View {
         return PlanEdits.addingFirstPhase(phase, to: current, from: setUpState ?? app.settingsState, on: app.today)
     }
 
-    private var weightKg: Double { context?.bodyWeight?.kilograms ?? app.settings.body.weightKg }
+    /// The 7-day average (else the trend); 0 without weigh-ins, so the "% of your weight" line and
+    /// the caution hide instead of using the 72 kg placeholder.
+    private var weightKg: Double { context?.bodyWeight?.kilograms ?? 0 }
 
     private var revisionDay: DayKey { PhaseSheetPlan.revisionDay(of: draft, today: app.today) }
 
@@ -390,6 +392,7 @@ private struct PhaseSheetRate: View {
     @Binding var draft: CoachPlan.Phase
     let weightKg: Double
     let isDone: Bool
+    let unit: EnergyUnit
 
     var body: some View {
         Section {
@@ -430,7 +433,7 @@ private struct PhaseSheetRate: View {
             return "Without a rate, Calculate works one out from the target weight and end date."
         }
         return "Drag either end, or use the steppers. Targets use the middle of the range: "
-            + "\(CheckInSheetText.signedKcal(draft.energyAdjustment)) a day."
+            + "\(CheckInSheetText.signedEnergy(draft.energyAdjustment, unit: unit)) a day."
     }
 
     /// "+0.15 to +0.25 kg a week · 0.19–0.31 % of your weight".
@@ -724,8 +727,8 @@ private struct PhaseSheetCalculation: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(PhaseSheetPlan.maintenanceLine(proposal))
-            Text(PhaseSheetPlan.adjustmentLine(proposal))
+            Text(PhaseSheetPlan.maintenanceLine(proposal, unit: unit))
+            Text(PhaseSheetPlan.adjustmentLine(proposal, unit: unit))
                 .foregroundStyle(.secondary)
             if proposal.rateDerived {
                 Text("Rate worked out from your target: \(derivedRate)")
@@ -942,7 +945,7 @@ struct PhaseReviewSheet: View {
             text += " until \(CheckInSheetText.phaseName(next)) starts"
         }
         if let proposal = holdPreview?.proposal {
-            text += ". \(PhaseSheetPlan.maintenanceLine(proposal))"
+            text += ". \(PhaseSheetPlan.maintenanceLine(proposal, unit: app.energyUnit))"
         }
         return text + "."
     }

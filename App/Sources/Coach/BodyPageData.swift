@@ -710,14 +710,11 @@ extension BodyPageData {
             change = CompositionChange(from: trackingPoints[trackingPoints.count - 2], to: trackingPoints[trackingPoints.count - 1])
         }
 
-        var waistToHeight: Double?
-        var waistToHip: Double?
-        let withWaist = tape.filter { BodyComposition.waist(in: $0.values, sex: sex) != nil }
-            .sorted { ($0.day, $0.time ?? .distantPast) < ($1.day, $1.time ?? .distantPast) }
-        if let record = withWaist.last, let waist = BodyComposition.waist(in: record.values, sex: sex) {
-            if heightCm > 0 { waistToHeight = BodyComposition.waistToHeight(waistCm: waist, heightCm: heightCm) }
-            if let hip = record.values[.hip] { waistToHip = BodyComposition.waistToHip(waistCm: waist, hipCm: hip) }
-        }
+        // The latest standard waist (as the review ceiling reads it), and waist-to-hip with the
+        // latest hip within 12 weeks, so a weekly waist-only record doesn't hide it.
+        let ratios = BodyComposition.waistRatios(tape, sex: sex, heightCm: heightCm, calendar: calendar)
+        let waistToHeight = ratios.waistToHeight
+        let waistToHip = ratios.waistToHip
         var ffmi: Double?
         var normalised: Double?
         if let latestPoint, heightCm > 0 {
@@ -838,18 +835,22 @@ extension BodyPageData {
     /// the saved numbers, or recomputed live when Apple Health weights were among them (those are
     /// never stored).
     static func checkIns(_ context: CoachContext) -> [BodyPageCheckIn] {
-        checkIns(context.checkIns, signal: context.signal, plan: context.plan, calendar: context.calendar)
+        checkIns(context.checkIns, signal: context.signal, plan: context.plan, calendar: context.calendar,
+                 unit: context.settings.energyUnit)
     }
 
-    /// `snapshots` oldest first, as the store returns them.
-    static func checkIns(_ snapshots: [CheckInSnapshot], signal: WeightSignal, plan: CoachPlan, calendar: Calendar) -> [BodyPageCheckIn] {
+    /// `snapshots` oldest first, as the store returns them. `unit`: the energy unit of the Δ.
+    static func checkIns(_ snapshots: [CheckInSnapshot], signal: WeightSignal, plan: CoachPlan, calendar: Calendar,
+                         unit: EnergyUnit = .kcal) -> [BodyPageCheckIn] {
         snapshots.reversed().map { snapshot in
             let monday = snapshot.day.startOfWeek(calendar: calendar)
             let weight = ProgressCheckIns.weight(of: snapshot, signal: signal, plan: plan)
             let average: String? = weight.average.map { "avg " + Fmt.kilograms($0) }
             let rate: String? = weight.rate.map { BodyPageText.signed($0, decimals: 2) + " kg/wk" }
             var delta: String?
-            if let kcal = snapshot.deltaKcal, kcal != 0 { delta = BodyPageText.signed(kcal, decimals: 0) + " kcal" }
+            if let kcal = snapshot.deltaKcal, kcal != 0 {
+                delta = BodyPageText.signed(unit.value(fromKilocalories: kcal).rounded(), decimals: 0) + " " + unit.symbol
+            }
             let decision: String
             switch snapshot.decision {
             case .applied?: decision = "Applied"

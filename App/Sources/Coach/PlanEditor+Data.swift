@@ -215,7 +215,8 @@ enum PlanEditorData {
             totals: CoachContext.totals(store: store, from: start, through: today), dayTypeMarks: store.dayTypeMarks(),
             doneChecks: store.doneChecks(from: start, through: today), incompleteDays: incomplete,
             tape: measurements.compactMap(\.tapeRecord), bodyFat: bodyFat, checkIns: store.checkIns(),
-            currentSettings: SettingsCSV.export(state, today: today), appName: AppInfo.name)
+            currentSettings: SettingsCSV.export(state, today: today), appName: AppInfo.name,
+            navyFormula: PhaseBodyFat.formula(sex: state.sex))
         return CoachCopy.text(input, calendar: calendar)
     }
 

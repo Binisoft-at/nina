@@ -245,12 +245,12 @@ struct CoachBoardTests {
 
     @Test func laterSkipsToTheNextCard() throws {
         let today = boardDay("2030-04-01")
-        func card(_ dismissed: [String: DayKey], reviewed: Set<String> = []) -> CoachBoard.Card? {
+        func card(_ dismissed: [String: DayKey], reviewed: PhaseReviews = PhaseReviews()) -> CoachBoard.Card? {
             CoachBoard(boardInput(day: "2030-04-01") { input in
                 input.checkpoint = boardDay("2030-03-20")
                 input.hasMorningWeighIn = true
                 input.dismissed = dismissed
-                input.reviewedPhases = reviewed
+                input.reviews = reviewed
             }).card
         }
         // Start put off today → the review checkpoint.
@@ -267,8 +267,56 @@ struct CoachBoardTests {
         #expect(held.primary.action == .checkIn(today))
         #expect(card(["phaseStart.2": today, "review.1": boardDay("2030-03-25")])?.kind == .review)
         // A review decision ends it; yesterday's "Later" on the start no longer counts.
-        #expect(card(["phaseStart.2": boardDay("2030-03-31")], reviewed: ["1"])?.kind == .phaseStart)
-        #expect(card(["phaseStart.2": today], reviewed: ["1"])?.kind == .checkIn)
+        #expect(card(["phaseStart.2": boardDay("2030-03-31")], reviewed: ["1": boardDay("2030-03-21")])?.kind == .phaseStart)
+        #expect(card(["phaseStart.2": today], reviewed: ["1": boardDay("2030-03-21")])?.kind == .checkIn)
+        // A decision from before the checkpoint was reached (a ceiling review) doesn't end it.
+        #expect(card(["phaseStart.2": today], reviewed: ["1": boardDay("2030-03-10")])?.kind == .review)
+    }
+
+    @Test func phaseReviewsCountEachTrigger() {
+        let reviews = PhaseReviews(events: [
+            (phaseID: "1", event: .started, day: boardDay("2030-01-03")),
+            (phaseID: "1", event: .reviewKeep, day: boardDay("2030-03-18")),
+            (phaseID: "1", event: .reviewHold, day: boardDay("2030-03-10")),
+            (phaseID: "2", event: .postponed, day: boardDay("2030-03-30")),
+        ])
+        #expect(reviews.days == ["1": boardDay("2030-03-18")])
+        #expect(reviews.lastReview(of: "1") == boardDay("2030-03-18"))
+        #expect(reviews.hasReview("1") && !reviews.hasReview("2"))
+        // The checkpoint: only a decision on or after the day it was reached.
+        #expect(reviews.reviewedCheckpoint("1", crossing: boardDay("2030-03-18")))
+        #expect(!reviews.reviewedCheckpoint("1", crossing: boardDay("2030-03-19")))
+        #expect(reviews.checkpointIsOpen("1", crossing: boardDay("2030-03-19")))
+        #expect(!reviews.checkpointIsOpen("1", crossing: nil))
+        // A ceiling: any decision in the phase.
+        #expect(!reviews.ceilingIsOpen("1", ceilings: [.waistGain]))
+        #expect(reviews.ceilingIsOpen("2", ceilings: [.waistGain]))
+        #expect(!reviews.ceilingIsOpen("2", ceilings: []))
+        #expect(reviews.isOpen("1", crossing: boardDay("2030-03-20"), ceilings: []))
+        #expect(!reviews.isOpen("1", crossing: boardDay("2030-03-01"), ceilings: [.waistGain]))
+        let literal: PhaseReviews = ["1": boardDay("2030-03-18")]
+        #expect(literal == reviews)
+    }
+
+    @Test func aCeilingReviewDoesNotUseUpTheCheckpoint() throws {
+        func card(_ reviews: PhaseReviews, checkpoint: String?, ceilings: [BodyCeiling] = []) -> CoachBoard.Card? {
+            CoachBoard(boardInput(day: "2030-03-25") { input in
+                input.checkpoint = checkpoint.map { boardDay($0) }
+                input.ceilings = ceilings
+                input.hasMorningWeighIn = true
+                input.reviews = reviews
+            }).card
+        }
+        // The waist ceiling opened the review on 18 Mar and the person kept going.
+        #expect(card([:], checkpoint: nil, ceilings: [.waistGain])?.kind == .review)
+        #expect(card(["1": boardDay("2030-03-18")], checkpoint: nil, ceilings: [.waistGain])?.kind != .review)
+        // The 7-day average reaches the review weight on 22 Mar: the checkpoint review still comes.
+        let review = try #require(card(["1": boardDay("2030-03-18")], checkpoint: "2030-03-22", ceilings: [.waistGain]))
+        #expect(review.kind == .review)
+        #expect(review.title == "Review weight reached")
+        // A decision on or after the crossing ends it.
+        #expect(card(["1": boardDay("2030-03-22")], checkpoint: "2030-03-22", ceilings: [.waistGain])?.kind != .review)
+        #expect(card(["1": boardDay("2030-03-24")], checkpoint: "2030-03-22")?.kind != .review)
     }
 
     @Test func ceilingsOpenTheReview() throws {
@@ -370,6 +418,25 @@ struct CoachBoardTests {
         // Not without day types, nor before the phase.
         #expect(CoachBoard(boardInput(boardPlan(types: false), day: "2030-01-09")).weekAverage == nil)
         #expect(CoachBoard(boardInput(day: "2030-01-01")).weekAverageLine == nil)
+    }
+
+    @Test func weekAverageCountsFinishedCompleteDays() throws {
+        // Wednesday noon: today's breakfast (450 kcal) doesn't pull the average down yet.
+        let eaten: [DayKey: Double] = [boardDay("2030-01-07"): 2450, boardDay("2030-01-08"): 2550, boardDay("2030-01-09"): 450]
+        let average = try #require(CoachBoard(boardInput(day: "2030-01-09") { $0.eaten = eaten }).weekAverage)
+        #expect(average.loggedDays == 2)
+        #expect(average.eaten == 2500)
+        // Tuesday marked "Log Is Incomplete": one finished day left, too few for an average.
+        let incomplete = try #require(CoachBoard(boardInput(day: "2030-01-09") { input in
+            input.eaten = eaten
+            input.incompleteDays = [boardDay("2030-01-08")]
+        }).weekAverage)
+        #expect(incomplete.loggedDays == 1)
+        #expect(incomplete.eaten == nil)
+        #expect(incomplete.text == "Week avg 2,471 kcal")
+        // A past week: every logged day is finished.
+        let past = try #require(CoachBoard(boardInput(day: "2030-01-09", today: "2030-01-14") { $0.eaten = eaten }).weekAverage)
+        #expect(past.loggedDays == 3)
     }
 
     @Test func phaseStartTargetChanges() {

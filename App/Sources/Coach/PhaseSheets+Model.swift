@@ -89,7 +89,8 @@ enum PhaseSheetPlan {
     @MainActor
     static func calculation(for phase: CoachPlan.Phase, in plan: CoachPlan, on day: DayKey,
                             context: CoachContext) -> PhaseTransition.Proposal {
-        let weight = context.bodyWeight?.kilograms ?? context.settings.body.weightKg
+        // 0 = no weigh-ins yet: no rate derived from (and no g/kg floors on) the 72 kg placeholder.
+        let weight = context.bodyWeight?.kilograms ?? 0
         var base = placing(phase, in: plan)
         var subject = phase
         if let own = currentRevision(of: phase, on: day) {
@@ -116,7 +117,7 @@ enum PhaseSheetPlan {
         guard phase.revisions.isEmpty else {
             return Start(plan: started, proposal: nil, before: before, after: currentRevision(of: phase, on: day))
         }
-        let weight = context.bodyWeight?.kilograms ?? context.settings.body.weightKg
+        let weight = context.bodyWeight?.kilograms ?? 0
         let proposal = PhaseTransition.proposal(for: phase, in: started, on: day, weightKg: weight,
                                                 maintenance: context.maintenance(), body: context.settings.body,
                                                 fallback: context.settings.targets, calendar: context.calendar)
@@ -216,17 +217,18 @@ enum PhaseSheetPlan {
         }
     }
 
-    /// "Maintenance 2,450 kcal, measured over the last 28 days" / "… calculated from your profile".
-    static func maintenanceLine(_ proposal: PhaseTransition.Proposal) -> String {
+    /// "Maintenance 2,450 kcal, measured over the last 28 days" / "… calculated from your profile"
+    /// (in the person's energy unit).
+    static func maintenanceLine(_ proposal: PhaseTransition.Proposal, unit: EnergyUnit) -> String {
         let source = proposal.source == .measured ? "measured over the last 28 days" : "calculated from your profile"
-        return "Maintenance \(Fmt.number(proposal.maintenance.rounded())) kcal, \(source)"
+        return "Maintenance \(Fmt.energy(proposal.maintenance, unit: unit)), \(source)"
     }
 
     /// "+150 kcal a day over maintenance", "−300 kcal a day under maintenance", "At maintenance".
-    static func adjustmentLine(_ proposal: PhaseTransition.Proposal) -> String {
+    static func adjustmentLine(_ proposal: PhaseTransition.Proposal, unit: EnergyUnit) -> String {
         if abs(proposal.adjustment) < 1 { return "At maintenance" }
         let side = proposal.adjustment > 0 ? "over" : "under"
-        return "\(CheckInSheetText.signedKcal(proposal.adjustment)) a day \(side) maintenance"
+        return "\(CheckInSheetText.signedEnergy(proposal.adjustment, unit: unit)) a day \(side) maintenance"
     }
 }
 
@@ -342,12 +344,13 @@ struct PhaseReviewFacts {
 
         let mode: Mode
         if let phase {
-            let reviewed = context.reviewedPhases.contains(phase.id)
+            // The checkpoint needs a decision on or after its crossing, a ceiling any decision.
+            let open = context.reviews.isOpen(phase.id, crossing: crossing, ceilings: ceilings)
             if !phase.isStarted {
                 mode = phase.status == .done ? .done : .start
             } else if phase.status == .done {
                 mode = .done
-            } else if phase.id == active?.id, !reviewed, crossing != nil || !ceilings.isEmpty {
+            } else if phase.id == active?.id, open {
                 mode = .review
             } else if let end = phase.end, end <= today {
                 mode = .end

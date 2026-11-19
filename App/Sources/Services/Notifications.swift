@@ -223,7 +223,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         input.checkInKeys = store.checkInKeys()
         input.lastFullSet = schedule.fullDays.last
         input.checkpoint = signal.checkpointCrossing(in: plan, through: today)
-        input.reviewedPhases = store.reviewedPhaseIDs()
+        input.reviews = store.phaseReviews()
         input.reviewPlannedAt = reviewPlannedAt
         return CoachReminders.plan(input)
     }

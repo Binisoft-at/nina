@@ -298,9 +298,22 @@ public enum CheckInEngine {
                                  reason: "This phase has no weekly rate yet – set one to get proposals.")
         }
 
+        // A change that starts after the check-in day was applied at this very check-in ("Apply
+        // from tomorrow", then Redo): the targets already changed, the next check-in judges them.
+        // Never judged again here – the same step would be proposed and applied twice.
+        let newest = input.lastApplied ?? lastAdjustment(in: plan, on: day)
+        let pendingChange = newest.flatMap { $0 > day ? $0 : nil }
+        let pendingReason = pendingChange.map {
+            "Targets change from \(CheckInFormat.day($0, calendar: calendar)) – the next check-in judges them."
+        }
+        // The change in force on the check-in day: the history and the lock count from it.
+        let lastApplied = pendingChange == nil ? newest : lastAdjustment(in: plan, on: day, inForce: true)
+
         // 1. Window.
-        let lastApplied = input.lastApplied ?? lastAdjustment(in: plan, on: day)
         guard windowValid, let rate = input.rate else {
+            if let pendingReason {
+                return CheckInResult(verdict: .gathering, status: weekStatus, rule: .locked, reason: pendingReason)
+            }
             let first = firstAdjustmentCheck(plan: plan, on: day, windowStart: input.windowStart, lastApplied: lastApplied, calendar: calendar)
             return CheckInResult(verdict: .gathering, status: weekStatus, rule: .gathering,
                                  reason: "Gathering data – first adjustment check on \(CheckInFormat.day(first, calendar: calendar)).",
@@ -351,11 +364,16 @@ public enum CheckInEngine {
         let rawStep = step(rate: rate, phase: phase, adjust: adjust)
         func result(_ rule: Rule, _ reason: String, delta: Double = 0) -> CheckInResult {
             var status = weekStatus
-            if verdict == .offTarget { status = .offTrack }
+            // F11 status line: the rate out at enough check-ins in a row is "Off track", also
+            // while the weight-check hold keeps the verdict at "Faster than planned" (Progress
+            // and Today say the same).
+            if verdict == .offTarget || inARow >= confirm { status = .offTrack }
             if status == .onTrack, verdict == .slower || verdict == .faster || rule == .logging || rule == .intake { status = .watch }
             return CheckInResult(verdict: verdict, deviation: deviation, status: status, rule: rule, reason: reason, notes: notes,
                                  delta: delta, step: rawStep, outsideInARow: inARow, expectedRate: expectedRate)
         }
+
+        if let pendingReason { return result(.locked, pendingReason) }
 
         // 2. Adherence gate.
         let needed = Int((minimumLoggedShare * Double(input.countedDays) - 1e-9).rounded(.up))
@@ -468,9 +486,17 @@ public enum CheckInEngine {
         return start
     }
 
-    /// The first day of the newest applied adjustment ("adjust:…" revision) of the active phase.
+    /// The first day of the newest applied adjustment ("adjust:…" revision) of the active phase,
+    /// including one that starts after `day` (applied at this check-in, from tomorrow).
     public static func lastAdjustment(in plan: CoachPlan, on day: DayKey) -> DayKey? {
-        plan.activePhase(on: day)?.revisions.filter { $0.reason.hasPrefix("adjust") }.map(\.from).max()
+        lastAdjustment(in: plan, on: day, inForce: false)
+    }
+
+    /// The first day of the newest applied adjustment of the active phase; with `inForce` only
+    /// one that has started by `day`.
+    public static func lastAdjustment(in plan: CoachPlan, on day: DayKey, inForce: Bool) -> DayKey? {
+        plan.activePhase(on: day)?.revisions
+            .filter { $0.reason.hasPrefix("adjust") && (!inForce || $0.from <= day) }.map(\.from).max()
     }
 
     /// The first tick of a check that affects weight: `ticks` are (day, check id) of the done marks.
@@ -951,6 +977,18 @@ public struct CheckInSnapshot: Equatable, Sendable, Identifiable {
         deviation = result.deviation
         deltaKcal = result.delta == 0 ? nil : result.delta
         self.phaseID = phaseID
+    }
+
+    /// A redo of a week whose change was applied (`saved.decision` applied or edited) that has
+    /// no decision of its own keeps the saved decision, Δ, verdict and side: the plan keeps that
+    /// change, so the record does too. Only the weight numbers, adherence, ratings, waist and
+    /// note are new. Anything else is left as it is.
+    public mutating func keepAppliedDecision(of saved: CheckInSnapshot?) {
+        guard decision == nil, let saved, saved.decision == .applied || saved.decision == .edited else { return }
+        decision = saved.decision
+        deltaKcal = saved.deltaKcal
+        verdict = saved.verdict
+        deviation = saved.deviation
     }
 
     /// For the history list: "+100 kcal", "Kept", "In range", "Gathering data".

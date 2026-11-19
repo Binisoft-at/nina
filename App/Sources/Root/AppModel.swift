@@ -407,12 +407,13 @@ final class AppModel {
 
     /// Adds a body measurement, or changes `editing`, with Undo.
     @discardableResult
-    func saveMeasurement(_ draft: BodyMeasurementDraft, editing measurement: BodyMeasurement? = nil) -> BodyMeasurement {
+    func saveMeasurement(_ draft: BodyMeasurementDraft, editing measurement: BodyMeasurement? = nil,
+                         message: String? = nil) -> BodyMeasurement {
         let store = self.store
         let noun = draft.kind == .assessment ? "Body fat" : "Measurements"
         if let measurement {
             let previous = store.update(measurement, to: draft)
-            toasts.show("\(noun) updated", symbol: "checkmark.circle.fill") { [weak self] in
+            toasts.show(message ?? "\(noun) updated", symbol: "checkmark.circle.fill") { [weak self] in
                 _ = self?.store.update(measurement, to: previous)
             }
             return measurement
@@ -471,9 +472,12 @@ final class AppModel {
     /// "Start" on a phase: it starts today; a phase without targets gets the transition
     /// proposal (`CoachContext.startingPlan`). One Undo puts the plan back.
     func startPhase(_ id: String) {
-        let context = CoachContext.load(app: self, day: today)
-        guard let plan = context.startingPlan(phase: id) else { return }
         let store = self.store
+        // The stored plan, read now: `settings` is refreshed a moment after a save or a sync, and
+        // a stale copy written back would undo what just arrived.
+        let context = CoachContext.load(store: store, settings: store.coachSettings(adding: healthWeightReadings),
+                                        health: healthWeightReadings, dismissed: coachDismissals, day: today)
+        guard let plan = context.startingPlan(phase: id) else { return }
         var change = store.updatePlan(plan, on: today)
         change.merge(store.recordPhaseEvent(phaseID: id, event: .started, day: today))
         let name = plan.phase(id: id)?.name ?? "Phase"
@@ -482,9 +486,10 @@ final class AppModel {
 
     /// "In a week" on a phase that is due to start: its start moves 7 days on.
     func postponePhase(_ id: String) {
-        let plan = settings.plan.postponing(phase: id, by: 7, from: today)
-        guard plan != settings.plan else { return }
         let store = self.store
+        let stored = store.settings.plan
+        let plan = stored.postponing(phase: id, by: 7, from: today)
+        guard plan != stored else { return }
         var change = store.updatePlan(plan, on: today)
         change.merge(store.recordPhaseEvent(phaseID: id, event: .postponed, day: today))
         let start = plan.phase(id: id)?.start.map { Fmt.shortDay($0) } ?? "next week"
@@ -497,7 +502,7 @@ final class AppModel {
         let change = store.applyCheckIn(evaluation.snapshot, delta: delta, from: evaluation.applyFrom,
                                         weightKg: evaluation.input.weightKg, decision: decision)
         let sign = delta > 0 ? "+" : "−"
-        showUndo(change, "\(sign)\(Fmt.number(abs(delta))) kcal a day from tomorrow", symbol: "checkmark.circle.fill")
+        showUndo(change, "\(sign)\(Fmt.energy(abs(delta), unit: energyUnit)) a day from tomorrow", symbol: "checkmark.circle.fill")
     }
 
     /// Saves a check-in without a plan change ("Keep for now", or no proposal).

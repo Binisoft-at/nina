@@ -11,7 +11,8 @@ import NinaCore
 
 /// One tape site over time: standard readings joined by a line with the ±TEM band, other
 /// readings as hollow dots, the change since the phase start and the 4-week change. The readings
-/// below open their measurement; swipe deletes it (with Undo).
+/// below open their measurement; swipe deletes that reading (the other sites of the session
+/// stay), with Undo.
 struct BodyDetailsSiteView: View {
     let site: BodySite
     let since: DayKey?
@@ -86,15 +87,27 @@ struct BodyDetailsSiteView: View {
                 }
                 .buttonStyle(.plain)
                 .swipeActions {
-                    Button("Delete", systemImage: "trash", role: .destructive) { app.trash(row.measurement) }
+                    Button("Delete", systemImage: "trash", role: .destructive) { delete(row) }
                 }
                 .contextMenu {
                     Button("Edit", systemImage: "pencil") {
                         app.sheet = BodyDetailsEdit.sheet(for: row.measurement, settings: app.settings)
                     }
-                    Button("Delete", systemImage: "trash", role: .destructive) { app.trash(row.measurement) }
+                    Button("Delete", systemImage: "trash", role: .destructive) { delete(row) }
                 }
             }
+        }
+    }
+
+    /// Deletes this site's reading only: the other sites measured in the same session stay. The
+    /// whole record goes to the trash only when this was its last site. Both toasts have Undo.
+    private func delete(_ row: BodyDetailsSiteData.Row) {
+        var draft = row.measurement.draft
+        draft.values[site] = nil
+        if draft.values.sites.isEmpty {
+            app.trash(row.measurement)
+        } else {
+            _ = app.saveMeasurement(draft, editing: row.measurement, message: "\(site.title) reading deleted")
         }
     }
 

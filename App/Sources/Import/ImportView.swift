@@ -204,20 +204,28 @@ struct ImportView: View {
     private func apply() {
         var summaries: [String] = []
         var settingsUndo: SettingsImportUndo?
+        var rowsUndo = ImportRowsUndo()
         let planBefore = app.settings.plan
         // Settings first, then foods, so meals and recipes find foods imported in the same go.
         for preview in previews.sorted(by: { order($0.kind) < order($1.kind) }) where preview.hasChanges(excluding: untickedBody) {
             let applied = preview.apply(app: app, excluding: untickedBody)
             summaries.append(applied.summary)
             if let undo = applied.undo { settingsUndo = undo }
+            rowsUndo.merge(applied.rows)
             app.refresh()
         }
         let message = summaries.joined(separator: " · ")
-        if let settingsUndo {
-            // Undo puts the goals, settings and plan back and takes the body records and the weight away.
+        if settingsUndo != nil || !rowsUndo.isEmpty {
+            // One Undo for everything the toast lists: new foods, entries and recipes go to the
+            // trash, changed ones get their values back, then the goals, settings and plan are put
+            // back and the body records and the weight taken away.
             let model = app
+            let rows = rowsUndo
+            let settings = settingsUndo
             app.toasts.show(message, symbol: "square.and.arrow.down.fill") { [weak model] in
-                model?.store.undo(settingsUndo)
+                guard let store = model?.store else { return }
+                rows.undo(store: store)
+                if let settings { store.undo(settings) }
             }
         } else {
             app.toasts.show(message, symbol: "square.and.arrow.down.fill")
@@ -372,24 +380,26 @@ struct ImportPreview {
         }
     }
 
-    /// Applies the plan, without the body values the person unticked; returns the toast text and,
-    /// for goals & settings, what Undo puts back.
+    /// Applies the plan, without the body values the person unticked; returns the toast text and
+    /// what Undo puts back: for goals & settings `undo`, for foods, diary and meals & recipes `rows`.
     @MainActor
-    func apply(app: AppModel, excluding unticked: Set<String> = []) -> (summary: String, undo: SettingsImportUndo?) {
+    func apply(app: AppModel, excluding unticked: Set<String> = []) -> (summary: String, undo: SettingsImportUndo?, rows: ImportRowsUndo) {
         if let settings {
             let result = settings.result.removingBodyValues(unticked)
             let undo = app.store.applySettings(result, previous: settings.previous, day: app.today)
             AppLog.info("Import settings: \(result.changes.count) changes, \(result.bodyRecords.count) body records", category: "import")
             let count = result.changes.count
-            return (count == 1 ? "1 setting changed" : "\(count) settings changed", undo)
+            return (count == 1 ? "1 setting changed" : "\(count) settings changed", undo, ImportRowsUndo())
         }
-        return (applyRows(app: app), nil)
+        let applied = applyRows(app: app)
+        return (applied.summary, nil, applied.undo)
     }
 
-    /// Foods, diary or meals & recipes; returns the toast text.
+    /// Foods, diary or meals & recipes; returns the toast text and what Undo puts back.
     @MainActor
-    private func applyRows(app: AppModel) -> String {
+    private func applyRows(app: AppModel) -> (summary: String, undo: ImportRowsUndo) {
         let store = app.store
+        var undo = ImportRowsUndo()
         var created = 0
         var updated = 0
         var skipped = 0
@@ -399,9 +409,12 @@ struct ImportPreview {
                 for key in ImportColumns.lookupKeys(forKey: food.key) { byKey[key] = food }
             }
             for entry in plan.entries where entry.action != .unchanged {
-                let food = store.saveFood(entry.record, editing: entry.action == .update ? byKey[entry.key] : nil, source: .imported)
+                let existing = entry.action == .update ? byKey[entry.key] : nil
+                if let existing { undo.foodDrafts.append(ImportFoodState(food: existing, draft: existing.draft)) }
+                let food = store.saveFood(entry.record, editing: existing, source: .imported)
                 if entry.action == .create {
                     food.importKey = entry.key
+                    undo.foods.append(food)
                     created += 1
                 } else {
                     updated += 1
@@ -432,11 +445,15 @@ struct ImportPreview {
                     foodRef = food.ref.rawValue
                     category = food.category
                 }
-                let entry = (row.action == .update ? byKey[row.key] : nil) ?? {
-                    let created = LogEntry(day: draft.day, time: time, meal: meal, name: draft.name)
-                    store.context.insert(created)
-                    return created
-                }()
+                let entry: LogEntry
+                if let existing = row.action == .update ? byKey[row.key] : nil {
+                    undo.entryStates.append(ImportEntryState(existing))
+                    entry = existing
+                } else {
+                    entry = LogEntry(day: draft.day, time: time, meal: meal, name: draft.name)
+                    store.context.insert(entry)
+                    undo.entries.append(entry)
+                }
                 entry.day = draft.day.rawValue
                 entry.time = time
                 entry.meal = meal
@@ -483,15 +500,158 @@ struct ImportPreview {
                     }
                 }
                 guard !lines.isEmpty else { continue }
-                store.saveRecipe(row.action == .update ? byName[row.key] : nil, name: draft.name, kind: draft.kind, emoji: "",
-                                 servings: draft.servings, totalWeight: draft.totalWeight, notes: draft.notes, lines: lines)
+                let existing = row.action == .update ? byName[row.key] : nil
+                if let existing { undo.recipeStates.append(ImportRecipeState(existing)) }
+                let recipe = store.saveRecipe(existing, name: draft.name, kind: draft.kind, emoji: "",
+                                              servings: draft.servings, totalWeight: draft.totalWeight, notes: draft.notes, lines: lines)
+                if existing == nil { undo.recipes.append(recipe) }
                 if row.action == .create { created += 1 } else { updated += 1 }
             }
         }
         AppLog.info("Import \(kind.rawValue): \(created) new, \(updated) updated, \(skipped) skipped", category: "import")
         var text = "Imported: \(created) new, \(updated) updated"
         if skipped > 0 { text += ", \(skipped) not found" }
-        return text
+        return (text, undo)
+    }
+}
+
+/// What Undo puts back after a foods, diary or meals & recipes import: the new records go to the
+/// trash (kept 30 days, like any delete), the changed ones get their previous values.
+struct ImportRowsUndo {
+    var foods: [Food] = []
+    var foodDrafts: [ImportFoodState] = []
+    var entries: [LogEntry] = []
+    var entryStates: [ImportEntryState] = []
+    var recipes: [Recipe] = []
+    var recipeStates: [ImportRecipeState] = []
+
+    var isEmpty: Bool {
+        foods.isEmpty && foodDrafts.isEmpty && entries.isEmpty && entryStates.isEmpty && recipes.isEmpty && recipeStates.isEmpty
+    }
+
+    mutating func merge(_ other: ImportRowsUndo) {
+        foods += other.foods
+        foodDrafts += other.foodDrafts
+        entries += other.entries
+        entryStates += other.entryStates
+        recipes += other.recipes
+        recipeStates += other.recipeStates
+    }
+
+    /// Puts everything back, last imported first: recipes, then diary entries, then foods.
+    @MainActor
+    func undo(store: NinaStore) {
+        guard !isEmpty else { return }
+        for state in recipeStates.reversed() { state.restore(store: store) }
+        for state in entryStates.reversed() { state.restore() }
+        for state in foodDrafts.reversed() { state.restore() }
+        if !recipes.isEmpty { store.trash(recipes) }
+        if !entries.isEmpty { store.trash(entries) }
+        if !foods.isEmpty { store.trash(foods) }
+        store.save()
+    }
+}
+
+/// An own food's values before an import changed it (what `saveFood` writes).
+struct ImportFoodState {
+    let food: Food
+    let draft: FoodDraft
+
+    func restore() {
+        food.apply(draft)
+        food.touch()
+    }
+}
+
+/// A diary entry's values before an import changed it.
+struct ImportEntryState {
+    let entry: LogEntry
+    let day: String
+    let time: Date
+    let meal: String
+    let name: String
+    let brand: String
+    let foodRef: String
+    let category: String
+    let quantity: Double
+    let unitLabel: String
+    let unitAmount: Double
+    let baseUnit: String
+    let nutrients: String
+    let note: String
+    let status: String
+    let source: String
+    let importKey: String
+
+    init(_ entry: LogEntry) {
+        self.entry = entry
+        day = entry.day
+        time = entry.time
+        meal = entry.meal
+        name = entry.name
+        brand = entry.brand
+        foodRef = entry.foodRef
+        category = entry.category
+        quantity = entry.quantity
+        unitLabel = entry.unitLabel
+        unitAmount = entry.unitAmount
+        baseUnit = entry.baseUnit
+        nutrients = entry.nutrients
+        note = entry.note
+        status = entry.status
+        source = entry.source
+        importKey = entry.importKey
+    }
+
+    func restore() {
+        entry.day = day
+        entry.time = time
+        entry.meal = meal
+        entry.name = name
+        entry.brand = brand
+        entry.foodRef = foodRef
+        entry.category = category
+        entry.quantity = quantity
+        entry.unitLabel = unitLabel
+        entry.unitAmount = unitAmount
+        entry.baseUnit = baseUnit
+        entry.nutrients = nutrients
+        entry.note = note
+        entry.status = status
+        entry.source = source
+        entry.importKey = importKey
+        entry.touch()
+    }
+}
+
+/// A recipe's values and foods before an import changed it.
+struct ImportRecipeState {
+    let recipe: Recipe
+    let name: String
+    let kind: RecipeKind
+    let emoji: String
+    let servings: Double
+    let totalWeight: Double
+    let notes: String
+    let defaultMeal: String
+    let lines: [RecipeLine]
+
+    init(_ recipe: Recipe) {
+        self.recipe = recipe
+        name = recipe.name
+        kind = recipe.recipeKind
+        emoji = recipe.emoji
+        servings = recipe.servings
+        totalWeight = recipe.totalWeight
+        notes = recipe.notes
+        defaultMeal = recipe.defaultMeal
+        lines = recipe.sortedItems.map { RecipeLine(item: $0) }
+    }
+
+    @MainActor
+    func restore(store: NinaStore) {
+        store.saveRecipe(recipe, name: name, kind: kind, emoji: emoji, servings: servings, totalWeight: totalWeight,
+                         notes: notes, defaultMeal: defaultMeal, lines: lines)
     }
 }
 

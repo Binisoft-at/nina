@@ -47,13 +47,14 @@ extension CheckInInput {
     /// Everything the check-in needs from the weigh-ins on its day, with the plan's rules: the
     /// decision rate and its window (`WeightSignal.rate(on:plan:)`), the body weight for the fat
     /// floor (7-day average, else the trend) and whether the review checkpoint was reached.
-    /// - Parameter reviewed: the person already decided on this phase's review (a phase
-    ///   `DayMark` with event review-keep, review-hold or review-cut), so the checkpoint no
-    ///   longer stops the check-in.
-    public mutating func use(signal: WeightSignal, reviewed: Bool = false) {
+    /// - Parameter reviews: the review decisions (phase `DayMark`s with review-keep, review-hold
+    ///   or review-cut). The checkpoint stops the check-in until a decision on or after the day
+    ///   it was reached; a ceiling review before that doesn't count.
+    public mutating func use(signal: WeightSignal, reviews: PhaseReviews = PhaseReviews()) {
         use(rate: signal.rate(on: day, plan: plan))
         if let weight = signal.bodyWeight(on: day)?.kilograms { weightKg = weight }
-        checkpointReached = !reviewed && signal.checkpointCrossing(in: plan, through: day) != nil
+        let crossing = signal.checkpointCrossing(in: plan, through: day)
+        checkpointReached = reviews.checkpointIsOpen(plan.activePhase(on: day)?.id ?? "", crossing: crossing)
     }
 
     /// The days the adherence gate looks at, oldest first: the decision window up to the day
@@ -66,9 +67,16 @@ extension CheckInInput {
         return DayKey.range(start, through: end, calendar: calendar)
     }
 
-    /// "How it went": the 7 days before the check-in day, oldest first.
+    /// "How it went": the 7 days before the check-in day, oldest first, without the days before
+    /// the plan was set up (`BodySchedule.setUpDay(of:)`; a plan set up on a Thursday gives
+    /// Thursday–Sunday at the first Monday check-in). The set-up day, not the active phase's
+    /// start, so the days of the phase before still count after a phase change.
     public func weekDays(calendar: Calendar = .current) -> [DayKey] {
-        DayKey.range(day.adding(days: -7, calendar: calendar), through: day.adding(days: -1, calendar: calendar), calendar: calendar)
+        var start = day.adding(days: -7, calendar: calendar)
+        if let setUp = BodySchedule.setUpDay(of: plan, calendar: calendar) { start = max(start, setUp) }
+        let end = day.adding(days: -1, calendar: calendar)
+        guard start <= end else { return [] }
+        return DayKey.range(start, through: end, calendar: calendar)
     }
 }
 
