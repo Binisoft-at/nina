@@ -15,11 +15,50 @@ enum ProgressPage: String, CaseIterable, Identifiable {
     var title: String { self == .body ? "Body" : "Nutrition" }
 }
 
-/// Which tape set the measure sheet asks for: the weekly sites (waist) or the full set.
-enum MeasureMode: String, CaseIterable, Identifiable {
+/// Which tape set the measure sheet asks for: the weekly sites (waist), the full set, or one site
+/// on its own (from that site's screen, or `nina://measure?mode=arm`).
+enum MeasureMode: Hashable, CaseIterable, Identifiable {
     case weekly, full
+    /// One site (with the other side too when both sides are measured).
+    case site(BodySite)
+
+    /// The sets the sheet offers to switch between (one site is opened from its own screen).
+    static let allCases: [MeasureMode] = [.weekly, .full]
+
+    /// "weekly", "full" or the site's key ("waist", "arm_l"): the deep-link value and sheet id.
+    var rawValue: String {
+        switch self {
+        case .weekly: return "weekly"
+        case .full: return "full"
+        case .site(let site): return site.rawValue
+        }
+    }
+
+    init?(rawValue: String) {
+        switch rawValue {
+        case "weekly": self = .weekly
+        case "full": self = .full
+        default:
+            guard let site = BodySite(rawValue: rawValue) else { return nil }
+            self = .site(site)
+        }
+    }
+
     var id: String { rawValue }
-    var title: String { self == .weekly ? "Weekly" : "Full Set" }
+
+    var title: String {
+        switch self {
+        case .weekly: return "Weekly"
+        case .full: return "Full Set"
+        case .site(let site): return site.title
+        }
+    }
+
+    /// The site of a single-site measurement.
+    var site: BodySite? {
+        if case .site(let site) = self { return site }
+        return nil
+    }
 
     /// The mode of a due item from the coach board (`BodyDueItem.Kind.full` → full, else weekly).
     init(_ item: BodyDueItem) {

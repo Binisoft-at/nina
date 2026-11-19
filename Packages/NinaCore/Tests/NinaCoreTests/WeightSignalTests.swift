@@ -373,6 +373,32 @@ struct WeightSignalTests {
         #expect(week.sanity(80.4, on: weightDay("2030-01-08")) == .ok)
     }
 
+    @Test func typoSuggestions() {
+        // A decimal point in the wrong place.
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 7.42, reference: 74), 74.2))
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 742, reference: 74), 74.2))
+        // One wrong digit.
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 84.2, reference: 74), 74.2))
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 78.6, reference: 72.4), 72.6))
+        // Two swapped digits.
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 47.2, reference: 74), 74.2))
+        // The candidate closest to the average wins.
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 79.6, reference: 75), 74.6))
+        // Nothing brings it within 3 kg.
+        #expect(WeightSignal.typoSuggestion(for: 55.5, reference: 80) == nil)
+        // Passes the check: nothing to suggest.
+        #expect(WeightSignal.typoSuggestion(for: 75, reference: 74) == nil)
+        #expect(WeightSignal.typoSuggestion(for: 76, reference: nil) == nil)
+        // No average yet: only a clear decimal slip, else nil.
+        #expect(WeightSignal.typoSuggestion(for: 20, reference: nil) == nil)
+        #expect(WeightSignal.typoSuggestion(for: 3200, reference: nil) == nil)
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 742, reference: nil), 74.2))
+        #expect(weightClose(WeightSignal.typoSuggestion(for: 7.42, reference: nil), 74.2))
+        // Not a number.
+        #expect(WeightSignal.typoSuggestion(for: .nan, reference: 74) == nil)
+        #expect(WeightSignal.typoSuggestion(for: 0, reference: 74) == nil)
+    }
+
     // MARK: Phase
 
     @Test func corridorFromTheStartWeight() {
