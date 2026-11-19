@@ -15,6 +15,8 @@ struct DaySummaryCard: View {
     var chip: CoachBoard.Chip? = nil
     /// "Week avg 2,380 of 2,400 kcal"; nil without one.
     var weekAverage: String? = nil
+    /// "Protein meals 3 of 4"; nil without a protein rule.
+    var proteinMeals: String? = nil
 
     @Environment(AppModel.self) private var app
 
@@ -79,10 +81,8 @@ struct DaySummaryCard: View {
                 NutrientBar(nutrient: nutrient, value: progress.totals.eaten.value(nutrient),
                             target: progress.targets.target(for: nutrient) ?? 0, unit: unit)
             }
-            if let weekAverage {
-                Text(weekAverage)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+            if weekAverage != nil || proteinMeals != nil {
+                DaySummaryFootnotes(weekAverage: weekAverage, proteinMeals: proteinMeals)
                     .padding(.top, 2)
             }
         }
@@ -99,6 +99,42 @@ struct DaySummaryCard: View {
     private var goalDetail: String? {
         guard progress.activityBonus > 0 else { return nil }
         return "+\(Fmt.energy(progress.activityBonus, unit: unit)) from Apple Health"
+    }
+}
+
+/// The summary card's small lines: the week average and the protein meals, side by side when
+/// they fit, else one under the other.
+private struct DaySummaryFootnotes: View {
+    let weekAverage: String?
+    let proteinMeals: String?
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                lines(separated: true)
+            }
+            .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                lines(separated: false)
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private func lines(separated: Bool) -> some View {
+        if let weekAverage {
+            Text(weekAverage)
+        }
+        if separated, weekAverage != nil, proteinMeals != nil {
+            Text("·")
+                .accessibilityHidden(true)
+        }
+        if let proteinMeals {
+            Text(proteinMeals)
+                .accessibilityHint("Meals that reached your protein minimum")
+        }
     }
 }
 

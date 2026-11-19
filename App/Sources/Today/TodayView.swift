@@ -81,7 +81,7 @@ struct DayView: View {
     var body: some View {
         let protein = proteinDay
         List(selection: $selection) {
-            summarySection
+            summarySection(protein: protein)
 
             coachCardSection
 
@@ -124,6 +124,10 @@ struct DayView: View {
                     }
                 }
             }
+
+            if coach.offersIncompleteLog, !entries.isEmpty || coach.isIncompleteLog {
+                incompleteLogSection
+            }
         }
         #if os(iOS)
         .listStyle(.insetGrouped)
@@ -152,18 +156,19 @@ struct DayView: View {
 
     // MARK: Summary and coach
 
-    /// The week strip, then the summary card (day-type chip, week average) with the checks strip
-    /// under it.
-    private var summarySection: some View {
+    /// The week strip, then today's phase line, the summary card (day-type chip, week average,
+    /// protein meals) and the checks strip under it.
+    private func summarySection(protein: ProteinMeals.Day?) -> some View {
         Section {
             WeekStrip(selected: day)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .listRowBackground(Color.clear)
             VStack(alignment: .leading, spacing: 0) {
-                DaySummaryCard(day: day, progress: progress, focus: settings.focus, unit: settings.energyUnit,
-                               isTrainingDay: settings.isTrainingDay(day), chip: chip,
-                               weekAverage: coach.board.weekAverageLine)
-                    .simultaneousGesture(daySwipe)
+                if let line = coach.phaseLine {
+                    TodayCoachPhaseLineView(line: line)
+                        .padding(.bottom, 8)
+                }
+                summaryCard(protein: protein)
                 TodayCoachStrip(day: day, input: coach.stripInput)
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
@@ -172,12 +177,45 @@ struct DayView: View {
         .listSectionSeparator(.hidden)
     }
 
+    private func summaryCard(protein: ProteinMeals.Day?) -> some View {
+        let unit = settings.energyUnit
+        // Protein meals count what was eaten, so a day still ahead shows none.
+        let proteinMeals: String? = day <= app.today ? TodayCoachState.proteinMealsText(protein) : nil
+        return DaySummaryCard(day: day, progress: progress, focus: settings.focus, unit: unit,
+                              isTrainingDay: settings.isTrainingDay(day), chip: chip,
+                              weekAverage: coach.weekAverageText(unit: unit), proteinMeals: proteinMeals)
+            .simultaneousGesture(daySwipe)
+    }
+
+    /// "Log Is Incomplete": the day stays out of check-ins and adherence (with a plan, up to today,
+    /// once something is logged).
+    private var incompleteLogSection: some View {
+        Section {
+            Toggle(isOn: incompleteLog) {
+                Label("Log Is Incomplete", systemImage: "exclamationmark.circle")
+            }
+        } footer: {
+            Text("Days with an incomplete log are left out of your weekly check-in.")
+        }
+    }
+
+    private var incompleteLog: Binding<Bool> {
+        Binding<Bool>(
+            get: { coach.isIncompleteLog },
+            set: { (isOn: Bool) in
+                // Shown at once; the reload after the save confirms it.
+                coach.isIncompleteLog = isOn
+                app.setIncompleteLog(isOn, on: day)
+            }
+        )
+    }
+
     /// At most one coach card above the meals (only on today).
     @ViewBuilder
     private var coachCardSection: some View {
         if let card = coach.board.card {
             Section {
-                TodayCoachCard(card: card, day: day)
+                TodayCoachCard(card: card, day: day, targets: coach.cardTargets)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
             }
@@ -273,7 +311,7 @@ struct DayView: View {
                 Button("Create…", systemImage: "plus.square.on.square") { app.sheet = .create }
                 Button("Nutrients of the Day", systemImage: "list.bullet.rectangle") { app.sheet = .dayNutrition(day) }
                 Divider()
-                Button("Goals", systemImage: "target") { app.sheet = .goals }
+                Button("Goals & Plan", systemImage: "target") { app.sheet = .goals }
                 if !app.isSandbox {
                     Button("\(AppInfo.name) Tour", systemImage: "graduationcap") { app.startTour() }
                 }
