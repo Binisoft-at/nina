@@ -38,9 +38,20 @@ struct NinaApp: App {
         }
 
         #if os(macOS)
+        // Settings window: General, and the plan editor as its own "Goals & Plan" tab (the plan
+        // editor and Goals show their own toasts, so changes made here can be undone here).
         Settings {
-            NavigationStack {
-                SettingsView()
+            TabView {
+                Tab("General", systemImage: "gearshape") {
+                    NavigationStack {
+                        SettingsView()
+                    }
+                }
+                Tab("Goals & Plan", systemImage: "target") {
+                    NavigationStack {
+                        PlanEditorView(showsDone: false)
+                    }
+                }
             }
             .environment(app)
             .modelContainer(app.container)
