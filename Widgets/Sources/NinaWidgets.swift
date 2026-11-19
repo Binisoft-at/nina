@@ -52,7 +52,7 @@ struct TodayWidget: Widget {
                 .containerBackground(.fill.tertiary, for: .widget)
         }
         .configurationDisplayName("Today")
-        .description("Calories left, protein, carbs, fat and water.")
+        .description("Calories left with today's day type, protein, carbs, fat and water.")
         .supportedFamilies(families)
     }
 
@@ -75,11 +75,17 @@ struct TodayWidgetView: View {
     private var leftText: String {
         remaining >= 0 ? Fmt.energy(remaining, unit: unit, showUnit: false) : "+" + Fmt.energy(-remaining, unit: unit, showUnit: false)
     }
+    /// The plan's day type in front of the numbers ("🏋️ "); "" without day types.
+    private var dayPrefix: String { snapshot.dayTypePrefix }
+    /// "🏋️ 1,240 kcal left" / "🏋️ 120 kcal over".
+    private var leftLine: String {
+        remaining >= 0 ? "\(dayPrefix)\(leftText) \(unit.symbol) left" : "\(dayPrefix)\(leftText) \(unit.symbol) over"
+    }
 
     var body: some View {
         #if os(watchOS)
         if family == .accessoryCorner {
-            Text(leftText)
+            Text(dayPrefix + leftText)
                 .widgetCurvesContent()
                 .widgetLabel {
                     Gauge(value: min(snapshot.fraction, 1)) { Text(unit.symbol) }
@@ -98,7 +104,7 @@ struct TodayWidgetView: View {
         switch family {
         case .accessoryCircular:
             Gauge(value: min(snapshot.fraction, 1)) {
-                Image(systemName: "fork.knife")
+                circularLabel
             } currentValueLabel: {
                 Text(leftText).minimumScaleFactor(0.5)
             }
@@ -106,7 +112,7 @@ struct TodayWidgetView: View {
             .widgetAccentable()
         case .accessoryRectangular:
             VStack(alignment: .leading, spacing: 1) {
-                Text(remaining >= 0 ? "\(leftText) \(unit.symbol) left" : "\(leftText) \(unit.symbol) over")
+                Text(leftLine)
                     .font(.headline)
                     .widgetAccentable()
                 Text("P \(Fmt.number(snapshot.protein))/\(Fmt.number(snapshot.proteinGoal)) · C \(Fmt.number(snapshot.carbs)) · F \(Fmt.number(snapshot.fat))")
@@ -116,7 +122,7 @@ struct TodayWidgetView: View {
                 }
             }
         case .accessoryInline:
-            Text(remaining >= 0 ? "\(leftText) \(unit.symbol) left" : "\(leftText) \(unit.symbol) over")
+            Text(leftLine)
         default:
             #if os(iOS)
             if family == .systemMedium {
@@ -127,6 +133,16 @@ struct TodayWidgetView: View {
             #else
             small
             #endif
+        }
+    }
+
+    /// The circular complication's label: the day type's emoji, else a fork and knife.
+    @ViewBuilder
+    private var circularLabel: some View {
+        if let emoji = snapshot.dayTypeEmoji, !emoji.isEmpty {
+            Text(emoji)
+        } else {
+            Image(systemName: "fork.knife")
         }
     }
 
@@ -173,6 +189,9 @@ struct TodayWidgetView: View {
         ZStack {
             ProgressRing(progress: snapshot.fraction, lineWidth: 11)
             VStack(spacing: -2) {
+                if let emoji = snapshot.dayTypeEmoji, !emoji.isEmpty {
+                    Text(emoji).font(.caption)
+                }
                 Text(leftText)
                     .font(.system(.title3, design: .rounded, weight: .bold).monospacedDigit())
                     .minimumScaleFactor(0.5)

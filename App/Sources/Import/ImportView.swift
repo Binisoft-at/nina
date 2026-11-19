@@ -22,6 +22,10 @@ struct ImportView: View {
     @State private var exportName = ""
     @State private var promptCopied = false
     @State private var problem: String?
+    /// Body values of a settings preview the person unticked (`SettingsChange.key`).
+    @State private var untickedBody: Set<String> = []
+    /// "Turn on coach reminders?" after an import that set up the plan.
+    @State private var askReminders = false
 
     var body: some View {
         NavigationStack {
@@ -75,44 +79,18 @@ struct ImportView: View {
                 }
 
                 ForEach(Array(previews.enumerated()), id: \.offset) { _, preview in
-                    Section {
-                        Text(preview.summary).font(.headline)
-                        ForEach(preview.lines.prefix(preview.visibleLines)) { line in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(line.title).lineLimit(1)
-                                    if !line.detail.isEmpty {
-                                        Text(line.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                                    }
-                                }
-                                Spacer()
-                                Text(line.action).font(.caption).foregroundStyle(line.action == "new" ? Brand.accent : .secondary)
-                            }
-                        }
-                        if preview.lines.count > preview.visibleLines {
-                            Text("… and \(preview.lines.count - preview.visibleLines) more").foregroundStyle(.secondary)
-                        }
-                        ForEach(preview.skipped.prefix(8), id: \.self) { reason in
-                            Text(reason).font(.caption).foregroundStyle(.orange)
-                        }
-                        if !preview.wishes.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Nina can't store these yet").font(.subheadline.weight(.semibold))
-                                ForEach(preview.wishes, id: \.self) { wish in
-                                    Text("• " + wish).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                    } header: {
-                        Text("Preview · \(preview.kind.title)")
+                    if let settings = preview.settings {
+                        ImportSettingsPreview(summary: preview.summary, result: settings.result, notes: preview.skipped,
+                                              unticked: $untickedBody)
+                    } else {
+                        previewSection(preview)
                     }
                 }
                 if !previews.isEmpty {
                     Section {
                         Button(previews.count > 1 ? "Import All" : "Import", systemImage: "square.and.arrow.down") { apply() }
                             .primaryActionStyle()
-                            .disabled(!previews.contains(where: \.hasChanges))
+                            .disabled(!previews.contains { $0.hasChanges(excluding: untickedBody) })
                     } footer: {
                         Text("Nothing changes until you tap Import. Importing again updates instead of duplicating.")
                     }
@@ -149,6 +127,7 @@ struct ImportView: View {
             .onChange(of: kind) { _, _ in
                 promptCopied = false
             }
+            .coachRemindersPrompt(isPresented: $askReminders) { dismiss() }
             .onAppear {
                 if let initialKind { kind = initialKind }
                 if let url = app.pendingImport {
@@ -163,15 +142,20 @@ struct ImportView: View {
     private var setupText: String {
         let store = app.store
         let tags = Array(Set(store.foods().flatMap(\.tagList))).sorted()
-        return SetupPrompt.text(appName: AppInfo.name, currentSettings: SettingsCSV.export(app.settingsState), existingTags: tags,
+        return SetupPrompt.text(appName: AppInfo.name, currentSettings: settingsExport, existingTags: tags,
                                 existingRecipes: store.recipes().map(\.displayName))
+    }
+
+    /// The current goals, settings and the whole coach plan (the active phase's numbers as of today).
+    private var settingsExport: String {
+        SettingsCSV.export(app.settingsState, today: app.today)
     }
 
     private var promptText: String {
         let store = app.store
         switch kind {
         case .settings:
-            return SettingsCSV.prompt(appName: AppInfo.name, current: SettingsCSV.export(app.settingsState))
+            return SettingsCSV.prompt(appName: AppInfo.name, current: settingsExport)
         case .foods:
             let tags = Array(Set(store.foods().flatMap(\.tagList))).sorted()
             return FoodCSV.prompt(appName: AppInfo.name, existingTags: tags).text
@@ -186,6 +170,7 @@ struct ImportView: View {
 
     private func makePreview(_ text: String) {
         problem = nil
+        untickedBody = []
         let parts = ImportBundle.parts(text)
         if parts.isEmpty {
             previews = [ImportPreview.make(kind: kind, text: text, app: app)]
@@ -218,13 +203,58 @@ struct ImportView: View {
 
     private func apply() {
         var summaries: [String] = []
+        var settingsUndo: SettingsImportUndo?
+        let planBefore = app.settings.plan
         // Settings first, then foods, so meals and recipes find foods imported in the same go.
-        for preview in previews.sorted(by: { order($0.kind) < order($1.kind) }) where preview.hasChanges {
-            summaries.append(preview.apply(app: app))
+        for preview in previews.sorted(by: { order($0.kind) < order($1.kind) }) where preview.hasChanges(excluding: untickedBody) {
+            let applied = preview.apply(app: app, excluding: untickedBody)
+            summaries.append(applied.summary)
+            if let undo = applied.undo { settingsUndo = undo }
             app.refresh()
         }
-        app.toasts.show(summaries.joined(separator: " · "), symbol: "square.and.arrow.down.fill")
-        dismiss()
+        let message = summaries.joined(separator: " · ")
+        if let settingsUndo {
+            // Undo puts the goals, settings and plan back and takes the body records and the weight away.
+            let model = app
+            app.toasts.show(message, symbol: "square.and.arrow.down.fill") { [weak model] in
+                model?.store.undo(settingsUndo)
+            }
+        } else {
+            app.toasts.show(message, symbol: "square.and.arrow.down.fill")
+        }
+        if !app.isSandbox, !app.launch.isDemo,
+           NotificationScheduler.shared.shouldOfferCoachReminders(before: planBefore, after: app.settings.plan) {
+            askReminders = true // the answer closes the sheet
+        } else {
+            dismiss()
+        }
+    }
+
+    @ViewBuilder
+    private func previewSection(_ preview: ImportPreview) -> some View {
+        Section {
+            Text(preview.summary).font(.headline)
+            ForEach(preview.lines.prefix(preview.visibleLines)) { line in
+                HStack {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(line.title).lineLimit(1)
+                        if !line.detail.isEmpty {
+                            Text(line.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                    Spacer()
+                    Text(line.action).font(.caption).foregroundStyle(line.action == "new" ? Brand.accent : .secondary)
+                }
+            }
+            if preview.lines.count > preview.visibleLines {
+                Text("… and \(preview.lines.count - preview.visibleLines) more").foregroundStyle(.secondary)
+            }
+            ForEach(preview.skipped.prefix(8), id: \.self) { reason in
+                Text(reason).font(.caption).foregroundStyle(.orange)
+            }
+        } header: {
+            Text("Preview · \(preview.kind.title)")
+        }
     }
 
     private func order(_ kind: ImportKind) -> Int {
@@ -236,7 +266,7 @@ struct ImportView: View {
         let text: String
         switch kind {
         case .settings:
-            text = SettingsCSV.export(app.settingsState)
+            text = settingsExport
         case .foods:
             text = FoodCSV.export(store.foods().filter { !$0.isHidden || $0.catalogID.isEmpty }.map { ($0.key, $0.draft) })
         case .diary:
@@ -267,12 +297,20 @@ struct ImportPreview {
     private var foodPlan: ImportPlan<FoodDraft>?
     private var diaryPlan: ImportPlan<DiaryDraft>?
     private var recipePlan: ImportPlan<RecipeDraft>?
-    private var settings: (result: SettingsResult, previous: SettingsState)?
+    /// Goals & settings: what the file changes (preview groups, body records, plan) and the
+    /// settings before.
+    private(set) var settings: (result: SettingsResult, previous: SettingsState)?
     /// What the AI found that Nina can't store yet.
     var wishes: [String] = []
 
     /// Every changed setting is shown; rows of other files up to ten.
     var visibleLines: Int { kind == .settings ? 50 : 10 }
+
+    /// Whether importing changes anything, without the body values the person unticked.
+    func hasChanges(excluding unticked: Set<String>) -> Bool {
+        guard let settings else { return hasChanges }
+        return settings.result.removingBodyValues(unticked).hasChanges
+    }
 
     @MainActor
     static func make(kind: ImportKind, text: String, app: AppModel) -> ImportPreview {
@@ -288,9 +326,11 @@ struct ImportPreview {
         case .settings:
             let previous = app.settingsState
             let draft = SettingsCSV.parse(text)
-            let result = SettingsCSV.apply(draft, to: previous, year: Calendar.current.component(.year, from: Date()))
+            let result = SettingsCSV.apply(draft, to: previous, year: Calendar.current.component(.year, from: Date()), today: app.today)
             let lines = result.changes.map { Line(title: $0.title, detail: "\($0.old) → \($0.new)", action: "change") }
-            let summary = result.hasChanges ? "\(result.changes.count) setting\(result.changes.count == 1 ? "" : "s") change" : "Your settings already match"
+            let count = result.changes.count
+            var summary = result.hasChanges ? "\(count) setting\(count == 1 ? "" : "s") change" : "Your settings already match"
+            if result.plan?.isSetUp == true, previous.plan?.isSetUp != true { summary = "Sets up your coach plan · " + summary }
             return ImportPreview(kind: kind, lines: lines, skipped: draft.skipped + result.notes, summary: summary, hasChanges: result.hasChanges,
                                  settings: (result, previous), wishes: draft.wishes)
         case .foods:
@@ -332,18 +372,27 @@ struct ImportPreview {
         }
     }
 
-    /// Applies the plan; returns the toast text.
+    /// Applies the plan, without the body values the person unticked; returns the toast text and,
+    /// for goals & settings, what Undo puts back.
     @MainActor
-    func apply(app: AppModel) -> String {
+    func apply(app: AppModel, excluding unticked: Set<String> = []) -> (summary: String, undo: SettingsImportUndo?) {
+        if let settings {
+            let result = settings.result.removingBodyValues(unticked)
+            let undo = app.store.applySettings(result, previous: settings.previous, day: app.today)
+            AppLog.info("Import settings: \(result.changes.count) changes, \(result.bodyRecords.count) body records", category: "import")
+            let count = result.changes.count
+            return (count == 1 ? "1 setting changed" : "\(count) settings changed", undo)
+        }
+        return (applyRows(app: app), nil)
+    }
+
+    /// Foods, diary or meals & recipes; returns the toast text.
+    @MainActor
+    private func applyRows(app: AppModel) -> String {
         let store = app.store
         var created = 0
         var updated = 0
         var skipped = 0
-        if let settings {
-            store.applySettings(settings.result, previous: settings.previous, day: app.today)
-            AppLog.info("Import settings: \(settings.result.changes.count) changes", category: "import")
-            return settings.result.changes.count == 1 ? "1 setting changed" : "\(settings.result.changes.count) settings changed"
-        }
         if let plan = foodPlan {
             var byKey: [String: Food] = [:]
             for food in store.foods() {
@@ -443,6 +492,96 @@ struct ImportPreview {
         var text = "Imported: \(created) new, \(updated) updated"
         if skipped > 0 { text += ", \(skipped) not found" }
         return text
+    }
+}
+
+/// The goals & settings preview: the summary with the orange notes (rows that couldn't be used,
+/// checks of what the file says), then one section per group in order – Body · Targets · Day types
+/// (3) · Phases (2) · Daily checks · Measuring · Check-in · Long-term goal · Notes · Preferences ·
+/// Not supported – with a switch on each of today's body values to leave it out.
+private struct ImportSettingsPreview: View {
+    let summary: String
+    let result: SettingsResult
+    let notes: [String]
+    @Binding var unticked: Set<String>
+
+    var body: some View {
+        Section {
+            Text(summary).font(.headline)
+            ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                Text(note).font(.caption).foregroundStyle(.orange)
+            }
+        } header: {
+            Text("Preview · \(ImportKind.settings.title)")
+        }
+        ForEach(result.sections) { section in
+            ImportSettingsGroup(section: section, unticked: $unticked)
+        }
+    }
+}
+
+private struct ImportSettingsGroup: View {
+    let section: SettingsSection
+    @Binding var unticked: Set<String>
+
+    var body: some View {
+        Section {
+            ForEach(section.changes) { change in
+                if isBodyValue(change) {
+                    Toggle(isOn: binding(change.key)) {
+                        ImportSettingsLine(change: change)
+                    }
+                } else {
+                    ImportSettingsLine(change: change)
+                }
+            }
+        } header: {
+            Text(section.title)
+        } footer: {
+            if section.group == .notSupported {
+                Text("Nina can't store these yet – they're only listed here.")
+            } else if section.group == .body, section.changes.contains(where: { isBodyValue($0) }) {
+                Text("Today's body values become your starting point. Switch off any you don't want saved.")
+            }
+        }
+    }
+
+    /// Body fat and tape values: today's baseline records, each one can be left out.
+    private func isBodyValue(_ change: SettingsChange) -> Bool {
+        change.group == .body && !change.key.isEmpty
+    }
+
+    private func binding(_ key: String) -> Binding<Bool> {
+        Binding(
+            get: { !unticked.contains(key) },
+            set: { on in
+                if on { unticked.remove(key) } else { unticked.insert(key) }
+            }
+        )
+    }
+}
+
+private struct ImportSettingsLine: View {
+    let change: SettingsChange
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(change.title).lineLimit(2)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(change.isRemoval ? Color.orange : Color.secondary)
+                    .lineLimit(3)
+            }
+        }
+    }
+
+    /// "2,400 → 2,600 kcal", just the new value for something new, "removed".
+    private var detail: String {
+        if change.group == .notSupported { return "" }
+        if change.isRemoval { return "removed" }
+        if change.old.isEmpty || change.old == "–" { return change.new }
+        return "\(change.old) → \(change.new)"
     }
 }
 

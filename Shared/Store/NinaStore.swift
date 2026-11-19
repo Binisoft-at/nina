@@ -67,15 +67,55 @@ struct NinaStore {
     /// The profile's settings with the live day-type marks, so every day's targets follow the plan.
     var settings: NinaSettings { NinaSettings(profile(), dayTypeMarks: dayTypeMarks()) }
 
-    /// Changes the profile, creating it on first use.
-    /// Goals & settings from an import: the profile, and today's weight when the file had a new one.
-    func applySettings(_ result: SettingsResult, previous: SettingsState, day: DayKey) {
-        updateProfile { profile in profile.apply(result.state, previous: previous) }
-        if let weight = result.newWeight {
-            _ = addWeight(weight, day: day, note: "import")
+    /// Goals & settings from an import: the profile, the coach plan (through `updatePlan`, so the
+    /// profile mirrors it), today's body records (baseline assessment and tape) and today's weight
+    /// when the file had a new one. Returns what the toast's Undo puts back (`undo(_:)`).
+    @discardableResult
+    func applySettings(_ result: SettingsResult, previous: SettingsState, day: DayKey, now: Date = Date()) -> SettingsImportUndo {
+        var undo = SettingsImportUndo(profile: SettingsImportUndo.Profile(profile() ?? NinaProfile()))
+        let plan = result.state.plan ?? CoachPlan()
+        let planChanged = plan != (previous.plan ?? CoachPlan())
+        var state = result.state
+        state.plan = previous.plan
+        updateProfile { profile in profile.apply(state, previous: previous) }
+        if planChanged {
+            _ = updatePlan(plan, on: day)
         }
+        for record in result.bodyRecords {
+            let key = record.importKey
+            let descriptor = FetchDescriptor<BodyMeasurement>(
+                predicate: #Predicate<BodyMeasurement> { $0.importKey == key && $0.deletedAt == nil }
+            )
+            if let existing = try? context.fetch(descriptor).first {
+                undo.edited.append(SettingsImportUndo.Edit(measurement: existing, previous: existing.draft))
+            }
+        }
+        let saved = importBodyRecords(result.bodyRecords, time: now)
+        undo.added = saved.filter { measurement in !undo.edited.contains { $0.measurement === measurement } }
+        if let weight = result.newWeight {
+            undo.weight = addWeight(weight, day: day, time: now, note: "import")
+        }
+        return undo
     }
 
+    /// Puts back what a settings import changed: every profile field (the plan included), the body
+    /// records as they were (added ones go to the trash) and the logged weight.
+    func undo(_ change: SettingsImportUndo) {
+        let now = Date()
+        if let profile = profile() {
+            change.profile.write(to: profile)
+            profile.modifiedAt = now
+        }
+        for edit in change.edited {
+            edit.previous.write(to: edit.measurement)
+            edit.measurement.modifiedAt = now
+        }
+        for measurement in change.added { measurement.moveToTrash(now: now) }
+        change.weight?.moveToTrash(now: now)
+        save()
+    }
+
+    /// Changes the profile, creating it on first use.
     func updateProfile(_ change: (NinaProfile) -> Void) {
         let profile = profile() ?? {
             let created = NinaProfile()
@@ -654,7 +694,15 @@ struct NinaStore {
                                    activityBonus: activityBonus * settings.activityBonusShare)
         let next = entries.filter { $0.isPlanned && $0.time >= now }.min { $0.time < $1.time }
         let nextText = next.map { "\(settings.meal($0.meal).name) · \(Fmt.time($0.time))" }
-        return TodaySnapshot(progress: progress, nextPlanned: nextText, energyUnit: settings.energyUnit, now: now)
+        var snapshot = TodaySnapshot(progress: progress, nextPlanned: nextText, energyUnit: settings.energyUnit, now: now)
+        // The plan's day type (its emoji goes in front of the numbers) and tomorrow's goals for
+        // the widget's entry after midnight (calorie cycling changes them from day to day).
+        snapshot.use(dayType: settings.dayType(for: today, calendar: calendar),
+                     isManual: settings.plan.isManualDayType(on: today, marks: settings.dayTypeMarks))
+        let tomorrow = today.adding(days: 1, calendar: calendar)
+        snapshot.tomorrow = TodaySnapshot.Goals(day: tomorrow, targets: settings.targets(for: tomorrow, calendar: calendar),
+                                                dayType: settings.dayType(for: tomorrow, calendar: calendar))
+        return snapshot
     }
 
     /// Saves, refreshes the widget snapshot (not for the tour's or the demo's in-memory stores)
@@ -674,4 +722,85 @@ struct NinaStore {
     var isInMemory: Bool {
         context.container.configurations.contains { $0.isStoredInMemoryOnly }
     }
+}
+
+/// What a settings import changed (`NinaStore.applySettings`), so its toast's Undo can put it back.
+struct SettingsImportUndo {
+    /// Every profile field the import writes, as it was.
+    struct Profile {
+        var targets: String
+        var trainingTargets: String
+        var trainingDays: String
+        var meals: String
+        var sex: String
+        var birthYear: Int
+        var heightCm: Double
+        var activity: String
+        var goal: String
+        var ratePerWeek: Double
+        var targetWeight: Double
+        var macroSplit: String
+        var foodLanguage: String
+        var energyUnit: String
+        var dayStartHour: Int
+        var activityBonusShare: Double
+        var focusNutrients: String
+        var waterGlass: Double
+        var coachPlan: String
+
+        init(_ profile: NinaProfile) {
+            targets = profile.targets
+            trainingTargets = profile.trainingTargets
+            trainingDays = profile.trainingDays
+            meals = profile.meals
+            sex = profile.sex
+            birthYear = profile.birthYear
+            heightCm = profile.heightCm
+            activity = profile.activity
+            goal = profile.goal
+            ratePerWeek = profile.ratePerWeek
+            targetWeight = profile.targetWeight
+            macroSplit = profile.macroSplit
+            foodLanguage = profile.foodLanguage
+            energyUnit = profile.energyUnit
+            dayStartHour = profile.dayStartHour
+            activityBonusShare = profile.activityBonusShare
+            focusNutrients = profile.focusNutrients
+            waterGlass = profile.waterGlass
+            coachPlan = profile.coachPlan
+        }
+
+        func write(to profile: NinaProfile) {
+            profile.targets = targets
+            profile.trainingTargets = trainingTargets
+            profile.trainingDays = trainingDays
+            profile.meals = meals
+            profile.sex = sex
+            profile.birthYear = birthYear
+            profile.heightCm = heightCm
+            profile.activity = activity
+            profile.goal = goal
+            profile.ratePerWeek = ratePerWeek
+            profile.targetWeight = targetWeight
+            profile.macroSplit = macroSplit
+            profile.foodLanguage = foodLanguage
+            profile.energyUnit = energyUnit
+            profile.dayStartHour = dayStartHour
+            profile.activityBonusShare = activityBonusShare
+            profile.focusNutrients = focusNutrients
+            profile.waterGlass = waterGlass
+            profile.coachPlan = coachPlan
+        }
+    }
+
+    /// A body record the import updated, with its values before.
+    struct Edit {
+        let measurement: BodyMeasurement
+        let previous: BodyMeasurementDraft
+    }
+
+    var profile: Profile
+    var added: [BodyMeasurement] = []
+    var edited: [Edit] = []
+    var weight: WeightEntry?
 }
