@@ -23,6 +23,11 @@ struct DayView: View {
     @State private var selection = Set<UUID>()
     @State private var showCalendar = false
     @State private var pickedDate = Date()
+    /// The coach parts of the day (chip, checks strip, card, week average, protein rule).
+    @State private var coach = TodayCoachState.empty
+    /// Ticks every few minutes so time-bound coach parts (the weigh-in until the morning cutoff,
+    /// the check-in card from it) update without a data change.
+    @State private var clock = 0
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
     #endif
@@ -59,19 +64,26 @@ struct DayView: View {
         entries.filter { selection.contains($0.uuid) }
     }
 
+    /// Protein by meal for the meal-header pills; nil without a protein rule.
+    private var proteinDay: ProteinMeals.Day? {
+        guard let rule = coach.proteinRule else { return nil }
+        return ProteinMeals.day(day, entries: entries.map(\.facts), rule: rule)
+    }
+
+    private var coachKey: String { "\(app.dataVersion)-\(day.rawValue)-\(clock)" }
+
+    /// The day-type chip, straight from the settings (the same chip as the board's): it is there
+    /// on the first frame of a day and always matches the targets on the card.
+    private var chip: CoachBoard.Chip? {
+        settings.todayCoachChip(for: day, today: app.today)
+    }
+
     var body: some View {
+        let protein = proteinDay
         List(selection: $selection) {
-            Section {
-                WeekStrip(selected: day)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                    .listRowBackground(Color.clear)
-                DaySummaryCard(day: day, progress: progress, focus: settings.focus, unit: settings.energyUnit,
-                               isTrainingDay: settings.isTrainingDay(day))
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
-                    .listRowBackground(Color.clear)
-                    .simultaneousGesture(daySwipe)
-            }
-            .listSectionSeparator(.hidden)
+            summarySection
+
+            coachCardSection
 
             if entries.isEmpty, day == app.today {
                 Section {
@@ -81,7 +93,8 @@ struct DayView: View {
             }
 
             ForEach(slots) { slot in
-                MealSection(slot: slot, day: day, entries: entries.filter { $0.meal == slot.id })
+                MealSection(slot: slot, day: day, entries: entries.filter { $0.meal == slot.id },
+                            protein: protein?.meal(slot.id))
             }
 
             Section {
@@ -103,6 +116,13 @@ struct DayView: View {
                         Label("Copy or plan this day", systemImage: "doc.on.doc")
                     }
                 }
+                if !coach.dayChecks.isEmpty {
+                    Menu {
+                        pastChecks
+                    } label: {
+                        Label("Checks of this day", systemImage: "checklist")
+                    }
+                }
             }
         }
         #if os(iOS)
@@ -121,6 +141,56 @@ struct DayView: View {
         .toolbar { toolbar }
         .onChange(of: entries.map(\.uuid)) { _, ids in
             selection = selection.intersection(ids)
+        }
+        .task(id: coachKey) {
+            coach = TodayCoachState.load(app: app, day: day)
+        }
+        .task {
+            await tickClock()
+        }
+    }
+
+    // MARK: Summary and coach
+
+    /// The week strip, then the summary card (day-type chip, week average) with the checks strip
+    /// under it.
+    private var summarySection: some View {
+        Section {
+            WeekStrip(selected: day)
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .listRowBackground(Color.clear)
+            VStack(alignment: .leading, spacing: 0) {
+                DaySummaryCard(day: day, progress: progress, focus: settings.focus, unit: settings.energyUnit,
+                               isTrainingDay: settings.isTrainingDay(day), chip: chip,
+                               weekAverage: coach.board.weekAverageLine)
+                    .simultaneousGesture(daySwipe)
+                TodayCoachStrip(day: day, input: coach.stripInput)
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+            .listRowBackground(Color.clear)
+        }
+        .listSectionSeparator(.hidden)
+    }
+
+    /// At most one coach card above the meals (only on today).
+    @ViewBuilder
+    private var coachCardSection: some View {
+        if let card = coach.board.card {
+            Section {
+                TodayCoachCard(card: card, day: day)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+            }
+            .listSectionSeparator(.hidden)
+        }
+    }
+
+    /// Bumps `clock` every 5 minutes while the day is shown.
+    private func tickClock() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(300))
+            guard !Task.isCancelled else { return }
+            clock += 1
         }
     }
 
@@ -157,6 +227,18 @@ struct DayView: View {
         }
         Button("Copy to Another Day…", systemImage: "calendar") { app.sheet = .copyEntries(entries) }
         Button("Save Day as Meal…", systemImage: "square.and.arrow.down.on.square") { app.sheet = .saveAsMeal(entries) }
+    }
+
+    /// A past day's daily checks: a tap marks one done (or open again), with Undo.
+    @ViewBuilder
+    private var pastChecks: some View {
+        ForEach(coach.dayChecks) { check in
+            Button {
+                _ = app.toggleCheck(check.id, on: day)
+            } label: {
+                Label(check.title, systemImage: check.symbol)
+            }
+        }
     }
 
     @ToolbarContentBuilder

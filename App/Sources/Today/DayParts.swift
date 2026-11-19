@@ -4,62 +4,101 @@ import BinisoftKit
 import NinaCore
 
 /// The ring with what's left, eaten / budget and the focus nutrients (the person's priorities).
+/// With a coach plan: the day-type chip at the top and the week average at the bottom.
 struct DaySummaryCard: View {
     let day: DayKey
     let progress: DayProgress
     let focus: [Nutrient]
     let unit: EnergyUnit
     var isTrainingDay = false
+    /// The day type ("🏋️ Gym day"); nil without a plan with day types.
+    var chip: CoachBoard.Chip? = nil
+    /// "Week avg 2,380 of 2,400 kcal"; nil without one.
+    var weekAverage: String? = nil
 
     @Environment(AppModel.self) private var app
 
     private var remaining: Double { progress.energyRemaining }
 
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(alignment: .center, spacing: 20) {
-                ZStack {
-                    ProgressRing(progress: progress.energyFraction, lineWidth: 16,
-                                 planned: progress.energyBudget > 0 ? progress.totals.projected.energy / progress.energyBudget : 0)
-                    VStack(spacing: 0) {
-                        Text(Fmt.energy(abs(remaining), unit: unit, showUnit: false))
-                            .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
-                            .contentTransition(.numericText(value: remaining))
-                            .minimumScaleFactor(0.6)
-                        Text(remaining >= 0 ? "\(unit.symbol) left" : "\(unit.symbol) over")
-                            .font(.caption)
-                            .foregroundStyle(remaining >= 0 ? Color.secondary : Color.orange)
-                    }
-                    .padding(.horizontal, 18)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let chip {
+                    TodayCoachChip(chip: chip, day: day)
                 }
-                .frame(width: 138, height: 138)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(Fmt.energy(abs(remaining), unit: unit)) \(remaining >= 0 ? "left" : "over")")
-
-                VStack(alignment: .leading, spacing: 10) {
-                    StatTile(title: "Eaten", value: Fmt.energy(progress.energyEaten, unit: unit))
-                    StatTile(title: progress.activityBonus > 0 ? "Budget incl. activity" : (isTrainingDay ? "Training day goal" : "Goal"),
-                             value: Fmt.energy(progress.energyBudget, unit: unit),
-                             detail: progress.activityBonus > 0 ? "+\(Fmt.energy(progress.activityBonus, unit: unit)) from Apple Health" : nil)
-                    if progress.totals.plannedCount > 0 {
-                        Label("\(Fmt.energy(progress.totals.planned.energy, unit: unit)) planned", systemImage: "circle.dashed")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer(minLength: 0)
+                ringRow
             }
-            VStack(spacing: 10) {
-                ForEach(focus.prefix(4), id: \.self) { nutrient in
-                    NutrientBar(nutrient: nutrient, value: progress.totals.eaten.value(nutrient),
-                                target: progress.targets.target(for: nutrient) ?? 0, unit: unit)
-                }
-            }
+            bars
         }
         .padding(18)
         .background(Color.cardBackground, in: .rect(cornerRadius: 24, style: .continuous))
         .contentShape(.rect)
         .onTapGesture(count: 2) { app.sheet = .dayNutrition(day) }
+    }
+
+    private var ringRow: some View {
+        HStack(alignment: .center, spacing: 20) {
+            ring
+            VStack(alignment: .leading, spacing: 10) {
+                StatTile(title: "Eaten", value: Fmt.energy(progress.energyEaten, unit: unit))
+                StatTile(title: goalTitle, value: Fmt.energy(progress.energyBudget, unit: unit), detail: goalDetail)
+                    .animation(.snappy, value: progress.energyBudget)
+                if progress.totals.plannedCount > 0 {
+                    Label("\(Fmt.energy(progress.totals.planned.energy, unit: unit)) planned", systemImage: "circle.dashed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var ring: some View {
+        ZStack {
+            ProgressRing(progress: progress.energyFraction, lineWidth: 16,
+                         planned: progress.energyBudget > 0 ? progress.totals.projected.energy / progress.energyBudget : 0)
+            VStack(spacing: 0) {
+                Text(Fmt.energy(abs(remaining), unit: unit, showUnit: false))
+                    .font(.system(.title, design: .rounded, weight: .bold).monospacedDigit())
+                    .contentTransition(.numericText(value: remaining))
+                    .minimumScaleFactor(0.6)
+                Text(remaining >= 0 ? "\(unit.symbol) left" : "\(unit.symbol) over")
+                    .font(.caption)
+                    .foregroundStyle(remaining >= 0 ? Color.secondary : Color.orange)
+            }
+            .padding(.horizontal, 18)
+        }
+        .frame(width: 138, height: 138)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(Fmt.energy(abs(remaining), unit: unit)) \(remaining >= 0 ? "left" : "over")")
+    }
+
+    private var bars: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForEach(focus.prefix(4), id: \.self) { nutrient in
+                NutrientBar(nutrient: nutrient, value: progress.totals.eaten.value(nutrient),
+                            target: progress.targets.target(for: nutrient) ?? 0, unit: unit)
+            }
+            if let weekAverage {
+                Text(weekAverage)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+        }
+    }
+
+    /// "Gym day goal" with a plan's day type, else "Training day goal" / "Goal"; with activity
+    /// from Apple Health the budget.
+    private var goalTitle: String {
+        if progress.activityBonus > 0 { return "Budget incl. activity" }
+        if let chip { return "\(chip.title) goal" }
+        return isTrainingDay ? "Training day goal" : "Goal"
+    }
+
+    private var goalDetail: String? {
+        guard progress.activityBonus > 0 else { return nil }
+        return "+\(Fmt.energy(progress.activityBonus, unit: unit)) from Apple Health"
     }
 }
 
@@ -80,6 +119,9 @@ struct WeekStrip: View {
         _entries = Query(filter: #Predicate<LogEntry> { $0.day >= first && $0.day <= last && $0.deletedAt == nil })
     }
 
+    /// With plan day types each day gets a line for its type's emoji and a touch-and-hold menu.
+    private var showsTypes: Bool { app.settings.todayCoachHasDayTypes }
+
     var body: some View {
         let energyByDay = Dictionary(grouping: entries.filter(\.isEaten), by: \.day).mapValues { $0.map(\.energy).reduce(0, +) }
         HStack(spacing: 4) {
@@ -93,28 +135,7 @@ struct WeekStrip: View {
             ForEach(days) { day in
                 let target = app.settings.targets(for: day).energy
                 let fraction = target > 0 ? (energyByDay[day.rawValue] ?? 0) / target : 0
-                Button {
-                    withAnimation(.snappy) { app.selectedDay = day }
-                } label: {
-                    VStack(spacing: 4) {
-                        Text(Fmt.weekdayLetter(day))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(day == app.today ? Brand.accent : .secondary)
-                        ZStack {
-                            ProgressRing(progress: fraction, lineWidth: 3.5)
-                            Text("\(day.day)")
-                                .font(.caption.weight(day == selected ? .bold : .regular).monospacedDigit())
-                                .foregroundStyle(day == selected ? Color.white : .primary)
-                                .frame(width: 24, height: 24)
-                                .background(day == selected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.clear), in: .circle)
-                        }
-                        .frame(width: 34, height: 34)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Fmt.dayTitle(day, today: app.today))
+                WeekStripDay(day: day, selected: selected, fraction: fraction, showsTypes: showsTypes)
             }
             Button {
                 withAnimation(.snappy) { app.selectedDay = selected.adding(days: 7) }
@@ -133,11 +154,79 @@ struct WeekStrip: View {
     }
 }
 
+/// One day of the week strip: weekday letter, ring with the date and, with plan day types, the
+/// type's emoji (none for the default type). Touch and hold to set the day's type ahead.
+private struct WeekStripDay: View {
+    let day: DayKey
+    let selected: DayKey
+    let fraction: Double
+    let showsTypes: Bool
+
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        if showsTypes, let chip = app.settings.todayCoachChip(for: day, today: app.today) {
+            dayButton
+                .contextMenu {
+                    TodayCoachDayTypeMenu(chip: chip, day: day)
+                }
+        } else {
+            dayButton
+        }
+    }
+
+    private var dayButton: some View {
+        Button {
+            withAnimation(.snappy) { app.selectedDay = day }
+        } label: {
+            VStack(spacing: 4) {
+                Text(Fmt.weekdayLetter(day))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(day == app.today ? Brand.accent : .secondary)
+                ring
+                if showsTypes {
+                    Text(emoji ?? " ")
+                        .font(.system(size: 11))
+                        .frame(height: 13)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(labelText)
+    }
+
+    private var ring: some View {
+        ZStack {
+            ProgressRing(progress: fraction, lineWidth: 3.5)
+            Text("\(day.day)")
+                .font(.caption.weight(day == selected ? .bold : .regular).monospacedDigit())
+                .foregroundStyle(day == selected ? Color.white : .primary)
+                .frame(width: 24, height: 24)
+                .background(day == selected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.clear), in: .circle)
+        }
+        .frame(width: 34, height: 34)
+    }
+
+    private var emoji: String? { app.settings.todayCoachStripEmoji(for: day) }
+
+    private var labelText: String {
+        let title = Fmt.dayTitle(day, today: app.today)
+        guard showsTypes, let type = app.settings.dayType(for: day) else { return title }
+        return "\(title), \(type.name) day"
+    }
+}
+
 /// One meal: header with its total and a + menu, the entries, drop target for moving entries here.
+/// With a protein minimum per meal the header shows the meal's protein ("32 / 35 g").
 struct MealSection: View {
     let slot: MealSlot
     let day: DayKey
     let entries: [LogEntry]
+    /// The meal's protein against the plan's minimum; nil = no pill (no minimum, or the meal
+    /// doesn't count).
+    var protein: ProteinMeals.Meal? = nil
 
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<Recipe> { $0.deletedAt == nil }, sort: \Recipe.sortOrder) private var recipes: [Recipe]
@@ -194,6 +283,9 @@ struct MealSection: View {
                 .font(.headline)
                 .foregroundStyle(.primary)
                 .textCase(nil)
+            if let protein {
+                TodayCoachProteinPill(meal: protein)
+            }
             if !planned.isEmpty {
                 Button {
                     app.confirm(planned)
