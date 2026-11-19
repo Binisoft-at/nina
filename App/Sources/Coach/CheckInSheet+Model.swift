@@ -64,6 +64,10 @@ struct CheckInSheetFacts {
     /// A full set is due today or overdue: the Waist step offers it instead of the waist alone.
     var fullSetDue: Bool { nextFull.map { $0.day <= today } ?? false }
 
+    /// The Waist step is skipped (and shown as done): measured today, with no full set due and
+    /// no tape or body-fat hint to read there.
+    var skipsWaistStep: Bool { waistMeasuredToday && !fullSetDue && bodyHints.isEmpty }
+
     /// The pages of the live check-in (F11).
     static let pageTitles = ["Your Week", "Waist", "How It Went", "Next Week"]
 
@@ -105,12 +109,15 @@ struct CheckInSheetFacts {
     /// moved more than 1 cm since `previous`, as `BodyReadings` asks) and the value to save (the
     /// mean of two). nil while nothing usable is typed or a reading is outside the site's range.
     static func waistEntry(_ first: String, _ second: String, site: BodySite, previous: Double?) -> (fields: Int, value: Double?) {
-        let values = BodySheetReadings.values([first, second])
+        // The first field leads: without a number there, nothing counts (a hidden second field neither).
+        guard let one = BodySheetNumber.parse(first) else { return (fields: 1, value: nil) }
+        let two: Double? = BodySheetNumber.parse(second)
+        let values: [Double] = two.map { (value: Double) -> [Double] in [one, value] } ?? [one]
         let fields = min(2, BodySheetReadings.fieldCount(values, base: 1, twoReadings: false, previous: previous))
-        let typed = [first, second].prefix(fields)
-        guard !values.isEmpty, !typed.contains(where: { BodySheetNumber.isInvalid($0) }),
-              values.prefix(fields).allSatisfy({ site.isPlausible($0) }) else { return (fields: fields, value: nil) }
-        return (fields: fields, value: BodySheetReadings.merged(values, count: fields))
+        if fields > 1, BodySheetNumber.isInvalid(second) { return (fields: fields, value: nil) }
+        let used = Array(values.prefix(fields))
+        guard used.allSatisfy({ (value: Double) -> Bool in site.isPlausible(value) }) else { return (fields: fields, value: nil) }
+        return (fields: fields, value: BodySheetReadings.merged(used, count: fields))
     }
 
     /// The phase's planned range ("+0.15 to +0.25 kg/week"); nil without a range.

@@ -184,7 +184,8 @@ struct PhaseSheet: View {
     private var isValid: Bool {
         guard loaded else { return false }
         if let start = draft.start, let end = draft.end, end < start { return false }
-        if PhaseSheetFormat.number(bodyFatCeilingText) > PhaseSheetFormat.maxBodyFat { return false }
+        // Only a gain phase keeps its ceiling (`builtPhase`), so only there can it block Save.
+        if draft.goal == .gain, PhaseSheetFormat.number(bodyFatCeilingText) > PhaseSheetFormat.maxBodyFat { return false }
         return true
     }
 
@@ -636,7 +637,7 @@ private struct PhaseSheetGoals: View {
         }
         if draft.goal == .gain {
             text += " The waist check opens the same review when your waist grows that much since the start."
-            text += " So does the body-fat ceiling (empty = off) once your tracked body fat reaches it."
+            text += " So does the body-fat ceiling (empty = off, at most 60 %) once your tracked body fat reaches it."
         }
         return text
     }

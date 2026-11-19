@@ -85,7 +85,7 @@ struct CheckInSheet: View {
 
     private func liveForm(_ facts: CheckInSheetFacts) -> some View {
         Form {
-            CheckInStepHeader(page: page)
+            CheckInStepHeader(page: page, note: headerNote(facts))
             pageContent(facts)
             CheckInPager(page: page, lastPage: lastPage, onBack: back, onNext: { next(facts) })
         }
@@ -176,7 +176,9 @@ struct CheckInSheet: View {
     // MARK: Steps
 
     private func back() {
-        page = max(0, page - 1)
+        var target = max(0, page - 1)
+        if target == 1, facts?.skipsWaistStep == true { target = 0 }
+        page = target
     }
 
     /// The next step; a waist typed but not saved yet is saved on the way.
@@ -185,12 +187,21 @@ struct CheckInSheet: View {
            CheckInSheetFacts.waistEntry(waistFirst, waistSecond, site: facts.waistSite, previous: facts.lastWaist?.value).value != nil {
             saveWaist(facts)
         }
-        page = min(lastPage, page + 1)
+        // Measured this morning: the Waist step is skipped and shown as done.
+        var target = min(lastPage, page + 1)
+        if target == 1, facts.skipsWaistStep { target = 2 }
+        page = target
     }
 
     private func startRedo() {
         redo = true
         page = 0
+    }
+
+    /// Once the Waist step was skipped (measured today): says so under the step title.
+    private func headerNote(_ facts: CheckInSheetFacts) -> String? {
+        guard page > 1, facts.skipsWaistStep else { return nil }
+        return "Waist measured today – step 2 is done"
     }
 
     // MARK: Actions
@@ -257,9 +268,10 @@ struct CheckInSheet: View {
 
 // MARK: - Steps
 
-/// "Step 2 of 4 · Waist" with a bar of four segments.
+/// "Step 2 of 4 · Waist" with a bar of four segments (and a note on a skipped step).
 private struct CheckInStepHeader: View {
     let page: Int
+    let note: String?
 
     private var titles: [String] { CheckInSheetFacts.pageTitles }
 
@@ -277,6 +289,11 @@ private struct CheckInStepHeader: View {
                             .fill(index <= page ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.secondary.opacity(0.2)))
                             .frame(height: 4)
                     }
+                }
+                if let note {
+                    Label(note, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(Color.green)
                 }
             }
             .padding(.vertical, 2)
@@ -643,7 +660,6 @@ private struct CheckInWaistStep: View {
         } else if facts.fullSetDue {
             Text("A full measurement set is due – it takes your waist along with the other sites.")
             Button("Full Measurement", systemImage: "ruler", action: onFullSet)
-                .primaryActionStyle()
         } else {
             entryRows
         }
