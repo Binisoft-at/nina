@@ -29,8 +29,9 @@ Two columns, one row per setting; only the settings in the file change. The full
 values is in the prompt below (`SettingsCSV.keys` in NinaCore).
 
 - **Body data** (`sex`, `birth_year` or `age`, `height_cm`, `weight_kg`, `activity`, `goal`,
-  `rate_kg_per_week`, `macro_split`) recalculates calories and macros exactly like Settings → Goals
-  (Mifflin–St Jeor, activity factor, ±7,700 kcal per kg). `weight_kg` is also logged as today's weight.
+  `rate_kg_per_week`, `macro_split`) recalculates calories and macros exactly like Settings → Goals &
+  Plan (Mifflin–St Jeor, activity factor, ±7,700 kcal per kg). `weight_kg` is also logged as today's
+  weight.
 - **Fixed numbers** (`calories`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g`, `sugar_max_g`,
   `saturated_fat_max_g`, `salt_max_g`, `water_ml`) win over the calculation. Calories without macros
   keep the current split (or use `macro_split`, also as percent: `30/40/30`).
@@ -43,13 +44,14 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
 - **Body values** (`body_fat_percent` with `body_fat_method`, and `neck_cm`, `chest_cm`, `arm_cm`,
   `waist_cm`, `waist_narrow_cm`, `hip_cm`, `thigh_cm`, `calf_cm`) become today's baseline: one
   body-fat record (method `estimate` unless the file says otherwise) and one tape record. Each value
-  is listed in the preview.
+  is listed in the preview with its own switch; switch one off and it isn't saved.
 - **`note`** rows: advice from a plan that isn't a setting (training, recovery, timing). They are
   kept in the coach plan and shown there.
 - **`not_supported`** rows: only real wishes – something you want Nina to do that no row covers.
   The preview lists them under "Not supported".
-- Settings → Import & Export → **Export Goals & Settings** writes the same format, including the
-  whole coach plan.
+- Settings → Import & Export → **Export Goals & Settings (CSV)** writes the same format, including
+  the whole coach plan. So do **Export Goals & Plan** and **Copy Export** at the bottom of Settings →
+  Goals & Plan → My Plan.
 
 ## Coach plan
 
@@ -65,7 +67,7 @@ Keys are read like every setting (`.`, spaces and `-` become `_`, upper or lower
 | `phase.<n>.name`, `.goal`, `.start`, `.end`, `.rate_kg_per_week` (`0.1-0.2`), `.rate_percent_per_week`, `.review_weight_kg` (`82-83`), `.target_weight_kg`, `.target_body_fat_percent`, `.max_waist_gain_cm`, `.note` | Dated phases. Dates are `YYYY-MM-DD` or `YYYY-MM` (a start becomes the 1st, an end the last day of the month); `~` or "about" in front marks them as approximate. |
 | `phase.<n>.calories`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml`, `.macros_g` (`160/328/72`) | A phase's baseline targets (for a later phase – the current phase uses the flat rows). |
 | `phase.<n>.<day type>.calories`, `.macros_g`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml` | Targets of one day type in that phase. Missing values come from the baseline; calories without carbs keep protein and fat and give carbs the rest. |
-| `check.<id>.name`, `.emoji`, `.dose`, `.when` (a meal, `08:00` or `anytime`), `.days` (`daily`, weekdays or day-type ids), `.optional`, `.remind`, `.affects_weight` | Daily checks such as a supplement (`supplement.<id>.*` works too). Creatine is marked "affects weight" by itself. |
+| `check.<id>.name`, `.emoji`, `.dose`, `.when` (a meal, `08:00` or `anytime`), `.days` (`daily`, weekdays or day-type ids), `.optional`, `.remind`, `.affects_weight` | Daily checks such as a supplement (`supplement.<id>.*` works too). A new check gets a reminder unless `.remind` is `no`; a check you already have keeps its setting. Creatine is marked "affects weight" by itself. |
 | `measure.weigh_in` (`daily 07:00`), `.morning_until`, `.weekly` (`waist`), `.full` (`waist;chest;arm;thigh;hip`), `.full_every_weeks`, `.body_fat_every_weeks`, `.body_fat_method`, `.side`, `.thigh_mark`, `.two_readings` | The measuring routine. |
 | `checkin.day` (`mon`), `.adjust_after_weeks` (`2-3`), `.step_kcal` (`100-150`), `.lock_days` | The weekly check-in and calorie adjustments (`check-in.*` works too). |
 | `long_term.weight_kg`, `.body_fat_percent`, `.waist_cm`, `.date`, `.note` | The long-term goal, separate from the current phase's target weight. |
@@ -153,6 +155,41 @@ checkin.adjust_after_weeks,2-3
 checkin.step_kcal,100-150
 note,An extra gym session counts as a gym day: pick Gym on that day.
 ```
+
+## The preview, Undo and coach reminders
+
+A goals & settings file opens a preview grouped the way the plan is built: **Body · Targets · Day
+types (3) · Phases (2) · Daily checks (1) · Measuring · Check-in · Long-term goal · Notes ·
+Preferences · Not supported** (a group shows only when the file changes something in it; the
+number is how many there will be).
+
+- Each line reads "old → new", just the new value, or "removed". Everything Nina wants you to look
+  at (macros that don't add up, overlapping phases, an unknown day type, a planned change that the
+  file replaces) is listed in orange at the top.
+- **Body values have a switch each** (body fat and every tape site). Switch one off and it isn't
+  saved; the rest of the file still imports.
+- **Import** is only active when the file changes something. Afterwards a message says what
+  changed, and its **Undo** puts back everything the import touched: your goals and settings, the
+  whole plan, the body values and the weight it logged.
+- The first import that sets up a plan asks once: **"Turn on coach reminders?"** (Turn On / Not
+  Now). You can change them any time in Settings → Reminders → Coach.
+
+## Copy for My AI
+
+Settings → Goals & Plan → My Plan → **Copy for My AI** puts a plain text on the clipboard for your
+AI (nothing is sent anywhere by Nina):
+
+- about you (age, height, sex, activity) and your plan: phases, day types with their targets,
+  checks, protein per meal, the measuring routine and the long-term goal;
+- the last four weeks, one line each: average morning weight, pace, average calories per day type
+  against the target, protein days and protein meals, checks, waist and that week's check-in;
+- the latest full tape set and body fat by method (the tape estimate included), and your plan's notes;
+- your current settings file, and at the end: "If you suggest changes, answer only with a
+  setting,value block using these keys" with the key table.
+
+Paste it into your AI with your question. Its answer is a goals & settings block you import as
+above, with the preview and Undo. Weigh-ins from Apple Health are only included when "Include
+Apple Health weights" is switched on (iPhone and iPad; off by default).
 
 ## Forgiving on purpose
 

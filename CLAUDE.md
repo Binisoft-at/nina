@@ -17,6 +17,15 @@ click below and the occasional account step you ask for.
 - `Packages/NinaCore`: platform-free logic with Swift Testing tests: nutrients, search, quick-add
   parser ("2 eggs and a toast"), goals, insights, CSV import formats, Open Food Facts parsing, the
   tour. Put anything testable here. `Resources/foods.json` is the bundled catalog (1,079 foods).
+- Coach & body: the plan is JSON in `NinaProfile.coachPlan` (`CoachPlan.swift`, edits in
+  `PlanEdits.swift`); tape and body fat are `BodyMeasurement`, day types, check ticks, check-ins
+  and phase decisions are `DayMark` (read and written in `Shared/Store/NinaStore+Coach.swift`, each
+  write returns a `CoachUndo`). NinaCore: `WeightSignal`, `Body`, `BodyComposition`,
+  `BodySchedule`, `ProteinMeals`, `Adherence`, `CheckInEngine`, `CoachGlue`, `CoachBoard` (what
+  Today shows), `CoachReminders`, `CoachCopy`, `SettingsCSV+Plan` (the plan in the import).
+  App: `App/Sources/Coach/` – `CoachContext` (one day's coach data in one go), `TodayCoach*`,
+  `BodySheets*`, `ProgressHome`, `BodyPage*`, `BodyDetails`, `CheckInSheet*`, `PhaseSheets*`,
+  `PlanEditor*`. Demo coach data: `DemoCoach` in `Shared/Store/DemoData.swift` (made-up numbers).
 - `project.yml` (XcodeGen) generates the Xcode project; never committed. All identifiers live in
   `Config/Base.xcconfig`; entitlements use its variables.
 - `cloudkit/schema.ckdb` is generated from the models: `python3 tools/cloudkit-schema.py`
@@ -26,7 +35,8 @@ click below and the occasional account step you ask for.
 - Synced from the handbook, never edit here: `Vendor/BinisoftKit`, `scripts/ci`,
   `.github/workflows`. Change them in the handbook and run its `tools/sync.sh`.
 - Owner docs: `README.md`, `docs/SETUP.md`, `docs/IMPORT.md` (CSV formats and the AI prompts),
-  `docs/HEALTH.md`, `docs/TOUR.md`, `docs/ARCHITECTURE.md`.
+  `docs/BODY.md` (measuring, the check-in, phases, coach reminders), `docs/HEALTH.md`,
+  `docs/TOUR.md`, `docs/ARCHITECTURE.md`.
 
 ## The loop (no Mac in the session)
 
