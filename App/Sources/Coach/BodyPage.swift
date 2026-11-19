@@ -30,8 +30,9 @@ struct BodyPageView: View {
         }
     }
 
-    /// Reload on every data change and when the day changes.
-    private var loadKey: String { "\(app.dataVersion)-\(app.today.rawValue)" }
+    /// Reload on every data change, when the day changes and when Apple Health weigh-ins arrive
+    /// (read live, never stored).
+    private var loadKey: String { "\(app.dataVersion)-\(app.today.rawValue)-\(app.health.weightSamples.count)" }
 
     @ViewBuilder
     private var content: some View {

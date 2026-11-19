@@ -294,6 +294,7 @@ struct BodyPageWeightLegend: View {
 struct BodyPageCompositionCard: View {
     let composition: BodyPageComposition
     let today: DayKey
+    @AppStorage("nina.body.tip.glycogen") private var glycogenSeen = false
 
     var body: some View {
         CardSection(title: "Body composition", symbol: "percent", trailing: composition.latestTitle) {
@@ -320,6 +321,9 @@ struct BodyPageCompositionCard: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if showsGlycogenNote {
+                glycogenNote
             }
             ratios
             ForEach(footLines, id: \.self) { line in
@@ -349,6 +353,24 @@ struct BodyPageCompositionCard: View {
         }
     }
 
+    /// Shown once, during a gain phase, next to the lean change (F7).
+    private var showsGlycogenNote: Bool {
+        composition.isGainPhase && composition.change != nil && !glycogenSeen
+    }
+
+    private var glycogenNote: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "lightbulb")
+                .foregroundStyle(Brand.accent)
+            Text(BodyComposition.glycogenNote)
+                .font(.footnote)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button("OK") { glycogenSeen = true }
+                .font(.footnote.weight(.semibold))
+        }
+    }
+
     private var ffmiDetail: String? {
         composition.normalisedFFMI.map { "normalised " + $0.formatted(.number.precision(.fractionLength(1))) }
     }
@@ -367,13 +389,16 @@ struct BodyPageCompositionCard: View {
         if change.isFatWithinError { fat += " (" + CompositionChange.withinErrorText + ")" }
         var lines = ["Since the value before: \(lean), \(fat)."]
         if let share = change.leanShare {
-            lines.append("Lean share of the gain: \(Fmt.percent(share)).")
+            lines.append("Lean share of the gain: \(Fmt.percent(share)) (\(Fmt.percent(LeanShareRating.goodShare)) or more is good).")
         }
         return lines
     }
 
     private var footLines: [String] {
         var lines: [String] = []
+        if composition.series.count > 1 {
+            lines.append("Each method and device is its own series, never averaged with another – compare like with like.")
+        }
         if let note = composition.tapeNote { lines.append(note) }
         if let next = composition.nextFull {
             let overdue = next.overdueDays(on: today)
@@ -449,9 +474,10 @@ struct BodyPageFatSeriesRow: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// `series.band` is the method's error text, which already has its sign ("±1.5", "±4–5").
     private var detail: String {
-        var parts = ["±" + series.band, Fmt.shortDay(series.latestDay), "\(series.count) \(series.count == 1 ? "value" : "values")"]
-        if series.band == "unknown" { parts[0] = "error unknown" }
+        let band = series.band == "unknown" ? "error unknown" : series.band + " points"
+        var parts = [band, Fmt.shortDay(series.latestDay), "\(series.count) \(series.count == 1 ? "value" : "values")"]
         if series.isTracking { parts.append("tracks your goal") }
         return parts.joined(separator: " · ")
     }

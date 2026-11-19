@@ -202,6 +202,8 @@ struct BodyPageComposition {
     let nextFull: BodySchedule.Due?
     /// Why the tape estimate is missing ("Height needed for the tape estimate").
     let tapeNote: String?
+    /// The active phase gains weight (the glycogen note goes with the lean change).
+    let isGainPhase: Bool
 
     var hasBodyFat: Bool { !series.isEmpty }
     var isEmpty: Bool { series.isEmpty && waistToHeight == nil && nextFull == nil && tapeNote == nil }
@@ -664,8 +666,7 @@ extension BodyPageData {
             case .needsFormula:
                 tapeNote = "Choose female or male in Goals to see the tape estimate."
             case .needsSites(let sites):
-                let names = sites.map { $0.title.lowercased() }.joined(separator: " and ")
-                tapeNote = "Measure your \(names) for the tape estimate."
+                tapeNote = "Measure your \(BodyPageText.list(sites.map { $0.title.lowercased() })) for the tape estimate."
             case .implausible, .available:
                 tapeNote = nil
             }
@@ -674,7 +675,8 @@ extension BodyPageData {
         let page = BodyPageComposition(
             points: points, series: series, latest: latestPoint?.composition, latestDay: latestPoint?.day,
             latestTitle: tracking?.title, change: change, waistToHeight: waistToHeight, waistToHip: waistToHip,
-            ffmi: ffmi, normalisedFFMI: normalised, nextFull: context.isSetUp ? context.nextFull : nil, tapeNote: tapeNote)
+            ffmi: ffmi, normalisedFFMI: normalised, nextFull: context.isSetUp ? context.nextFull : nil, tapeNote: tapeNote,
+            isGainPhase: context.activePhase?.goal == .gain)
         return CompositionResult(page: page, trackingPoints: trackingPoints)
     }
 
@@ -845,6 +847,12 @@ enum BodyPageText {
     /// The phase's name, else the default name for its goal.
     static func name(of phase: CoachPlan.Phase) -> String {
         phase.name.isEmpty ? CoachPlan.Phase.defaultName(for: phase.goal) : phase.name
+    }
+
+    /// "waist", "waist and neck", "narrow waist, hip and neck".
+    static func list(_ items: [String]) -> String {
+        guard items.count > 2, let last = items.last else { return items.joined(separator: " and ") }
+        return items.dropLast().joined(separator: ", ") + " and " + last
     }
 
     /// "84.0 cm".
