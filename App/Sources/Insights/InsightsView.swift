@@ -326,50 +326,26 @@ struct InsightsView: View {
         }
     }
 
+    /// The weight chart lives on the Body page; here the trend weight, a way there and the
+    /// measured maintenance (it comes from your intake).
     private func weightCard(_ data: InsightData) -> some View {
         let measured = data.weights.compactMap(\.weight)
         let trends = data.weights.compactMap(\.trend)
         return CardSection(title: "Weight", symbol: "scalemass.fill", trailing: trends.last.map { Fmt.kilograms($0) }) {
             if measured.isEmpty {
-                Text("Log your weight (or allow Apple Health) to see your trend and your measured maintenance calories.")
+                Text("Log your weight (or allow Apple Health) to see your measured maintenance calories.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button("Log Weight", systemImage: "plus") { app.sheet = .weight(nil) }
             } else {
-                let low = (min(measured.min() ?? 0, trends.min() ?? 0) - 0.5).rounded(.down)
-                let high = (max(measured.max() ?? 0, trends.max() ?? 0) + 0.5).rounded(.up)
-                Chart {
-                    ForEach(data.weights) { point in
-                        if let weight = point.weight {
-                            PointMark(x: .value("Day", point.date, unit: .day), y: .value("Weight", weight))
-                                .foregroundStyle(Color.secondary.opacity(0.6))
-                                .symbolSize(18)
-                        }
-                        if let trend = point.trend {
-                            LineMark(x: .value("Day", point.date, unit: .day), y: .value("Trend", trend))
-                                .interpolationMethod(.catmullRom)
-                                .foregroundStyle(Brand.accent)
-                                .lineStyle(StrokeStyle(lineWidth: 2.5))
-                        }
-                    }
-                }
-                .chartYScale(domain: low...max(high, low + 1))
-                .frame(height: 180)
-                if let first = trends.first, let last = trends.last {
-                    let change = last - first
-                    Text("Trend \(change >= 0 ? "+" : "−")\(Fmt.kilograms(abs(change))) in this period. The line smooths out daily water swings.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Your weight chart, 7-day average, measurements and body fat are on the Body page.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
+            Button("Open Body", systemImage: "figure") { app.showProgress(.body) }
             if let maintenance = data.maintenance {
                 Divider()
                 MaintenanceView(maintenance: maintenance)
-            }
-            NavigationLink {
-                WeightView()
-            } label: {
-                Label("All weigh-ins", systemImage: "list.bullet")
             }
         }
     }
