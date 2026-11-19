@@ -207,8 +207,11 @@ extension PlanRule {
 
 /// The profile as plain values – what every screen reads. Defaults when no profile exists yet
 /// (a new device doesn't create one until something is changed, so it never overrides the
-/// synced one).
+/// synced one). With a coach plan, the day's targets come from its day types and phases.
 struct NinaSettings: Equatable {
+    /// The weight body math uses while the real one isn't known yet.
+    static let fallbackWeightKg = 72.0
+
     var targets: DailyTargets = .standard
     var trainingTargets: DailyTargets?
     var trainingDays = Weekdays([])
@@ -223,10 +226,22 @@ struct NinaSettings: Equatable {
     var hasBody = false
     var macroSplit: MacroSplit = .balanced
     var targetWeight = 0.0
+    /// The coach plan (`NinaProfile.coachPlan`); empty without one.
+    var plan = CoachPlan()
+    /// Live day-type marks: DayKey raw value → day type id (newest mark per day, `DayMarks.dayTypes`).
+    var dayTypeMarks: [String: String] = [:]
+    /// The real body weight (`WeightSignal.bodyWeight`: 7-day average, else trend, else latest), set
+    /// by the app; `body.weightKg` follows it.
+    var bodyWeightKg: Double? {
+        didSet { body.weightKg = bodyWeightKg ?? NinaSettings.fallbackWeightKg }
+    }
 
     init() {}
 
-    init(_ profile: NinaProfile?) {
+    init(_ profile: NinaProfile?, dayTypeMarks: [String: String] = [:], bodyWeightKg: Double? = nil) {
+        self.dayTypeMarks = dayTypeMarks
+        self.bodyWeightKg = bodyWeightKg
+        body.weightKg = bodyWeightKg ?? NinaSettings.fallbackWeightKg
         guard let profile else { return }
         targets = profile.targets.isEmpty ? .standard : DailyTargets(encoded: profile.targets)
         trainingTargets = profile.trainingTargets.isEmpty ? nil : DailyTargets(encoded: profile.trainingTargets)
@@ -244,23 +259,43 @@ struct NinaSettings: Equatable {
             sex: Sex(rawValue: profile.sex) ?? .unspecified,
             age: profile.birthYear > 0 ? GoalCalculator.age(birthYear: profile.birthYear) : 35,
             heightCm: profile.heightCm > 0 ? profile.heightCm : 172,
-            weightKg: 72,
+            weightKg: bodyWeightKg ?? NinaSettings.fallbackWeightKg,
             activity: ActivityLevel(rawValue: profile.activity) ?? .light,
             goal: WeightGoal(rawValue: profile.goal) ?? .maintain,
             ratePerWeek: profile.ratePerWeek
         )
         macroSplit = MacroSplit.presets.first { $0.id == profile.macroSplit } ?? .balanced
         targetWeight = profile.targetWeight
+        plan = CoachPlan(encoded: profile.coachPlan)
     }
 
-    /// The targets that apply on a day (training-day targets on training weekdays).
+    /// The targets that apply on a day: with a set-up plan its day type's targets in the active
+    /// phase (`CoachPlan.targets(on:marks:fallback:)`), else training-day targets on training
+    /// weekdays and the daily targets on the rest.
     func targets(for day: DayKey, calendar: Calendar = .current) -> DailyTargets {
+        let legacy = legacyTargets(for: day, calendar: calendar)
+        guard plan.isSetUp else { return legacy }
+        return plan.targets(on: day, marks: dayTypeMarks, fallback: legacy, calendar: calendar)
+    }
+
+    /// The profile's own rule (also the plan's fallback before its first phase starts).
+    func legacyTargets(for day: DayKey, calendar: Calendar = .current) -> DailyTargets {
         if let trainingTargets, trainingDays.contains(day, calendar: calendar) { return trainingTargets }
         return targets
     }
 
+    /// The plan's day type of a day (the day-type mark, else the schedule); nil without a plan or
+    /// day types.
+    func dayType(for day: DayKey, calendar: Calendar = .current) -> CoachPlan.DayType? {
+        guard plan.isSetUp else { return nil }
+        return plan.dayType(on: day, marks: dayTypeMarks, calendar: calendar)
+    }
+
+    /// A day with more to eat: with plan day types any type but the default one (Rest), else a
+    /// training weekday.
     func isTrainingDay(_ day: DayKey, calendar: Calendar = .current) -> Bool {
-        trainingTargets != nil && trainingDays.contains(day, calendar: calendar)
+        if let type = dayType(for: day, calendar: calendar) { return type.schedule != .default }
+        return trainingTargets != nil && trainingDays.contains(day, calendar: calendar)
     }
 
     func meal(_ id: String) -> MealSlot {
@@ -289,7 +324,8 @@ extension SettingsState {
                   targetWeight: settings.targetWeight, macroSplit: settings.macroSplit, targets: settings.targets,
                   trainingTargets: settings.trainingTargets, trainingDays: settings.trainingDays, meals: settings.meals,
                   language: settings.language, energyUnit: settings.energyUnit, dayStartHour: settings.dayStartHour,
-                  waterGlass: settings.waterGlass, activityBonusShare: settings.activityBonusShare, focus: settings.focus)
+                  waterGlass: settings.waterGlass, activityBonusShare: settings.activityBonusShare, focus: settings.focus,
+                  plan: settings.plan.isEmpty ? nil : settings.plan)
     }
 }
 
@@ -315,5 +351,7 @@ extension NinaProfile {
         waterGlass = state.waterGlass
         activityBonusShare = state.activityBonusShare
         focusNutrients = state.focus.map(\.rawValue).joined(separator: ",")
+        let plan = state.plan ?? CoachPlan()
+        if plan != (previous.plan ?? CoachPlan()) { coachPlan = plan.encoded }
     }
 }

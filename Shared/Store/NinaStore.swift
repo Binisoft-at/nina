@@ -64,7 +64,8 @@ struct NinaStore {
         return first
     }
 
-    var settings: NinaSettings { NinaSettings(profile()) }
+    /// The profile's settings with the live day-type marks, so every day's targets follow the plan.
+    var settings: NinaSettings { NinaSettings(profile(), dayTypeMarks: dayTypeMarks()) }
 
     /// Changes the profile, creating it on first use.
     /// Goals & settings from an import: the profile, and today's weight when the file had a new one.
