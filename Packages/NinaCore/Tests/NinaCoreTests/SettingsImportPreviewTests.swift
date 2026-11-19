@@ -18,15 +18,15 @@ struct SettingsImportPreviewTests {
     weight_kg,74.2
     activity,moderate
     goal,gain
-    rate_kg_per_week,0.1-0.2
+    rate_kg_per_week,0.15-0.25
     target_weight_kg,77
     macro_split,25/50/25
     calories,2600
     protein_g,150
-    carbs_g,340
+    carbs_g,335
     fat_g,75
-    fiber_g,30
-    water_ml,2500
+    fiber_g,28
+    water_ml,2400
     focus_nutrients,protein;carbs;fat;fiber
     body_fat_percent,18
     body_fat_method,estimate
@@ -46,12 +46,12 @@ struct SettingsImportPreviewTests {
     phase.1.goal,gain
     phase.1.start,2030-02-04
     phase.1.end,~2030-05-31
-    phase.1.rate_kg_per_week,0.1-0.2
+    phase.1.rate_kg_per_week,0.15-0.25
     phase.1.review_weight_kg,76-77
     phase.1.target_weight_kg,77
     phase.1.gym.calories,2600
-    phase.1.gym.macros_g,150/340/75
-    phase.1.tennis.calories,2800
+    phase.1.gym.macros_g,150/335/75
+    phase.1.tennis.calories,2850
     phase.1.tennis.macros_g,150/380/78
     phase.1.rest.calories,2400
     phase.1.rest.macros_g,150/290/75

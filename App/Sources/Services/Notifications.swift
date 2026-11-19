@@ -301,10 +301,11 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let meal = info["meal"] as? String
         let coach = info["coach"] as? String
         let url = info["url"] as? String
+        let day = info["day"] as? String
         let text = (response as? UNTextInputNotificationResponse)?.userText
         await MainActor.run {
             if coach != nil {
-                NotificationScheduler.shared.handleCoach(action: action, text: text, url: url)
+                NotificationScheduler.shared.handleCoach(action: action, text: text, url: url, day: day)
             } else {
                 NotificationScheduler.shared.handle(action: action, entryIDs: ids, meal: meal)
             }
@@ -332,8 +333,9 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// A coach notification's button (or a tap on it): written through the store right in the
-    /// banner where it can be, else Nina opens where the task is.
-    private func handleCoach(action: String, text: String?, url: String?) {
+    /// banner where it can be, else Nina opens where the task is. Checks and day types count for
+    /// the notification's own day (`day`), also when it is tapped after midnight.
+    private func handleCoach(action: String, text: String?, url: String?, day raw: String?) {
         if action == UNNotificationDefaultActionIdentifier {
             if let url { open(url) }
             return
@@ -341,24 +343,35 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         guard let command = CoachReminders.command(action: action, text: text) else { return }
         let store = NinaStore(context: Persistence.shared.container.mainContext)
         let today = store.settings.today()
+        let day = raw.flatMap { DayKey($0) }.map { min($0, today) } ?? today
         switch command {
         case .open(let link):
             open(link)
         case .check(let checkID, let state):
-            store.setCheck(day: today, checkID: checkID, state: state)
+            store.setCheck(day: day, checkID: checkID, state: state)
             AppLog.info("Check \(checkID) \(state.rawValue) from a notification", category: "notifications")
+            followUp(store)
         case .dayType(let typeID):
-            store.setDayType(day: today, typeID: typeID)
+            store.setDayType(day: day, typeID: typeID)
             AppLog.info("Day type \(typeID) picked from a notification", category: "notifications")
+            followUp(store)
         case .weight(let kilograms):
-            logWeight(kilograms, typed: text ?? "", store: store)
+            if logWeight(kilograms, typed: text ?? "", store: store) { followUp(store) }
         }
+    }
+
+    /// After a write from a banner the notifications follow at once (the morning one loses its
+    /// button, a done check its reminder), also when the app was started in the background for it.
+    private func followUp(_ store: NinaStore) {
+        reschedule(context: store.context, settings: store.coachSettings(adding: CoachContext.latestHealthReadings))
     }
 
     /// "Weight…" in the morning banner: a plausible weight is saved (and written to Apple Health
     /// when that's on); anything else – not a number, outside 25–300 kg, more than 3 kg from the
     /// 7-day average – comes back as "Is that right?", which opens the weigh-in sheet prefilled.
-    private func logWeight(_ kilograms: Double?, typed: String, store: NinaStore) {
+    /// Returns whether the weight was saved.
+    @discardableResult
+    private func logWeight(_ kilograms: Double?, typed: String, store: NinaStore) -> Bool {
         let settings = store.settings
         let now = Date()
         let today = settings.today(now: now)
@@ -368,7 +381,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
             let health = HealthService(enabled: true)
             Task { await health.writeWeight(kilograms, date: now) }
             AppLog.info("Weight saved from a notification", category: "notifications")
-            return
+            return true
         }
         let value = kilograms ?? CoachReminders.number(from: typed)
         let content = UNMutableNotificationContent()
@@ -379,6 +392,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         content.userInfo = ["coach": Self.weighCheckID, "url": link]
         content.sound = .default
         center.add(UNNotificationRequest(identifier: Self.weighCheckID, content: content, trigger: nil))
+        return false
     }
 
     /// Opens a nina:// URL in the app (after a moment, so a window that is just starting listens).

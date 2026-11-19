@@ -159,7 +159,12 @@ private struct ReminderCoachSection: View {
             Section {
                 Text("The coach reminds you to weigh in, measure and check in once your plan is set up.")
                     .foregroundStyle(.secondary)
-                Button("Set Up Your Plan", systemImage: "list.bullet.clipboard") { app.present(.plan) }
+                // Pushed, so it also works in the Mac Settings window (a sheet would open on the main window).
+                NavigationLink {
+                    PlanEditorView(showsDone: false)
+                } label: {
+                    Label("Set Up Your Plan", systemImage: "list.bullet.clipboard")
+                }
             } header: {
                 Text("Coach")
             }
@@ -189,6 +194,9 @@ private struct ReminderCoachSection: View {
         )
     }
 
+    /// ISO weekdays (1 = Monday), in English like the rest of the UI.
+    private static let weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
     /// When each one comes, from the plan.
     private func detail(for kind: CoachReminders.Kind) -> String {
         let plan = app.settings.plan
@@ -202,8 +210,7 @@ private struct ReminderCoachSection: View {
         case .measure:
             return "\(Fmt.clock(CoachReminders.measureEveningMinutes)), the evening before"
         case .checkIn:
-            let weekday = min(7, max(1, plan.routine.checkInWeekday))
-            let name = Calendar.current.weekdaySymbols[weekday % 7]
+            let name = Self.weekdayNames[min(7, max(1, plan.routine.checkInWeekday)) - 1]
             return "\(name), \(Fmt.clock(CoachReminders.checkInMinutes)), until it's done"
         case .phase:
             return "\(Fmt.clock(CoachReminders.phaseMinutes)) on the day, and once at your review weight"
@@ -244,8 +251,16 @@ private struct ReminderCoachPrompt: ViewModifier {
             Button("Turn On") { answer(true) }
             Button("Not Now", role: .cancel) { answer(false) }
         } message: {
-            Text("A nudge to weigh in each morning, your daily checks, the evening before a full measurement and the weekly check-in. Change them any time in Settings › Reminders.")
+            Text(message)
         }
+    }
+
+    /// The iPhone sends them by default; on iPad and Mac this adds them there as well.
+    private var message: String {
+        let what = "A nudge to weigh in each morning, your daily checks, the evening before a full measurement and the weekly check-in. Change them any time in Settings › Reminders."
+        if PlatformInfo.isPhone { return what }
+        let device = PlatformInfo.isMac ? "Mac" : "iPad"
+        return "Your iPhone sends them (your Apple Watch shows them too). Turn On adds them on this \(device) as well. " + what
     }
 
     private func answer(_ yes: Bool) {
