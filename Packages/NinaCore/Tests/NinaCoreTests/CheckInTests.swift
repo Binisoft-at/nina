@@ -525,6 +525,61 @@ struct CheckInEngineTests {
         #expect(CheckInEngine.evaluate(sunday, calendar: checkInUTC).firstAdjustmentCheck == checkInDay("2030-01-27"))
     }
 
+    @Test func firstAdjustmentCheckCountsTheFirstAndLastDay() {
+        let f = CheckInFixture.self
+        // The rate is valid once the weigh-ins span 14 days, both ends included: a phase from
+        // Tue 8 Jan can be judged on Mon 21 Jan (8 + 13), not a week later.
+        var plan = f.plan()
+        plan.phases[0].start = checkInDay("2030-01-08")
+        plan.phases[0].revisions[0].from = checkInDay("2030-01-08")
+        var early = f.input(rate: 0.3, plan: plan, day: checkInDay("2030-01-14"))
+        early.windowDays = 7
+        early.weighIns = 7
+        let gathering = CheckInEngine.evaluate(early, calendar: checkInUTC)
+        #expect(gathering.rule == .gathering)
+        #expect(gathering.firstAdjustmentCheck == checkInDay("2030-01-21"))
+        #expect(gathering.reason == "Gathering data – first adjustment check on Mon 21 Jan.")
+        #expect(WeightSignal.firstRateDay(from: checkInDay("2030-01-08"), calendar: checkInUTC) == checkInDay("2030-01-21"))
+        // On that Monday the engine judges the rate (14 days, 14 weigh-ins).
+        var judged = f.input(rate: 0.35, plan: plan, day: checkInDay("2030-01-21"))
+        judged.windowDays = 14
+        judged.weighIns = 14
+        #expect(CheckInEngine.evaluate(judged, calendar: checkInUTC).rule == .confirming)
+
+        // After "Apply from tomorrow" on a Monday the window restarts on Tuesday: the next check
+        // but one judges it again.
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-02-05"), weightKg: 80, fallback: f.profile)
+        var after = f.input(rate: 0.3, plan: applied, day: checkInDay("2030-02-11"))
+        after.windowDays = 6
+        after.weighIns = 6
+        let wait = CheckInEngine.evaluate(after, calendar: checkInUTC)
+        #expect(wait.rule == .gathering)
+        #expect(wait.firstAdjustmentCheck == checkInDay("2030-02-18"))
+        #expect(CheckInEngine.firstAdjustmentCheck(plan: applied, on: checkInDay("2030-02-11"), calendar: checkInUTC) == checkInDay("2030-02-18"))
+    }
+
+    @Test func aShortWindowNeverCountsAsOutside() {
+        let f = CheckInFixture.self
+        // 3 weigh-ins over 3 days rising fast: noise, not a side – also at the checkpoint, whose
+        // result is saved and read as "the previous check-in" next week.
+        var short = f.input(rate: 3.5)
+        short.windowDays = 3
+        short.weighIns = 3
+        short.checkpointReached = true
+        let checkpoint = CheckInEngine.evaluate(short, calendar: checkInUTC)
+        #expect(checkpoint.rule == .checkpoint)
+        #expect(checkpoint.deviation == nil)
+        short.checkpointReached = false
+        #expect(CheckInEngine.evaluate(short, calendar: checkInUTC).deviation == nil)
+        // The snapshot saved from it doesn't make next week's first valid "faster" a proposal.
+        var snapshot = CheckInSnapshot(day: checkInDay("2030-01-28"), phaseID: "1")
+        snapshot.record(checkpoint, phaseID: "1")
+        #expect(snapshot.deviation == nil)
+        let next = CheckInEngine.evaluate(f.input(rate: 0.35, history: [snapshot]), calendar: checkInUTC)
+        #expect(next.rule == .confirming)
+        #expect(next.outsideInARow == 1)
+    }
+
     @Test func noPhasePausedAndCheckpoint() {
         let f = CheckInFixture.self
         var notStarted = f.plan()
@@ -674,6 +729,38 @@ struct PhaseTransitionTests {
         #expect(started.targets(on: checkInDay("2030-06-04"), marks: [:], fallback: f.profile, calendar: checkInUTC).energy == 2050)
         #expect(started.targets(on: checkInDay("2030-06-05"), marks: [:], fallback: f.profile, calendar: checkInUTC).energy == 2250)
         #expect(started.plannedWeekAverage(started.phases[1].revisions[0]) == 2250)
+    }
+
+    @Test func proposalAfterStartKeepsTheCycling() {
+        let f = CheckInFixture.self
+        let plan = f.plan()
+        let start = checkInDay("2030-06-03")
+        func propose(_ plan: CoachPlan) -> PhaseTransition.Proposal {
+            PhaseTransition.proposal(for: plan.phases[1], in: plan, on: start, weightKg: 80, maintenance: f.maintenance(2700, .medium),
+                                     body: Self.body, fallback: f.profile, calendar: checkInUTC)
+        }
+        let before = propose(plan)
+        // Tapped Start first (or an import confirmed the phase): the phase that ran before it
+        // still gives the targets, so the day types keep their differences.
+        let started = plan.starting(phase: "2", on: start, now: f.startedAt, calendar: checkInUTC)
+        #expect(started.activePhase(on: start)?.id == "2")
+        let after = propose(started)
+        #expect(after == before)
+        #expect(after.shift == -350)
+        let byType = after.revision.byType
+        #expect(byType["gym"]?.energy == 2250 && byType["tennis"]?.energy == 2450 && byType["rest"]?.energy == 2050)
+        #expect(PhaseTransition.targetsBefore(started.phases[1], in: started, on: start, calendar: checkInUTC)
+                == plan.phases[0].revisions[0])
+        // Applied after the start: Monday is a gym day, Tuesday a rest day.
+        let applied = after.applied(to: started)
+        #expect(applied.targets(on: start, marks: [:], fallback: f.profile, calendar: checkInUTC).energy == 2250)
+        #expect(applied.targets(on: checkInDay("2030-06-04"), marks: [:], fallback: f.profile, calendar: checkInUTC).energy == 2050)
+        // Days before the start keep the gain phase's targets.
+        #expect(applied.targets(on: checkInDay("2030-05-27"), marks: [:], fallback: f.profile, calendar: checkInUTC).energy == 2600)
+        // A later adjustment of the gain phase counts: the one in force on its last day.
+        let adjusted = plan.applyingDelta(100, from: checkInDay("2030-05-20"), weightKg: 80, fallback: f.profile)
+            .starting(phase: "2", on: start, now: f.startedAt, calendar: checkInUTC)
+        #expect(propose(adjusted).shift == -450)
     }
 
     @Test func calculatedMaintenanceWhenNotConfident() {

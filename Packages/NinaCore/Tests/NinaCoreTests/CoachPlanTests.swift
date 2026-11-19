@@ -286,11 +286,14 @@ struct CoachPlanTests {
         #expect(phase.week(on: coachDay("2030-01-14"), calendar: coachUTC) == 2)
         #expect(plan.phase(id: "2")?.weeks(calendar: coachUTC) == 12)
         #expect(abs(phase.rateMid - 0.2) < 1e-9)
-        #expect(abs(phase.energyAdjustment - 220) < 1e-9)
+        // Midpoint × 1,100 kcal, rounded to 50 like the transition proposal: 0.2 → 220 → 200.
+        #expect(phase.energyAdjustment == 200)
+        #expect(CoachPlan.Phase(id: "g", goal: .gain, rateMin: 0.15, rateMax: 0.15).energyAdjustment == 150) // 165
+        #expect(CoachPlan.Phase(id: "m", goal: .maintain, rateMin: 0.2, rateMax: 0.2).energyAdjustment == 0)
         #expect(phase.signedRateRange == 0.15...0.25)
         let cut = CoachPlan.Phase(id: "c", goal: .lose, rateMin: 0.5, rateMax: 0.3)
         #expect(cut.signedRateRange == -0.5...(-0.3))
-        #expect(abs(cut.energyAdjustment + 440) < 1e-9)
+        #expect(cut.energyAdjustment == -450) // 440
         #expect(cut.maxWaistGainCm == 0)
         // "Tennis · 1 of 2 this week" (ISO week Mon–Sun), a mark in the next week doesn't count.
         let marks = ["2030-01-08": "tennis", "2030-01-14": "tennis", "2030-01-10": "gym"]
@@ -301,6 +304,54 @@ struct CoachPlanTests {
         for targets in [Self.gym, Self.tennis, Self.rest] {
             #expect(targets.protein * 4 + targets.carbs * 4 + targets.fat * 9 == targets.energy)
         }
+    }
+
+    @Test func rateLabelsAndCautions() {
+        // "Slow (lean) gain" when the whole range is 0.25 kg/week or less.
+        #expect(CoachPlan.Phase(id: "a", goal: .gain, rateMin: 0.1, rateMax: 0.2).rateLabel == "Slow (lean) gain")
+        #expect(CoachPlan.Phase(id: "b", goal: .gain, rateMin: 0.25, rateMax: 0.25).rateLabel == "Slow (lean) gain")
+        #expect(CoachPlan.Phase(id: "c", goal: .gain, rateMin: 0.2, rateMax: 0.3).rateLabel == nil)
+        #expect(CoachPlan.Phase(id: "d", goal: .lose, rateMin: 0.2, rateMax: 0.2).rateLabel == nil)
+        #expect(CoachPlan.Phase(id: "e", goal: .gain).rateLabel == nil) // no rate yet
+        #expect(CoachPlan.Phase.rateLabel(goal: .gain, rate: 0.15...0.15) == "Slow (lean) gain") // the single pace without a plan
+
+        // A gain above 0.5 % of body weight a week, a loss above 1 %: at 80 kg 0.4 and 0.8 kg.
+        let fastGain = CoachPlan.Phase(id: "f", goal: .gain, rateMin: 0.3, rateMax: 0.45)
+        #expect(fastGain.rateCaution(weightKg: 80) == "That's more than 0.5 % of your weight a week – a slower gain usually adds less fat.")
+        #expect(CoachPlan.Phase(id: "g", goal: .gain, rateMin: 0.3, rateMax: 0.4).rateCaution(weightKg: 80) == nil)
+        #expect(fastGain.rateCaution(weightKg: 0) == nil) // no weight yet
+        let fastLoss = CoachPlan.Phase(id: "h", goal: .lose, rateMin: 0.6, rateMax: 0.85)
+        #expect(fastLoss.rateCaution(weightKg: 80) == "That's more than 1 % of your weight a week – a slower loss makes it easier to keep muscle.")
+        #expect(CoachPlan.Phase(id: "i", goal: .lose, rateMin: 0.6, rateMax: 0.8).rateCaution(weightKg: 80) == nil)
+        #expect(CoachPlan.Phase.rateCaution(goal: .maintain, rate: 1...1, weightKg: 80) == nil)
+    }
+
+    @Test func planEditorWarnings() {
+        var plan = Self.plan
+        let revision = plan.phases[0].revisions[0]
+        // 3 × 2600 + 2 × 2800 + 2 × 2400 = 2600 a day, the same as the baseline.
+        #expect(plan.weekAverageWarning(revision) == nil)
+        // Rest days at 2300: the week averages 2571 kcal a day, 29 less – still within 50.
+        var lower = revision
+        lower.byType["rest"]?.energy = 2300
+        #expect(plan.weekAverageWarning(lower) == nil)
+        // Rest days at 2200: 2543 a day, 57 less than the phase's 2600.
+        lower.byType["rest"]?.energy = 2200
+        #expect(plan.weekAverageWarning(lower) == "Your week averages 2,543 kcal a day, 57 less than the phase's 2,600.")
+        var higher = revision
+        higher.byType["tennis"]?.energy = 3000
+        #expect(plan.weekAverageWarning(higher) == "Your week averages 2,657 kcal a day, 57 more than the phase's 2,600.")
+        // Without a baseline or day types there is nothing to compare.
+        var noBaseline = revision
+        noBaseline.baseline = nil
+        #expect(plan.weekAverageWarning(noBaseline) == nil)
+        plan.dayTypes = []
+        #expect(plan.weekAverageWarning(lower) == nil)
+
+        // Macros more than 5 % off the calories.
+        #expect(CoachPlan.macroWarning(Self.gym) == nil)
+        #expect(CoachPlan.macroWarning(DailyTargets(energy: 2600, protein: 154, carbs: 360, fat: 76)) == "macros add up to 2,740 kcal, not 2,600")
+        #expect(CoachPlan.macroWarning(DailyTargets(energy: 2600, protein: 154, carbs: 350, fat: 76)) == nil) // 2,700: 3.8 %
     }
 
     // MARK: Mirror and migration

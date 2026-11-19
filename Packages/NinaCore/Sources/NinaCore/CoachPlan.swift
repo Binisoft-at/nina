@@ -348,8 +348,53 @@ extension CoachPlan {
             }
         }
 
-        /// Daily surplus (+) or deficit (−) for the midpoint: kg/week × 7,700 ÷ 7 = × 1,100 kcal.
-        public var energyAdjustment: Double { signedRateMid * GoalCalculator.kilocaloriesPerKilogram / 7 }
+        /// Daily surplus (+) or deficit (−) for the midpoint: kg/week × 7,700 ÷ 7 = × 1,100 kcal,
+        /// rounded to 50 (0.15 → +150), as the transition proposal uses it.
+        public var energyAdjustment: Double {
+            let size = CheckInEngine.rounded50(rateMid * GoalCalculator.kilocaloriesPerKilogram / 7)
+            switch goal {
+            case .gain: return size
+            case .lose: return -size
+            case .maintain: return 0
+            }
+        }
+
+        /// A gain of this much or less per week is labelled "Slow (lean) gain" (kg/week).
+        public static let leanGainMax = 0.25
+        /// A gain faster than this share of body weight per week gets a calm caution (%).
+        public static let gainCautionPercent = 0.5
+        /// A loss faster than this share of body weight per week gets a calm caution (%).
+        public static let lossCautionPercent = 1.0
+
+        /// "Slow (lean) gain" when the whole range of a gain is 0.25 kg/week or less; nil otherwise.
+        /// Also for the single pace without a plan (`rate` = value...value).
+        public static func rateLabel(goal: WeightGoal, rate: ClosedRange<Double>) -> String? {
+            guard goal == .gain, rate.upperBound > 0, rate.upperBound <= leanGainMax + 1e-9 else { return nil }
+            return "Slow (lean) gain"
+        }
+
+        /// A calm caution when the fastest pace of the range is more than 0.5 % of body weight a
+        /// week while gaining, or more than 1 % while losing (% = kg ÷ the 7-day average × 100).
+        /// nil without a weight, while maintaining or within the limits.
+        public static func rateCaution(goal: WeightGoal, rate: ClosedRange<Double>, weightKg: Double) -> String? {
+            guard let percent = WeightSignal.percent(rate.upperBound, of: weightKg) else { return nil }
+            switch goal {
+            case .gain where percent > gainCautionPercent + 1e-9:
+                return "That's more than 0.5 % of your weight a week – a slower gain usually adds less fat."
+            case .lose where percent > lossCautionPercent + 1e-9:
+                return "That's more than 1 % of your weight a week – a slower loss makes it easier to keep muscle."
+            default:
+                return nil
+            }
+        }
+
+        /// "Slow (lean) gain" for this phase's range (see `rateLabel(goal:rate:)`).
+        public var rateLabel: String? { Phase.rateLabel(goal: goal, rate: rateRange) }
+
+        /// The calm caution for this phase's range at a weight (see `rateCaution(goal:rate:weightKg:)`).
+        public func rateCaution(weightKg: Double) -> String? {
+            Phase.rateCaution(goal: goal, rate: rateRange, weightKg: weightKg)
+        }
 
         /// Week of the phase a day falls in, 1 on the start day; nil before the start or without one.
         public func week(on day: DayKey, calendar: Calendar = .current) -> Int? {
@@ -967,6 +1012,29 @@ extension CoachPlan {
             days = 7
         }
         return total / Double(days)
+    }
+
+    /// The planned week may differ from the phase's planned average (the revision's baseline) by
+    /// this many kcal a day before the plan editor warns.
+    public static let weekAverageTolerance = 50.0
+
+    /// Plan editor warning: the day types' planned week averages more than 50 kcal a day away
+    /// from the revision's baseline ("Your week averages 2,640 kcal a day, 60 more than the
+    /// phase's 2,580."). nil without day types, a baseline or a full week.
+    public func weekAverageWarning(_ revision: Revision) -> String? {
+        guard !dayTypes.isEmpty, let planned = revision.baseline?.energy, planned > 0,
+              let average = plannedWeekAverage(revision) else { return nil }
+        let difference = average - planned
+        guard abs(difference) > CoachPlan.weekAverageTolerance + 1e-9 else { return nil }
+        return "Your week averages \(SettingsCSV.grouped(average)) kcal a day, \(SettingsCSV.grouped(abs(difference))) "
+            + "\(difference > 0 ? "more" : "less") than the phase's \(SettingsCSV.grouped(planned))."
+    }
+
+    /// Plan editor warning for one set of targets: the macros add up to more than 5 % off the
+    /// calories ("macros add up to 2,840 kcal, not 2,700"), as the import checks them.
+    public static func macroWarning(_ targets: DailyTargets) -> String? {
+        guard targets.energy > 0 else { return nil }
+        return SettingsCSV.macroProblem(calories: targets.energy, protein: targets.protein, carbs: targets.carbs, fat: targets.fat)
     }
 }
 

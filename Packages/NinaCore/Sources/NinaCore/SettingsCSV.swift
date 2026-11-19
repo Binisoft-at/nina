@@ -145,12 +145,15 @@ public struct SettingsDraft: Equatable, Sendable {
 
 /// One line of the preview: "Calories 2200 → 1900 kcal", in a group ("Targets").
 public struct SettingsChange: Equatable, Sendable, Identifiable {
-    public var id: String { "\(group.rawValue):\(title)" }
+    /// Unique within a preview: the group, the key (the item's id for day types, phases and
+    /// checks, so two items with the same name stay apart), the title and whether it's a removal.
+    public var id: String { "\(group.rawValue):\(key):\(title)\(isRemoval ? ":removed" : "")" }
     public let title: String
     public let old: String
     public let new: String
     public let group: SettingsGroup
     /// Body lines: the value's key ("bodyFat", "waist" …) for `SettingsResult.removingBodyValues(_:)`.
+    /// Day types, phases and checks: the item's id. Wishes: their position.
     public let key: String
 
     public init(title: String, old: String, new: String, group: SettingsGroup = .preferences, key: String = "") {
@@ -202,7 +205,7 @@ public struct SettingsResult: Equatable, Sendable {
         var result: [SettingsSection] = []
         for group in SettingsGroup.allCases {
             let lines = group == .notSupported
-                ? wishes.map { SettingsChange(title: $0, old: "", new: "", group: .notSupported) }
+                ? wishes.enumerated().map { SettingsChange(title: $0.element, old: "", new: "", group: .notSupported, key: String($0.offset)) }
                 : changes.filter { $0.group == group }
             guard !lines.isEmpty else { continue }
             var title = group.title
@@ -286,6 +289,18 @@ public enum SettingsCSV {
         return map
     }()
 
+    /// A label with its unit ("Brustumfang (cm)" → brustumfang_cm, "KFA (%)" → kfa_%, "Gewicht (kg)")
+    /// is the setting the bare name stands for, when that setting is in the same unit.
+    static func unitKey(_ normalized: String) -> String? {
+        let units: [(suffix: String, unit: String)] = [("_cm", "_cm"), ("_kg", "_kg"), ("_g", "_g"), ("_ml", "_ml"),
+                                                        ("_%", "_percent"), ("_percent", "_percent"), ("_pct", "_percent"),
+                                                        ("_prozent", "_percent")]
+        for (suffix, unit) in units where normalized.hasSuffix(suffix) {
+            if let key = canonical[String(normalized.dropLast(suffix.count))], key.hasSuffix(unit) { return key }
+        }
+        return nil
+    }
+
     /// Is this the header of a settings file?
     public static func isHeader(_ cells: [String]) -> Bool {
         guard let first = cells.first else { return false }
@@ -305,12 +320,13 @@ public enum SettingsCSV {
             // A value with the delimiter in it that wasn't quoted: join the rest back together.
             let value = row.dropFirst().joined(separator: String(delimiter)).trimmingCharacters(in: .whitespaces)
             let normalized = ImportColumns.normalize(rawKey)
-            if let key = canonical[normalized] {
+            let planKey = SettingsCSV.planRow(normalized)
+            if let key = canonical[normalized] ?? (planKey == nil ? unitKey(normalized) : nil) {
                 if value.isEmpty { continue }
                 if let problem = read(key, value, into: &draft) {
                     draft.skipped.append("\(key): \(problem)")
                 }
-            } else if let planRow = planRow(normalized), planRow != .unknown {
+            } else if let planRow = planKey, planRow != .unknown {
                 if value.isEmpty { continue }
                 if let problem = readPlan(planRow, key: rawKey, value, into: &draft) {
                     draft.skipped.append("\(rawKey): \(problem)")
@@ -328,7 +344,8 @@ public enum SettingsCSV {
     static func read(_ key: String, _ value: String, into draft: inout SettingsDraft) -> String? {
         let word = SearchText.normalize(value).replacingOccurrences(of: " ", with: "_")
         func number(_ range: ClosedRange<Double>) -> Double? {
-            guard let number = ImportColumns.number(value), range.contains(number) else { return nil }
+            // "~20" or "about 20" (an estimate) is read as 20.
+            guard let number = ImportColumns.number(withoutApprox(value).text), range.contains(number) else { return nil }
             return number
         }
         let invalid = "“\(value)” isn't a valid value"
@@ -478,7 +495,7 @@ public enum SettingsCSV {
             guard let method = bodyMethod(named: value) else { return invalid + " (\(methodNames))" }
             draft.plan.bodyFatMethod = method
         case "neck_cm", "chest_cm", "arm_cm", "waist_cm", "waist_narrow_cm", "hip_cm", "thigh_cm", "calf_cm":
-            guard let site = bodySite(named: key), let cm = ImportColumns.number(value), site.isPlausible(cm) else { return invalid }
+            guard let site = bodySite(named: key), let cm = number(0...1000), site.isPlausible(cm) else { return invalid }
             draft.plan.tape[site] = cm
         case "meal_protein_g":
             guard let range = planRange(value, 5...150) else { return invalid + " (grams like 35-45)" }
@@ -813,8 +830,14 @@ public enum SettingsCSV {
         if state.weightKg > 0 { add("weight_kg", NumberText.plain(state.weightKg, decimals: 1)) }
         add("activity", state.activity == .veryActive ? "very_active" : state.activity.rawValue)
         add("goal", state.goal.rawValue)
-        let rate = plan != nil ? flatRate(state, today: today) : state.ratePerWeek...state.ratePerWeek
-        add("rate_kg_per_week", rangeValue(rate.lowerBound, rate.upperBound))
+        // The active phase's pace; a phase without one (maintain) writes its own rate row (0), and
+        // the profile's old pace would be read back into it.
+        if let active = plan?.activePhase(on: today) {
+            if active.rateRange.upperBound > 0 { add("rate_kg_per_week", rangeValue(active.rateRange.lowerBound, active.rateRange.upperBound)) }
+        } else {
+            let rate = plan != nil ? flatRate(state, today: today) : state.ratePerWeek...state.ratePerWeek
+            add("rate_kg_per_week", rangeValue(rate.lowerBound, rate.upperBound))
+        }
         if state.targetWeight > 0 { add("target_weight_kg", NumberText.plain(state.targetWeight, decimals: 1)) }
         add("macro_split", splitName(state.macroSplit))
         let targets = flatTargets(state, today: today)

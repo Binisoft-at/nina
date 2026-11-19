@@ -468,6 +468,213 @@ struct SettingsPlanImportTests {
         #expect(unknown.skipped == ["phase.1.colour: not a setting Nina knows", "check.fish: not a setting Nina knows"])
     }
 
+    @Test func aMaintainPhaseReadsBack() throws {
+        // Setting up a plan from a maintain profile whose old pace was 0.5 kg/week.
+        let start = SettingsState(sex: .male, goal: .maintain, ratePerWeek: 0.5)
+        let first = Self.imported("setting,value\nday_type.gym.days,mon;wed;fri\nday_type.rest.days,default\n", to: start)
+        #expect(first.plan?.phase(id: "1")?.goal == .maintain)
+        #expect(first.plan?.phase(id: "1")?.rateRange == 0...0)
+        let text = SettingsCSV.export(first.state, today: Self.today)
+        #expect(text.contains("phase.1.rate_kg_per_week,0"))
+        #expect(!text.split(separator: "\n").contains { $0.hasPrefix("rate_kg_per_week,") }) // the profile's old pace
+        let again = Self.imported(text, to: first.state, now: planImportNow.addingTimeInterval(3600))
+        #expect(again.changes.isEmpty, "\(again.changes)")
+        #expect(!again.hasChanges)
+        #expect(again.plan?.phase(id: "1")?.rateRange == 0...0)
+        #expect(WeightSignal.range(for: try #require(again.plan?.phase(id: "1"))) == -0.1...0.1)
+
+        // A fresh file with a flat pace and a maintain phase: the pace isn't the phase's band.
+        let file = "setting,value\ngoal,maintain\nrate_kg_per_week,0.5\nphase.1.goal,maintain\nphase.1.start,2030-01-07\n"
+        let fresh = Self.imported(file, to: start)
+        #expect(fresh.plan?.phase(id: "1")?.rateRange == 0...0)
+        let back = Self.imported(SettingsCSV.export(fresh.state, today: Self.today), to: fresh.state)
+        #expect(back.changes.isEmpty, "\(back.changes)")
+        // Its own rate row still sets a band.
+        let band = Self.imported(file + "phase.1.rate_kg_per_week,0.2\n", to: start)
+        #expect(band.plan?.phase(id: "1")?.rateRange == 0.2...0.2)
+    }
+
+    @Test func aBackDatedStartKeepsThePastTargets() throws {
+        // Profile targets of 2200 kcal; on 7 Jan a file confirms a phase that began on ~1 Dec.
+        let profile = DailyTargets(energy: 2200, protein: 120, carbs: 250, fat: 70)
+        let start = SettingsState(sex: .male, goal: .gain, targets: profile)
+        let text = "setting,value\nphase.1.goal,gain\nphase.1.start,~2029-12\ncalories,2600\nprotein_g,160\ncarbs_g,328\nfat_g,72\n"
+        let result = Self.imported(text, to: start)
+        let plan = try #require(result.plan)
+        let phase = try #require(plan.phase(id: "1"))
+        #expect(phase.start == planImportDay("2029-12-01"))
+        #expect(phase.isStarted)
+        #expect(phase.revisions.map(\.from) == [planImportDay("2029-12-01"), Self.today])
+        #expect(phase.revisions.first?.reason == SettingsCSV.keptRevisionReason)
+        let fallback = result.state.targets
+        #expect(plan.targets(on: planImportDay("2029-12-15"), marks: [:], fallback: fallback, calendar: planImportUTC).energy == 2200)
+        #expect(plan.targets(on: planImportDay("2030-01-06"), marks: [:], fallback: fallback, calendar: planImportUTC).energy == 2200)
+        #expect(plan.targets(on: Self.today, marks: [:], fallback: fallback, calendar: planImportUTC).energy == 2600)
+        // The export and import again change nothing.
+        let again = Self.imported(SettingsCSV.export(result.state, today: Self.today), to: result.state)
+        #expect(again.changes.isEmpty, "\(again.changes)")
+
+        // A next phase that began before today while another runs: the running one's last weeks
+        // keep its day types' targets; the new phase's own targets start today.
+        let first = Self.imported()
+        let march = planImportDay("2030-03-11")
+        let next = "setting,value\nphase.1.goal,gain\nphase.1.start,2030-01-07\nphase.2.goal,maintain\nphase.2.start,2030-03-01\nphase.2.calories,2700\nphase.2.macros_g,160/353/72\n"
+        let switched = Self.imported(next, to: first.state, today: march)
+        let both = try #require(switched.plan)
+        #expect(both.phase(id: "1")?.status == .done)
+        #expect(both.phase(id: "1")?.end == planImportDay("2030-02-28"))
+        #expect(both.activePhase(on: planImportDay("2030-03-05"))?.id == "2")
+        let rest = switched.state.targets
+        #expect(both.targets(on: planImportDay("2030-03-05"), marks: [:], fallback: rest, calendar: planImportUTC).energy == 2400) // Tue: rest
+        #expect(both.targets(on: planImportDay("2030-03-06"), marks: [:], fallback: rest, calendar: planImportUTC).energy == 2600) // Wed: gym
+        #expect(both.targets(on: march, marks: [:], fallback: rest, calendar: planImportUTC).energy == 2700)
+        // Without targets of its own the new phase has none from today (the transition proposal
+        // fills them), but its past days keep theirs.
+        let bare = Self.imported("setting,value\nphase.1.goal,gain\nphase.1.start,2030-01-07\nphase.2.goal,maintain\nphase.2.start,2030-03-01\n",
+                                 to: first.state, today: march)
+        let empty = try #require(bare.plan?.phase(id: "2"))
+        #expect(empty.revision(on: planImportDay("2030-03-05"))?.byType["rest"]?.energy == 2400)
+        #expect(empty.revision(on: march)?.baseline == nil)
+        #expect(empty.revision(on: march)?.byType.isEmpty == true)
+    }
+
+    @Test func importedTargetsReplaceAChangePlannedForLater() throws {
+        // "Apply from tomorrow" (+100), then the same day an import with new targets.
+        var state = Self.imported().state
+        state.plan = state.plan?.applyingDelta(100, from: planImportDay("2030-01-08"), weightKg: 80, fallback: state.targets)
+        let result = Self.imported("setting,value\ncalories,2500\nprotein_g,160\ncarbs_g,303\nfat_g,72\n", to: state)
+        let plan = try #require(result.plan)
+        #expect(plan.revision(on: planImportDay("2030-01-08"))?.baseline?.energy == 2500)
+        #expect(plan.phase(id: "1")?.revisions.map(\.reason) == ["import"])
+        #expect(result.notes.contains("phase.1: these targets replace the change planned from 2030-01-08"), "\(result.notes)")
+        // The same with the phase's own rows.
+        let rows = "setting,value\nphase.1.goal,gain\nphase.1.start,2030-01-07\nphase.1.gym.calories,2700\nphase.1.gym.macros_g,160/353/72\n"
+        let own = Self.imported(rows, to: state)
+        #expect(own.plan?.revision(on: planImportDay("2030-01-08"))?.byType["gym"]?.energy == 2700)
+        #expect(own.notes.contains("phase.1: these targets replace the change planned from 2030-01-08"), "\(own.notes)")
+        // Re-importing the unchanged export keeps the planned change.
+        let same = Self.imported(SettingsCSV.export(state, today: Self.today), to: state)
+        #expect(same.changes.isEmpty, "\(same.changes)")
+        #expect(same.plan?.revision(on: planImportDay("2030-01-08"))?.reason == "adjust:+100")
+    }
+
+    @Test func checkTimesAreOnlyRealTimes() throws {
+        #expect(SettingsCSV.checkTiming("Snack 2") == .meal("Snack 2"))
+        #expect(SettingsCSV.checkTiming("5 g with breakfast") == .meal("breakfast"))
+        #expect(SettingsCSV.checkTiming("2.5 g at lunch") == .meal("lunch"))
+        #expect(SettingsCSV.checkTiming("with breakfast") == .meal("breakfast"))
+        #expect(SettingsCSV.checkTiming("vor dem Frühstück") == .meal("Frühstück"))
+        #expect(SettingsCSV.checkTiming("08:00") == .time(8 * 60))
+        #expect(SettingsCSV.checkTiming("7.30") == .time(7 * 60 + 30))
+        #expect(SettingsCSV.checkTiming("7 am") == .time(7 * 60))
+        #expect(SettingsCSV.checkTiming("9pm") == .time(21 * 60))
+        #expect(SettingsCSV.checkTiming("19 Uhr") == .time(19 * 60))
+        #expect(SettingsCSV.checkTiming("21h") == .time(21 * 60))
+        #expect(SettingsCSV.checkTiming("anytime") == .anytime)
+        // The weigh-in time still takes a bare hour.
+        #expect(SettingsCSV.clockTime(in: "7") == 7 * 60)
+        #expect(SettingsCSV.clockTime(in: "7", strict: true) == nil)
+
+        // A meal with a number in its name reads back as that meal.
+        var state = SettingsState(sex: .male)
+        state.meals.append(MealSlot(id: "meal-snack-2", name: "Snack 2", emoji: "🍎", minutes: 21 * 60))
+        let result = Self.imported("setting,value\ncheck.late.name,Casein\ncheck.late.when,Snack 2\ncheck.fish.name,Fish oil\ncheck.fish.when,2 g with dinner\n",
+                                   to: state)
+        let plan = try #require(result.plan)
+        #expect(plan.check(id: "late")?.timing == .meal("meal-snack-2"))
+        #expect(plan.check(id: "fish")?.timing == .meal("dinner"))
+        let text = SettingsCSV.export(result.state, today: Self.today)
+        #expect(text.contains("check.late.when,Snack 2"))
+        #expect(Self.imported(text, to: result.state).changes.isEmpty)
+    }
+
+    @Test func trainingExtraWithAPlanSaysWhy() {
+        let first = Self.imported()
+        let result = Self.imported("setting,value\ntraining_extra_kcal,200\n", to: first.state)
+        #expect(result.notes == ["training_extra_kcal: your plan's day types set the calories – use phase.N.<type>.calories rows"], "\(result.notes)")
+        #expect(!result.hasChanges)
+    }
+
+    @Test func previewLinesHaveUniqueIDs() throws {
+        let first = Self.imported()
+        // A new day type with an old one's name, and two checks with the same name.
+        let text = """
+        setting,value
+        day_type.strength.name,Gym
+        day_type.strength.days,mon;wed;fri
+        day_type.tennis.name,Tennis
+        day_type.tennis.days,flexible
+        day_type.rest.days,default
+        check.vitd.name,Vitamin D
+        check.vitd2.name,Vitamin D
+        not_supported,A wish
+        not_supported,A wish
+        """
+        let result = Self.imported(text, to: first.state)
+        let gym = result.changes.filter { $0.group == .dayTypes && $0.title == "Gym" }
+        #expect(gym.count == 2 && gym.contains { $0.isRemoval })
+        let ids = result.sections.flatMap(\.changes).map(\.id)
+        #expect(Set(ids).count == ids.count, "\(ids)")
+    }
+
+    @Test func numbersReadBackExactly() throws {
+        let first = Self.imported()
+        var state = first.state
+        var plan = try #require(state.plan)
+        plan.longTerm.weightKg = 78.25
+        plan.longTerm.bodyFat = 14.25
+        plan.phases[0].targetWeight = 83.25
+        plan.phases[0].reviewMin = 82
+        plan.phases[0].reviewMax = 0
+        plan.phases[1].reviewMin = 0
+        plan.phases[1].reviewMax = 79.5
+        plan.phases[1].targetBodyFat = 14.25
+        plan.dayTypes[0].emoji = ""
+        plan.checks[0].emoji = ""
+        state.plan = plan
+        state.targetWeight = 83.25 // the mirror of the active phase
+        let text = SettingsCSV.export(state, today: Self.today)
+        #expect(text.contains("long_term.weight_kg,78.25"))
+        #expect(text.contains("phase.1.target_weight_kg,83.25"))
+        #expect(text.contains("phase.1.review_weight_kg,82\n"))
+        #expect(text.contains("phase.2.review_weight_kg,79.5"))
+        #expect(SettingsCSV.parse(text).skipped.isEmpty, "\(SettingsCSV.parse(text).skipped)")
+        let again = Self.imported(text, to: state, now: planImportNow.addingTimeInterval(3600))
+        #expect(again.changes.isEmpty, "\(again.changes)")
+        var expected = state
+        expected.meals.sort { $0.minutes < $1.minutes }
+        #expect(again.state == expected)
+    }
+
+    @Test func approximateNumbersAndUnitsInBrackets() {
+        let about = SettingsCSV.parse("setting,value\nbody_fat_percent,~20\nwaist_cm,ca. 90\nphase.1.target_weight_kg,~83\nlong_term.weight_kg,about 78\n")
+        #expect(about.skipped.isEmpty, "\(about.skipped)")
+        #expect(about.plan.bodyFat == 20)
+        #expect(about.plan.tape[.waist] == 90)
+        #expect(about.plan.phases?.first?.targetWeight == 83)
+        #expect(about.plan.longTerm.weightKg == 78)
+
+        let labels = SettingsCSV.parse("Einstellung,Wert\nBrustumfang (cm),100\nHals (cm),39\nHüftumfang (cm),98\nBauchumfang (cm),90\nKFA (%),20\nGewicht (kg),80\n")
+        #expect(labels.skipped.isEmpty, "\(labels.skipped)")
+        #expect(labels.plan.tape == [.chest: 100, .neck: 39, .hip: 98, .waist: 90])
+        #expect(labels.plan.bodyFat == 20)
+        #expect(labels.weightKg == 80)
+        // A unit that doesn't fit the setting isn't guessed.
+        #expect(SettingsCSV.parse("setting,value\nHals (kg),39\n").skipped == ["Hals (kg): not a setting Nina knows"])
+    }
+
+    @Test func importedTapeIsAStandardBaseline() throws {
+        let result = Self.imported("setting,value\nwaist_cm,90\nneck_cm,39\nbody_fat_percent,20\n", to: SettingsState(sex: .male, heightCm: 180))
+        let tape = try #require(result.bodyRecords.first { $0.kind == .tape })
+        #expect(tape.conditions == "morning,fasted")
+        #expect(result.bodyRecords.first { $0.kind == .assessment }?.conditions == "")
+        let record = try #require(tape.tapeRecord)
+        #expect(record.isStandard)
+        #expect(GirthTrend.readings(.waist, in: [record]).count == 1)
+        let estimate = NavyBodyFat.estimate(formula: .male, heightCm: 180, records: [record], calendar: planImportUTC).estimate
+        #expect(estimate.map { ($0.bodyFat * 10).rounded() / 10 } == 19.1)
+    }
+
     @Test func promptsExplainThePlan() {
         let prompt = SettingsCSV.prompt(appName: "Nina")
         let setup = SetupPrompt.text(appName: "Nina")

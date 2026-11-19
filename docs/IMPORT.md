@@ -83,9 +83,14 @@ How an import changes the plan:
    then applies the file.
 3. **Flat rows belong to the current phase.** `goal`, `rate_kg_per_week`, `target_weight_kg` and
    `calories`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g`, `water_ml` are the running phase's values
-   (its baseline targets). Without a running phase they work as before.
+   (its baseline targets). Without a running phase they work as before. A maintain phase has no
+   pace: `rate_kg_per_week` doesn't change it (its own `phase.N.rate_kg_per_week` row does), and the
+   export writes `phase.N.rate_kg_per_week,0` for it.
 4. **New targets start today.** Changed targets of a running phase become a new set from today, so
-   earlier days keep theirs. A new phase gets its targets from its start.
+   earlier days keep theirs. They also replace a change planned for a later day (for example a
+   check-in adjustment applied "from tomorrow"); the preview says so in orange. A planned phase gets
+   its targets from its start. A phase the file starts with a start before today keeps, for the days
+   up to yesterday, the targets those days had; its own targets start today.
 5. **A start today or earlier counts as "Start".** Importing a phase whose start has come starts it;
    of several, the one that started last runs and the earlier ones end the day before. A phase that
    was already planned with the same start is left for the "phase starts today" card.

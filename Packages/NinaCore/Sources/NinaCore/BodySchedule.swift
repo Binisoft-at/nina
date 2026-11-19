@@ -114,9 +114,16 @@ public struct BodySchedule: Equatable, Sendable {
                   events: events, pauses: plan.pauses, isSetUp: plan.isSetUp)
     }
 
-    /// A fallback for the day the plan was set up: the earliest start of a started phase.
-    public static func setUpDay(of plan: CoachPlan) -> DayKey? {
-        plan.phases.filter(\.isStarted).compactMap(\.start).min()
+    /// A fallback for the day the plan was set up: the earliest day a phase was confirmed
+    /// (`startedAt`; never before that phase's start). A phase imported with an earlier start
+    /// ("phase.1.start,2030-01" on 21 Jan) counts from the import day, so the baseline is due then
+    /// and not weeks overdue.
+    public static func setUpDay(of plan: CoachPlan, calendar: Calendar = .current) -> DayKey? {
+        plan.phases.compactMap { phase -> DayKey? in
+            guard let startedAt = phase.startedAt else { return nil }
+            let confirmed = DayKey(date: startedAt, calendar: calendar)
+            return phase.start.map { max($0, confirmed) } ?? confirmed
+        }.min()
     }
 
     /// The check-in weekday, 1 (Monday) … 7.
@@ -181,14 +188,22 @@ public struct BodySchedule: Equatable, Sendable {
 
     /// The weekly measurement: this week's check-in day while nothing was measured since it
     /// (overdue after it), otherwise next week's. A missed week never shifts the weekday. Nothing
-    /// is due before `start`.
+    /// is due before `start`. `lastFull`: the latest full set up to `today` – a full set also
+    /// counts as the weekly check of its ISO week (Mon–Sun), even before the check-in day.
     public static func nextWeekly(lastMeasured: DayKey?, today: DayKey, checkInWeekday: Int, start: DayKey? = nil,
-                                  calendar: Calendar = .current) -> DayKey {
+                                  lastFull: DayKey? = nil, calendar: Calendar = .current) -> DayKey {
         let weekday = min(7, max(1, checkInWeekday))
         let current = onOrBefore(weekday: weekday, today, calendar: calendar)
-        if let start, current < start { return onOrAfter(weekday: weekday, start, calendar: calendar) }
-        if let lastMeasured, lastMeasured >= current { return current.adding(days: 7, calendar: calendar) }
-        return current
+        var due = current
+        if let start, current < start {
+            due = onOrAfter(weekday: weekday, start, calendar: calendar)
+        } else if let lastMeasured, lastMeasured >= current {
+            return current.adding(days: 7, calendar: calendar)
+        }
+        if let lastFull, lastFull <= today, lastFull <= due, lastFull >= due.startOfWeek(calendar: calendar) {
+            return due.adding(days: 7, calendar: calendar)
+        }
+        return due
     }
 
     /// The next full set by the rhythm: the check-in weekday nearest to the last full set +
@@ -208,7 +223,7 @@ public struct BodySchedule: Equatable, Sendable {
     public func nextWeekly(today: DayKey, calendar: Calendar = .current) -> DayKey? {
         guard !routine.weeklySites.isEmpty else { return nil }
         return BodySchedule.nextWeekly(lastMeasured: weeklyDays.last { $0 <= today }, today: today, checkInWeekday: checkInWeekday,
-                                       start: start, calendar: calendar)
+                                       start: start, lastFull: fullDays.last { $0 <= today }, calendar: calendar)
     }
 
     /// The next full set as of `today` (on or before `today` = due): the earliest of the rhythm

@@ -563,11 +563,20 @@ public struct WeightSignal: Equatable, Sendable {
             }
         }
 
-        /// "Off track" (red) only after `count` check-ins in a row outside the range (`recent`
-        /// oldest first, the latest last).
+        /// "Off track" (red) only after `count` check-ins in a row outside the range on the same
+        /// side (`recent` oldest first, the latest last), as the check-in counts them: slower then
+        /// faster is not off track. In a maintain phase both sides read "faster", so there the
+        /// sides come from the check-ins' saved deviations (`isOffTrack(deviations:inARow:)`).
         public static func isOffTrack(_ recent: [Status], inARow count: Int = 2) -> Bool {
-            guard count > 0, recent.count >= count else { return false }
-            return recent.suffix(count).allSatisfy(\.isOutside)
+            guard count > 0, recent.count >= count, let latest = recent.last, latest.isOutside else { return false }
+            return recent.suffix(count).allSatisfy { $0 == latest }
+        }
+
+        /// "Off track" from the sides of the latest check-ins (`CheckInSnapshot.deviation`, oldest
+        /// first; nil = in range or no rate): the last `count` all outside on the same side.
+        public static func isOffTrack(deviations recent: [CheckInEngine.Deviation?], inARow count: Int = 2) -> Bool {
+            guard count > 0, recent.count >= count, let latest = recent.last ?? nil else { return false }
+            return recent.suffix(count).allSatisfy { $0 == latest }
         }
     }
 

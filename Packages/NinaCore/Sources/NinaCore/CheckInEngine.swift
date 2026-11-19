@@ -283,7 +283,11 @@ public enum CheckInEngine {
             return CheckInResult(verdict: .gathering, rule: .paused, reason: "Coaching is paused – no check-in this week.")
         }
         let weekStatus: CheckInStatus = input.weekGrade == .off ? .offTrack : (input.weekGrade == .watch ? .watch : .onTrack)
-        let deviation = input.rate.flatMap { CheckInEngine.deviation(rate: $0, phase: phase, tolerance: adjust.tolerance) }
+        // Rule 1: a rate from a window that is too short (or has too few weigh-ins) is noise. It
+        // never gives a side, so a check-in saved while gathering (or at the checkpoint) doesn't
+        // count as "outside" at the next one.
+        let windowValid = input.rate != nil && input.windowDays >= adjust.windowMinDays && input.weighIns >= minimumWeighIns
+        let deviation = windowValid ? input.rate.flatMap { CheckInEngine.deviation(rate: $0, phase: phase, tolerance: adjust.tolerance) } : nil
 
         if input.checkpointReached {
             return CheckInResult(verdict: .checkpoint, deviation: deviation, status: weekStatus, rule: .checkpoint,
@@ -296,10 +300,8 @@ public enum CheckInEngine {
 
         // 1. Window.
         let lastApplied = input.lastApplied ?? lastAdjustment(in: plan, on: day)
-        guard let rate = input.rate, input.windowDays >= adjust.windowMinDays, input.weighIns >= minimumWeighIns else {
-            let start = input.windowStart ?? windowStart(plan: plan, on: day, lastApplied: lastApplied, calendar: calendar)
-            let earliest = max(start.adding(days: adjust.windowMinDays, calendar: calendar), day.adding(days: 1, calendar: calendar))
-            let first = nextCheckIn(onOrAfter: earliest, weekday: plan.routine.checkInWeekday, calendar: calendar)
+        guard windowValid, let rate = input.rate else {
+            let first = firstAdjustmentCheck(plan: plan, on: day, windowStart: input.windowStart, lastApplied: lastApplied, calendar: calendar)
             return CheckInResult(verdict: .gathering, status: weekStatus, rule: .gathering,
                                  reason: "Gathering data – first adjustment check on \(CheckInFormat.day(first, calendar: calendar)).",
                                  firstAdjustmentCheck: first)
@@ -482,6 +484,18 @@ public enum CheckInEngine {
         return first
     }
 
+    /// The first check-in day after `day` that can judge the rate: the rate is valid once the
+    /// weigh-ins span `windowMinDays` days, the first and the last day included
+    /// (`WeightSignal.firstRateDay`: window start + 13), so it is the first check-in weekday on or
+    /// after that day (and after `day`). `windowStart` nil = `windowStart(plan:on:lastApplied:)`.
+    public static func firstAdjustmentCheck(plan: CoachPlan, on day: DayKey, windowStart start: DayKey? = nil, lastApplied: DayKey? = nil,
+                                            calendar: Calendar = .current) -> DayKey {
+        let start = start ?? windowStart(plan: plan, on: day, lastApplied: lastApplied, calendar: calendar)
+        let valid = WeightSignal.firstRateDay(from: start, minimumDays: plan.adjust.windowMinDays, calendar: calendar)
+        let earliest = max(valid, day.adding(days: 1, calendar: calendar))
+        return nextCheckIn(onOrAfter: earliest, weekday: plan.routine.checkInWeekday, calendar: calendar)
+    }
+
     /// The next check-in weekday on or after a day.
     public static func nextCheckIn(onOrAfter day: DayKey, weekday: Int, calendar: Calendar = .current) -> DayKey {
         let target = (1...7).contains(weekday) ? weekday : 1
@@ -612,8 +626,10 @@ public enum PhaseTransition {
         }
     }
 
-    /// The proposal for `phase` starting on `day`, from the targets in force that day (the
-    /// running phase's revision, else `fallback`).
+    /// The proposal for `phase` starting on `day`, from the targets before it
+    /// (`targetsBefore(_:in:on:)`: the running phase's, or once `phase` has been started, those of
+    /// the phase that ran before it; else `fallback`). It can be computed before or after
+    /// `CoachPlan.starting(phase:on:)` and gives the same targets.
     /// - Parameters:
     ///   - weightKg: the 7-day average (0 = unknown: no derived rate, no g/kg floors).
     ///   - maintenance: measured maintenance (28-day window); used with medium confidence or better.
@@ -650,7 +666,7 @@ public enum PhaseTransition {
         let adjustment = sign * CheckInEngine.rounded50(mid * CheckInEngine.kcalPerKgWeek)
         let energy = ((base + adjustment) / 10).rounded() * 10
 
-        let current = plan.revision(on: day)
+        let current = targetsBefore(phase, in: plan, on: day, calendar: calendar)
         let before = CheckInEngine.plannedEnergy(plan: plan, revision: current, fallback: fallback)
         var shift = ((energy - before.average) / 10).rounded() * 10
         if phase.goal == .lose {
@@ -668,6 +684,23 @@ public enum PhaseTransition {
         let revision = CoachPlan.Revision(from: day, baseline: baseline, byType: byType, reason: "transition")
         return Proposal(phaseID: phase.id, day: day, maintenance: base, source: source, rateMin: rateMin, rateMax: rateMax,
                         rateDerived: derived, adjustment: adjustment, energy: energy, shift: shift, revision: revision, notes: notes)
+    }
+
+    /// The targets a transition to `phase` starts from: while another phase is active on `day`,
+    /// its revision in force that day; once `phase` itself has been started (Start, or an import
+    /// that confirmed it), the targets of the phase that ran before it, as they were on the day
+    /// before `phase` began. nil when no phase ran before (then the profile's targets are used).
+    public static func targetsBefore(_ phase: CoachPlan.Phase, in plan: CoachPlan, on day: DayKey,
+                                     calendar: Calendar = .current) -> CoachPlan.Revision? {
+        if let active = plan.activePhase(on: day), active.id != phase.id { return active.revision(on: day) }
+        let begin = min(phase.start ?? day, day)
+        let previous = plan.phases.filter { other in
+            guard other.id != phase.id, other.isStarted, let start = other.start else { return false }
+            return start < begin
+        }.max { ($0.start ?? begin) < ($1.start ?? begin) }
+        guard let previous else { return nil }
+        let lastDay = begin.adding(days: -1, calendar: calendar)
+        return previous.revision(on: lastDay) ?? previous.revisions.last
     }
 
     /// A rate range from the target weight and end date: |weight − target| ÷ weeks left, kept

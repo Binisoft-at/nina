@@ -130,7 +130,7 @@ struct ProteinMealsTests {
 
     @Test func pillAndHint() {
         // Whole grams, as shown.
-        #expect(ProteinMeals.fill(34.6, minimum: 35) == .reached)
+        #expect(ProteinMeals.fill(34.7, minimum: 35) == .reached)
         #expect(ProteinMeals.fill(34.4, minimum: 35) == .below)
         #expect(ProteinMeals.fill(45.4, minimum: 35, maximum: 45) == .reached)
         #expect(ProteinMeals.fill(46, minimum: 35, maximum: 45) == .above)

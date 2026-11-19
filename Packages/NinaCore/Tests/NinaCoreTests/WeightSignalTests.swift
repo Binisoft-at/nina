@@ -332,10 +332,20 @@ struct WeightSignalTests {
         #expect(WeightSignal.Status.slower.title == "Slower than planned")
         #expect(WeightSignal.Status.faster.title == "Faster than planned")
         #expect(WeightSignal.Status.gathering.title == "Gathering data")
-        #expect(WeightSignal.Status.isOffTrack([.inRange, .slower, .faster]))
+        // "Off track" only after two check-ins in a row outside on the same side, as the check-in
+        // counts them: slower then faster is not off track.
+        #expect(WeightSignal.Status.isOffTrack([.inRange, .faster, .faster]))
+        #expect(WeightSignal.Status.isOffTrack([.slower, .slower]))
+        #expect(!WeightSignal.Status.isOffTrack([.inRange, .slower, .faster]))
         #expect(!WeightSignal.Status.isOffTrack([.slower, .inRange]))
         #expect(!WeightSignal.Status.isOffTrack([.slower]))
         #expect(!WeightSignal.Status.isOffTrack([.gathering, .slower]))
+        #expect(!WeightSignal.Status.isOffTrack([.gathering, .gathering]))
+        // From the check-ins' sides (a maintain phase reads "faster" on both sides).
+        #expect(WeightSignal.Status.isOffTrack(deviations: [nil, .above, .above]))
+        #expect(!WeightSignal.Status.isOffTrack(deviations: [.below, .above]))
+        #expect(!WeightSignal.Status.isOffTrack(deviations: [.above, nil]))
+        #expect(!WeightSignal.Status.isOffTrack(deviations: [.above]))
     }
 
     // MARK: Unusual readings and sanity

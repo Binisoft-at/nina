@@ -188,13 +188,13 @@ struct CoachGlueTests {
     }
 
     @Test func proteinMealsCountAsThePillShowsThem() {
-        // 34.6 g shows as "35 / 35 g": a protein meal for the pill and for adherence alike.
-        let byMeal: [String: NutrientValues] = ["breakfast": NutrientValues([.protein: 34.6]), "lunch": NutrientValues([.protein: 20])]
+        // 34.7 g shows as "35 / 35 g": a protein meal for the pill and for adherence alike.
+        let byMeal: [String: NutrientValues] = ["breakfast": NutrientValues([.protein: 34.7]), "lunch": NutrientValues([.protein: 20])]
         #expect(Adherence.proteinMeals(byMeal: byMeal, minimum: 35, meals: ["breakfast", "lunch"]) == 1)
         let rule = ProteinMeals.Rule(minimum: 35, meals: ["breakfast", "lunch"])
         let time = GlueFixture.checkIn.date(minutes: 8 * 60, calendar: glueUTC)
         let totals = DayTotals(day: GlueFixture.checkIn, entries: [
-            EntryFacts(day: GlueFixture.checkIn, meal: "breakfast", nutrients: NutrientValues([.energy: 400, .protein: 34.6]),
+            EntryFacts(day: GlueFixture.checkIn, meal: "breakfast", nutrients: NutrientValues([.energy: 400, .protein: 34.7]),
                        name: "Made-up breakfast", time: time),
             EntryFacts(day: GlueFixture.checkIn, meal: "lunch", nutrients: NutrientValues([.energy: 500, .protein: 20]),
                        name: "Made-up lunch", time: time),

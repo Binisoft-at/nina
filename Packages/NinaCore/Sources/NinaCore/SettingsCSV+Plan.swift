@@ -44,17 +44,30 @@ public struct SettingsSection: Equatable, Sendable, Identifiable {
 /// A body record the import adds for today (the baseline): the body-fat assessment with its method,
 /// or the tape values. Each one is listed in the preview.
 public struct SettingsBodyRecord: Equatable, Sendable, Identifiable {
+    /// The conditions an imported tape baseline is stored with: a standard reading
+    /// (`BodyProtocol.isStandard`), so trends, the tape estimate and "change since the start"
+    /// use it like a morning measurement.
+    public static let baselineConditions = BodyProtocol.encode([.morning, .fasted])
+
     public var day: DayKey
     public var kind: BodyRecordKind
     public var values: BodyValues
     /// Assessments: how the body fat was measured.
     public var method: BodyMethod?
+    /// `BodyMeasurement.conditions`: tape records are the standard baseline, assessments have none.
+    public var conditions: String
 
-    public init(day: DayKey, kind: BodyRecordKind, values: BodyValues, method: BodyMethod? = nil) {
+    public init(day: DayKey, kind: BodyRecordKind, values: BodyValues, method: BodyMethod? = nil, conditions: String? = nil) {
         self.day = day
         self.kind = kind
         self.values = values
         self.method = method
+        self.conditions = conditions ?? (kind == .tape ? SettingsBodyRecord.baselineConditions : "")
+    }
+
+    /// The tape values as a record for the trends and the tape estimate (nil for an assessment).
+    public var tapeRecord: BodyTapeRecord? {
+        kind == .tape ? BodyTapeRecord(day: day, values: values, conditions: conditions) : nil
     }
 
     public var id: String { kind.rawValue }
@@ -749,9 +762,28 @@ extension SettingsCSV {
         return values.min()!...values.max()!
     }
 
+    /// One number within `bounds`; "~83", "about 20", "ca. 82" are read as the number.
     static func planNumber(_ text: String, _ bounds: ClosedRange<Double>) -> Double? {
-        guard let value = ImportColumns.number(text), bounds.contains(value) else { return nil }
+        guard let value = ImportColumns.number(withoutApprox(text).text), bounds.contains(value) else { return nil }
         return value
+    }
+
+    /// The text without a "~", "≈", "about", "ca." … in front, and whether there was one.
+    static func withoutApprox(_ raw: String) -> (text: String, approx: Bool) {
+        var text = raw.trimmingCharacters(in: .whitespaces)
+        var approx = false
+        var found = true
+        while found {
+            found = false
+            let lower = text.lowercased()
+            for prefix in approxPrefixes where lower.hasPrefix(prefix) {
+                approx = true
+                text = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+                found = true
+                break
+            }
+        }
+        return (text, approx)
     }
 
     static func yesNo(_ text: String) -> Bool? {
@@ -785,19 +817,7 @@ extension SettingsCSV {
     /// "2030-01-07", "07.01.2030", "2030-04" (a start: the 1st, an end: the last day of the month),
     /// "April 2030"; "~" or "about" in front = approximate.
     static func planDate(_ raw: String, end: Bool) -> (day: DayKey, approx: Bool)? {
-        var text = raw.trimmingCharacters(in: .whitespaces)
-        var approx = false
-        var found = true
-        while found {
-            found = false
-            let lower = text.lowercased()
-            for prefix in approxPrefixes where lower.hasPrefix(prefix) {
-                approx = true
-                text = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-                found = true
-                break
-            }
-        }
+        let (text, approx) = withoutApprox(raw)
         guard !text.isEmpty else { return nil }
         if let day = DiaryCSV.parseDate(text) { return (day, approx) }
         var year: Int?
@@ -829,20 +849,35 @@ extension SettingsCSV {
         }
     }
 
-    /// A clock time anywhere in a text: "daily 07:00", "7:30", "7am", "19h".
-    static func clockTime(in text: String) -> Int? {
-        for token in text.lowercased().split(whereSeparator: { $0 == " " || $0 == "," || $0 == ";" }) {
-            var word = String(token)
+    /// A clock time anywhere in a text: "daily 07:00", "7:30", "7am", "19h", "7" (a bare hour).
+    /// `strict`: only what reads as a time – with ":" or "." and two-digit minutes, or am/pm/uhr/h
+    /// ("7 am", "19 Uhr") – so "Snack 2" or "5 g" aren't 02:00 and 05:00.
+    static func clockTime(in text: String, strict: Bool = false) -> Int? {
+        let tokens = text.lowercased().split(whereSeparator: { $0 == " " || $0 == "," || $0 == ";" }).map(String.init)
+        for (index, token) in tokens.enumerated() {
+            var word = token
             var pm = false
+            var marked = false
+            let next = index + 1 < tokens.count ? tokens[index + 1] : ""
             if word.hasSuffix("pm") {
                 pm = true
+                marked = true
                 word.removeLast(2)
             } else if word.hasSuffix("am") {
+                marked = true
                 word.removeLast(2)
             } else if word.hasSuffix("uhr") {
+                marked = true
                 word.removeLast(3)
+            } else if next == "pm" {
+                pm = true
+                marked = true
+            } else if ["am", "uhr", "h"].contains(next) {
+                marked = true
             }
-            guard word.first?.isNumber == true, var minutes = ClockTime.parse(word) else { continue }
+            guard word.first?.isNumber == true else { continue }
+            if strict, !marked, word.range(of: #"^\d{1,2}([:.]\d{2}|h|h\d{2})$"#, options: .regularExpression) == nil { continue }
+            guard var minutes = ClockTime.parse(word) else { continue }
             if pm, minutes < 12 * 60 { minutes += 12 * 60 }
             return minutes
         }
@@ -917,16 +952,24 @@ extension SettingsCSV {
         return String(first)
     }
 
-    /// "breakfast", "with breakfast", "08:00", "anytime".
+    /// "breakfast", "with breakfast", "5 g with breakfast", "Snack 2" (a meal), "08:00", "7 am",
+    /// "anytime". Only a real time is a time (`clockTime(in:strict:)`); a meal name is matched
+    /// with the meals when the plan is applied.
     static func checkTiming(_ text: String) -> CoachPlan.CheckTiming {
         let word = SearchText.normalize(text)
         if word.isEmpty || ["anytime", "any time", "any", "jederzeit", "egal", "whenever", "daily"].contains(word) { return .anytime }
-        if let minutes = clockTime(in: text) { return .time(minutes) }
+        if let minutes = clockTime(in: text, strict: true) { return .time(minutes) }
         var name = text.trimmingCharacters(in: .whitespaces)
-        for prefix in ["with ", "at ", "before ", "after ", "zum ", "zur ", "beim ", "mit ", "vor dem ", "nach dem ", "vor ", "nach "]
-        where name.lowercased().hasPrefix(prefix) {
-            name = String(name.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
-            break
+        let padded = " " + name
+        let connectors = ["with", "at", "before", "after", "zum", "zur", "beim", "mit", "vor dem", "nach dem", "vor", "nach"]
+        // "with breakfast", "5 g with breakfast": the meal is what follows the first connector
+        // (the longer one where two start at the same place: "vor dem", not "vor").
+        let found = connectors.compactMap { padded.range(of: " \($0) ", options: .caseInsensitive) }.min { a, b in
+            a.lowerBound != b.lowerBound ? a.lowerBound < b.lowerBound : a.upperBound > b.upperBound
+        }
+        if let found {
+            let rest = String(padded[found.upperBound...]).trimmingCharacters(in: .whitespaces)
+            if !rest.isEmpty { name = rest }
         }
         return .meal(name)
     }
@@ -1085,7 +1128,8 @@ extension SettingsCSV {
                     notes.append("day_type.\(row.id).days: only one day type can be the default – \(name) is flexible now")
                     schedule = .flexible
                 }
-                let emoji = row.emoji ?? {
+                // Without an emoji row a day type that was there keeps its emoji (also none).
+                let emoji = row.emoji ?? input.oldPlan?.dayType(id: row.id)?.emoji ?? {
                     let suggested = CoachPlan.DayType.suggestedEmoji(for: name)
                     return suggested.isEmpty ? CoachPlan.DayType.suggestedEmoji(for: row.id) : suggested
                 }()
@@ -1119,7 +1163,8 @@ extension SettingsCSV {
                         days = known.isEmpty ? .daily : .dayTypes(known)
                     }
                 }
-                return CoachPlan.Check(id: row.id, name: name, emoji: row.emoji ?? "💊", dose: row.dose ?? "", timing: timing, days: days,
+                return CoachPlan.Check(id: row.id, name: name, emoji: row.emoji ?? input.oldPlan?.check(id: row.id)?.emoji ?? "💊",
+                                       dose: row.dose ?? "", timing: timing, days: days,
                                        isOptional: row.isOptional ?? false, remind: row.remind ?? false, affectsWeight: row.affectsWeight)
             }
         }
@@ -1136,7 +1181,8 @@ extension SettingsCSV {
         // have that phase's rows and they differ from what the flat rows stood for so far.
         if let active = plan.activePhase(on: today), !filePhases.contains(active.id), let index = plan.phases.firstIndex(where: { $0.id == active.id }) {
             if let goal = draft.goal, goal != input.current.goal { plan.phases[index].goal = goal }
-            if let range = draft.rateRange, range != flatRate(input.current, today: today) {
+            // A maintain phase has no pace: the profile's (flat) rate isn't its band.
+            if let range = draft.rateRange, range != flatRate(input.current, today: today), plan.phases[index].goal != .maintain {
                 plan.phases[index].rateMin = range.lowerBound
                 plan.phases[index].rateMax = range.upperBound
             }
@@ -1144,8 +1190,8 @@ extension SettingsCSV {
             if flatChanged {
                 let wasRunning = oldPlan?.phase(id: active.id)?.isStarted == true
                 let byType = plan.phases[index].revision(on: today)?.byType ?? currentRevision(of: active, today: today)?.byType ?? [:]
-                plan = plan.addingRevision(phase: active.id, from: wasRunning ? today : (active.start ?? today), baseline: input.flatNew,
-                                           byType: byType, reason: "import")
+                plan = addingImportRevision(to: plan, phase: active.id, from: wasRunning ? today : (active.start ?? today),
+                                            baseline: input.flatNew, byType: byType, notes: &notes)
             }
         }
 
@@ -1154,6 +1200,9 @@ extension SettingsCSV {
             let current = input.current
             let legacyDays: Weekdays? = draft.trainingDays
                 ?? (migrating && rows.phases != nil && current.trainingTargets != nil && !current.trainingDays.isEmpty ? current.trainingDays : nil)
+            if legacyDays == nil, draft.trainingExtra != nil, !notes.contains(where: { $0.hasPrefix("training_extra_kcal") }) {
+                notes.append("training_extra_kcal: your plan's day types set the calories – use phase.N.<type>.calories rows")
+            }
             if let days = legacyDays, days.isEmpty {
                 if draft.trainingDays != nil, plan.dayTypes.contains(where: { $0.id != "rest" }) {
                     notes.append("training_days: your plan's day types stay – change them with day_type rows")
@@ -1172,8 +1221,8 @@ extension SettingsCSV {
                     let byType = ["training": SettingsState.training(base, extra: extra), "rest": base]
                     if revision?.byType != byType || revision?.baseline != base {
                         let wasRunning = oldPlan?.phase(id: active.id)?.isStarted == true
-                        plan = plan.addingRevision(phase: active.id, from: wasRunning ? today : (active.start ?? today), baseline: base,
-                                                   byType: byType, reason: "import")
+                        plan = addingImportRevision(to: plan, phase: active.id, from: wasRunning ? today : (active.start ?? today),
+                                                    baseline: base, byType: byType, notes: &notes)
                     }
                 }
             }
@@ -1264,7 +1313,9 @@ extension SettingsCSV {
             let goal = row.goal ?? (isActive ? draft.goal : nil) ?? .maintain
             built[index].goal = goal
             built[index].name = row.name ?? CoachPlan.Phase.defaultName(for: goal)
-            var rate = row.rate ?? (isActive && row.ratePercent == nil ? draft.rateRange : nil)
+            // The flat rate is the active phase's pace; a maintain phase has none (its band comes
+            // from its own rate_kg_per_week row only).
+            var rate = row.rate ?? (isActive && row.ratePercent == nil && goal != .maintain ? draft.rateRange : nil)
             if rate == nil, let percent = row.ratePercent {
                 if state.weightKg > 0 {
                     func kg(_ value: Double) -> Double { (value / 100 * state.weightKg * 100).rounded() / 100 }
@@ -1277,6 +1328,12 @@ extension SettingsCSV {
             built[index].rateMax = rate?.upperBound ?? 0
             built[index].reviewMin = row.review?.lowerBound ?? 0
             built[index].reviewMax = row.review?.upperBound ?? 0
+            if let review = row.review, review.lowerBound == review.upperBound, let old = oldPlan?.phase(id: row.id),
+               min(old.reviewMin, old.reviewMax) == 0, max(old.reviewMin, old.reviewMax) == review.lowerBound {
+                // A single review weight stored with the other end empty reads back as it was.
+                built[index].reviewMin = old.reviewMin
+                built[index].reviewMax = old.reviewMax
+            }
             built[index].targetWeight = row.targetWeight ?? (isActive ? draft.targetWeight : nil) ?? 0
             built[index].targetBodyFat = row.targetBodyFat ?? 0
             built[index].maxWaistGainCm = row.maxWaistGainCm ?? CoachPlan.Phase.defaultMaxWaistGain(for: goal)
@@ -1312,14 +1369,95 @@ extension SettingsCSV {
                current.byType.filter({ typeIDs.contains($0.key) }) == byType.filter({ typeIDs.contains($0.key) }) { continue }
             let wasRunning = oldPlan?.phase(id: built[index].id)?.isStarted == true
             if wasRunning {
-                var revisions = built[index].revisions.filter { $0.from != today }
-                revisions.append(CoachPlan.Revision(from: today, baseline: baseline, byType: byType, reason: "import"))
-                built[index].revisions = revisions.sorted { $0.from < $1.from }
+                addImportRevision(to: &built[index], from: today, baseline: baseline, byType: byType, notes: &notes)
             } else {
                 built[index].revisions = [CoachPlan.Revision(from: built[index].start ?? today, baseline: baseline, byType: byType, reason: "import")]
             }
         }
+
+        // A phase this import confirms with a start before today: the days up to yesterday keep the
+        // targets they had (target history), its own targets start today.
+        for index in built.indices {
+            guard oldPlan?.phase(id: built[index].id)?.isStarted != true, built[index].isStarted,
+                  let start = built[index].start, start < today else { continue }
+            keepPastTargets(of: &built[index], from: start, input: input, typeIDs: typeIDs)
+        }
         return built
+    }
+
+    /// The reason of the revisions that keep the targets days had before an import confirmed a
+    /// phase with an earlier start.
+    public static let keptRevisionReason = "kept"
+
+    /// The plan with an import revision of a phase from `day` on. It replaces the revision dated
+    /// that day and any dated later (an adjustment applied "from tomorrow" would otherwise take
+    /// over again tomorrow); a note names the replaced ones.
+    static func addingImportRevision(to plan: CoachPlan, phase id: String, from day: DayKey, baseline: DailyTargets?,
+                                     byType: [String: DailyTargets], notes: inout [String]) -> CoachPlan {
+        guard let index = plan.phases.firstIndex(where: { $0.id == id }) else { return plan }
+        var copy = plan
+        addImportRevision(to: &copy.phases[index], from: day, baseline: baseline, byType: byType, notes: &notes)
+        return copy
+    }
+
+    static func addImportRevision(to phase: inout CoachPlan.Phase, from day: DayKey, baseline: DailyTargets?,
+                                  byType: [String: DailyTargets], notes: inout [String]) {
+        let later = phase.revisions.filter { $0.from > day }
+        if !later.isEmpty {
+            let days = later.map(\.from.rawValue).joined(separator: ", ")
+            notes.append("phase.\(phase.id): these targets replace the change planned from \(days)")
+        }
+        var revisions = phase.revisions.filter { $0.from < day }
+        revisions.append(CoachPlan.Revision(from: day, baseline: baseline, byType: byType, reason: "import"))
+        phase.revisions = revisions.sorted { $0.from < $1.from }
+    }
+
+    /// For a phase this import confirms although it started before today: the days from its start
+    /// up to yesterday get revisions with the targets they had before (`keptRevisions`), and its
+    /// own targets start today – the newest one dated before today moves to today; without one,
+    /// an empty revision from today leaves the phase without targets (the transition proposal).
+    static func keepPastTargets(of phase: inout CoachPlan.Phase, from start: DayKey, input: PlanInput, typeIDs: Set<String>) {
+        let today = input.today
+        let kept = keptRevisions(from: start, before: today, input: input, typeIDs: typeIDs)
+        guard !kept.isEmpty else { return }
+        var own = phase.revisions.filter { $0.from >= today }
+        if !own.contains(where: { $0.from == today }) {
+            var moved = phase.revisions.filter { $0.from < today }.max { $0.from < $1.from }
+                ?? CoachPlan.Revision(from: today, baseline: nil, byType: [:], reason: "import")
+            moved.from = today
+            own.append(moved)
+        }
+        phase.revisions = (kept + own).sorted { $0.from < $1.from }
+    }
+
+    /// What the days from `start` up to the day before `today` resolved to before the import, as
+    /// revisions from `start` and from each later change: the old plan's revision in force on the
+    /// day (missing targets filled with the profile's), else the profile's targets (with the
+    /// training targets on a "training" day type, as before plans). Equal neighbours are merged.
+    static func keptRevisions(from start: DayKey, before today: DayKey, input: PlanInput, typeIDs: Set<String>) -> [CoachPlan.Revision] {
+        guard start < today else { return [] }
+        let oldPlan = input.oldPlan
+        let profile = input.current.targets
+        var days: Set<DayKey> = [start]
+        for phase in oldPlan?.phases ?? [] {
+            var changes = phase.revisions.map(\.from)
+            if let begin = phase.start { changes.append(begin) }
+            if let end = phase.end { changes.append(end.adding(days: 1, calendar: input.calendar)) }
+            for day in changes where day > start && day < today { days.insert(day) }
+        }
+        var legacy: [String: DailyTargets] = [:]
+        if oldPlan?.isSetUp != true, typeIDs.contains("training"), let training = input.current.trainingTargets, !input.current.trainingDays.isEmpty {
+            legacy["training"] = training
+        }
+        var result: [CoachPlan.Revision] = []
+        for day in days.sorted() {
+            let old = oldPlan?.revision(on: day)
+            let revision = CoachPlan.Revision(from: day, baseline: old.map { $0.baseline ?? profile } ?? profile,
+                                              byType: old?.byType ?? legacy, reason: keptRevisionReason)
+            if let last = result.last, last.baseline == revision.baseline, last.byType == revision.byType { continue }
+            result.append(revision)
+        }
+        return result
     }
 }
 
@@ -1399,8 +1537,8 @@ extension SettingsCSV {
         let before = oldPlan ?? CoachPlan(routine: CoachPlan.Routine.defaults(for: new.sex))
         let after = newPlan ?? CoachPlan(routine: CoachPlan.Routine.defaults(for: new.sex))
         var result: [SettingsChange] = []
-        func add(_ title: String, _ a: String, _ b: String, _ group: SettingsGroup) {
-            if a != b { result.append(SettingsChange(title: title, old: a, new: b, group: group)) }
+        func add(_ title: String, _ a: String, _ b: String, _ group: SettingsGroup, key: String = "") {
+            if a != b { result.append(SettingsChange(title: title, old: a, new: b, group: group, key: key)) }
         }
 
         // Protein per meal (with the targets).
@@ -1409,10 +1547,10 @@ extension SettingsCSV {
 
         // Day types.
         for type in after.dayTypes {
-            add(type.name, before.dayType(id: type.id).map(describe) ?? "–", describe(type), .dayTypes)
+            add(type.name, before.dayType(id: type.id).map(describe) ?? "–", describe(type), .dayTypes, key: type.id)
         }
         for type in before.dayTypes where after.dayType(id: type.id) == nil {
-            add(type.name, describe(type), "removed", .dayTypes)
+            add(type.name, describe(type), "removed", .dayTypes, key: type.id)
         }
 
         // Phases.
@@ -1442,13 +1580,13 @@ extension SettingsCSV {
 
             let oldRevision = was.flatMap { currentRevision(of: $0, today: today) }
             let newRevision = currentRevision(of: phase, today: today)
-            func targetsLine(_ name: String, _ a: DailyTargets?, _ b: DailyTargets?) {
+            func targetsLine(_ name: String, _ a: DailyTargets?, _ b: DailyTargets?, key: String = "") {
                 guard a != b else { return }
                 let short = (targetsText(a, long: false), targetsText(b, long: false))
                 if short.0 != short.1 {
-                    add(name, short.0, short.1, .phases)
+                    add(name, short.0, short.1, .phases, key: key)
                 } else {
-                    add(name, targetsText(a, long: true), targetsText(b, long: true), .phases)
+                    add(name, targetsText(a, long: true), targetsText(b, long: true), .phases, key: key)
                 }
             }
             // The active phase's baseline is the flat targets (shown under Targets).
@@ -1457,20 +1595,20 @@ extension SettingsCSV {
             typeIDs += (newRevision?.byType.keys.sorted() ?? []).filter { !typeIDs.contains($0) }
             for type in typeIDs {
                 let name = after.dayType(id: type)?.name ?? before.dayType(id: type)?.name ?? type
-                targetsLine("\(title) · \(name) days", oldRevision?.byType[type], newRevision?.byType[type])
+                targetsLine("\(title) · \(name) days", oldRevision?.byType[type], newRevision?.byType[type], key: "\(phase.id).\(type)")
             }
         }
         for phase in before.phases where after.phase(id: phase.id) == nil {
-            add("Phase \(phase.id) · Name", phase.name, "removed", .phases)
+            add("Phase \(phase.id) · Name", phase.name, "removed", .phases, key: phase.id)
         }
 
         // Daily checks.
         for check in after.checks {
             add(check.name, before.check(id: check.id).map { describe($0, plan: before, meals: old.meals) } ?? "–",
-                describe(check, plan: after, meals: new.meals), .checks)
+                describe(check, plan: after, meals: new.meals), .checks, key: check.id)
         }
         for check in before.checks where after.check(id: check.id) == nil {
-            add(check.name, describe(check, plan: before, meals: old.meals), "removed", .checks)
+            add(check.name, describe(check, plan: before, meals: old.meals), "removed", .checks, key: check.id)
         }
 
         // Measuring and check-in.
@@ -1543,9 +1681,9 @@ extension SettingsCSV {
         }
 
         let longTerm = plan.longTerm
-        if longTerm.weightKg > 0 { add("long_term.weight_kg", NumberText.plain(longTerm.weightKg, decimals: 1)) }
-        if longTerm.bodyFat > 0 { add("long_term.body_fat_percent", NumberText.plain(longTerm.bodyFat, decimals: 1)) }
-        if longTerm.waistCm > 0 { add("long_term.waist_cm", NumberText.plain(longTerm.waistCm, decimals: 1)) }
+        if longTerm.weightKg > 0 { add("long_term.weight_kg", NumberText.plain(longTerm.weightKg)) }
+        if longTerm.bodyFat > 0 { add("long_term.body_fat_percent", NumberText.plain(longTerm.bodyFat)) }
+        if longTerm.waistCm > 0 { add("long_term.waist_cm", NumberText.plain(longTerm.waistCm)) }
         if let date = longTerm.date { add("long_term.date", date.rawValue) }
         add("long_term.note", longTerm.note)
 
@@ -1569,14 +1707,18 @@ extension SettingsCSV {
             add(prefix + "goal", phase.goal.rawValue)
             if let start = phase.start { add(prefix + "start", dateValue(start, approx: phase.startApprox)) }
             if let end = phase.end { add(prefix + "end", dateValue(end, approx: phase.endApprox)) }
-            if phase.rateRange.upperBound > 0 { add(prefix + "rate_kg_per_week", rangeValue(phase.rateRange.lowerBound, phase.rateRange.upperBound)) }
-            if phase.reviewMin > 0 || phase.reviewMax > 0 {
-                add(prefix + "review_weight_kg", rangeValue(min(phase.reviewMin, phase.reviewMax > 0 ? phase.reviewMax : phase.reviewMin), max(phase.reviewMin, phase.reviewMax)))
+            if phase.rateRange.upperBound > 0 {
+                add(prefix + "rate_kg_per_week", rangeValue(phase.rateRange.lowerBound, phase.rateRange.upperBound))
+            } else if phase.goal == .maintain || phase.id == activeID {
+                // Written as 0, so the flat rate never fills it in on the way back.
+                add(prefix + "rate_kg_per_week", "0")
             }
-            if phase.targetWeight > 0 { add(prefix + "target_weight_kg", NumberText.plain(phase.targetWeight, decimals: 1)) }
-            if phase.targetBodyFat > 0 { add(prefix + "target_body_fat_percent", NumberText.plain(phase.targetBodyFat, decimals: 1)) }
+            let review = [phase.reviewMin, phase.reviewMax].filter { $0 > 0 }
+            if let low = review.min(), let high = review.max() { add(prefix + "review_weight_kg", rangeValue(low, high)) }
+            if phase.targetWeight > 0 { add(prefix + "target_weight_kg", NumberText.plain(phase.targetWeight)) }
+            if phase.targetBodyFat > 0 { add(prefix + "target_body_fat_percent", NumberText.plain(phase.targetBodyFat)) }
             if phase.maxWaistGainCm != CoachPlan.Phase.defaultMaxWaistGain(for: phase.goal) {
-                add(prefix + "max_waist_gain_cm", NumberText.plain(phase.maxWaistGainCm, decimals: 1))
+                add(prefix + "max_waist_gain_cm", NumberText.plain(phase.maxWaistGainCm))
             }
             if let revision = currentRevision(of: phase, today: today) {
                 // The active phase's baseline is the flat calories, protein_g … rows.

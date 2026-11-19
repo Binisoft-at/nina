@@ -135,6 +135,51 @@ struct BodyScheduleTests {
         #expect(after.nextFull(today: schedDay("2030-02-26"), calendar: cal)?.day == schedDay("2030-04-22"))
     }
 
+    @Test func setUpDayIsTheConfirmationDay() {
+        let cal = scheduleUTC
+        // A phase imported on Mon 21 Jan with a start on 1 Jan ("phase.1.start,2030-01"): the
+        // baseline is due on the import day, not 20 days overdue, and the back-dated phase start
+        // asks for nothing.
+        var plan = schedPlan()
+        plan.phases[0].start = schedDay("2030-01-01")
+        plan.phases[0].startedAt = schedDay("2030-01-21").date(minutes: 9 * 60, calendar: cal)
+        let start = BodySchedule.setUpDay(of: plan, calendar: cal)
+        #expect(start == schedDay("2030-01-21"))
+        let schedule = BodySchedule(plan: plan, start: start, tape: [], assessmentDays: [])
+        let due = schedule.dueItems(on: schedDay("2030-01-21"), calendar: cal)
+        #expect(due.map(\.kind) == [.full])
+        #expect(due.first?.reason == .baseline && due.first?.overdueDays == 0)
+        // A phase confirmed before its start never counts from before the start.
+        #expect(BodySchedule.setUpDay(of: schedPlan(), calendar: cal) == schedDay("2030-01-03"))
+        // The earliest confirmation of several phases.
+        plan.phases[1].start = schedDay("2030-06-03")
+        plan.phases[1].startedAt = schedDay("2030-06-03").date(minutes: 600, calendar: cal)
+        #expect(BodySchedule.setUpDay(of: plan, calendar: cal) == schedDay("2030-01-21"))
+        #expect(BodySchedule.setUpDay(of: CoachPlan(), calendar: cal) == nil)
+    }
+
+    @Test func aFullSetCountsForItsWholeWeek() {
+        let cal = scheduleUTC
+        // Sunday check-ins; the plan is set up on Thu 10 Jan with the full baseline that day.
+        var plan = schedPlan()
+        plan.routine.checkInWeekday = 7
+        let start = schedDay("2030-01-10")
+        let schedule = BodySchedule(plan: plan, start: start, tape: [schedTape("2030-01-10", schedFullSites)], assessmentDays: [start])
+        #expect(schedule.nextWeekly(today: schedDay("2030-01-10"), calendar: cal) == schedDay("2030-01-20"))
+        #expect(schedule.nextWeekly(today: schedDay("2030-01-13"), calendar: cal) == schedDay("2030-01-20"))
+        #expect(schedule.dueItems(on: schedDay("2030-01-13"), calendar: cal).isEmpty)
+        #expect(schedule.dueItems(on: schedDay("2030-01-20"), calendar: cal).map(\.title) == ["Waist"])
+        // A weekly waist earlier in the week doesn't count for Sunday; only a full set does.
+        let waistOnly = BodySchedule(plan: plan, start: schedDay("2030-01-06"),
+                                     tape: [schedTape("2030-01-06", schedFullSites), schedTape("2030-01-10", [.waist])],
+                                     assessmentDays: [schedDay("2030-01-06")])
+        #expect(waistOnly.nextWeekly(today: schedDay("2030-01-13"), calendar: cal) == schedDay("2030-01-13"))
+        // With Monday check-ins nothing changes: the week starts on the check-in day.
+        #expect(BodySchedule.nextWeekly(lastMeasured: schedDay("2030-01-03"), today: schedDay("2030-01-07"), checkInWeekday: 1,
+                                        start: schedDay("2030-01-03"), lastFull: schedDay("2030-01-03"), calendar: cal)
+                == schedDay("2030-01-07"))
+    }
+
     @Test func phaseEventsAndCheckpoint() {
         let cal = scheduleUTC
         let plan = schedPlan()
