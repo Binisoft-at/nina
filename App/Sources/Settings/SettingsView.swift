@@ -3,7 +3,7 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
-/// Settings: goals, diary preferences, Apple Health, reminders, appearance, help, iCloud & data,
+/// Settings: goals & plan, diary preferences, Apple Health, reminders, appearance, help, iCloud & data,
 /// import/export, the app log, about.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
@@ -17,9 +17,9 @@ struct SettingsView: View {
                     GoalsView(showsDone: false)
                 } label: {
                     LabeledContent {
-                        Text(Fmt.energy(app.settings.targets.energy, unit: app.energyUnit))
+                        Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: app.energyUnit))
                     } label: {
-                        Label("Goals", systemImage: "target")
+                        Label("Goals & Plan", systemImage: "target")
                     }
                 }
                 NavigationLink {
@@ -166,15 +166,22 @@ struct SettingsView: View {
     }
 }
 
-/// Goals: the calculator with every step explained, your targets, training days and priorities.
+/// Goals & Plan: a prominent link to the plan editor, the calculator with every step explained,
+/// your targets, training days and priorities. With a running phase the goal, pace and targets
+/// come from the plan: the calculator's result goes to the phase ("Use for This Phase"), and
+/// saving leaves the plan's mirrored profile fields alone.
 struct GoalsView: View {
     let showsDone: Bool
+    /// The "My Plan" link at the top (off when the plan editor opens this page).
+    let showsPlanLink: Bool
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var sex: Sex = .unspecified
     @State private var birthYear = 1990
+    @State private var birthKnown = false
     @State private var height = 172.0
+    @State private var heightKnown = false
     @State private var weight = 72.0
     @State private var activity: ActivityLevel = .light
     @State private var goal: WeightGoal = .maintain
@@ -187,7 +194,15 @@ struct GoalsView: View {
     @State private var focus: [Nutrient] = [.protein, .carbs, .fat]
     @State private var bonus = 0.0
     @State private var targetWeight = 0.0
+    /// The running phase when the page was loaded: goal, pace and targets then come from the plan.
+    @State private var phase: CoachPlan.Phase?
+    @State private var showPlan = false
     @State private var loaded = false
+
+    init(showsDone: Bool, showsPlanLink: Bool = true) {
+        self.showsDone = showsDone
+        self.showsPlanLink = showsPlanLink
+    }
 
     private var profile: BodyProfile {
         BodyProfile(sex: sex, age: GoalCalculator.age(birthYear: birthYear), heightCm: height, weightKg: weight,
@@ -198,164 +213,22 @@ struct GoalsView: View {
 
     var body: some View {
         Form {
-            Section {
-                Picker("Sex (for the formula)", selection: $sex) {
-                    ForEach(Sex.allCases) { Text($0.title).tag($0) }
-                }
-                Stepper("Born \(String(birthYear))", value: $birthYear, in: 1920...2015)
-                Stepper("Height \(Fmt.number(height)) cm", value: $height, in: 120...230)
-                Stepper("Weight \(Fmt.number(weight, decimals: 1)) kg", value: $weight, in: 30...250, step: 0.5)
-                Picker("Activity", selection: $activity) {
-                    ForEach(ActivityLevel.allCases) { level in
-                        VStack(alignment: .leading) {
-                            Text(level.title)
-                            Text(level.detail).font(.caption).foregroundStyle(.secondary)
-                        }
-                        .tag(level)
-                    }
-                }
-                Picker("Goal", selection: $goal) {
-                    ForEach(WeightGoal.allCases) { Text($0.title).tag($0) }
-                }
-                if goal != .maintain {
-                    Picker("Pace", selection: $rate) {
-                        Text("0.25 kg per week").tag(0.25)
-                        Text("0.5 kg per week").tag(0.5)
-                        Text("0.75 kg per week").tag(0.75)
-                        if goal == .lose { Text("1 kg per week").tag(1.0) }
-                    }
-                    Stepper(targetWeight > 0 ? "Target weight \(Fmt.number(targetWeight, decimals: 1)) kg" : "Target weight (optional)",
-                            value: $targetWeight, in: 0...250, step: 0.5)
-                }
-                Picker("Macro split", selection: $split) {
-                    ForEach(MacroSplit.presets) { preset in
-                        Text("\(preset.name) · \(Int(preset.protein * 100))/\(Int(preset.carbs * 100))/\(Int(preset.fat * 100))").tag(preset)
-                    }
-                }
-            } header: {
-                Text("Calculate for me")
-            } footer: {
-                Text("The standard method dietitians use (Mifflin–St Jeor). Every step with your numbers below.")
+            if showsPlanLink {
+                planSection
             }
-
-            Section {
-                ForEach(plan.steps) { step in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Text(step.title).font(.subheadline.weight(.semibold))
-                            Spacer()
-                            Text("\(Fmt.number(step.value)) \(step.unit)").monospacedDigit()
-                        }
-                        Text(step.formula).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                if plan.hitFloor {
-                    Label("Raised to a safe minimum – going lower needs medical guidance.", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                Button("Use These Targets", systemImage: "checkmark.circle.fill") {
-                    targets = plan.targets
-                    saveAll()
-                    app.toasts.show("Goal set: \(Fmt.energy(plan.targets.energy, unit: app.energyUnit))", symbol: "target")
-                }
-                .primaryActionStyle()
-            } header: {
-                Text("How it's calculated")
+            calculateSection
+            stepsSection
+            if phase == nil {
+                targetsSection
+                trainingSection
             }
-
-            Section {
-                targetRow("Calories", value: $targets.energy, unit: app.energyUnit.symbol, step: 50)
-                targetRow("Protein", value: $targets.protein, unit: "g", step: 5)
-                targetRow("Carbohydrates", value: $targets.carbs, unit: "g", step: 5)
-                targetRow("Fat", value: $targets.fat, unit: "g", step: 2)
-                targetRow("Fiber", value: $targets.fiber, unit: "g", step: 1)
-                targetRow("Sugar (max)", value: $targets.sugarMax, unit: "g", step: 5)
-                targetRow("Saturated fat (max)", value: $targets.saturatedFatMax, unit: "g", step: 1)
-                targetRow("Salt (max)", value: Binding(get: { (targets.sodiumMax * 2.5 / 100).rounded() / 10 }, set: { targets.sodiumMax = $0 / 2.5 * 1000 }), unit: "g", step: 0.5)
-                targetRow("Water", value: $targets.water, unit: "ml", step: 250)
-                Text("Your split: \(targets.split.percentText) % of calories from protein / carbs / fat.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text("Your daily targets")
-            } footer: {
-                Text("Change any number by hand – the calculator is just a starting point.")
-            }
-
-            Section {
-                Toggle("Different targets on training days", isOn: $trainingOn)
-                if trainingOn {
-                    HStack(spacing: 6) {
-                        ForEach(1...7, id: \.self) { weekday in
-                            Button {
-                                trainingDays.toggle(weekday)
-                            } label: {
-                                Text(String(Weekdays.shortNames[weekday - 1].prefix(2)))
-                                    .font(.caption.weight(.semibold))
-                                    .frame(maxWidth: .infinity, minHeight: 30)
-                                    .foregroundStyle(trainingDays.days.contains(weekday) ? Color.white : .primary)
-                                    .background(trainingDays.days.contains(weekday) ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.secondary.opacity(0.12)),
-                                                in: .rect(cornerRadius: 8, style: .continuous))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    Stepper("+\(Fmt.number(trainingExtra)) kcal, mostly carbs", value: $trainingExtra, in: 50...1500, step: 50)
-                }
-            } header: {
-                Text("Training days")
-            } footer: {
-                Text("On these weekdays your calories go up and the extra comes 70 % from carbs, 30 % from protein.")
-            }
-
-            Section {
-                ForEach(Nutrient.allCases.filter { $0 != .energy && $0 != .water }, id: \.self) { nutrient in
-                    Button {
-                        if let index = focus.firstIndex(of: nutrient) {
-                            focus.remove(at: index)
-                        } else if focus.count < 4 {
-                            focus.append(nutrient)
-                        }
-                    } label: {
-                        HStack {
-                            Text(nutrient.title).foregroundStyle(.primary)
-                            Spacer()
-                            if let index = focus.firstIndex(of: nutrient) {
-                                Text("\(index + 1)")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 22, height: 22)
-                                    .background(Brand.accent, in: .circle)
-                            }
-                        }
-                        .contentShape(.rect)
-                    }
-                    .buttonStyle(.plain)
-                }
-            } header: {
-                Text("Shown first (your priorities)")
-            } footer: {
-                Text("Up to four nutrients, in this order, on Today, the watch and the widgets.")
-            }
-
+            focusSection
             #if os(iOS)
-            Section {
-                Picker("Add burned calories", selection: $bonus) {
-                    Text("No").tag(0.0)
-                    Text("Half").tag(0.5)
-                    Text("All").tag(1.0)
-                }
-                .pickerStyle(.segmented)
-            } header: {
-                Text("Activity from Apple Health")
-            } footer: {
-                Text("Adds this share of today's active energy to your budget. Half is the usual choice – watches tend to overestimate.")
-            }
+            activitySection
             #endif
         }
         .formStyle(.grouped)
-        .navigationTitle("Goals")
+        .navigationTitle(showsPlanLink ? "Goals & Plan" : "Body & Calculator")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(showsDone ? "Done" : "Save") {
@@ -364,9 +237,204 @@ struct GoalsView: View {
                 }
             }
         }
+        .navigationDestination(isPresented: $showPlan) {
+            PlanEditorView(showsDone: false)
+        }
+        // Loaded on every appearance: the plan editor (pushed from here) can change the plan and the body data.
         .onAppear(perform: load)
         .onDisappear { if loaded, !showsDone { saveAll() } }
+        // Shown in a sheet or the Mac Settings window: its toasts show here.
+        .toasts(app.toasts, bottomPadding: 16)
     }
+
+    // MARK: Sections
+
+    private var planSection: some View {
+        Section {
+            Button {
+                saveAll()
+                showPlan = true
+            } label: {
+                GoalsPlanLink(detail: planDetail)
+            }
+            .buttonStyle(.plain)
+        } footer: {
+            Text("Phases with dates, day types with their own calories, daily checks, measuring and a weekly check-in. Set it up here or import it from your AI.")
+        }
+    }
+
+    private var planDetail: String {
+        let coach = app.settings.plan
+        guard coach.isSetUp else { return "Not set up yet" }
+        if let running = coach.activePhase(on: app.today) {
+            return "\(PlanEditorData.phaseName(running)) · \(PlanEditorData.phaseStatus(running, plan: coach, today: app.today).lowercased())"
+        }
+        let phases = coach.phases.count, types = coach.dayTypes.count
+        return "\(phases) \(phases == 1 ? "phase" : "phases") · \(types) day \(types == 1 ? "type" : "types")"
+    }
+
+    private var calculateSection: some View {
+        Section {
+            Picker("Sex (for the formula)", selection: $sex) {
+                ForEach(Sex.allCases) { Text($0.title).tag($0) }
+            }
+            Stepper(birthTitle, value: birthYearValue, in: 1920...2015)
+            Stepper(heightTitle, value: heightValue, in: 120...230)
+            Stepper("Weight \(Fmt.number(weight, decimals: 1)) kg", value: $weight, in: 30...250, step: 0.5)
+            Picker("Activity", selection: $activity) {
+                ForEach(ActivityLevel.allCases) { level in
+                    VStack(alignment: .leading) {
+                        Text(level.title)
+                        Text(level.detail).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .tag(level)
+                }
+            }
+            goalRows
+            Picker("Macro split", selection: $split) {
+                ForEach(MacroSplit.presets) { preset in
+                    Text("\(preset.name) · \(Int(preset.protein * 100))/\(Int(preset.carbs * 100))/\(Int(preset.fat * 100))").tag(preset)
+                }
+            }
+        } header: {
+            Text("Calculate for me")
+        } footer: {
+            Text(calculateFooter)
+        }
+    }
+
+    @ViewBuilder
+    private var goalRows: some View {
+        if let phase {
+            LabeledContent("Goal and pace", value: phaseGoalText(phase))
+        } else {
+            Picker("Goal", selection: $goal) {
+                ForEach(WeightGoal.allCases) { Text($0.title).tag($0) }
+            }
+            if goal != .maintain {
+                Stepper(paceTitle, value: paceValue, in: 0.05...1.0, step: 0.05)
+                Text(paceNote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Stepper(targetWeight > 0 ? "Target weight \(Fmt.number(targetWeight, decimals: 1)) kg" : "Target weight (optional)",
+                        value: $targetWeight, in: 0...250, step: 0.5)
+            }
+        }
+    }
+
+    private var stepsSection: some View {
+        Section {
+            ForEach(plan.steps) { step in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(step.title).font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text("\(Fmt.number(step.value)) \(step.unit)").monospacedDigit()
+                    }
+                    Text(step.formula).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if plan.hitFloor {
+                Label("Raised to a safe minimum – going lower needs medical guidance.", systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            Button(phase == nil ? "Use These Targets" : "Use for This Phase", systemImage: "checkmark.circle.fill") {
+                useCalculatedTargets()
+            }
+            .primaryActionStyle()
+        } header: {
+            Text("How it's calculated")
+        } footer: {
+            if phase != nil {
+                Text("From today, as your phase's baseline. Every day type moves by the same calories, so the differences between them stay.")
+            }
+        }
+    }
+
+    private var targetsSection: some View {
+        Section {
+            targetRow("Calories", value: $targets.energy, unit: app.energyUnit.symbol, step: 50)
+            targetRow("Protein", value: $targets.protein, unit: "g", step: 5)
+            targetRow("Carbohydrates", value: $targets.carbs, unit: "g", step: 5)
+            targetRow("Fat", value: $targets.fat, unit: "g", step: 2)
+            targetRow("Fiber", value: $targets.fiber, unit: "g", step: 1)
+            targetRow("Sugar (max)", value: $targets.sugarMax, unit: "g", step: 5)
+            targetRow("Saturated fat (max)", value: $targets.saturatedFatMax, unit: "g", step: 1)
+            targetRow("Salt (max)", value: Binding(get: { (targets.sodiumMax * 2.5 / 100).rounded() / 10 }, set: { targets.sodiumMax = $0 / 2.5 * 1000 }), unit: "g", step: 0.5)
+            targetRow("Water", value: $targets.water, unit: "ml", step: 250)
+            Text("Your split: \(targets.split.percentText) % of calories from protein / carbs / fat.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Your daily targets")
+        } footer: {
+            Text("Change any number by hand – the calculator is just a starting point.")
+        }
+    }
+
+    private var trainingSection: some View {
+        Section {
+            Toggle("Different targets on training days", isOn: $trainingOn)
+            if trainingOn {
+                PlanEditorWeekdayChips(days: $trainingDays)
+                Stepper("+\(Fmt.number(trainingExtra)) kcal, mostly carbs", value: $trainingExtra, in: 50...1500, step: 50)
+            }
+        } header: {
+            Text("Training days")
+        } footer: {
+            Text("On these weekdays your calories go up and the extra comes 70 % from carbs, 30 % from protein. A plan's day types (My Plan) replace this.")
+        }
+    }
+
+    private var focusSection: some View {
+        Section {
+            ForEach(Nutrient.allCases.filter { $0 != .energy && $0 != .water }, id: \.self) { nutrient in
+                Button {
+                    if let index = focus.firstIndex(of: nutrient) {
+                        focus.remove(at: index)
+                    } else if focus.count < 4 {
+                        focus.append(nutrient)
+                    }
+                } label: {
+                    HStack {
+                        Text(nutrient.title).foregroundStyle(.primary)
+                        Spacer()
+                        if let index = focus.firstIndex(of: nutrient) {
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 22, height: 22)
+                                .background(Brand.accent, in: .circle)
+                        }
+                    }
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+        } header: {
+            Text("Shown first (your priorities)")
+        } footer: {
+            Text("Up to four nutrients, in this order, on Today, the watch and the widgets.")
+        }
+    }
+
+    #if os(iOS)
+    private var activitySection: some View {
+        Section {
+            Picker("Add burned calories", selection: $bonus) {
+                Text("No").tag(0.0)
+                Text("Half").tag(0.5)
+                Text("All").tag(1.0)
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            Text("Activity from Apple Health")
+        } footer: {
+            Text("Adds this share of today's active energy to your budget. Half is the usual choice – watches tend to overestimate.")
+        }
+    }
+    #endif
 
     private func targetRow(_ title: String, value: Binding<Double>, unit: String, step: Double) -> some View {
         Stepper(value: value, in: 0...20000, step: step) {
@@ -380,28 +448,117 @@ struct GoalsView: View {
         }
     }
 
+    // MARK: Body data and pace
+
+    private var birthTitle: String { birthKnown ? "Born \(String(birthYear))" : "Birth year – not set" }
+    private var heightTitle: String { heightKnown ? "Height \(Fmt.number(height)) cm" : "Height – not set" }
+
+    private var birthYearValue: Binding<Int> {
+        Binding<Int>(get: { birthYear }, set: { (year: Int) in
+            birthYear = year
+            birthKnown = true
+        })
+    }
+
+    private var heightValue: Binding<Double> {
+        Binding<Double>(get: { height }, set: { (centimeters: Double) in
+            height = centimeters
+            heightKnown = true
+        })
+    }
+
+    private var calculateFooter: String {
+        var text = "The standard method dietitians use (Mifflin–St Jeor). Every step with your numbers below."
+        if phase != nil {
+            text += " Goal and pace come from your running phase – change them in My Plan."
+        }
+        if !birthKnown || !heightKnown {
+            text += "\n\nHeight and birth year are needed for the tape estimate, FFMI and the calorie formula."
+        }
+        return text
+    }
+
+    /// 0.05–1.0 kg a week in 0.05 steps.
+    private var paceValue: Binding<Double> {
+        Binding<Double>(get: { rate }, set: { (value: Double) in
+            rate = min(1, max(0.05, (value * 20).rounded() / 20))
+        })
+    }
+
+    private var paceTitle: String { "Pace \(Fmt.number(rate, decimals: 2)) kg a week" }
+
+    /// "0.31 % of your weight a week · Slow (lean) gain", plus a calm caution when it's fast.
+    private var paceNote: String {
+        var parts: [String] = []
+        if let percent = WeightSignal.percent(rate, of: weight) {
+            parts.append("\(Fmt.number(percent, decimals: 2)) % of your weight a week")
+        }
+        if let label = CoachPlan.Phase.rateLabel(goal: goal, rate: rate...rate) { parts.append(label) }
+        var text = parts.joined(separator: " · ")
+        if let caution = CoachPlan.Phase.rateCaution(goal: goal, rate: rate...rate, weightKg: weight) {
+            text += text.isEmpty ? caution : "\n" + caution
+        }
+        return text
+    }
+
+    private func phaseGoalText(_ phase: CoachPlan.Phase) -> String {
+        let range = phase.rateRange
+        var text = "\(phase.goal.title)"
+        if phase.goal != .maintain, range.upperBound > 0 {
+            let low = Fmt.number(range.lowerBound, decimals: 2), high = Fmt.number(range.upperBound, decimals: 2)
+            text += " · \(low == high ? low : "\(low)–\(high)") kg a week"
+        }
+        return text
+    }
+
+    // MARK: Loading and saving
+
     private func load() {
-        guard !loaded else { return }
-        let settings = app.settings
-        let stored = app.store.profile()
+        let store = app.store
+        let settings = store.settings
+        let stored = store.profile()
         sex = settings.body.sex
-        birthYear = (stored?.birthYear ?? 0) > 0 ? stored?.birthYear ?? 1990 : 1990
-        height = settings.body.heightCm
-        weight = app.store.weights().last?.kilograms ?? app.health.latestWeight ?? settings.body.weightKg
+        birthKnown = (stored?.birthYear ?? 0) > 0
+        birthYear = birthKnown ? stored?.birthYear ?? 1990 : 1990
+        heightKnown = (stored?.heightCm ?? 0) > 0
+        height = heightKnown ? stored?.heightCm ?? 172 : 172
+        weight = store.weights().last?.kilograms ?? app.health.latestWeight ?? app.settings.body.weightKg
         activity = settings.body.activity
-        goal = settings.body.goal
-        rate = settings.body.ratePerWeek > 0 ? settings.body.ratePerWeek : 0.5
         split = settings.macroSplit
+        phase = settings.plan.activePhase(on: app.today)
+        if let phase {
+            goal = phase.goal
+            rate = phase.rateMid > 0 ? min(1, max(0.05, phase.rateMid)) : 0.5
+            targetWeight = phase.targetWeight
+        } else {
+            goal = settings.body.goal
+            rate = settings.body.ratePerWeek > 0 ? min(1, max(0.05, settings.body.ratePerWeek)) : 0.5
+            targetWeight = settings.targetWeight
+        }
         targets = settings.targets
         trainingOn = settings.trainingTargets != nil
         if !settings.trainingDays.isEmpty { trainingDays = settings.trainingDays }
         if let training = settings.trainingTargets { trainingExtra = max(50, training.energy - settings.targets.energy) }
         focus = settings.focus
         bonus = settings.activityBonusShare
-        targetWeight = settings.targetWeight
         loaded = true
     }
 
+    private func useCalculatedTargets() {
+        let calculated = plan.targets
+        guard phase == nil else {
+            saveAll()
+            PlanEditorData.applyCalculated(calculated, app: app)
+            return
+        }
+        targets = calculated
+        saveAll()
+        app.toasts.show("Goal set: \(Fmt.energy(calculated.energy, unit: app.energyUnit))", symbol: "target")
+    }
+
+    /// Writes the page into the profile. With a running phase the goal, pace, target weight and
+    /// targets belong to the plan (its mirror), so only the body data and preferences are written.
+    /// A birth year or height that was never set stays unset.
     private func saveAll() {
         let training: DailyTargets? = trainingOn ? {
             var copy = targets
@@ -410,21 +567,53 @@ struct GoalsView: View {
             copy.protein += (trainingExtra * 0.3 / 4).rounded()
             return copy
         }() : nil
+        let followsPlan = phase != nil
+        let birth: Int? = birthKnown ? birthYear : nil
+        let heightCm: Double? = heightKnown ? height : nil
         app.updateSettings { profile in
             profile.sex = sex.rawValue
-            profile.birthYear = birthYear
-            profile.heightCm = height
+            if let birth { profile.birthYear = birth }
+            if let heightCm { profile.heightCm = heightCm }
             profile.activity = activity.rawValue
+            profile.macroSplit = split.id
+            profile.focusNutrients = focus.map(\.rawValue).joined(separator: ",")
+            profile.activityBonusShare = bonus
+            guard !followsPlan else { return }
             profile.goal = goal.rawValue
             profile.ratePerWeek = rate
-            profile.macroSplit = split.id
             profile.targets = targets.encoded
             profile.trainingTargets = training?.encoded ?? ""
             profile.trainingDays = trainingOn ? trainingDays.encoded : ""
-            profile.focusNutrients = focus.map(\.rawValue).joined(separator: ",")
-            profile.activityBonusShare = bonus
             profile.targetWeight = targetWeight
         }
+    }
+}
+
+/// The prominent "My Plan" link at the top of Goals & Plan.
+private struct GoalsPlanLink: View {
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.title2)
+                .foregroundStyle(Brand.accent)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("My Plan")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(.rect)
     }
 }
 
