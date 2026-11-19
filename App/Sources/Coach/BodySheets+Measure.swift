@@ -261,7 +261,7 @@ struct MeasureSheet: View {
 
     private var noSitesSection: some View {
         Section {
-            Text("There are no sites in this set. Choose them in Goals & Plan under Measuring.")
+            Text("There are no sites in this set. Choose them in My Plan under Measuring.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -521,11 +521,13 @@ struct MeasureSheet: View {
     private func load() {
         guard context == nil else { return }
         let loaded = BodySheetTapeContext.load(app: app, editing: record)
-        // The demo (screenshots) opens on the first site without the keypad.
+        // The demo (screenshots) opens on the first site without the keypad. The tour's practice
+        // page opens on the first site too ("type your waist") and leaves the guide for the first
+        // real measurement.
         let isDemo = app.launch.isDemo
-        let firstTime = !guideSeen && !isDemo
+        let firstTime = !guideSeen && !isDemo && !app.isSandbox
         showsGuide = firstTime
-        guideSeen = true
+        if !app.isSandbox { guideSeen = true }
         setAutomaticConditions(loaded)
         if record == nil {
             let first = BodySheetPager(sites: loaded.sites(for: current)).firstPage(showsGuide: firstTime)

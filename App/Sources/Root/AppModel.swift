@@ -620,10 +620,11 @@ final class AppModel {
 
     // MARK: URLs
 
-    /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2],
-    /// nina://measure?mode=weekly|full|<site key> (waist, arm_l …: that site only), nina://checkin,
-    /// nina://daytype/<id> (no id: back to the schedule), nina://check/<id>[?state=done|skipped|open],
-    /// nina://plan, nina://progress,
+    /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2[&check=1]]
+    /// (check: always show the sheet first), nina://measure?mode=weekly|full|assessment|<site key>
+    /// (waist, arm_l …: that site only; assessment: the body-fat sheet), nina://checkin,
+    /// nina://daytype/<id> (no id: back to the schedule), nina://check/<id>[?state=done|skipped|open]
+    /// (an id the plan doesn't have only says so), nina://plan, nina://progress,
     /// nina://review/<phase id> (the phase review; an unknown phase shows Today), or a CSV opened
     /// from Files.
     func open(_ url: URL) {
@@ -642,9 +643,11 @@ final class AppModel {
             case "quick":
                 present(.quickCalories(day: today, meal: nil))
             case "weigh":
-                openWeighIn(value: query("value"))
+                openWeighIn(value: query("value"), confirm: query("check") != nil)
             case "measure":
-                if let mode = query("mode").flatMap(MeasureMode.init(rawValue:)) {
+                if query("mode") == "assessment" {
+                    present(.assessment(nil))
+                } else if let mode = query("mode").flatMap(MeasureMode.init(rawValue:)) {
                     present(.measure(mode, nil))
                 } else {
                     measureNow()
@@ -653,10 +656,20 @@ final class AppModel {
                 present(.checkIn(currentCheckInWeek))
             case "daytype":
                 show(day: today)
+                // A missing id means back to the schedule; an id the plan doesn't have writes nothing.
+                if let path, settings.plan.dayType(id: path) == nil {
+                    toasts.show("No day type \u{201C}\(path)\u{201D} in your plan", symbol: "questionmark.circle")
+                    return
+                }
                 setDayType(path, on: today)
             case "check":
                 show(day: today)
                 guard let path else { return }
+                // An id the plan doesn't have (a typo in a Shortcut, a deleted check) writes nothing.
+                guard settings.plan.check(id: path) != nil else {
+                    toasts.show("No daily check \u{201C}\(path)\u{201D} in your plan", symbol: "questionmark.circle")
+                    return
+                }
                 switch query("state") ?? "done" {
                 case "skipped": setCheck(path, on: today, state: .skipped)
                 case "open": setCheck(path, on: today, state: nil)
@@ -683,10 +696,16 @@ final class AppModel {
     }
 
     /// nina://weigh: a plausible value is saved right away (Undo in the toast); anything else
-    /// opens the weigh-in sheet, prefilled with the value when there is one.
-    private func openWeighIn(value text: String?) {
+    /// opens the weigh-in sheet, prefilled with the value when there is one. `confirm` (the "is that
+    /// right?" notification) always opens the sheet first, whatever this launch can compare with.
+    private func openWeighIn(value text: String?, confirm: Bool = false) {
         guard let text, let kilograms = NumberText.parse(text.replacingOccurrences(of: "kg", with: "")
             .trimmingCharacters(in: .whitespaces)) else {
+            present(.weight(nil))
+            return
+        }
+        if confirm {
+            pendingWeighIn = kilograms
             present(.weight(nil))
             return
         }

@@ -8,13 +8,13 @@ import NinaCore
 
 // MARK: - Set up
 
-/// Without a plan: one card that opens the plan editor (which offers "Import from my AI").
+/// Without a plan: one card that opens the plan editor, My Plan (which offers "Import from My AI").
 struct BodyPageSetupCard: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
         CardSection(title: "Set up your plan", symbol: "sparkles") {
-            Text("Add phases, day types and when to measure, and Nina coaches you: a rate to aim for, a weekly check-in and reminders to measure. Type it in yourself, or use “Import from my AI” in the plan editor.")
+            Text("Add phases, day types and when to measure, and Nina coaches you: a rate to aim for, a weekly check-in and reminders to measure. Type it in yourself, or use “Import from My AI” in My Plan.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -207,7 +207,7 @@ struct BodyPageGoalRowView: View {
     }
 }
 
-/// With a plan but no long-term goal: a pointer to the plan.
+/// With a plan but no long-term goal: opens My Plan on its Long-Term Goal page.
 struct BodyPageGoalHint: View {
     @Environment(AppModel.self) private var app
 
@@ -218,7 +218,7 @@ struct BodyPageGoalHint: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Add a Goal…", systemImage: "plus") {
-                app.present(.plan)
+                app.present(.planGoal)
             }
         }
     }

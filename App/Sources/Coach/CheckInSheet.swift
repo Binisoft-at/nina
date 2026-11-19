@@ -47,8 +47,8 @@ struct CheckInSheet: View {
                 }
         }
         .task(id: app.dataVersion) { load() }
-        // Saving the waist and Copy for My AI keep the sheet open: their messages show here.
-        .toasts(app.toasts, bottomPadding: 16)
+        // Saving the waist and Copy for My AI keep the sheet open: their messages show in the
+        // sheet's toast host (SheetContent).
         .sheetFrame(minWidth: 520, minHeight: 680)
     }
 
@@ -162,7 +162,9 @@ struct CheckInSheet: View {
         prefilled = true
         step = abs(loaded.result.delta)
         if let draft = CheckInSheetDraft.byWeek[week] {
-            // Back from a full measurement set: the answers so far.
+            // Back from a full measurement set: the answers so far. Used once: a sheet swiped away
+            // after this must not bring these older answers back next time.
+            CheckInSheetDraft.byWeek[week] = nil
             ratings = draft.ratings
             note = draft.note
             redo = draft.redo
@@ -831,6 +833,7 @@ private struct CheckInRatingRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(title) \(score) of 5")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 
@@ -1100,7 +1103,7 @@ private struct CheckInCopySection: View {
         Section {
             Button("Copy for My AI", systemImage: "doc.on.clipboard", action: onCopy)
         } footer: {
-            Text("Your plan, the last 4 weeks and your body numbers as text to paste into your AI. Its answer can be imported in Goals & Plan.")
+            Text("Your plan, the last 4 weeks and your body numbers as text to paste into your AI. Its answer can be imported in My Plan.")
         }
     }
 }

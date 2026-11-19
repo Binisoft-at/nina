@@ -38,7 +38,7 @@ struct NinaApp: App {
         }
 
         #if os(macOS)
-        // Settings window: General, and the plan editor as its own "Goals & Plan" tab (the plan
+        // Settings window: General, and the plan editor as its own "My Plan" tab (the plan
         // editor and Goals show their own toasts, so changes made here can be undone here).
         Settings {
             TabView {
@@ -47,7 +47,7 @@ struct NinaApp: App {
                         SettingsView()
                     }
                 }
-                Tab("Goals & Plan", systemImage: "target") {
+                Tab("My Plan", systemImage: "list.bullet.clipboard") {
                     NavigationStack {
                         PlanEditorView(showsDone: false)
                     }

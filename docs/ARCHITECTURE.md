@@ -67,7 +67,7 @@ App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tre
   Coach                CoachContext (everything for one day, built in one go); TodayCoach* (chip,
                        checks strip, coach card, protein pills); BodySheets* (weigh-in, measure,
                        body fat); ProgressHome and BodyPage*/BodyDetails (Progress → Body);
-                       CheckInSheet*; PhaseSheets* (phase and review); PlanEditor* (Goals & Plan)
+                       CheckInSheet*; PhaseSheets* (phase and review); PlanEditor* (My Plan)
   Settings, Import     goals, meals, Health, reminders (incl. Coach), data; import/export with
                        the settings preview
   Services             Apple Health, notifications (meal and coach, with banner actions), App Intents

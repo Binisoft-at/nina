@@ -247,8 +247,8 @@ struct GoalsView: View {
         // Loaded on every appearance: the plan editor (pushed from here) can change the plan and the body data.
         .onAppear(perform: load)
         .onDisappear { if loaded, !showsDone { saveAll() } }
-        // Shown in a sheet or the Mac Settings window: its toasts show here.
-        .toasts(app.toasts, bottomPadding: 16)
+        // In the Mac Settings window its toasts show here (in a sheet, the sheet shows them).
+        .ownToasts(app.toasts)
     }
 
     // MARK: Sections

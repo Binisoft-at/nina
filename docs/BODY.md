@@ -43,7 +43,8 @@ your AI, see [IMPORT.md](IMPORT.md)). Without a plan Nina is the diary it always
 ## Measuring with the tape
 
 The same conditions every time matter more than the exact spot. The measure sheet shows this
-checklist – fully the first time, folded after that:
+checklist – fully the first time you really measure (practising in the tour doesn't count), folded
+after that:
 
 1. **Morning**, after the bathroom, **before eating or drinking**.
 2. **Before training** – a pump adds 0.5–1 cm to arm, chest and thigh.
@@ -130,8 +131,8 @@ Today's strip shows what is due, so you never have to remember it:
 ## The weekly check-in
 
 - **When**: on the check-in weekday a card appears on Today after the morning weigh-in (or from
-  the morning cutoff) and stays for 3 days. File → Weekly Check-in… on the Mac, + → Check-in on
-  iPhone and iPad, any time.
+  the morning cutoff) and stays for 3 days. File → Weekly Check-in… on the Mac, ⋯ → Create… → Check-in
+  on iPhone and iPad, any time.
 - **Four short steps** (about two minutes):
   1. **Your week**: your 7-day average and its change and the mornings weighed. The pace is a bar:
      the shaded band is your phase's range, the dot is your pace this week.
@@ -145,7 +146,7 @@ Today's strip shows what is due, so you never have to remember it:
      a proposal.
 - **Copy for My AI** (on the last step, and on a saved week): puts your plan, the last 4 weeks and
   your body numbers on the clipboard as plain text for your AI. Its answer is a settings block you
-  import in Goals & Plan, with a preview and Undo (see [IMPORT.md](IMPORT.md)). Nina sends nothing
+  import in My Plan, with a preview and Undo (see [IMPORT.md](IMPORT.md)). Nina sends nothing
   anywhere.
 - **The rules**, in order:
   1. **Enough data**: at least 14 days and 10 morning weigh-ins since the phase start (or the last
@@ -195,7 +196,7 @@ on any device.
 
 | Reminder | When |
 |---|---|
-| Morning weigh-in | At your weigh-in time, until you've weighed in. Type your weight right in the notification (Weight…); on a day your weekly waist is due you can type it there too (Waist…). A number that looks wrong comes back as "Is that right?"; tap it to check in the sheet. Checks timed for breakfast come along with a "done" button. |
+| Morning weigh-in | At your weigh-in time, until you've weighed in. Type your weight right in the notification (Weight…); on a day your weekly waist is due you can type it there too (Waist…); other measurements due that day get a Measure button (Body Fat when only body fat is due). A number that looks wrong comes back as "Is that right?"; tap it to check it in the sheet before it's saved. Checks timed for breakfast come along with a "done" button. |
 | Daily checks | At the check's time or meal – only for checks with Remind on in My Plan (Taken / Not today). |
 | Evening before a full measurement | 20:00 the day before. |
 | Weekly check-in | 18:00 on the check-in day, until it's done. |

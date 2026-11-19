@@ -108,6 +108,15 @@ struct RemindersView: View {
         .onChange(of: delay) { _, _ in apply() }
         .onChange(of: coachOn) { _, _ in applyCoach() }
         .onChange(of: coachKinds) { _, _ in applyCoach() }
+        .onAppear(perform: syncCoach)
+    }
+
+    /// Back from the plan editor pushed below, "Turn on coach reminders?" may have been answered
+    /// there: show what the device does now (not an answer of its own, see `applyCoach`).
+    private func syncCoach() {
+        let scheduler = NotificationScheduler.shared
+        if coachOn != scheduler.coachOnThisDevice { coachOn = scheduler.coachOnThisDevice }
+        if coachKinds != scheduler.coachKinds { coachKinds = scheduler.coachKinds }
     }
 
     private func apply() {
@@ -123,8 +132,10 @@ struct RemindersView: View {
     }
 
     /// A coach toggle changed here: it counts as the answer to "Turn on coach reminders?".
+    /// Values that only caught up with the device (`syncCoach`) change nothing.
     private func applyCoach() {
         let scheduler = NotificationScheduler.shared
+        guard coachOn != scheduler.coachOnThisDevice || coachKinds != scheduler.coachKinds else { return }
         scheduler.coachOnThisDevice = coachOn
         scheduler.coachKinds = coachKinds
         scheduler.coachAsked = true

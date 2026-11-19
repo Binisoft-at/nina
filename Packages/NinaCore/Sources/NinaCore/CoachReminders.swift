@@ -219,8 +219,8 @@ public enum CoachReminders {
 
     /// The morning notification: the weigh-in (until done), the checks folded into it, today's
     /// targets, a measurement due today ("Waist…" right in the banner for a one-site weekly
-    /// measurement, else a Measure button), and "Tennis today" on a default day with a flexible
-    /// type still open this week.
+    /// measurement, a Body Fat button when only body fat is due, else a Measure button), and
+    /// "Tennis today" on a default day with a flexible type still open this week.
     static func morning(on day: DayKey, _ input: Input) -> Request? {
         let plan = input.plan
         let weighIn = input.kinds.contains(.morning) && !input.weighedIn.contains(day)
@@ -251,6 +251,9 @@ public enum CoachReminders {
             let placeholder = input.lastTape[site].map { NumberText.plain($0, decimals: 1) + " cm" } ?? "cm"
             actions.append(Action(id: tapePrefix + site.rawValue, title: "\(site.title)…",
                                   style: .textInput(button: "Save", placeholder: placeholder)))
+        } else if measure?.kind == .assessment {
+            // Only body fat is due: the tape pager has nothing to measure, so open the body-fat sheet.
+            actions.append(Action(id: openPrefix + "nina://measure?mode=assessment", title: "Body Fat", style: .foreground))
         } else if measure != nil {
             actions.append(Action(id: openPrefix + "nina://measure", title: "Measure", style: .foreground))
         }

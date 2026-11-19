@@ -42,9 +42,11 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         return url
     }
 
+    /// Categories are registered by `reschedule` only (meal and coach ones together, before any
+    /// request uses them): registering just the meal ones here would wipe the coach buttons of
+    /// pending notifications on every launch, also a background one, until the next reschedule.
     func activate() {
         center.delegate = self
-        registerCategories(coach: [])
         if UserDefaults.standard.object(forKey: Self.plannedKey) == nil {
             UserDefaults.standard.set(true, forKey: Self.plannedKey)
         }
@@ -334,8 +336,10 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         case "eaten":
             store.confirm(entries)
             AppLog.info("Planned meal confirmed from a notification (\(entries.count) foods)", category: "notifications")
+            followUp(store)
         case "skip":
             store.setStatus(entries, .skipped)
+            followUp(store)
         case "log":
             open("\(AppInfo.urlScheme)://add")
         default:
@@ -401,7 +405,8 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let shown = typed.trimmingCharacters(in: .whitespacesAndNewlines)
         content.title = value == nil ? "That didn't look like a weight" : "\(shown.isEmpty ? "Your weight" : shown) – is that right?"
         content.body = "Tap to check it in \(AppInfo.name) before it's saved."
-        let link = value.map { "\(AppInfo.urlScheme)://weigh?value=\(NumberText.plain($0, decimals: 2))" } ?? "\(AppInfo.urlScheme)://weigh"
+        // check=1: the sheet opens first even when the app (started cold) has nothing to compare with.
+        let link = value.map { "\(AppInfo.urlScheme)://weigh?value=\(NumberText.plain($0, decimals: 2))&check=1" } ?? "\(AppInfo.urlScheme)://weigh"
         content.userInfo = ["coach": Self.weighCheckID, "url": link]
         content.sound = .default
         center.add(UNNotificationRequest(identifier: Self.weighCheckID, content: content, trigger: nil))

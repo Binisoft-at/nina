@@ -153,6 +153,8 @@ struct TrashView: View {
     private var weights: [WeightEntry]
     @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt != nil }, sort: \BodyMeasurement.time, order: .reverse)
     private var measurements: [BodyMeasurement]
+    /// "Empty" asks first: it can't be undone, and weigh-ins and measurements can't be typed again.
+    @State private var confirmEmpty = false
 
     private var isEmpty: Bool {
         entries.isEmpty && foods.isEmpty && recipes.isEmpty && weights.isEmpty && measurements.isEmpty
@@ -232,17 +234,42 @@ struct TrashView: View {
         .navigationTitle("Recently Deleted")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Empty", role: .destructive) {
-                    let store = app.store
-                    store.purge(entries)
-                    store.purge(foods)
-                    store.purge(recipes)
-                    store.purge(weights)
-                    store.purge(measurements)
-                }
-                .disabled(isEmpty)
+                Button("Empty", role: .destructive) { confirmEmpty = true }
+                    .disabled(isEmpty)
             }
         }
+        .confirmationDialog("Delete everything in Recently Deleted for good?", isPresented: $confirmEmpty,
+                            titleVisibility: .visible) {
+            Button("Delete All", role: .destructive, action: emptyTrash)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(emptyMessage)
+        }
+    }
+
+    private func emptyTrash() {
+        let store = app.store
+        store.purge(entries)
+        store.purge(foods)
+        store.purge(recipes)
+        store.purge(weights)
+        store.purge(measurements)
+    }
+
+    /// "3 diary entries, 2 weigh-ins and 1 measurement can't be brought back."
+    private var emptyMessage: String {
+        let counts: [(count: Int, one: String, many: String)] = [
+            (entries.count, "diary entry", "diary entries"),
+            (foods.count, "food", "foods"),
+            (recipes.count, "meal or recipe", "meals and recipes"),
+            (weights.count, "weigh-in", "weigh-ins"),
+            (measurements.count, "measurement", "measurements"),
+        ]
+        let parts: [String] = counts.filter { $0.count > 0 }.map { "\($0.count) \($0.count == 1 ? $0.one : $0.many)" }
+        guard let last = parts.last else { return "This can't be undone." }
+        guard parts.count > 1 else { return last + " can't be brought back." }
+        let first: String = parts.dropLast().joined(separator: ", ")
+        return first + " and " + last + " can't be brought back."
     }
 
     /// Deleted weigh-ins: Restore also puts the weight back into Apple Health (`app.restore`).
