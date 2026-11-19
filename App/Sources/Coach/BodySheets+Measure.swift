@@ -3,12 +3,17 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
-/// Tape measurements (`AppSheet.measure`): the weekly sites or the full set from the plan's
-/// routine (the defaults without a plan); a record edits it. One reading per site for the weekly
-/// sites (a second when it moved more than 1 cm), two per site in a full set (a third when they
-/// differ by more than 0.5 cm; the mean or median is saved). Conditions are set from the time
-/// (morning and fasted before the cutoff with nothing eaten yet), the tape estimate of body fat
-/// shows live when the sites and the height are known. Owns its NavigationStack and `.sheetFrame`.
+/// Tape measurements (`AppSheet.measure`): the weekly sites, the full set (from the plan's routine,
+/// the defaults without a plan) or one site. A new session is a pager with one site per page
+/// (BodySheets+Pager.swift): a start page with the measuring guide, conditions, time and note,
+/// then each site with its outline drawing, one big number showing last time's value, ±0.1
+/// buttons and the change since then; "Skip" bottom left, "Next: Chest" bottom right and "Done"
+/// on the last page, which saves the session with an Undo toast. A record edits in one form.
+/// One reading per site for the weekly sites (a second when it moved more than 1 cm), two per
+/// site in a full set (a third when they differ by more than 0.5 cm; the mean or median is
+/// saved). Conditions are set from the time (morning and fasted before the cutoff with nothing
+/// eaten yet), the tape estimate of body fat shows live when the sites and the height are known.
+/// Owns its NavigationStack and `.sheetFrame`.
 struct MeasureSheet: View {
     let mode: MeasureMode
     let record: BodyMeasurement?
@@ -27,15 +32,20 @@ struct MeasureSheet: View {
     @State private var showsGuide = false
     @State private var thenAssessment = true
     @State private var context: BodySheetTapeContext?
+    /// The pager's page (a new session).
+    @State private var page: BodySheetMeasurePage = .start
+    @FocusState private var focus: BodySheetMeasureFocus?
 
-    init(mode: MeasureMode, record: BodyMeasurement?) {
-        self.mode = mode
+    /// `site` measures that one site on its own (the same as `mode: .site(site)`).
+    init(mode: MeasureMode, record: BodyMeasurement?, site: BodySite? = nil) {
+        let resolved: MeasureMode = site.map { MeasureMode.site($0) } ?? mode
+        self.mode = resolved
         self.record = record
         var readings: [BodySite: [String]] = [:]
         if let record {
             for (site, value) in record.bodyValues.sites { readings[site] = [BodySheetNumber.cm(value)] }
         }
-        _current = State(initialValue: mode)
+        _current = State(initialValue: resolved)
         _readings = State(initialValue: readings)
         _time = State(initialValue: record?.time ?? Date())
         _conditions = State(initialValue: record.map { BodySheetConditions.parse($0.conditions) } ?? [.morning, .fasted])
@@ -55,13 +65,18 @@ struct MeasureSheet: View {
     }
 
     private var states: [BodySheetSiteState] {
-        guard let context else { return [] }
-        let day = context.day(for: time)
-        let base = twoReadings ? 2 : 1
-        return sites.map { site in
-            context.state(for: site, texts: readings[site] ?? [], base: base, twoReadings: twoReadings,
-                          recheck: record == nil, day: day)
+        sites.map { siteState($0) }
+    }
+
+    /// One site's fields: its readings, the last value, what to say about them.
+    private func siteState(_ site: BodySite) -> BodySheetSiteState {
+        let texts = readings[site] ?? []
+        guard let context else {
+            return BodySheetSiteState(site: site, texts: texts, base: 1, twoReadings: false, previous: nil,
+                                      recheck: false, day: app.today, calendar: Calendar.current)
         }
+        return context.state(for: site, texts: texts, base: twoReadings ? 2 : 1, twoReadings: twoReadings,
+                             recheck: record == nil, day: context.day(for: time))
     }
 
     private var merged: [BodySite: Double] {
@@ -85,35 +100,53 @@ struct MeasureSheet: View {
         return all.contains { $0.merged != nil } && !all.contains { $0.isInvalid }
     }
 
+    /// Something typed in a new session (a swipe down then doesn't throw it away).
+    private var hasEntries: Bool {
+        guard record == nil else { return false }
+        return readings.values.contains { (list: [String]) -> Bool in
+            list.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        }
+    }
+
     private var sex: Sex { context?.sex ?? app.settings.body.sex }
 
     private var title: String {
         if record != nil { return "Measurements" }
         if current == .full { return "Full Measurement" }
-        return sites.count == 1 ? sites[0].title : "Measurements"
+        if sites.count == 1 { return siteTitle(sites[0]) }
+        if let site = current.site { return site.base.title }
+        return "Measurements"
+    }
+
+    /// "Arm (right)"
+    private func siteTitle(_ site: BodySite) -> String {
+        context?.title(for: site) ?? site.title
     }
 
     // MARK: Body
 
     var body: some View {
         NavigationStack {
-            Form {
-                if record == nil { modeSection }
-                guideSection
-                sitesSection
-                estimateSection
-                BodySheetConditionsSection(conditions: $conditions, sex: sex) { conditionsEdited = true }
-                detailsSection
-                if record != nil { deleteSection }
-            }
-            .formStyle(.grouped)
-            .navigationTitle(title)
-            .inlineNavigationTitle()
-            .toolbar { toolbar }
-            .onAppear(perform: load)
-            .onChange(of: time) { _, _ in setAutomaticConditions() }
+            content
+                .navigationTitle(title)
+                .inlineNavigationTitle()
+                .toolbar { toolbar }
+                .onAppear(perform: load)
+                .onChange(of: time) { _, _ in setAutomaticConditions() }
         }
-        .sheetFrame(minWidth: 480, minHeight: 640)
+        .interactiveDismissDisabled(hasEntries)
+        .sheetFrame(minWidth: 480, minHeight: 680)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if record != nil {
+            form
+        } else if context != nil {
+            pagerView
+        } else {
+            Color.groupedBackground
+        }
     }
 
     @ToolbarContentBuilder
@@ -121,10 +154,30 @@ struct MeasureSheet: View {
         ToolbarItem(placement: .cancellationAction) {
             Button("Cancel") { dismiss() }
         }
-        ToolbarItem(placement: .confirmationAction) {
-            Button("Save", action: save)
-                .disabled(!canSave)
+        if showsToolbarSave {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save", action: save)
+                    .disabled(!canSave)
+            }
         }
+    }
+
+    /// The pager's last page has Done at the bottom instead.
+    private var showsToolbarSave: Bool {
+        record != nil || page != pager.lastPage
+    }
+
+    /// Editing a record: one form with every site.
+    private var form: some View {
+        Form {
+            guideSection
+            sitesSection
+            estimateSection
+            BodySheetConditionsSection(conditions: $conditions, sex: sex) { conditionsEdited = true }
+            detailsSection
+            deleteSection
+        }
+        .formStyle(.grouped)
     }
 
     private var modeSection: some View {
@@ -142,10 +195,197 @@ struct MeasureSheet: View {
     }
 
     private var modeFooter: String {
-        if current == .weekly { return "Your weekly sites, one reading each." }
+        if current != .full { return "Your weekly sites, one reading each." }
         return twoReadings
             ? "Every site, two readings each – a third when they differ by more than 0.5 cm."
             : "Every site, one reading each."
+    }
+
+    // MARK: Pager (a new session)
+
+    private var pager: BodySheetPager { BodySheetPager(sites: sites) }
+
+    private var pagerView: some View {
+        VStack(spacing: 0) {
+            pages
+            bottomBar
+        }
+        .background(Color.groupedBackground)
+        .onChange(of: page) { _, new in pageChanged(to: new) }
+    }
+
+    @ViewBuilder
+    private var pages: some View {
+        #if os(iOS)
+        TabView(selection: $page) {
+            ForEach(pager.pages, id: \.self) { item in
+                pageView(item)
+                    .tag(item)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        #else
+        pageView(page)
+            .id(page)
+        #endif
+    }
+
+    @ViewBuilder
+    private func pageView(_ item: BodySheetMeasurePage) -> some View {
+        switch item {
+        case .start:
+            startPage
+        case .site(let site):
+            sitePage(site)
+        }
+    }
+
+    /// The measuring guide, conditions, time and note (and the set to measure).
+    private var startPage: some View {
+        Form {
+            if current.site == nil { modeSection }
+            guideSection
+            if sites.isEmpty { noSitesSection }
+            BodySheetConditionsSection(conditions: $conditions, sex: sex) { conditionsEdited = true }
+            detailsSection
+        }
+        .formStyle(.grouped)
+    }
+
+    private var noSitesSection: some View {
+        Section {
+            Text("There are no sites in this set. Choose them in Goals & Plan under Measuring.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func sitePage(_ site: BodySite) -> some View {
+        BodySheetSitePage(state: siteState(site), title: siteTitle(site),
+                          hint: context?.hint(for: site) ?? site.landmark, sites: sites,
+                          measured: Set(merged.keys), conditions: BodySheetConditions.shortText(conditions),
+                          estimate: site == sites.last ? estimateLine : nil, texts: texts(for: site),
+                          formula: $chosenFormula, focus: $focus,
+                          showStart: { go(to: .start, focusing: false) })
+    }
+
+    // MARK: Bottom bar
+
+    private var bottomBar: some View {
+        VStack(spacing: 8) {
+            if let site = invalidSite {
+                Button("Check \(siteTitle(site)) – that value looks off") { go(to: .site(site), focusing: true) }
+                    .font(.footnote)
+                    .buttonStyle(.borderless)
+            }
+            HStack(spacing: 12) {
+                leadingButtons
+                Spacer(minLength: 8)
+                Button(action: next) {
+                    Text(nextTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .padding(.horizontal, 6)
+                }
+                .primaryActionStyle()
+                .disabled(nextIsDisabled)
+            }
+        }
+        .controlSize(.large)
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var leadingButtons: some View {
+        #if os(macOS)
+        if let previous = pager.previous(before: page) {
+            Button("Back") { go(to: previous, focusing: false) }
+                .buttonStyle(.glass)
+        }
+        #endif
+        if let site = page.site {
+            Button("Skip") { skip(site) }
+                .buttonStyle(.glass)
+                .accessibilityHint("Leaves \(siteTitle(site)) out of this session.")
+        }
+    }
+
+    /// On the last page: a site elsewhere whose value is off (Done waits for it).
+    private var invalidSite: BodySite? {
+        guard page == pager.lastPage else { return nil }
+        return states.first { $0.isInvalid && $0.site != page.site }?.site
+    }
+
+    private var nextStep: BodySheetNextStep {
+        guard let site = page.site else { return pager.step(after: page) }
+        let focused: Int? = focus?.site == site ? focus?.index : nil
+        return pager.step(after: page, texts: readings[site] ?? [], fieldCount: siteState(site).fieldCount,
+                          focusedIndex: focused)
+    }
+
+    /// "2nd Reading", "Next: Chest", "Done" (or "Next: Body Fat" when the assessment follows).
+    private var nextTitle: String {
+        switch nextStep {
+        case .reading(let index):
+            return BodySheetReadings.readingTitle(index)
+        case .page(let target):
+            guard let site = target.site else { return "Next" }
+            return "Next: \(siteTitle(site))"
+        case .done:
+            return offersAssessment && thenAssessment ? "Next: Body Fat" : "Done"
+        }
+    }
+
+    private var nextIsDisabled: Bool {
+        if case .done = nextStep { return !canSave }
+        return false
+    }
+
+    // MARK: Pager actions
+
+    private func next() {
+        switch nextStep {
+        case .reading(let index):
+            if let site = page.site { focus = BodySheetMeasureFocus(site: site, index: index) }
+        case .page(let target):
+            go(to: target, focusing: true)
+        case .done:
+            save()
+        }
+    }
+
+    /// Skip: the site is left out (its readings cleared), on to the next one.
+    private func skip(_ site: BodySite) {
+        readings[site] = nil
+        guard let target = pager.next(after: .site(site)) else { return }
+        go(to: target, focusing: true)
+    }
+
+    private func go(to target: BodySheetMeasurePage, focusing: Bool) {
+        withAnimation { page = target }
+        guard let site = target.site else {
+            focus = nil
+            return
+        }
+        if focusing { requestFocus(on: site) }
+    }
+
+    /// A swipe to another site keeps the keypad up on the new page; the start page closes it.
+    private func pageChanged(to new: BodySheetMeasurePage) {
+        guard let site = new.site else {
+            focus = nil
+            return
+        }
+        if let focused = focus, focused.site != site { requestFocus(on: site) }
+    }
+
+    /// The keypad on a site's big number once its page has slid in.
+    private func requestFocus(on site: BodySite, after milliseconds: Int = 350) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(milliseconds))
+            guard page == .site(site) else { return }
+            focus = BodySheetMeasureFocus(site: site, index: 0)
+        }
     }
 
     // MARK: Guide
@@ -170,12 +410,12 @@ struct MeasureSheet: View {
         return BodySheetReadings.lastTimeText(last, calendar: context.calendar)
     }
 
-    // MARK: Sites
+    // MARK: Sites (editing a record)
 
     private var sitesSection: some View {
         Section {
             ForEach(states, id: \.site) { state in
-                BodySheetSiteRow(state: state, title: context?.title(for: state.site) ?? state.site.title,
+                BodySheetSiteRow(state: state, title: siteTitle(state.site),
                                  hint: context?.hint(for: state.site) ?? state.site.landmark, texts: texts(for: state.site))
             }
         } header: {
@@ -205,7 +445,7 @@ struct MeasureSheet: View {
             } header: {
                 Text("Tape estimate")
             } footer: {
-                Text(estimateFooter(line))
+                Text(line.footer)
             }
         }
     }
@@ -234,15 +474,6 @@ struct MeasureSheet: View {
         case .implausible:
             Text("These values don't give a plausible estimate – a typo?")
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private func estimateFooter(_ line: BodySheetEstimateLine) -> String {
-        switch line {
-        case .value: "US Navy \(NavyBodyFat.label), worked out from your tape values and never saved."
-        case .needsFormula: "The tape estimate has a formula for men and one for women. Nina remembers your choice."
-        case .needsSites: "Neck and waist (women: also hip) within 12 weeks of each other."
-        case .needsHeight, .implausible: "Worked out live from your tape values, never saved."
         }
     }
 
@@ -280,10 +511,18 @@ struct MeasureSheet: View {
     private func load() {
         guard context == nil else { return }
         let loaded = BodySheetTapeContext.load(app: app, editing: record)
-        context = loaded
-        showsGuide = !guideSeen
+        // The demo (screenshots) opens on the first site without the keypad.
+        let isDemo = app.launch.isDemo
+        let firstTime = !guideSeen && !isDemo
+        showsGuide = firstTime
         guideSeen = true
         setAutomaticConditions(loaded)
+        if record == nil {
+            let first = BodySheetPager(sites: loaded.sites(for: current)).firstPage(showsGuide: firstTime)
+            page = first
+            if let site = first.site, !isDemo { requestFocus(on: site, after: 600) }
+        }
+        context = loaded
     }
 
     /// Morning and fasted before the cutoff with nothing eaten logged yet, else later; only
@@ -297,6 +536,7 @@ struct MeasureSheet: View {
 
     private func save() {
         guard let context, canSave else { return }
+        focus = nil
         let draft = BodyMeasurementDraft(day: context.day(for: time), time: time, kind: .tape, values: draftValues,
                                          conditions: conditionsText,
                                          note: note.trimmingCharacters(in: .whitespacesAndNewlines))

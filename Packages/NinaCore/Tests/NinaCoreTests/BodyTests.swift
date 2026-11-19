@@ -52,6 +52,13 @@ struct BodyTests {
         #expect(BodySite.thigh.sites(for: .left) == [.thighLeft])
         #expect(BodySite.chest.sites(for: .both) == [.chest])
         #expect(BodySite.calfLeft.hasSides)
+        // One site on its own: both sides when both are measured, else the key asked for.
+        #expect(BodySite.arm.measuredSites(side: .both) == [.arm, .armLeft])
+        #expect(BodySite.armLeft.measuredSites(side: .both) == [.arm, .armLeft])
+        #expect(BodySite.arm.measuredSites(side: .right) == [.arm])
+        #expect(BodySite.arm.measuredSites(side: .left) == [.arm])
+        #expect(BodySite.thighLeft.measuredSites(side: .left) == [.thighLeft])
+        #expect(BodySite.waist.measuredSites(side: .both) == [.waist])
         #expect(BodySite.waist.landmark.contains("navel"))
         #expect(BodySite.defaultSites(sex: .male) == [.waist, .hip, .chest, .arm, .thigh])
         #expect(BodySite.defaultSites(sex: .female, trackingMethod: .navy, side: .both)

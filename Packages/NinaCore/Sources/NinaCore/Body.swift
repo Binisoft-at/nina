@@ -118,6 +118,15 @@ public enum BodySite: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
+    /// The keys to measure when this one site is measured on its own (from its detail screen):
+    /// the site itself, plus the other side when both sides are measured (`arm` or `arm_l` with
+    /// `.both` → arm, arm_l). A key of the other side than `side` stays as it is, so its own
+    /// series goes on.
+    public func measuredSites(side: BodySide) -> [BodySite] {
+        guard side == .both, hasSides else { return [self] }
+        return base.sites(for: .both)
+    }
+
     /// On in a new routine: waist (women: the narrow waist instead), hip, chest, arm and thigh;
     /// neck when the tracking method is the tape estimate (Navy); calf and flexed arm off.
     public func isOnByDefault(sex: Sex, trackingMethod: BodyMethod? = nil) -> Bool {

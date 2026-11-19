@@ -651,6 +651,41 @@ public struct WeightSignal: Equatable, Sendable {
         WeightSignal.sanity(kilograms, reference: average(on: day).value ?? trend(on: day))
     }
 
+    /// "Did you mean …?" for a typed weight that fails the sanity check: a misplaced decimal
+    /// point, one wrong digit or two swapped digits that bring it within 3 kg of `reference` (the
+    /// 7-day average; the closest wins), to 0.1 kg. Without a reference only a decimal point in
+    /// the wrong place (742 or 7.42 for 74.2) into 35–200 kg. nil when the weight passes the check
+    /// or nothing fits.
+    public static func typoSuggestion(for kilograms: Double, reference: Double?) -> Double? {
+        guard kilograms.isFinite, kilograms > 0, kilograms < 100_000,
+              sanity(kilograms, reference: reference) != .ok else { return nil }
+        let shifts = [kilograms / 10, kilograms * 10, kilograms / 100, kilograms * 100]
+        func usable(_ values: [Double]) -> [Double] {
+            values.map { ($0 * 10).rounded() / 10 }
+                .filter { plausibleRange.contains($0) && abs($0 - kilograms) >= 0.05 }
+        }
+        guard let reference else {
+            guard kilograms > plausibleRange.upperBound || kilograms < 10 else { return nil }
+            return usable(shifts).first { (35...200).contains($0) }
+        }
+        var candidates = shifts
+        let digits = Array(String(Int((kilograms * 10).rounded())))
+        for index in digits.indices {
+            for digit in "0123456789" where digit != digits[index] {
+                var changed = digits
+                changed[index] = digit
+                if let value = Double(String(changed)) { candidates.append(value / 10) }
+            }
+            if index + 1 < digits.count, digits[index] != digits[index + 1] {
+                var swapped = digits
+                swapped.swapAt(index, index + 1)
+                if let value = Double(String(swapped)) { candidates.append(value / 10) }
+            }
+        }
+        return usable(candidates).filter { abs($0 - reference) <= typoJump + slack }
+            .min { abs($0 - reference) < abs($1 - reference) }
+    }
+
     // MARK: Phase
 
     /// The phase start weight: a stored `startWeight` wins (leave it 0 to follow the weigh-ins);

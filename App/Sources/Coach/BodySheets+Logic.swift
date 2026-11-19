@@ -168,36 +168,11 @@ enum BodySheetWeight {
     /// kg the number accepts at all (the weight signal's plausible range).
     static let range: ClosedRange<Double> = WeightSignal.plausibleRange
 
-    /// A fix for a typed weight that failed the sanity check: a misplaced decimal point, one
-    /// wrong digit or two swapped digits that bring it within 3 kg of `reference` (the closest
-    /// wins). Without a reference only a misplaced decimal point that makes it plausible. nil
-    /// when nothing fits.
+    /// "Did you mean …?" for a typed weight that failed the sanity check: a misplaced decimal
+    /// point, one wrong digit or two swapped digits that bring it within 3 kg of `reference`
+    /// (`WeightSignal.typoSuggestion`).
     static func suggestion(for kilograms: Double, reference: Double?) -> Double? {
-        guard kilograms.isFinite, kilograms > 0, kilograms < 100_000 else { return nil }
-        let shifts = [kilograms / 10, kilograms * 10, kilograms / 100, kilograms * 100]
-        var candidates = shifts
-        let digits = Array(String(Int((kilograms * 10).rounded())))
-        for index in digits.indices {
-            for digit in "0123456789" where digit != digits[index] {
-                var changed = digits
-                changed[index] = digit
-                if let value = Double(String(changed)) { candidates.append(value / 10) }
-            }
-            if index + 1 < digits.count, digits[index] != digits[index + 1] {
-                var swapped = digits
-                swapped.swapAt(index, index + 1)
-                if let value = Double(String(swapped)) { candidates.append(value / 10) }
-            }
-        }
-        func usable(_ values: [Double]) -> [Double] {
-            values.map { ($0 * 10).rounded() / 10 }.filter { range.contains($0) && abs($0 - kilograms) >= 0.05 }
-        }
-        guard let reference else {
-            let plausible = usable(shifts)
-            return plausible.first { (35...200).contains($0) } ?? plausible.first
-        }
-        return usable(candidates).filter { abs($0 - reference) <= WeightSignal.typoJump }
-            .min { abs($0 - reference) < abs($1 - reference) }
+        WeightSignal.typoSuggestion(for: kilograms, reference: reference)
     }
 
     /// The newest weigh-in typed in Nina (by time).
@@ -250,6 +225,13 @@ enum BodySheetConditions {
         if BodyProtocol.isStandard(list) { return "Standard reading – it counts in your trends." }
         return "Not a standard reading – it's kept, but left out of trends and goal maths."
     }
+
+    /// "Morning, Before eating": the chips that are on, in their usual order (the line at the
+    /// top of each page of the measure pager).
+    static func shortText(_ list: [BodyCondition]) -> String {
+        let titles = BodyCondition.allCases.filter { list.contains($0) }.map(\.title)
+        return titles.isEmpty ? "No conditions" : titles.joined(separator: ", ")
+    }
 }
 
 // MARK: - Tape measurements
@@ -289,11 +271,16 @@ struct BodySheetTapeContext {
         DayKey(date: time, calendar: calendar, dayStartHour: dayStartHour)
     }
 
-    /// The sites of a mode with their side keys (weekly or full set), plus every site an edited
-    /// record already has, so nothing is lost.
+    /// The sites of a mode with their side keys (weekly, full set, or one site with the other side
+    /// when both are measured), plus every site an edited record already has, so nothing is lost.
     func sites(for mode: MeasureMode, keeping values: BodyValues? = nil) -> [BodySite] {
         let schedule = BodySchedule(routine: routine)
-        var sites = mode == .full ? schedule.fullSites : schedule.weeklySites
+        var sites: [BodySite]
+        switch mode {
+        case .weekly: sites = schedule.weeklySites
+        case .full: sites = schedule.fullSites
+        case .site(let site): sites = site.measuredSites(side: routine.side)
+        }
         if let values {
             for site in BodySite.allCases where values[site] != nil && !sites.contains(site) { sites.append(site) }
         }
@@ -382,6 +369,16 @@ enum BodySheetEstimateLine: Equatable {
         let names = sites.map { $0.title.lowercased() }
         let list = names.count > 1 ? names.dropLast().joined(separator: ", ") + " and " + (names.last ?? "") : (names.first ?? "")
         return "Add your \(list) for a tape estimate."
+    }
+
+    /// The small print under the estimate.
+    var footer: String {
+        switch self {
+        case .value: return "US Navy \(NavyBodyFat.label), worked out from your tape values and never saved."
+        case .needsFormula: return "The tape estimate has a formula for men and one for women. Nina remembers your choice."
+        case .needsSites: return "Neck and waist (women: also hip) within 12 weeks of each other."
+        case .needsHeight, .implausible: return "Worked out live from your tape values, never saved."
+        }
     }
 }
 
@@ -500,6 +497,86 @@ enum BodySheetReadings {
         let when = date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).hour().minute())
         let tags = BodySheetConditions.parse(record.conditions).map(\.title)
         return tags.isEmpty ? "Last time: \(when)" : "Last time: \(when) · \(tags.joined(separator: ", "))"
+    }
+
+    /// No reading typed in field `index` (missing, empty or blanks).
+    static func isEmpty(_ texts: [String], at index: Int) -> Bool {
+        index >= texts.count || texts[index].trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// "2nd Reading", "3rd Reading" (field 1 and 2 of a site).
+    static func readingTitle(_ index: Int) -> String {
+        index >= 2 ? "3rd Reading" : "2nd Reading"
+    }
+}
+
+// MARK: - Measure pager (a new tape session, one site per page)
+
+/// A page of the measure pager: the start page (measuring guide, conditions, time and note) or
+/// one site.
+enum BodySheetMeasurePage: Hashable {
+    case start
+    case site(BodySite)
+
+    var site: BodySite? {
+        if case .site(let site) = self { return site }
+        return nil
+    }
+}
+
+/// The reading field with the keyboard: a site's first reading (the big number), 2nd or 3rd.
+struct BodySheetMeasureFocus: Hashable {
+    var site: BodySite
+    var index: Int
+}
+
+/// What Next does on a page of the measure pager.
+enum BodySheetNextStep: Equatable {
+    /// To another reading of this site (wanted and still empty): field 1 or 2.
+    case reading(Int)
+    /// To the next page.
+    case page(BodySheetMeasurePage)
+    /// The last page: save the session.
+    case done
+}
+
+/// The order of the measure pager: the start page, then one page per site.
+struct BodySheetPager: Equatable {
+    var sites: [BodySite]
+
+    var pages: [BodySheetMeasurePage] { [.start] + sites.map { BodySheetMeasurePage.site($0) } }
+
+    var lastPage: BodySheetMeasurePage { pages.last ?? .start }
+
+    func next(after page: BodySheetMeasurePage) -> BodySheetMeasurePage? {
+        guard let index = pages.firstIndex(of: page), index + 1 < pages.count else { return nil }
+        return pages[index + 1]
+    }
+
+    func previous(before page: BodySheetMeasurePage) -> BodySheetMeasurePage? {
+        guard let index = pages.firstIndex(of: page), index > 0 else { return nil }
+        return pages[index - 1]
+    }
+
+    /// Where the sheet opens: the start page while the measuring guide is shown (the first time,
+    /// or with nothing to measure), else the first site.
+    func firstPage(showsGuide: Bool) -> BodySheetMeasurePage {
+        guard !showsGuide, let first = sites.first else { return .start }
+        return .site(first)
+    }
+
+    /// What Next does on `page`: once the first reading is in, to a reading field the site still
+    /// wants and that is empty (unless it already has the keyboard), then to the next page, and
+    /// Done on the last one.
+    func step(after page: BodySheetMeasurePage, texts: [String] = [], fieldCount: Int = 1,
+              focusedIndex: Int? = nil) -> BodySheetNextStep {
+        if page.site != nil, fieldCount > 1, BodySheetNumber.parse(texts.first ?? "") != nil {
+            for index in 1..<min(fieldCount, 3) where index != focusedIndex && BodySheetReadings.isEmpty(texts, at: index) {
+                return .reading(index)
+            }
+        }
+        guard let next = next(after: page) else { return .done }
+        return .page(next)
     }
 }
 
