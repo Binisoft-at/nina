@@ -40,7 +40,7 @@ private struct TodayAccessoryContent: View {
                     ProgressRing(progress: fraction, lineWidth: 4)
                         .frame(width: 26, height: 26)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(remaining >= 0 ? "\(Fmt.energy(remaining, unit: app.energyUnit)) left" : "\(Fmt.energy(-remaining, unit: app.energyUnit)) over")
+                        Text(TodayLeftText.text(remaining, unit: app.energyUnit, emoji: app.settings.todayCoachEmoji(for: day)))
                             .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(remaining >= 0 ? Color.primary : Color.orange)
                         if placement != .inline, let first = app.settings.focus.first {
@@ -99,7 +99,7 @@ struct TodaySummaryLine: View {
                     .frame(width: 34, height: 34)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Today").font(.caption).foregroundStyle(.secondary)
-                    Text(remaining >= 0 ? "\(Fmt.energy(remaining, unit: app.energyUnit)) left" : "\(Fmt.energy(-remaining, unit: app.energyUnit)) over")
+                    Text(TodayLeftText.text(remaining, unit: app.energyUnit, emoji: app.settings.todayCoachEmoji(for: day)))
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                 }
             }
@@ -110,5 +110,15 @@ struct TodaySummaryLine: View {
         }
         .contentShape(.rect)
         .onTapGesture { app.show(day: day) }
+    }
+}
+
+/// "🏋️ 1,240 kcal left" / "180 kcal over": what's left of the day's target (the plan's day-type
+/// target with a plan), with the day type's emoji in front.
+private enum TodayLeftText {
+    static func text(_ remaining: Double, unit: EnergyUnit, emoji: String?) -> String {
+        let amount = remaining >= 0 ? "\(Fmt.energy(remaining, unit: unit)) left" : "\(Fmt.energy(-remaining, unit: unit)) over"
+        guard let emoji else { return amount }
+        return "\(emoji) \(amount)"
     }
 }

@@ -17,6 +17,8 @@ struct FoodSearchView: View {
     @State private var path: [FoodRecord] = []
     @State private var matches: [QuickMatch] = []
     @State private var added = 0
+    /// "+18 g protein to reach 35" for the meal being logged to (with a protein minimum).
+    @State private var proteinHint: String? = nil
     @FocusState private var searchFocused: Bool
 
     enum Scope: String, CaseIterable, Identifiable {
@@ -120,13 +122,7 @@ struct FoodSearchView: View {
                 matches = FoodLibrary.looksLikeQuickAdd(newValue) ? library.quickMatches(newValue) : []
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                Picker("Show", selection: $scope) {
-                    ForEach(Scope.allCases) { scope in Text(scope.title).tag(scope) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(.horizontal)
-                .padding(.vertical, 6)
+                topBar
             }
             .navigationTitle(title)
             .inlineNavigationTitle()
@@ -143,8 +139,46 @@ struct FoodSearchView: View {
                 }
                 searchFocused = true
             }
+            .task(id: proteinHintKey) {
+                proteinHint = loadProteinHint()
+            }
         }
         .sheetFrame(minWidth: 560, minHeight: 700)
+    }
+
+    /// The scope picker, and the protein hint for the meal when it is below the minimum.
+    private var topBar: some View {
+        VStack(spacing: 0) {
+            Picker("Show", selection: $scope) {
+                ForEach(Scope.allCases) { scope in Text(scope.title).tag(scope) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(.horizontal)
+            .padding(.vertical, 6)
+            if let proteinHint {
+                Text(proteinHint)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(NutrientStyle.color(.protein))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.bottom, 6)
+                    .accessibilityLabel("\(app.settings.meal(meal).name): \(proteinHint)")
+            }
+        }
+    }
+
+    // MARK: Protein hint
+
+    private var proteinHintKey: String { "\(app.dataVersion)-\(day.rawValue)-\(meal)" }
+
+    /// "+18 g protein to reach 35": what the meal still needs (planned food included) when the
+    /// plan sets a protein minimum per meal and the meal counts; nil otherwise.
+    private func loadProteinHint() -> String? {
+        guard mode.isLogging, !meal.isEmpty, let rule = app.settings.todayCoachProteinRule, rule.counts(meal) else { return nil }
+        let facts = app.store.entries(on: day).map(\.facts)
+        guard let current = ProteinMeals.day(day, entries: facts, rule: rule).meal(meal) else { return nil }
+        return ProteinMeals.hint(current.total, minimum: current.minimum)
     }
 
     private var searchPlacement: SearchFieldPlacement {
