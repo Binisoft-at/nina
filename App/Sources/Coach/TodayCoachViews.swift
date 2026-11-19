@@ -401,15 +401,24 @@ struct TodayCoachCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 16, cornerRadius: 22)
         .accessibilityElement(children: .contain)
-        .confirmationDialog(pauseTitle, isPresented: pauseBinding, titleVisibility: .visible,
+        .confirmationDialog("Pause coaching?", isPresented: pauseBinding, titleVisibility: .visible,
                             presenting: pauseReason) { (reason: CoachPlan.PauseReason) in
             pauseActions(reason)
-        } message: { (_: CoachPlan.PauseReason) in
-            Text(TodayCoachCard.pauseMessage)
+        } message: { (reason: CoachPlan.PauseReason) in
+            Text(TodayCoachCard.pauseMessage(reason))
         }
     }
 
-    private static let pauseMessage = "No check pills, check-ins or coach reminders while paused, and paused days stay out of your averages. Meal reminders keep going."
+    /// The dialog's text for the picked reason (from the presented value, so it stays put while
+    /// the dialog closes).
+    private static func pauseMessage(_ reason: CoachPlan.PauseReason) -> String {
+        let details = "no check pills, check-ins or coach reminders, and paused days stay out of your averages. Meal reminders keep going."
+        switch reason {
+        case .holiday: return "For your holiday: " + details
+        case .sick: return "While you're ill: " + details
+        case .other: return "While paused: " + details
+        }
+    }
 
     private var buttons: some View {
         HStack(spacing: 10) {
@@ -484,14 +493,6 @@ struct TodayCoachCard: View {
                 if !isShown { pauseReason = nil }
             }
         )
-    }
-
-    private var pauseTitle: String {
-        switch pauseReason {
-        case .holiday?: "Pause coaching for your holiday?"
-        case .sick?: "Pause coaching while you're ill?"
-        default: "Pause coaching?"
-        }
     }
 
     @ViewBuilder
