@@ -22,6 +22,8 @@ final class AppModel {
     private(set) var settings: NinaSettings
     var tab: AppTab = .today
     var foodsPage: FoodsPage = .foods
+    /// iPhone/iPad: the Progress tab's page (Body first once a plan is set up).
+    var progressPage: ProgressPage = .body
     var sidebar: SidebarItem? = .today
     var selectedDay: DayKey
     var sheet: AppSheet?
@@ -30,6 +32,12 @@ final class AppModel {
     var tourModel: AppModel?
     /// A CSV opened from Files / "Open in" – the import sheet picks it up.
     var pendingImport: URL?
+    /// A weight from `nina://weigh?value=` that needs a look (outside 25–300 kg or more than 3 kg
+    /// from the 7-day average): `WeighInSheet` prefills it and sets it back to nil.
+    var pendingWeighIn: Double?
+    /// The coach cards this device put off with "Later": card key → the day it was tapped.
+    /// Device-only (UserDefaults), never synced. Pass it to `CoachBoard` (`CoachContext` does).
+    private(set) var coachDismissals: [String: DayKey] = [:]
     /// iPhone: Recently Deleted is pushed from Settings.
     var showTrash = false
     /// Grows with every data change (views that compute from fetches refresh on it).
@@ -48,9 +56,11 @@ final class AppModel {
         self.library = FoodLibrary()
         self.health = HealthService(enabled: !isSandbox && !launch.isDemo)
         let store = NinaStore(context: container.mainContext)
-        let settings = store.settings
+        let settings = store.coachSettings()
         self.settings = settings
         self.selectedDay = settings.today()
+        progressPage = settings.plan.isSetUp ? .body : .nutrition
+        if !isSandbox, !launch.isDemo { coachDismissals = CoachLater.load(today: settings.today()) }
         library.rebuild(context: container.mainContext, language: settings.language)
         guard !isSandbox else {
             observeChanges(rebuildOnly: true)
@@ -100,11 +110,13 @@ final class AppModel {
 
     func refresh() {
         let store = self.store
-        let newSettings = store.settings
+        // The plan, the day-type marks and the real body weight (typed and Health weigh-ins).
+        let newSettings = store.coachSettings(adding: healthWeightReadings)
         if newSettings != settings { settings = newSettings }
         library.rebuild(context: container.mainContext, language: settings.language)
         dataVersion += 1
         guard !isSandbox, !launch.isDemo else { return }
+        CoachContext.latestHealthReadings = healthWeightReadings
         WidgetBridge.publish(store.todaySnapshot())
         health.scheduleSync(container: container)
         NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings)
@@ -116,7 +128,13 @@ final class AppModel {
         let newToday = settings.today()
         if selectedDay < newToday, selectedDay == newToday.adding(days: -1) { selectedDay = newToday }
         store.materializePlans(today: newToday)
-        Task { await health.refreshReadings() }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let before = self.health.weightSamples
+            await self.health.refreshReadings()
+            // New Health weigh-ins change the body weight, the weight signal and the coach board.
+            if self.health.weightSamples != before { self.scheduleRefresh() }
+        }
         refresh()
     }
 
@@ -277,6 +295,208 @@ final class AppModel {
         }
     }
 
+    // MARK: Coach and body
+
+    /// The weigh-ins read live from Apple Health as weight-signal readings (never stored).
+    var healthWeightReadings: [WeightSignal.Reading] {
+        let dayStartHour = settings.dayStartHour
+        return health.weightSamples.map {
+            WeightSignal.Reading(time: $0.date, kilograms: $0.kilograms, source: .health, dayStartHour: dayStartHour)
+        }
+    }
+
+    /// Shows a toast whose Undo puts back what a coach write changed (`store.undo`).
+    func showUndo(_ change: CoachUndo, _ message: String, symbol: String = "checkmark.circle.fill") {
+        guard !change.isEmpty else { return }
+        toasts.show(message, symbol: symbol) { [weak self] in
+            self?.store.undo(change)
+        }
+    }
+
+    /// Saves the plan (and its mirror in the profile) with a toast; Undo restores the plan before.
+    @discardableResult
+    func updatePlan(_ plan: CoachPlan, message: String, symbol: String = "checkmark.circle.fill") -> CoachUndo {
+        let change = store.updatePlan(plan, on: today)
+        showUndo(change, message, symbol: symbol)
+        return change
+    }
+
+    /// Picks a day's type by hand; nil goes back to the schedule.
+    @discardableResult
+    func setDayType(_ typeID: String?, on day: DayKey, toast: Bool = true) -> CoachUndo {
+        let plan = settings.plan
+        let change = store.setDayType(day: day, typeID: typeID)
+        guard toast else { return change }
+        if let typeID, let type = plan.dayType(id: typeID) {
+            let emoji = type.emoji.isEmpty ? CoachPlan.DayType.suggestedEmoji(for: type.name) : type.emoji
+            let label = [emoji, type.name].filter { !$0.isEmpty }.joined(separator: " ")
+            showUndo(change, "\(label) · \(Fmt.dayTitle(day, today: today))", symbol: "calendar")
+        } else {
+            showUndo(change, "Back to the schedule", symbol: "calendar")
+        }
+        return change
+    }
+
+    /// Ticks a daily check done or skipped ("Not today"); nil opens it again.
+    @discardableResult
+    func setCheck(_ checkID: String, on day: DayKey, state: CheckState?, toast: Bool = true) -> CoachUndo {
+        let name = settings.plan.check(id: checkID)?.name ?? "Check"
+        let change = store.setCheck(day: day, checkID: checkID, state: state)
+        guard toast else { return change }
+        switch state {
+        case .done?: showUndo(change, "\(name) done", symbol: "checkmark.circle.fill")
+        case .skipped?: showUndo(change, "\(name) – not today", symbol: "minus.circle")
+        case nil: showUndo(change, "\(name) open again", symbol: "circle")
+        }
+        return change
+    }
+
+    /// A tap on a check pill: open or skipped → done, done → open.
+    @discardableResult
+    func toggleCheck(_ checkID: String, on day: DayKey, toast: Bool = true) -> CoachUndo {
+        let current = store.checkStates(on: day)[checkID]
+        return setCheck(checkID, on: day, state: current == .done ? nil : .done, toast: toast)
+    }
+
+    /// Logs a weigh-in (also to Apple Health when that's on) with Undo.
+    @discardableResult
+    func logWeight(_ kilograms: Double, day: DayKey? = nil, time: Date = Date(), bodyFat: Double = 0, note: String = "") -> WeightEntry {
+        let entry = store.addWeight(kilograms, day: day ?? DayKey.today(now: time, dayStartHour: settings.dayStartHour),
+                                    time: time, bodyFat: bodyFat, note: note)
+        toasts.show("Weight \(Fmt.kilograms(kilograms)) saved", symbol: "scalemass.fill") { [weak self] in
+            _ = self?.store.trash([entry])
+        }
+        Task { [weak self] in await self?.health.writeWeight(kilograms, date: time) }
+        return entry
+    }
+
+    func trash(_ weight: WeightEntry) {
+        let trashed = store.trash([weight])
+        toasts.show("Weigh-in deleted", symbol: "trash.fill") { [weak self] in
+            self?.store.restore(trashed)
+        }
+    }
+
+    /// Adds a body measurement, or changes `editing`, with Undo.
+    @discardableResult
+    func saveMeasurement(_ draft: BodyMeasurementDraft, editing measurement: BodyMeasurement? = nil) -> BodyMeasurement {
+        let store = self.store
+        let noun = draft.kind == .assessment ? "Body fat" : "Measurements"
+        if let measurement {
+            let previous = store.update(measurement, to: draft)
+            toasts.show("\(noun) updated", symbol: "checkmark.circle.fill") { [weak self] in
+                _ = self?.store.update(measurement, to: previous)
+            }
+            return measurement
+        }
+        let added = store.addMeasurement(draft)
+        toasts.show("\(noun) saved", symbol: "ruler.fill") { [weak self] in
+            _ = self?.store.trash([added])
+        }
+        return added
+    }
+
+    func trash(_ measurement: BodyMeasurement) {
+        let trashed = store.trash([measurement])
+        let label = measurement.recordKind == .assessment ? "Assessment deleted" : "Measurement deleted"
+        toasts.show(label, symbol: "trash.fill") { [weak self] in
+            self?.store.restore(trashed)
+        }
+    }
+
+    /// "Later" on a coach card (device-only): today only; the review for 7 days, "Welcome back" for good.
+    func dismissCard(_ key: String) {
+        coachDismissals[key] = today
+        if !isSandbox, !launch.isDemo { CoachLater.save(coachDismissals) }
+        dataVersion += 1
+    }
+
+    /// Does what a checks-strip pill or a coach-card button asks for (`CoachBoard.Action`).
+    /// `card`: the card the button belongs to (for `.dismiss`).
+    func perform(_ action: CoachBoard.Action, on day: DayKey, card: CoachBoard.Card? = nil) {
+        switch action {
+        case .weighIn:
+            present(.weight(nil))
+        case .measure(let item):
+            present(.measure(MeasureMode(item), nil))
+        case .assessment:
+            present(.assessment(nil))
+        case .check(let id):
+            toggleCheck(id, on: day)
+        case .startPhase(let id):
+            startPhase(id)
+        case .postponePhase(let id):
+            postponePhase(id)
+        case .editPhase(let id):
+            present(.phase(id))
+        case .editPlan:
+            present(.plan)
+        case .review(let id):
+            present(.phaseReview(id))
+        case .checkIn(let checkInDay):
+            present(.checkIn(checkInDay.startOfWeek()))
+        case .dismiss:
+            if let card { dismissCard(card.key) }
+        }
+    }
+
+    /// "Start" on a phase: it starts today; a phase without targets gets the transition
+    /// proposal (`CoachContext.startingPlan`). One Undo puts the plan back.
+    func startPhase(_ id: String) {
+        let context = CoachContext.load(app: self, day: today)
+        guard let plan = context.startingPlan(phase: id) else { return }
+        let store = self.store
+        var change = store.updatePlan(plan, on: today)
+        change.merge(store.recordPhaseEvent(phaseID: id, event: .started, day: today))
+        let name = plan.phase(id: id)?.name ?? "Phase"
+        showUndo(change, "\(name.isEmpty ? "Phase" : name) started", symbol: "flag.fill")
+    }
+
+    /// "In a week" on a phase that is due to start: its start moves 7 days on.
+    func postponePhase(_ id: String) {
+        let plan = settings.plan.postponing(phase: id, by: 7, from: today)
+        guard plan != settings.plan else { return }
+        let store = self.store
+        var change = store.updatePlan(plan, on: today)
+        change.merge(store.recordPhaseEvent(phaseID: id, event: .postponed, day: today))
+        let start = plan.phase(id: id)?.start.map { Fmt.shortDay($0) } ?? "next week"
+        showUndo(change, "Moved to \(start)", symbol: "calendar.badge.clock")
+    }
+
+    /// "Apply from tomorrow" (or an edited change) on a check-in: the active phase moves by
+    /// `delta` kcal a day from tomorrow, and the check-in is saved with the decision.
+    func applyCheckIn(_ evaluation: CheckInEvaluation, delta: Double, decision: CheckInDecision = .applied) {
+        let change = store.applyCheckIn(evaluation.snapshot, delta: delta, from: evaluation.applyFrom,
+                                        weightKg: evaluation.input.weightKg, decision: decision)
+        let sign = delta > 0 ? "+" : "−"
+        showUndo(change, "\(sign)\(Fmt.number(abs(delta))) kcal a day from tomorrow", symbol: "checkmark.circle.fill")
+    }
+
+    /// Saves a check-in without a plan change ("Keep for now", or no proposal).
+    func saveCheckIn(_ snapshot: CheckInSnapshot, message: String = "Check-in saved") {
+        showUndo(store.saveCheckIn(snapshot), message, symbol: "checkmark.circle.fill")
+    }
+
+    /// The Monday of the latest check-in week: this week from the plan's check-in weekday on,
+    /// else last week (what "Weekly Check-in…" and nina://checkin open).
+    var currentCheckInWeek: DayKey {
+        BodySchedule.onOrBefore(weekday: settings.plan.routine.checkInWeekday, today).startOfWeek()
+    }
+
+    /// The Progress tab on its body page (Mac and iPad sidebar: Body).
+    func showProgress(_ page: ProgressPage = .body) {
+        progressPage = page
+        tab = .insights
+        sidebar = page == .body ? .body : .insights
+    }
+
+    /// The measure sheet for today's due set: the full set when one is due, else the weekly sites.
+    func measureNow() {
+        let due = CoachContext.load(app: self, day: today).dueItems
+        let mode: MeasureMode = due.contains(where: { $0.kind == .full }) ? .full : .weekly
+        present(.measure(mode, nil))
+    }
+
     /// The settings as the goals & settings import and export see them (with the latest weight).
     var settingsState: SettingsState {
         let store = self.store
@@ -344,10 +564,15 @@ final class AppModel {
 
     // MARK: URLs
 
-    /// nina://add, nina://water?ml=250, nina://today, or a CSV opened from Files.
+    /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2],
+    /// nina://measure?mode=weekly|full, nina://checkin, nina://daytype/<id> (no id: back to the
+    /// schedule), nina://check/<id>[?state=done|skipped|open], nina://plan, nina://progress, or a
+    /// CSV opened from Files.
     func open(_ url: URL) {
         if url.scheme == AppInfo.urlScheme {
             let parts = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            func query(_ name: String) -> String? { parts?.queryItems?.first { $0.name == name }?.value }
+            let path = url.pathComponents.first { $0 != "/" }
             switch url.host ?? "" {
             case "add":
                 show(day: today)
@@ -358,6 +583,31 @@ final class AppModel {
                 addWater(amount, day: today)
             case "quick":
                 present(.quickCalories(day: today, meal: nil))
+            case "weigh":
+                openWeighIn(value: query("value"))
+            case "measure":
+                if let mode = query("mode").flatMap(MeasureMode.init(rawValue:)) {
+                    present(.measure(mode, nil))
+                } else {
+                    measureNow()
+                }
+            case "checkin":
+                present(.checkIn(currentCheckInWeek))
+            case "daytype":
+                show(day: today)
+                setDayType(path, on: today)
+            case "check":
+                show(day: today)
+                guard let path else { return }
+                switch query("state") ?? "done" {
+                case "skipped": setCheck(path, on: today, state: .skipped)
+                case "open": setCheck(path, on: today, state: nil)
+                default: setCheck(path, on: today, state: .done)
+                }
+            case "plan":
+                present(.plan)
+            case "progress":
+                showProgress(.body)
             default:
                 show(day: today)
             }
@@ -366,6 +616,24 @@ final class AppModel {
         AppLog.info("Opened \(url.lastPathComponent)", category: "import")
         pendingImport = url
         present(.importData(nil))
+    }
+
+    /// nina://weigh: a plausible value is saved right away (Undo in the toast); anything else
+    /// opens the weigh-in sheet, prefilled with the value when there is one.
+    private func openWeighIn(value text: String?) {
+        guard let text, let kilograms = NumberText.parse(text.replacingOccurrences(of: "kg", with: "")
+            .trimmingCharacters(in: .whitespaces)) else {
+            present(.weight(nil))
+            return
+        }
+        let signal = store.weightSignal(adding: healthWeightReadings, settings: settings)
+        if case .ok = signal.sanity(kilograms, on: today) {
+            show(day: today)
+            logWeight(kilograms, day: today)
+        } else {
+            pendingWeighIn = kilograms
+            present(.weight(nil))
+        }
     }
 
     // MARK: Launch arguments (screenshots in CI)
@@ -381,15 +649,19 @@ final class AppModel {
             tab = .plan
             sidebar = .plan
         case "insights":
-            tab = .insights
-            sidebar = .insights
+            showProgress(.nutrition)
         case "recipes":
             sidebar = .recipes
             tab = .foods
             foodsPage = .recipes
         case "body":
-            sidebar = .body
-            tab = .insights
+            showProgress(.body)
+        case "measure":
+            sheet = .measure(.full, nil)
+        case "checkin":
+            sheet = .checkIn(currentCheckInWeek)
+        case "myplan":
+            sheet = .plan
         case "create":
             sheet = .create
         case "add":
@@ -410,5 +682,27 @@ final class AppModel {
             break
         }
         if launch.startTour { startTour() }
+    }
+}
+
+/// The device's "Later" taps on coach cards (UserDefaults, never synced): card key → day.
+enum CoachLater {
+    static let key = "nina.coach.later"
+    /// Older taps no longer matter (the longest snooze is 7 days; "Welcome back" ends 3 days
+    /// after a pause).
+    static let keepDays = 60
+
+    static func load(today: DayKey, defaults: UserDefaults = .standard) -> [String: DayKey] {
+        let stored = defaults.dictionary(forKey: key) as? [String: String] ?? [:]
+        let oldest = today.adding(days: -keepDays)
+        var result: [String: DayKey] = [:]
+        for (card, raw) in stored {
+            if let day = DayKey(raw), day >= oldest { result[card] = day }
+        }
+        return result
+    }
+
+    static func save(_ dismissals: [String: DayKey], defaults: UserDefaults = .standard) {
+        defaults.set(dismissals.mapValues(\.rawValue), forKey: key)
     }
 }

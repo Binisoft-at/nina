@@ -33,6 +33,9 @@ final class HealthService {
     private(set) var options: Set<Option> = []
     private(set) var activeEnergyToday: Double = 0
     private(set) var weights: [DayKey: Double] = [:]
+    /// Weigh-ins from other apps and scales, with their times (not the ones Nina wrote), newest
+    /// first. Read live for the weight signal (`AppModel.healthWeightReadings`), never stored.
+    private(set) var weightSamples: [HealthWeightSample] = []
     private(set) var latestWeight: Double?
     private(set) var lastSync: Date?
     private(set) var lastError: String?
@@ -132,9 +135,15 @@ final class HealthService {
                 }
                 weights = byDay
                 latestWeight = samples.first?.quantity.doubleValue(for: .gramUnit(with: .kilo))
+                let own = HKSource.default()
+                weightSamples = samples.compactMap { sample -> HealthWeightSample? in
+                    guard sample.metadata?["NinaWeight"] == nil, sample.sourceRevision.source != own else { return nil }
+                    return HealthWeightSample(date: sample.endDate, kilograms: sample.quantity.doubleValue(for: .gramUnit(with: .kilo)))
+                }
             }
         } else {
             weights = [:]
+            weightSamples = []
             latestWeight = nil
         }
     }
@@ -285,6 +294,12 @@ final class HealthService {
     func syncNow(container: ModelContainer) async {}
     func writeWeight(_ kilograms: Double, date: Date) async {}
     #endif
+}
+
+/// One weigh-in read from Apple Health (shown and used live, never stored).
+struct HealthWeightSample: Equatable, Sendable {
+    let date: Date
+    let kilograms: Double
 }
 
 /// What this device already wrote to Health: entry id → version. Device-only file in Application

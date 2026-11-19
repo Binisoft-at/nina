@@ -3,8 +3,28 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
+/// iPhone/iPad tabs. `insights` is the tab titled "Progress" (Body | Nutrition).
 enum AppTab: Hashable {
     case today, foods, plan, insights, search
+}
+
+/// iPhone/iPad: the Progress tab shows the body page or the nutrition insights.
+enum ProgressPage: String, CaseIterable, Identifiable {
+    case body, nutrition
+    var id: String { rawValue }
+    var title: String { self == .body ? "Body" : "Nutrition" }
+}
+
+/// Which tape set the measure sheet asks for: the weekly sites (waist) or the full set.
+enum MeasureMode: String, CaseIterable, Identifiable {
+    case weekly, full
+    var id: String { rawValue }
+    var title: String { self == .weekly ? "Weekly" : "Full Set" }
+
+    /// The mode of a due item from the coach board (`BodyDueItem.Kind.full` → full, else weekly).
+    init(_ item: BodyDueItem) {
+        self = item.kind == .full ? .full : .weekly
+    }
 }
 
 /// iPhone: the Foods tab shows foods or meals & recipes.
@@ -27,7 +47,7 @@ enum SidebarItem: Hashable, CaseIterable, Identifiable {
         case .recipes: "Meals & Recipes"
         case .plan: "Plan"
         case .insights: "Insights"
-        case .body: "Weight"
+        case .body: "Body"
         case .trash: "Recently Deleted"
         }
     }
@@ -39,7 +59,7 @@ enum SidebarItem: Hashable, CaseIterable, Identifiable {
         case .recipes: "frying.pan"
         case .plan: "calendar.badge.clock"
         case .insights: "chart.bar.xaxis"
-        case .body: "scalemass"
+        case .body: "figure"
         case .trash: "trash"
         }
     }
@@ -68,7 +88,20 @@ enum AppSheet: Identifiable {
     case recipe(Recipe?, kind: RecipeKind)
     case saveAsMeal([LogEntry])
     case planRule(PlanRule?, recipe: Recipe?)
+    /// The weigh-in sheet (`WeighInSheet`): nil logs a new weigh-in.
     case weight(WeightEntry?)
+    /// Tape measurements (`MeasureSheet`): nil records a new set.
+    case measure(MeasureMode, BodyMeasurement?)
+    /// A body-fat assessment (`AssessmentSheet`): nil records a new one.
+    case assessment(BodyMeasurement?)
+    /// The weekly check-in of the week starting on this Monday (`CheckInSheet`).
+    case checkIn(DayKey)
+    /// A phase of the plan (`PhaseSheet`): nil adds a new phase.
+    case phase(String?)
+    /// The review of a phase at its checkpoint or a ceiling (`PhaseReviewSheet`).
+    case phaseReview(String)
+    /// The plan editor ("Goals & Plan", `PlanEditorView`).
+    case plan
     case water(DayKey)
     case scanBarcode(day: DayKey, meal: String?)
     case dayNutrition(DayKey)
@@ -91,6 +124,12 @@ enum AppSheet: Identifiable {
         case .saveAsMeal: "save-as-meal"
         case .planRule(let rule, _): "plan-" + (rule?.uuid.uuidString ?? "new")
         case .weight(let entry): "weight-" + (entry?.uuid.uuidString ?? "new")
+        case .measure(let mode, let record): "measure-\(mode.rawValue)-" + (record?.uuid.uuidString ?? "new")
+        case .assessment(let record): "assessment-" + (record?.uuid.uuidString ?? "new")
+        case .checkIn(let week): "checkin-\(week)"
+        case .phase(let id): "phase-" + (id ?? "new")
+        case .phaseReview(let id): "phase-review-" + id
+        case .plan: "coach-plan"
         case .water(let day): "water-\(day)"
         case .scanBarcode: "scan"
         case .dayNutrition(let day): "nutrition-\(day)"

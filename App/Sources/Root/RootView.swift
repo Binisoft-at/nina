@@ -49,8 +49,8 @@ private struct PhoneRoot: View {
             Tab("Plan", systemImage: "calendar.badge.clock", value: AppTab.plan) {
                 NavigationStack { PlanView() }
             }
-            Tab("Insights", systemImage: "chart.bar.xaxis", value: AppTab.insights) {
-                NavigationStack { InsightsView() }
+            Tab("Progress", systemImage: "chart.line.uptrend.xyaxis", value: AppTab.insights) {
+                NavigationStack { ProgressHome() }
             }
             Tab(value: AppTab.search, role: .search) {
                 NavigationStack { GlobalSearchView() }
@@ -94,7 +94,7 @@ private struct MacRoot: View {
                 case .recipes: RecipesView()
                 case .plan: PlanView()
                 case .insights: InsightsView()
-                case .body: WeightView()
+                case .body: BodyPageView()
                 case .trash: TrashView()
                 }
             }
@@ -131,6 +131,10 @@ struct AppChrome: ViewModifier {
     }
 }
 
+/// Editors that own their NavigationStack (and `.sheetFrame`) are returned bare: the food,
+/// recipe, entry and weigh-in editors, `MeasureSheet`, `AssessmentSheet`, `CheckInSheet`,
+/// `PhaseSheet`, `PhaseReviewSheet`. Screens that are also pushed elsewhere (`GoalsView`,
+/// `PlanEditorView`, `SettingsView` …) are wrapped here.
 private struct SheetContent: View {
     let sheet: AppSheet
     @Environment(AppModel.self) private var app
@@ -161,7 +165,20 @@ private struct SheetContent: View {
         case .planRule(let rule, let recipe):
             PlanRuleEditor(rule: rule, recipe: recipe)
         case .weight(let entry):
-            WeightEditor(entry: entry)
+            WeighInSheet(entry: entry)
+        case .measure(let mode, let record):
+            MeasureSheet(mode: mode, record: record)
+        case .assessment(let record):
+            AssessmentSheet(record: record)
+        case .checkIn(let week):
+            CheckInSheet(week: week)
+        case .phase(let id):
+            PhaseSheet(phaseID: id)
+        case .phaseReview(let id):
+            PhaseReviewSheet(phaseID: id)
+        case .plan:
+            NavigationStack { PlanEditorView(showsDone: true) }
+                .sheetFrame(minWidth: 580, minHeight: 700)
         case .water(let day):
             WaterAmountView(day: day)
         case .scanBarcode(let day, let meal):
