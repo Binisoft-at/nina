@@ -157,9 +157,13 @@ struct FoodSearchView: View {
             .padding(.horizontal)
             .padding(.vertical, 6)
             if let proteinHint {
+                // On a material capsule: the list scrolls under this bar.
                 Text(proteinHint)
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(NutrientStyle.color(.protein))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.regularMaterial, in: .capsule)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
                     .padding(.bottom, 6)

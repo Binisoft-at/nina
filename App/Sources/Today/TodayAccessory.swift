@@ -113,7 +113,7 @@ struct TodaySummaryLine: View {
     }
 }
 
-/// "🏋️ 1,240 kcal left" / "180 kcal over": what's left of the day's target (the plan's day-type
+/// "🏋️ 1,240 kcal left" / "150 kcal over": what's left of the day's target (the plan's day-type
 /// target with a plan), with the day type's emoji in front.
 private enum TodayLeftText {
     static func text(_ remaining: Double, unit: EnergyUnit, emoji: String?) -> String {

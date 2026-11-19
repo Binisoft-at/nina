@@ -11,6 +11,9 @@ struct TodayCoachState: Equatable, Sendable {
     var proteinRule: ProteinMeals.Rule?
     /// Today's morning weight and 7-day average, once there is one.
     var weighIn: TodayCoachWeighIn?
+    /// A past day's daily checks with their state (done ones too), for the "Checks of this day"
+    /// menu; empty on today and later days (the strip covers them).
+    var dayChecks: [TodayCoachDayCheck] = []
     /// False until the first load finished (the strip then appears without an animation).
     var isLoaded = false
 
@@ -40,7 +43,29 @@ struct TodayCoachState: Equatable, Sendable {
             state.weighIn = TodayCoachWeighIn(kilograms: morning.kilograms,
                                               average: context.signal.average(on: today).value)
         }
+        if day < today {
+            state.dayChecks = TodayCoachState.pastChecks(context)
+        }
         return state
+    }
+
+    /// The checks of a past day: those due that day (by its day type) and any with a mark, in the
+    /// plan's order. None before the plan was set up or while coaching was paused.
+    @MainActor
+    private static func pastChecks(_ context: CoachContext) -> [TodayCoachDayCheck] {
+        let plan = context.plan
+        let day = context.day
+        let calendar = context.calendar
+        guard plan.isSetUp, !plan.isPaused(on: day) else { return [] }
+        if let setUp = BodySchedule.setUpDay(of: plan, calendar: calendar), day < setUp { return [] }
+        let typeID: String? = context.dayType?.id
+        let states: [String: CheckState] = context.checkStates
+        let due: [CoachPlan.Check] = plan.checks.filter { check in
+            check.isDue(on: day, dayTypeID: typeID, calendar: calendar) || states[check.id] != nil
+        }
+        return due.map { check in
+            TodayCoachDayCheck(id: check.id, name: check.name, emoji: check.emoji, state: states[check.id])
+        }
     }
 
     /// Protein pills and the search hint show with a set-up plan (minimum from the plan, else
@@ -61,6 +86,27 @@ struct TodayCoachWeighIn: Equatable, Sendable {
     var text: String {
         guard let average else { return Fmt.kilograms(kilograms) }
         return "\(Fmt.number(kilograms, decimals: 1)) · avg \(Fmt.number(average, decimals: 1))"
+    }
+}
+
+/// One daily check of a past day in the "Checks of this day" menu.
+struct TodayCoachDayCheck: Equatable, Sendable, Identifiable {
+    var id: String
+    var name: String
+    var emoji: String
+    /// nil = open.
+    var state: CheckState?
+
+    /// "💊 Creatine"
+    var title: String { emoji.isEmpty ? name : "\(emoji) \(name)" }
+
+    /// The menu item's symbol: a filled check when done, a dash when skipped, a ring when open.
+    var symbol: String {
+        switch state {
+        case .done?: return "checkmark.circle.fill"
+        case .skipped?: return "minus.circle"
+        case nil: return "circle"
+        }
     }
 }
 

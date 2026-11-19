@@ -240,12 +240,13 @@ private struct TodayCoachPill: View {
 
     private var button: some View {
         Button {
+            // While it shows the saved weight the pill only reports (no dimmed "disabled" look).
+            guard flash == nil else { return }
             app.perform(item.action, on: day)
         } label: {
             face
         }
         .buttonStyle(.plain)
-        .disabled(flash != nil)
         .sensoryFeedback(.selection, trigger: item.state)
         .accessibilityLabel(labelText)
         .accessibilityHint(hintText)
@@ -430,7 +431,7 @@ struct TodayCoachCard: View {
             Button("Later") { app.dismissCard(card.key) }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .accessibilityHint("Hides this card until tomorrow")
+                .accessibilityHint("Hides this card for now")
         }
     }
 

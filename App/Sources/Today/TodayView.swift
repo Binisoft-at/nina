@@ -72,6 +72,12 @@ struct DayView: View {
 
     private var coachKey: String { "\(app.dataVersion)-\(day.rawValue)-\(clock)" }
 
+    /// The day-type chip, straight from the settings (the same chip as the board's): it is there
+    /// on the first frame of a day and always matches the targets on the card.
+    private var chip: CoachBoard.Chip? {
+        settings.todayCoachChip(for: day, today: app.today)
+    }
+
     var body: some View {
         let protein = proteinDay
         List(selection: $selection) {
@@ -108,6 +114,13 @@ struct DayView: View {
                         dayActions
                     } label: {
                         Label("Copy or plan this day", systemImage: "doc.on.doc")
+                    }
+                }
+                if !coach.dayChecks.isEmpty {
+                    Menu {
+                        pastChecks
+                    } label: {
+                        Label("Checks of this day", systemImage: "checklist")
                     }
                 }
             }
@@ -148,7 +161,7 @@ struct DayView: View {
                 .listRowBackground(Color.clear)
             VStack(alignment: .leading, spacing: 0) {
                 DaySummaryCard(day: day, progress: progress, focus: settings.focus, unit: settings.energyUnit,
-                               isTrainingDay: settings.isTrainingDay(day), chip: coach.board.chip,
+                               isTrainingDay: settings.isTrainingDay(day), chip: chip,
                                weekAverage: coach.board.weekAverageLine)
                     .simultaneousGesture(daySwipe)
                 TodayCoachStrip(day: day, input: coach.stripInput)
@@ -214,6 +227,18 @@ struct DayView: View {
         }
         Button("Copy to Another Day…", systemImage: "calendar") { app.sheet = .copyEntries(entries) }
         Button("Save Day as Meal…", systemImage: "square.and.arrow.down.on.square") { app.sheet = .saveAsMeal(entries) }
+    }
+
+    /// A past day's daily checks: a tap marks one done (or open again), with Undo.
+    @ViewBuilder
+    private var pastChecks: some View {
+        ForEach(coach.dayChecks) { check in
+            Button {
+                _ = app.toggleCheck(check.id, on: day)
+            } label: {
+                Label(check.title, systemImage: check.symbol)
+            }
+        }
     }
 
     @ToolbarContentBuilder
