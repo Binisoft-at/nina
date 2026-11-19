@@ -20,6 +20,41 @@ public struct TodaySnapshot: Codable, Equatable, Sendable {
     public var nextPlanned: String?
     public var energyUnit: String
     public var updatedAt: Date
+    // The coach plan's day type of the day (calorie cycling); nil without day types. Optional, so
+    // a file written by an older build still reads.
+    public var dayTypeID: String?
+    public var dayTypeName: String?
+    /// "🏋️" – shown in front of the numbers on the widget and the watch face.
+    public var dayTypeEmoji: String?
+    /// Picked by hand rather than by the schedule.
+    public var dayTypeIsManual: Bool?
+    /// The next day's goals and day type, for the widget's entry after midnight.
+    public var tomorrow: Goals?
+
+    /// A day's goals and day type (the snapshot's next day).
+    public struct Goals: Codable, Equatable, Sendable {
+        public var day: String
+        public var energyGoal: Double
+        public var proteinGoal: Double
+        public var carbsGoal: Double
+        public var fatGoal: Double
+        public var waterGoal: Double
+        public var dayTypeID: String?
+        public var dayTypeName: String?
+        public var dayTypeEmoji: String?
+
+        public init(day: DayKey, targets: DailyTargets, dayType: CoachPlan.DayType? = nil) {
+            self.day = day.rawValue
+            energyGoal = targets.energy
+            proteinGoal = targets.protein
+            carbsGoal = targets.carbs
+            fatGoal = targets.fat
+            waterGoal = targets.water
+            dayTypeID = dayType?.id
+            dayTypeName = dayType?.name
+            dayTypeEmoji = dayType.map(TodaySnapshot.emoji(of:))
+        }
+    }
 
     public init(day: String, energy: Double, energyGoal: Double, protein: Double, proteinGoal: Double, carbs: Double,
                 carbsGoal: Double, fat: Double, fatGoal: Double, water: Double, waterGoal: Double,
@@ -54,11 +89,40 @@ public struct TodaySnapshot: Codable, Equatable, Sendable {
                                                   carbs: 130, carbsGoal: 230, fat: 41, fatGoal: 70, water: 1250, waterGoal: 2250,
                                                   nextPlanned: "Dinner · 18:30", updatedAt: Date(timeIntervalSince1970: 0))
 
-    /// An empty day with the same goals (shown after midnight until the app writes a new snapshot).
+    /// The day type of the day (nil clears it); a type without its own emoji gets a fitting one.
+    public mutating func use(dayType: CoachPlan.DayType?, isManual: Bool = false) {
+        dayTypeID = dayType?.id
+        dayTypeName = dayType?.name
+        dayTypeEmoji = dayType.map(TodaySnapshot.emoji(of:))
+        dayTypeIsManual = dayType == nil ? nil : isManual
+    }
+
+    /// The day type's emoji, or a fitting one for its name ("" when none fits).
+    public static func emoji(of type: CoachPlan.DayType) -> String {
+        type.emoji.isEmpty ? CoachPlan.DayType.suggestedEmoji(for: type.name) : type.emoji
+    }
+
+    /// "🏋️ " in front of a number; "" without a day type.
+    public var dayTypePrefix: String {
+        guard let emoji = dayTypeEmoji, !emoji.isEmpty else { return "" }
+        return emoji + " "
+    }
+
+    /// An empty day (shown after midnight until the app writes a new snapshot): the next day's
+    /// goals and day type when the snapshot has them, else the same goals without a day type.
     public func emptied(for day: DayKey) -> TodaySnapshot {
-        TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: energyGoal, protein: 0, proteinGoal: proteinGoal,
-                      carbs: 0, carbsGoal: carbsGoal, fat: 0, fatGoal: fatGoal, water: 0, waterGoal: waterGoal,
-                      nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
+        if let next = tomorrow, next.day == day.rawValue {
+            var snapshot = TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: next.energyGoal, protein: 0, proteinGoal: next.proteinGoal,
+                                         carbs: 0, carbsGoal: next.carbsGoal, fat: 0, fatGoal: next.fatGoal, water: 0,
+                                         waterGoal: next.waterGoal, nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
+            snapshot.dayTypeID = next.dayTypeID
+            snapshot.dayTypeName = next.dayTypeName
+            snapshot.dayTypeEmoji = next.dayTypeEmoji
+            return snapshot
+        }
+        return TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: energyGoal, protein: 0, proteinGoal: proteinGoal,
+                             carbs: 0, carbsGoal: carbsGoal, fat: 0, fatGoal: fatGoal, water: 0, waterGoal: waterGoal,
+                             nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
     }
 
     /// The snapshot for `today` – emptied when it is from an earlier day.
