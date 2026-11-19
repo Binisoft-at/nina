@@ -105,10 +105,11 @@ struct InsightData {
             longTotals = DayKey.range(longStart, through: today).map { DayTotals(day: $0, entries: byDay[$0] ?? []) }
         }
         let maintenance = Insights.maintenance(totals: longTotals, weights: weightsByDay, today: today)
+        let incomplete = store.incompleteDays(from: start, through: today)
         return InsightData(range: range, points: points, stats: stats, streak: streak, entries: facts.filter { $0.status == .eaten },
                            weights: weights, maintenance: maintenance, targets: settings.targets,
-                           proteinMeals: ProgressInsights.proteinMeals(totals: totals, settings: settings),
-                           typeAverages: ProgressInsights.typeAverages(totals: totals, settings: settings),
+                           proteinMeals: ProgressInsights.proteinMeals(totals: totals, settings: settings, incomplete: incomplete),
+                           typeAverages: ProgressInsights.typeAverages(totals: totals, settings: settings, incomplete: incomplete),
                            goal: ProgressInsights.goal(app: app))
     }
 }

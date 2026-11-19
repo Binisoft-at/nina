@@ -559,7 +559,7 @@ private struct CheckInWeightSection: View {
         Section {
             LabeledContent("7-day average", value: averageText)
             if let change = summary.weeklyChange {
-                LabeledContent("Change vs last week", value: changeText(change))
+                LabeledContent("Change vs last week", value: changeText(change, decimals: 2))
             }
             if let since = summary.sinceStart {
                 LabeledContent("Since the phase start", value: changeText(since))
@@ -618,8 +618,10 @@ private struct CheckInWeightSection: View {
         "\(rate.window.days()) days · \(rate.weighIns) weigh-ins"
     }
 
-    private func changeText(_ change: WeightSignal.Change) -> String {
-        "\(CheckInSheetText.signedKg(change.kilograms)) (\(CheckInSheetText.signedPercent(change.percent)))"
+    /// The week's change with two decimals, as the Body page shows it; the change since the phase
+    /// start with one.
+    private func changeText(_ change: WeightSignal.Change, decimals: Int = 1) -> String {
+        "\(CheckInSheetText.signedKg(change.kilograms, decimals: decimals)) (\(CheckInSheetText.signedPercent(change.percent)))"
     }
 }
 
@@ -918,7 +920,7 @@ private struct CheckInNextWeek: View {
 
     private var proposalSection: some View {
         Section {
-            LabeledContent("Change", value: "\(CheckInSheetText.signedKcal(delta)) a day")
+            LabeledContent("Change", value: "\(CheckInSheetText.signedEnergy(delta, unit: unit)) a day")
             ForEach(facts.evaluation.preview(delta)) { change in
                 CheckInTypeChangeRow(title: CheckInSheetText.dayType(change.typeID, plan: facts.plan, empty: "Every day"),
                                      change: change, unit: unit)
@@ -926,7 +928,7 @@ private struct CheckInNextWeek: View {
             if editing {
                 Picker("Step", selection: $step) {
                     ForEach(facts.stepOptions, id: \.self) { size in
-                        Text(CheckInSheetText.signedKcal(facts.deltaSign * size)).tag(size)
+                        Text(CheckInSheetText.signedEnergy(facts.deltaSign * size, unit: unit)).tag(size)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -1014,7 +1016,7 @@ private struct CheckInSavedSections: View {
         Section {
             LabeledContent("7-day average", value: average.map { Fmt.kilograms($0) } ?? "–")
             if let change = weeklyChange {
-                LabeledContent("Change vs last week", value: CheckInSheetText.signedKg(change))
+                LabeledContent("Change vs last week", value: CheckInSheetText.signedKg(change, decimals: 2))
             }
             if let rate {
                 LabeledContent("Rate", value: CheckInSheetText.rate(rate))
@@ -1072,6 +1074,9 @@ private struct CheckInSavedSections: View {
     }
 
     private var decisionText: String {
+        if let delta = saved.deltaKcal, delta != 0, saved.decision == .applied || saved.decision == .edited {
+            return CheckInSheetText.signedEnergy(delta, unit: unit)
+        }
         let text = saved.decisionText
         return text.isEmpty ? "Saved" : text
     }

@@ -179,6 +179,23 @@ struct CoachCopyTests {
         #expect(noHeight.contains("height not set"))
     }
 
+    @Test func bodyFatErrorAndTheDevicesTapeFormula() {
+        // An estimate has no known error: "(error unknown)", never "typical error unknown points".
+        var input = CopyFixture.input()
+        input.bodyFat.append(BodyFatReading(day: copyDay("2030-01-20"), bodyFat: 19, method: .estimate))
+        input.bodyFat.append(BodyFatReading(day: copyDay("2030-01-21"), bodyFat: 21, method: .scale))
+        let text = CoachCopy.text(input, calendar: copyUTC)
+        #expect(text.contains("  - Estimate: 19.0 % on 2030-01-20 (error unknown)"))
+        #expect(!text.contains("typical error unknown"))
+        #expect(text.contains("21.0 % on 2030-01-21 (typical error ±4–5 points)"))
+        // "Prefer not to say": the tape estimate only with the formula picked on the device.
+        var unspecified = CopyFixture.input()
+        unspecified.state.sex = .unspecified
+        #expect(!CoachCopy.text(unspecified, calendar: copyUTC).contains("Tape estimate"))
+        unspecified.navyFormula = .male
+        #expect(CoachCopy.text(unspecified, calendar: copyUTC).contains("  - Tape estimate: "))
+    }
+
     @Test func appleHealthWeightsOnlyWhenAllowed() {
         let healthFrom = copyDay("2030-01-28")
         let without = CoachCopy.text(CopyFixture.input(healthFrom: healthFrom), calendar: copyUTC)

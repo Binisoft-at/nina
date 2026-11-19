@@ -394,6 +394,9 @@ struct DemoCoach {
     static let rest = targets(2150, 125, 255, 70)
     static let gym = targets(2450, 130, 315, 72)
     static let tennis = targets(2400, 125, 305, 72)
+    /// The lean gain's baseline: its planned week average (3 gym, 2 tennis, 2 rest days ≈ 2,350),
+    /// so the plan editor shows no week-average warning.
+    static let gainBaseline = targets(2350, 128, 290, 72)
 
     let today: DayKey
     let calendar: Calendar
@@ -441,14 +444,14 @@ struct DemoCoach {
         CoachPlan.Phase(id: "2", name: "Lean gain", goal: .gain, start: start, end: end, endApprox: true,
                         rateMin: 0.15, rateMax: 0.25, reviewMin: 68.6, reviewMax: 69, targetWeight: 69,
                         startedAt: startedAt, status: .active, note: "Slow and steady, so most of the gain is muscle.",
-                        revisions: [CoachPlan.Revision(from: start, baseline: rest,
+                        revisions: [CoachPlan.Revision(from: start, baseline: gainBaseline,
                                                        byType: ["gym": gym, "tennis": tennis, "rest": rest], reason: "import")])
     }
 
     static func demoPlan(today: DayKey, calendar: Calendar) -> CoachPlan {
         func day(_ offset: Int) -> DayKey { today.adding(days: -offset, calendar: calendar) }
         let maintenance = CoachPlan.Revision(
-            from: day(history), baseline: targets(2050, 120, 240, 68),
+            from: day(history), baseline: targets(2210, 122, 265, 70),
             byType: ["gym": targets(2300, 125, 290, 70), "tennis": targets(2250, 120, 285, 70), "rest": targets(2050, 120, 240, 68)],
             reason: "import")
         let phases = [

@@ -31,12 +31,13 @@ struct ProgressTypeAverage: Identifiable {
 
 @MainActor
 enum ProgressInsights {
-    /// Protein meals over the logged, not paused days of `totals`; nil when Today shows no
-    /// protein pills (no plan and no per-meal minimum) or nothing is tracked.
-    static func proteinMeals(totals: [DayTotals], settings: NinaSettings) -> ProgressProteinMeals? {
+    /// Protein meals over the logged, not paused days of `totals` (without days marked "Log Is
+    /// Incomplete", `incomplete`); nil when Today shows no protein pills (no plan and no per-meal
+    /// minimum) or nothing is tracked.
+    static func proteinMeals(totals: [DayTotals], settings: NinaSettings, incomplete: Set<DayKey> = []) -> ProgressProteinMeals? {
         guard let rule = settings.todayCoachProteinRule else { return nil }
         let plan = settings.plan
-        let days: [ProteinMeals.Day] = totals.filter { $0.isLogged && !plan.isPaused(on: $0.day) }
+        let days: [ProteinMeals.Day] = totals.filter { $0.isLogged && !plan.isPaused(on: $0.day) && !incomplete.contains($0.day) }
             .map { ProteinMeals.day($0, rule: rule) }
         let period = ProteinMeals.period(days)
         guard period.target > 0 else { return nil }
@@ -44,15 +45,20 @@ enum ProgressInsights {
     }
 
     /// Average eaten vs. average target per day type over the logged, not paused days of
-    /// `totals`, in plan order. Only with 2 or more day types; types without a logged day are
+    /// `totals`, in plan order. Only days with the plan's targets count (a phase revision in
+    /// force: none from before the plan, none between phases), and not days marked "Log Is
+    /// Incomplete" (`incomplete`). Only with 2 or more day types; types without a logged day are
     /// left out.
-    static func typeAverages(totals: [DayTotals], settings: NinaSettings, calendar: Calendar = .current) -> [ProgressTypeAverage] {
+    static func typeAverages(totals: [DayTotals], settings: NinaSettings, incomplete: Set<DayKey> = [],
+                             calendar: Calendar = .current) -> [ProgressTypeAverage] {
         let plan = settings.plan
         guard plan.isSetUp, plan.dayTypes.count >= 2 else { return [] }
-        let days: [DayAdherence] = totals.map { total in
+        let coached = totals.filter { plan.revision(on: $0.day) != nil }
+        let days: [DayAdherence] = coached.map { total in
             DayAdherence(totals: total, targets: settings.targets(for: total.day, calendar: calendar),
                          dayTypeID: settings.dayType(for: total.day, calendar: calendar)?.id,
-                         isPaused: plan.isPaused(on: total.day), calendar: calendar)
+                         isPaused: plan.isPaused(on: total.day), incomplete: incomplete.contains(total.day),
+                         calendar: calendar)
         }
         let summary = Adherence.summary(days, plan: plan)
         return summary.byType.compactMap { average -> ProgressTypeAverage? in

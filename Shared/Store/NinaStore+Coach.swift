@@ -331,14 +331,22 @@ extension NinaStore {
         return dayMarks(.phase, key: phaseID)
     }
 
-    /// Phases with a review decision (keep, hold or cut): their review card is done.
-    func reviewedPhaseIDs() -> Set<String> {
-        let reviews: Set<PhaseEvent> = [.reviewKeep, .reviewHold, .reviewCut]
-        let decided = dayMarks(.phase).filter { mark in
-            guard let event = mark.phaseEvent else { return false }
-            return reviews.contains(event)
+    /// The review decisions (keep, hold or cut) as the day of the newest one per phase. The
+    /// checkpoint needs a decision on or after the day it was reached, a ceiling any decision
+    /// (`PhaseReviews`), so a ceiling review doesn't use up the checkpoint.
+    func phaseReviews() -> PhaseReviews {
+        let events = dayMarks(.phase).compactMap { mark -> (phaseID: String, event: PhaseEvent, day: DayKey)? in
+            guard let event = mark.phaseEvent else { return nil }
+            return (phaseID: mark.key, event: event, day: mark.dayKey)
         }
-        return Set(decided.map(\.key))
+        return PhaseReviews(events: events)
+    }
+
+    /// Days from `start` through `end` marked "Log Is Incomplete" on Today: left out of logged
+    /// days (week average, check-in, Insights).
+    func incompleteDays(from start: DayKey, through end: DayKey) -> Set<DayKey> {
+        guard start <= end else { return [] }
+        return Set(dayMarks(.event, from: start, through: end).filter { $0.key == "incompleteLog" }.map(\.dayKey))
     }
 
     /// Tape records for trends, the tape estimate and the measuring schedule.
@@ -412,6 +420,7 @@ extension NinaStore {
         let hasMorningWeighIn = signal.morning(on: today) != nil
         let schedule = bodySchedule(plan: plan, signal: signal, today: today)
         let monday = day.startOfWeek(calendar: calendar)
+        let weekEnd = min(today, monday.adding(days: 6, calendar: calendar))
         let input = CoachBoard.Input(
             plan: plan, day: day, today: today, now: now, mealSlots: settings.meals,
             fallback: settings.legacyTargets(for: day, calendar: calendar), dayTypeMarks: settings.dayTypeMarks,
@@ -419,9 +428,8 @@ extension NinaStore {
             bodyItems: CoachBoard.bodyItems(schedule, on: day, today: today, now: now, hasMorningWeighIn: hasMorningWeighIn,
                                             calendar: calendar),
             checkInKeys: checkInKeys(), checkpoint: signal.checkpointCrossing(in: plan, through: today), ceilings: ceilings,
-            reviewedPhases: reviewedPhaseIDs(), dismissed: dismissed,
-            eaten: loggedEnergy(from: monday, through: min(today, monday.adding(days: 6, calendar: calendar))),
-            calendar: calendar)
+            reviews: phaseReviews(), dismissed: dismissed, eaten: loggedEnergy(from: monday, through: weekEnd),
+            incompleteDays: incompleteDays(from: monday, through: weekEnd), calendar: calendar)
         return CoachBoard(input)
     }
 }
@@ -537,7 +545,9 @@ extension NinaStore {
                       decision: CheckInDecision = .applied) -> CoachUndo {
         let settings = self.settings
         let plan = CheckInEngine.applying(delta, to: settings.plan, from: day, weightKg: weightKg, fallback: settings.targets)
-        var undo = CoachUndo(profile: writePlan(plan, on: settings.today(calendar: calendar)))
+        // The mirror follows the revision just added (it starts tomorrow): nothing re-mirrors on
+        // the day it takes effect, and older builds would stay one step behind.
+        var undo = CoachUndo(profile: writePlan(plan, on: max(day, settings.today(calendar: calendar))))
         var decided = snapshot
         decided.decision = decision
         decided.deltaKcal = delta

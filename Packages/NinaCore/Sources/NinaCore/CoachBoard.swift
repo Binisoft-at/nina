@@ -43,21 +43,24 @@ public struct CoachBoard: Equatable, Sendable {
         public var checkpoint: DayKey?
         /// Ceilings reached in the active gain phase (`BodyCeiling.reached`): they open the review too.
         public var ceilings: [BodyCeiling]
-        /// Ids of phases with a review decision (a phase mark with review-keep, -hold or -cut).
-        public var reviewedPhases: Set<String>
+        /// The review decisions per phase (the day of the newest review-keep, -hold or -cut mark):
+        /// the checkpoint needs a decision on or after its crossing, a ceiling any decision.
+        public var reviews: PhaseReviews
         /// Cards put off with "Later" (device-only): card key → the day it was tapped.
         public var dismissed: [String: DayKey]
         /// Eaten kcal of the logged days (for "Week avg 2,380 of 2,400 kcal"); leave out days
         /// without a log.
         public var eaten: [DayKey: Double]
+        /// Days marked "Log Is Incomplete": the week average leaves them out (F11 "logged").
+        public var incompleteDays: Set<DayKey>
         public var calendar: Calendar
 
         public init(plan: CoachPlan, day: DayKey, today: DayKey, now: Date, mealSlots: [MealSlot] = MealSlot.defaults,
                     fallback: DailyTargets = .standard, dayTypeMarks: [String: String] = [:],
                     checkStates: [String: CheckState] = [:], hasMorningWeighIn: Bool = false, bodyItems: [BodyDueItem] = [],
                     checkInKeys: Set<String> = [], checkpoint: DayKey? = nil, ceilings: [BodyCeiling] = [],
-                    reviewedPhases: Set<String> = [], dismissed: [String: DayKey] = [:], eaten: [DayKey: Double] = [:],
-                    calendar: Calendar = .current) {
+                    reviews: PhaseReviews = PhaseReviews(), dismissed: [String: DayKey] = [:], eaten: [DayKey: Double] = [:],
+                    incompleteDays: Set<DayKey> = [], calendar: Calendar = .current) {
             self.plan = plan
             self.day = day
             self.today = today
@@ -71,9 +74,10 @@ public struct CoachBoard: Equatable, Sendable {
             self.checkInKeys = checkInKeys
             self.checkpoint = checkpoint
             self.ceilings = ceilings
-            self.reviewedPhases = reviewedPhases
+            self.reviews = reviews
             self.dismissed = dismissed
             self.eaten = eaten
+            self.incompleteDays = incompleteDays
             self.calendar = calendar
         }
     }
@@ -490,16 +494,19 @@ extension CoachBoard {
                     secondary: Card.Choice(title: "Edit dates", action: .editPhase(active.id)), more: [], phaseID: active.id)
     }
 
-    /// The review checkpoint (or a ceiling) of the active phase, until a review decision is saved.
+    /// The review checkpoint (or a ceiling) of the active phase, until a review decision answers
+    /// it: the checkpoint needs one on or after the day it was reached, a ceiling any decision in
+    /// the phase (`PhaseReviews`).
     static func reviewCard(_ input: Input) -> Card? {
-        guard let phase = input.plan.activePhase(on: input.today), !input.reviewedPhases.contains(phase.id) else { return nil }
+        guard let phase = input.plan.activePhase(on: input.today) else { return nil }
+        let crossing = input.checkpoint.flatMap { $0 <= input.today ? $0 : nil }
         let title: String
         let message: String
-        if let crossed = input.checkpoint, crossed <= input.today, let weight = WeightSignal.checkpoint(of: phase) {
+        if input.reviews.checkpointIsOpen(phase.id, crossing: crossing), let weight = WeightSignal.checkpoint(of: phase) {
             title = "Review weight reached"
             message = "Your 7-day average reached \(NumberText.plain(weight, decimals: 1)) kg – time to look back at "
                 + "\(name(of: phase)) and decide how to go on."
-        } else if let ceiling = input.ceilings.first {
+        } else if input.reviews.ceilingIsOpen(phase.id, ceilings: input.ceilings), let ceiling = input.ceilings.first {
             title = "Time for a phase review"
             message = "\(ceiling.message)."
         } else {
@@ -577,13 +584,16 @@ extension CoachBoard {
 extension CoachBoard {
     /// With two or more day types and targets for the week: the plan's average kcal per day, and
     /// with two or more logged days this week the average eaten against those days' targets.
+    /// Only finished days count (today is still being eaten), and not days marked incomplete.
     static func weekAverage(_ input: Input) -> WeekAverage? {
         let plan = input.plan, calendar = input.calendar
         guard plan.isSetUp, plan.dayTypes.count >= 2, let revision = plan.revision(on: input.day),
               let planned = plan.plannedWeekAverage(revision) else { return nil }
         let monday = input.day.startOfWeek(calendar: calendar)
         let week = DayKey.range(monday, through: monday.adding(days: 6, calendar: calendar), calendar: calendar)
-        let logged = week.filter { $0 <= input.today && input.eaten[$0] != nil && !plan.isPaused(on: $0) }
+        let logged = week.filter {
+            $0 < input.today && input.eaten[$0] != nil && !input.incompleteDays.contains($0) && !plan.isPaused(on: $0)
+        }
         guard logged.count >= 2 else {
             return WeekAverage(planned: planned, eaten: nil, target: nil, loggedDays: logged.count,
                                text: "Week avg \(SettingsCSV.grouped(planned)) kcal")

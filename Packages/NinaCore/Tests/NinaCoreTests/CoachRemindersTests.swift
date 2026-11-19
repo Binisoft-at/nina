@@ -266,9 +266,30 @@ struct CoachRemindersTests {
         var late = reminderInput(now: reminderTime("2030-01-14", 21 * 60 + 30))
         late.checkpoint = reminderDay("2030-01-13")
         #expect(CoachReminders.plan(late).request("nina.coach.phase.review.1")?.date == reminderTime("2030-01-15", 10 * 60))
-        // A review decision ends it.
-        input.reviewedPhases = ["1"]
+        // A review decision ends it, but not one from before the checkpoint (a ceiling review).
+        input.reviews = ["1": reminderDay("2030-01-10")]
+        #expect(CoachReminders.plan(input).request("nina.coach.phase.review.1") != nil)
+        input.reviews = ["1": reminderDay("2030-01-13")]
         #expect(CoachReminders.plan(input).request("nina.coach.phase.review.1") == nil)
+    }
+
+    @Test func remindersKeepTheirClockTimeOnDaylightSavingDays() throws {
+        var vienna = Calendar(identifier: .gregorian)
+        vienna.timeZone = try #require(TimeZone(identifier: "Europe/Vienna"))
+        // The Sunday the clocks go forward and the one they go back.
+        for raw in ["2030-03-31", "2030-10-27"] {
+            let day = reminderDay(raw)
+            let now = day.date(minutes: 5 * 60, calendar: vienna)
+            var input = CoachReminders.Input(plan: reminderPlan(), now: now, today: day, calendar: vienna)
+            input.targets[day] = reminderRest
+            let schedule = CoachReminders.plan(input)
+            #expect(!schedule.requests.isEmpty)
+            for request in schedule.requests {
+                let minutes = ClockTime.minutes(of: request.date, calendar: vienna)
+                #expect(minutes == request.minutes % 1440, "\(raw) \(request.id) at \(ClockTime.text(minutes))")
+                #expect(minutes >= CoachReminders.earliestMinutes && minutes <= CoachReminders.latestMinutes, "\(request.id)")
+            }
+        }
     }
 
     @Test func phaseEndOnItsDate() throws {

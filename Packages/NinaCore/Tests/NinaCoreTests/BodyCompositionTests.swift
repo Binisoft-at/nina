@@ -374,7 +374,7 @@ struct BodyCompositionTests {
         #expect(arm?.isClear == false && arm?.label == GirthTrend.noClearChange)
         #expect(GirthTrend.label(-0.6, site: .arm) == "down 0.6 cm")
         #expect(GirthTrend.label(0.9, site: .waist) == "no clear change")
-        #expect(GirthTrend.isClear(1.0, site: .waist) && !GirthTrend.isClear(0.45, site: .neck))
+        #expect(GirthTrend.isClear(1.0, site: .waist) && !GirthTrend.isClear(0.44, site: .neck))
         let acrossYears = GirthChange(site: .waist, from: GirthReading(day: compDay("2030-12-16"), value: 84),
                                       to: GirthReading(day: compDay("2031-01-13"), value: 82.5))
         #expect(acrossYears.label == "down 1.5 cm (16 Dec 2030 – 13 Jan 2031)")
@@ -462,5 +462,71 @@ struct BodyCompositionTests {
         #expect(BodyCeiling.reached(phase: gain, waistChangeSinceStart: nil, waistToHeight: nil, bodyFat: 22).isEmpty)
         let loss = CoachPlan.Phase(id: "2", goal: .lose, start: compDay("2030-06-03"))
         #expect(BodyCeiling.reached(phase: loss, waistChangeSinceStart: 5, waistToHeight: 0.6).isEmpty)
+    }
+
+    @Test func girthChangesAreJudgedAsShown() {
+        // Means of two readings end in .x5: 84.25 → 85.2 shows "+1.0 cm" and is a clear change.
+        let merged = BodyReadings.merged([84.3, 84.2])
+        #expect(merged.map { abs($0 - 84.25) < 1e-9 } == true)
+        #expect(GirthTrend.isClear(85.2 - 84.25, site: .waist))
+        #expect(GirthTrend.label(85.2 - 84.25, site: .waist) == "up 1.0 cm")
+        #expect(GirthTrend.isClear(36.7 - 36.25, site: .arm))
+        // Shown as +0.9: not clear.
+        #expect(!GirthTrend.isClear(85.15 - 84.25, site: .waist))
+        #expect(!GirthTrend.isClear(-0.94, site: .waist) && GirthTrend.isClear(-0.96, site: .waist))
+        let change = GirthChange(site: .waist, from: GirthReading(day: compDay("2030-01-07"), value: 84.25),
+                                 to: GirthReading(day: compDay("2030-02-04"), value: 85.2))
+        #expect(change.isClear)
+        #expect(GirthTrend.gainLine([change]) == "waist +1.0 cm")
+    }
+
+    @Test func ceilingsFromWaistReadings() {
+        // 180 cm: a ratio of 0.5 is a 90 cm waist.
+        let start = compDay("2030-01-07")
+        let gain = CoachPlan.Phase(id: "1", goal: .gain, start: start, startedAt: Date(timeIntervalSince1970: 0), status: .active)
+        func reached(_ waists: [(String, Double)], height: Double = 180) -> [BodyCeiling] {
+            BodyCeiling.reached(phase: gain, waists: waists.map { (day: compDay($0.0), cm: $0.1) }, heightCm: height)
+        }
+        // Starting at 0.5 or more: no review on day 1, nor later while it was already there.
+        #expect(reached([("2030-01-07", 91)]).isEmpty)
+        #expect(reached([("2030-01-07", 91), ("2030-01-14", 91.5)]).isEmpty)
+        // Rising to 0.5 during the phase opens it.
+        #expect(reached([("2030-01-07", 88.5), ("2030-02-04", 90.2)]) == [.waistToHeight])
+        // No reading by the start: the first one after it is the base (a phase imported with an
+        // earlier start, or the baseline taken the morning after) and never opens it on its own.
+        #expect(reached([("2030-01-14", 90.5)]).isEmpty)
+        #expect(reached([("2030-01-14", 85)]).isEmpty)
+        #expect(reached([("2030-01-14", 88), ("2030-02-11", 90.5)]) == [.waistToHeight])
+        #expect(reached([("2030-01-14", 90.5), ("2030-02-11", 91)]).isEmpty)
+        // The waist gain since the start (against the last reading on or before it), any order.
+        #expect(reached([("2030-02-25", 84.1), ("2029-12-30", 79.5), ("2030-01-06", 80)], height: 0) == [.waistGain])
+        #expect(reached([("2030-01-06", 80), ("2030-02-25", 83.9)], height: 0).isEmpty)
+        // Without a height only the waist gain; outside a gain phase nothing.
+        #expect(reached([("2030-01-14", 95)], height: 0).isEmpty)
+        let loss = CoachPlan.Phase(id: "2", goal: .lose, start: start)
+        #expect(BodyCeiling.reached(phase: loss, waists: [(day: start, cm: 80), (day: compDay("2030-03-04"), cm: 95)], heightCm: 180).isEmpty)
+    }
+
+    @Test func waistRatiosPairTheLatestHip() {
+        let full = compTape("2030-01-07", [.waist: 84, .hip: 100, .neck: 38])
+        let weekly = compTape("2030-01-14", [.waist: 84.4])
+        // A weekly waist-only record keeps waist-to-hip (paired with the full set's hip).
+        let ratios = BodyComposition.waistRatios([weekly, full], sex: .male, heightCm: 168, calendar: compositionUTC)
+        #expect(ratios.waistToHip.map { abs($0 - 0.844) < 1e-9 } == true)
+        #expect(ratios.waistToHeight.map { abs($0 - 84.4 / 168) < 1e-9 } == true)
+        // An evening reading doesn't replace the latest standard waist.
+        let evening = compTape("2030-01-15", [.waist: 87], standard: false)
+        let withEvening = BodyComposition.waistRatios([full, weekly, evening], sex: .male, heightCm: 168, calendar: compositionUTC)
+        #expect(withEvening.waistToHeight.map { abs($0 - 84.4 / 168) < 1e-9 } == true)
+        // Only readings that aren't standard: the latest one.
+        let onlyEvening = BodyComposition.waistRatios([evening], sex: .male, heightCm: 168, calendar: compositionUTC)
+        #expect(onlyEvening.waistToHeight.map { abs($0 - 87.0 / 168) < 1e-9 } == true)
+        #expect(onlyEvening.waistToHip == nil)
+        // A hip more than 12 weeks away doesn't pair; no height, no waist-to-height.
+        let late = compTape("2030-04-15", [.waist: 85])
+        let apart = BodyComposition.waistRatios([full, late], sex: .male, heightCm: 0, calendar: compositionUTC)
+        #expect(apart.waistToHip == nil)
+        #expect(apart.waistToHeight == nil)
+        #expect(BodyComposition.waistRatios([], sex: .male, heightCm: 168).waistToHeight == nil)
     }
 }

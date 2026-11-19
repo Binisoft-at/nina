@@ -435,12 +435,14 @@ struct CheckInEngineTests {
         let held = CheckInEngine.evaluate(input, calendar: checkInUTC)
         #expect(held.verdict == .faster)
         #expect(held.rule == .weightCheckHold)
-        #expect(held.status == .watch)
+        // The status line follows F11 (the rate out at 2 check-ins in a row is "Off track"), as
+        // Progress and Today say; only the verdict and the proposal are held.
+        #expect(held.status == .offTrack)
         #expect(held.delta == 0)
         #expect(held.step == -150)
         #expect(held.notes.first == "Creatine started 9 days ago – up to ~1 kg may be water")
         #expect(held.reason == "Faster than planned, but Creatine started 9 days ago – up to ~1 kg may be water, so keep it for now.")
-        // Held even when the gate fails: no red "off track" because of water.
+        // The verdict is held even when the gate fails: no "Off track" verdict because of water.
         var gated = input
         gated.loggedDays = 5
         #expect(CheckInEngine.evaluate(gated, calendar: checkInUTC).verdict == .faster)
@@ -492,6 +494,62 @@ struct CheckInEngineTests {
         let derived = CheckInEngine.evaluate(f.input(rate: 0.05, plan: adjusted, history: [f.previous(.below, on: "2030-01-28")]), calendar: checkInUTC)
         #expect(derived.rule == .locked)
         #expect(derived.reason == "Targets changed 13 days ago – give them until Mon 11 Feb before the next change.")
+    }
+
+    @Test func redoAfterApplyingSaysTheTargetsAlreadyChanged() throws {
+        let f = CheckInFixture.self
+        let history = [f.previous(.below, on: "2030-01-28")]
+        let first = CheckInEngine.evaluate(f.input(rate: 0.05, history: history), calendar: checkInUTC)
+        #expect(first.rule == .proposal)
+        #expect(first.delta == 100)
+        // "Apply from tomorrow", then Redo the same day: the plan holds the change from Tue 5 Feb.
+        let applied = CheckInEngine.applying(first.delta, to: f.plan(), from: checkInDay("2030-02-05"), weightKg: 80, fallback: f.profile)
+        #expect(CheckInEngine.lastAdjustment(in: applied, on: f.checkInDay) == checkInDay("2030-02-05"))
+        #expect(CheckInEngine.lastAdjustment(in: applied, on: f.checkInDay, inForce: true) == nil)
+        let redo = CheckInEngine.evaluate(f.input(rate: 0.05, plan: applied, history: history), calendar: checkInUTC)
+        #expect(redo.rule == .locked)
+        #expect(redo.delta == 0)
+        #expect(!redo.hasProposal)
+        #expect(redo.reason == "Targets change from Tue 5 Feb – the next check-in judges them.")
+        // Same verdict and status as before the tap.
+        #expect(redo.verdict == .offTarget)
+        #expect(redo.status == .offTrack)
+        #expect(redo.outsideInARow == 2)
+        // Never offered again, even while the window is too short to judge.
+        let short = f.input(rate: nil, plan: applied, history: history)
+        #expect(CheckInEngine.evaluate(short, calendar: checkInUTC).rule == .locked)
+        // A week later the lock counts from the day the change started.
+        let next = CheckInEngine.evaluate(f.input(rate: 0.05, plan: applied, history: history, day: checkInDay("2030-02-11")),
+                                          calendar: checkInUTC)
+        #expect(next.rule == .confirming || next.rule == .locked)
+        #expect(next.delta == 0)
+
+        // Saving the redo keeps the applied decision in the record.
+        var saved = CheckInSnapshot(day: f.checkInDay)
+        saved.record(first, phaseID: "1")
+        saved.decision = .applied
+        var redone = CheckInSnapshot(day: f.checkInDay)
+        redone.record(redo, phaseID: "1")
+        redone.ratings = CheckInRatings(sleep: 4)
+        redone.keepAppliedDecision(of: saved)
+        #expect(redone.decision == .applied)
+        #expect(redone.deltaKcal == 100)
+        #expect(redone.verdict == .offTarget)
+        #expect(redone.deviation == .below)
+        #expect(redone.decisionText == "+100 kcal")
+        #expect(redone.ratings.sleep == 4)
+        // Only after an applied change, and never over a decision of its own.
+        var kept = saved
+        kept.decision = .kept
+        var other = CheckInSnapshot(day: f.checkInDay)
+        other.keepAppliedDecision(of: kept)
+        #expect(other.decision == nil)
+        other.decision = .kept
+        other.keepAppliedDecision(of: saved)
+        #expect(other.decision == .kept)
+        other.decision = nil
+        other.keepAppliedDecision(of: nil)
+        #expect(other.decision == nil)
     }
 
     @Test func gatheringNamesTheFirstAdjustmentCheck() {

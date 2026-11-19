@@ -900,6 +900,27 @@ extension BodyComposition {
     /// The neutral label next to the waist-to-height ratio.
     public static let waistToHeightNote = "under 0.5 is the usual health guideline"
 
+    /// The waist ratios the Body page shows, from tape records in any order. The waist is the
+    /// latest standard reading (morning, before eating; any reading only when there is no
+    /// standard one), as the review ceiling reads it. Waist-to-hip pairs it with the latest hip
+    /// reading (standard first) at most `NavyBodyFat.maxApartDays` away, so a weekly waist-only
+    /// record doesn't hide the ratio until the next full set. `heightCm` 0 = unknown.
+    public static func waistRatios(_ records: [BodyTapeRecord], sex: Sex, heightCm: Double,
+                                   calendar: Calendar = .current) -> (waistToHeight: Double?, waistToHip: Double?) {
+        let sorted = records.sorted { ($0.day, $0.time ?? .distantPast) < ($1.day, $1.time ?? .distantPast) }
+        let withWaist = sorted.filter { BodyComposition.waist(in: $0.values, sex: sex) != nil }
+        guard let record = withWaist.last(where: { $0.isStandard }) ?? withWaist.last,
+              let waistCm = BodyComposition.waist(in: record.values, sex: sex) else { return (nil, nil) }
+        let height = heightCm > 0 ? BodyComposition.waistToHeight(waistCm: waistCm, heightCm: heightCm) : nil
+        let hips = sorted.filter { candidate in
+            (candidate.values[.hip] ?? 0) > 0
+                && abs(candidate.day.days(to: record.day, calendar: calendar)) <= NavyBodyFat.maxApartDays
+        }
+        let hipCm = (hips.last(where: { $0.isStandard }) ?? hips.last)?.values[.hip]
+        let hip = hipCm.flatMap { BodyComposition.waistToHip(waistCm: waistCm, hipCm: $0) }
+        return (height, hip)
+    }
+
     /// The waist value for the ratios: the narrow waist first for women, else the navel waist
     /// (and the other one when that is missing).
     public static func waist(in values: BodyValues, sex: Sex) -> Double? {
@@ -936,6 +957,32 @@ public enum BodyCeiling: String, Codable, Sendable, CaseIterable {
         if let ratio = waistToHeight, ratio >= BodyComposition.waistToHeightGuideline - 1e-9 { reached.append(.waistToHeight) }
         if bodyFatCeiling > 0, let bodyFat, bodyFat >= bodyFatCeiling - 1e-9 { reached.append(.bodyFat) }
         return reached
+    }
+
+    /// The ceilings reached in a gain phase from its standard waist readings (any order;
+    /// `waists`: day and cm). The base is the last reading on or before the phase start, else the
+    /// first after it (the baseline tape of a phase imported with an earlier start, or taken the
+    /// morning after); the change since the start compares the latest reading with it. The
+    /// waist-to-height ceiling (`heightCm` 0 = unknown) fires only once the ratio rose to 0.5 or
+    /// more during the phase: a later reading at 0.5 or more while the base was below it. The base
+    /// reading alone never opens it (a person who starts at 0.5 or more isn't asked to review as
+    /// soon as the baseline tape is saved), nor does a later one when the base was already there.
+    public static func reached(phase: CoachPlan.Phase, waists: [(day: DayKey, cm: Double)], heightCm: Double,
+                               bodyFat: Double? = nil, bodyFatCeiling: Double = 0) -> [BodyCeiling] {
+        guard phase.goal == .gain, let start = phase.start else { return [] }
+        let sorted = waists.filter { $0.cm > 0 }.sorted { $0.day < $1.day }
+        var change: Double?
+        var ratio: Double?
+        if let latest = sorted.last, let base = sorted.last(where: { $0.day <= start }) ?? sorted.first(where: { $0.day >= start }),
+           latest.day > base.day {
+            change = latest.cm - base.cm
+            if heightCm > 0, let now = BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) {
+                let before = BodyComposition.waistToHeight(waistCm: base.cm, heightCm: heightCm) ?? 0
+                if before < BodyComposition.waistToHeightGuideline - 1e-9 { ratio = now }
+            }
+        }
+        return reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio, bodyFat: bodyFat,
+                       bodyFatCeiling: bodyFatCeiling)
     }
 }
 
@@ -1013,8 +1060,11 @@ public enum GirthTrend {
         fourWeekChange(readings(site, in: records, includeNonStandard: includeNonStandard), calendar: calendar)
     }
 
-    /// |change| at least the site's MDC.
-    public static func isClear(_ change: Double, site: BodySite) -> Bool { abs(change) >= site.mdc - 1e-9 }
+    /// |change| at least the site's MDC, judged at the 0.1 cm the screens show: means of two
+    /// readings end in .x5, and "+1.0 cm" must never read "no clear change" (84.25 → 85.2).
+    public static func isClear(_ change: Double, site: BodySite) -> Bool {
+        abs((change * 10).rounded() / 10) >= site.mdc - 1e-9
+    }
 
     /// "no clear change", "up 1.2 cm", "down 0.6 cm".
     public static func label(_ change: Double, site: BodySite) -> String {

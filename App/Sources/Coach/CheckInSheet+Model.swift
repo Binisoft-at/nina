@@ -238,6 +238,11 @@ enum CheckInSheetText {
         sign(value) + Fmt.number(abs(value).rounded()) + " kcal"
     }
 
+    /// "+100 kcal", "+418 kJ": a change in kcal shown in the person's energy unit.
+    static func signedEnergy(_ kilocalories: Double, unit: EnergyUnit) -> String {
+        sign(unit.value(fromKilocalories: kilocalories)) + Fmt.energy(abs(kilocalories), unit: unit)
+    }
+
     /// "+0.4 kg", "−1.2 kg", "±0 kg"
     static func signedKg(_ value: Double, decimals: Int = 1) -> String {
         sign(value, decimals: decimals) + Fmt.number(abs(value), decimals: decimals) + " kg"
@@ -263,11 +268,10 @@ enum CheckInSheetText {
         sign(value, decimals: 2) + Fmt.number(abs(value), decimals: 2) + " kg/week"
     }
 
-    /// "+0.15 to +0.25 kg/week" (signed range).
+    /// "+0.15 to +0.25 kg a week", "−0.30 to −0.50 kg a week": the same order and words as the
+    /// Body page and Today (`BodyPageText.range`).
     static func range(_ range: ClosedRange<Double>) -> String {
-        let low = sign(range.lowerBound, decimals: 2) + Fmt.number(abs(range.lowerBound), decimals: 2)
-        let high = sign(range.upperBound, decimals: 2) + Fmt.number(abs(range.upperBound), decimals: 2)
-        return "\(low) to \(high) kg/week"
+        BodyPageText.range(range) + " kg a week"
     }
 
     /// "Mon 7 Dec"
@@ -404,13 +408,16 @@ extension AppModel {
         case .applied?, .edited?:
             change = store.applyCheckIn(snapshot, delta: delta, from: evaluation.applyFrom, weightKg: evaluation.input.weightKg,
                                         decision: decision ?? .applied)
-            message = "\(CheckInSheetText.signedKcal(delta)) a day from tomorrow"
+            message = "\(CheckInSheetText.signedEnergy(delta, unit: settings.energyUnit)) a day from tomorrow"
         case .kept?:
             snapshot.decision = .kept
             change = store.saveCheckIn(snapshot)
             message = "Check-in saved – targets kept"
         case nil:
             snapshot.decision = nil
+            // A redo after "Apply from tomorrow" keeps the applied change in the record: the plan
+            // keeps it too.
+            snapshot.keepAppliedDecision(of: evaluation.saved)
             change = store.saveCheckIn(snapshot)
             message = "Check-in saved"
         }

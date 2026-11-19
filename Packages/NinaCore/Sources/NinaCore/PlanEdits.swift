@@ -129,8 +129,9 @@ public enum PlanEdits {
     // MARK: Targets
 
     /// The plan with a day type's own targets in the phase active on `day` (nil = the same as the
-    /// baseline), as a revision from `day` on. Revisions that start later get the same targets,
-    /// so the change holds from `day` on. Unchanged without an active phase or when nothing differs.
+    /// baseline), as a revision from `day` on. Revisions that start later move by the same
+    /// difference, so the change holds from `day` on and a change they made (an adjustment
+    /// applied from tomorrow) stays on top. Unchanged without an active phase or when nothing differs.
     public static func settingTargets(_ targets: DailyTargets?, forType typeID: String, in plan: CoachPlan, on day: DayKey) -> CoachPlan {
         changingTargets(in: plan, on: day) { revision in
             revision.byType[typeID] = targets
@@ -162,8 +163,10 @@ public enum PlanEdits {
     }
 
     /// Changes the revision in force on `day` (copied into one from `day`, reason "edit"; a
-    /// revision that already starts on `day` keeps its reason, so an adjustment's lock stays) and
-    /// every later revision of the active phase the same way.
+    /// revision that already starts on `day` keeps its reason, so an adjustment's lock stays).
+    /// Every later revision of the active phase moves by the same difference, field by field
+    /// (`carrying(_:from:to:)`): applying +100 from tomorrow and then raising Gym protein today
+    /// keeps tomorrow's +100.
     static func changingTargets(in plan: CoachPlan, on day: DayKey, _ change: (inout CoachPlan.Revision) -> Void) -> CoachPlan {
         guard let phase = plan.activePhase(on: day), let index = plan.phases.firstIndex(where: { $0.id == phase.id }) else { return plan }
         var current = phase.revision(on: day) ?? CoachPlan.Revision(from: day)
@@ -171,7 +174,7 @@ public enum PlanEdits {
         change(&current)
         var later = phase.revisions.filter { $0.from > day }
         let laterBefore = later
-        for position in later.indices { change(&later[position]) }
+        for position in later.indices { later[position] = carrying(later[position], from: before, to: current) }
         guard current.baseline != before.baseline || current.byType != before.byType || later != laterBefore else { return plan }
         let reason = before.from == day && !before.reason.isEmpty ? before.reason : "edit"
         var result = plan.addingRevision(phase: phase.id, from: day, baseline: current.baseline, byType: current.byType, reason: reason)
@@ -179,6 +182,50 @@ public enum PlanEdits {
         let kept = result.phases[index].revisions.filter { $0.from <= day }
         result.phases[index].revisions = (kept + later).sorted { $0.from < $1.from }
         return result
+    }
+
+    /// A later revision after an edit of the revision in force (`before` → `edited`): the
+    /// baseline and every day type move by what the edit changed, field by field, on top of what
+    /// the later revision already differs by. A type without its own targets counts as its
+    /// revision's baseline. A type set back to the baseline (nil) is nil later too; where there is
+    /// nothing to measure the difference from (no baseline before), the edited targets are copied.
+    static func carrying(_ revision: CoachPlan.Revision, from before: CoachPlan.Revision, to edited: CoachPlan.Revision) -> CoachPlan.Revision {
+        var result = revision
+        if before.baseline != edited.baseline {
+            if let old = before.baseline, let new = edited.baseline, let value = revision.baseline {
+                result.baseline = offset(value, from: old, to: new)
+            } else {
+                result.baseline = edited.baseline
+            }
+        }
+        let ids = Set(before.byType.keys).union(edited.byType.keys).union(revision.byType.keys)
+        for id in ids.sorted() {
+            let old = before.byType[id] ?? before.baseline
+            let new = edited.byType[id] ?? edited.baseline
+            guard old != new || before.byType[id] != edited.byType[id] else { continue }
+            if edited.byType[id] == nil, before.byType[id] != nil {
+                result.byType[id] = nil
+            } else if let old, let new, let value = revision.byType[id] ?? revision.baseline {
+                result.byType[id] = offset(value, from: old, to: new)
+            } else if let own = edited.byType[id] {
+                result.byType[id] = own
+            }
+        }
+        return result
+    }
+
+    /// `targets` moved by `edited − before` in every field (never below 0).
+    static func offset(_ targets: DailyTargets, from before: DailyTargets, to edited: DailyTargets) -> DailyTargets {
+        func moved(_ value: Double, _ old: Double, _ new: Double) -> Double { max(0, value + (new - old)) }
+        return DailyTargets(energy: moved(targets.energy, before.energy, edited.energy),
+                            protein: moved(targets.protein, before.protein, edited.protein),
+                            carbs: moved(targets.carbs, before.carbs, edited.carbs),
+                            fat: moved(targets.fat, before.fat, edited.fat),
+                            fiber: moved(targets.fiber, before.fiber, edited.fiber),
+                            sugarMax: moved(targets.sugarMax, before.sugarMax, edited.sugarMax),
+                            saturatedFatMax: moved(targets.saturatedFatMax, before.saturatedFatMax, edited.saturatedFatMax),
+                            sodiumMax: moved(targets.sodiumMax, before.sodiumMax, edited.sodiumMax),
+                            water: moved(targets.water, before.water, edited.water))
     }
 
     // MARK: Checks

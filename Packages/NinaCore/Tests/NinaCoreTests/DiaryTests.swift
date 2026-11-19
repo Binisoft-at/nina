@@ -42,6 +42,31 @@ struct DayTests {
         #expect(ClockTime.parse("25:00") == nil)
         #expect(ClockTime.text(450) == "07:30")
     }
+
+    @Test func timesOnADayStayOnTheWallClock() throws {
+        var vienna = Calendar(identifier: .gregorian)
+        vienna.timeZone = try #require(TimeZone(identifier: "Europe/Vienna"))
+        // The clocks go forward on 31 Mar 2030 and back on 27 Oct 2030: 06:00, 07:00 and 21:00 stay.
+        for raw in ["2030-03-31", "2030-10-27", "2030-06-12"] {
+            let day = try #require(DayKey(raw))
+            for minutes in [6 * 60, 7 * 60, 21 * 60] {
+                let date = day.date(minutes: minutes, calendar: vienna)
+                #expect(ClockTime.minutes(of: date, calendar: vienna) == minutes, "\(raw) \(ClockTime.text(minutes))")
+                #expect(DayKey(date: date, calendar: vienna) == day)
+            }
+        }
+        // Past midnight: the next day (a slot time plus a delay).
+        let day = try #require(DayKey("2030-03-30"))
+        let late = day.date(minutes: 25 * 60 + 10, calendar: vienna)
+        #expect(DayKey(date: late, calendar: vienna).rawValue == "2030-03-31")
+        #expect(ClockTime.minutes(of: late, calendar: vienna) == 70)
+        let before = day.date(minutes: -30, calendar: vienna)
+        #expect(DayKey(date: before, calendar: vienna).rawValue == "2030-03-29")
+        #expect(ClockTime.minutes(of: before, calendar: vienna) == 23 * 60 + 30)
+        // A time the clock skips moves forward with it.
+        let skipped = try #require(DayKey("2030-03-31")).date(minutes: 2 * 60 + 30, calendar: vienna)
+        #expect(ClockTime.minutes(of: skipped, calendar: vienna) == 3 * 60 + 30)
+    }
 }
 
 @Suite("Goals")

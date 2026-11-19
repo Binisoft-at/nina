@@ -45,8 +45,9 @@ struct CoachContext {
     let bodyFatReadings: [BodyFatReading]
     /// The saved check-ins, one per week, oldest first.
     let checkIns: [CheckInSnapshot]
-    /// Phases with a review decision (keep, hold or cut).
-    let reviewedPhases: Set<String>
+    /// The review decisions (keep, hold or cut), the newest day per phase: the checkpoint needs
+    /// one on or after its crossing, a ceiling any (`PhaseReviews`).
+    let reviews: PhaseReviews
     /// `day`'s daily checks: check id → done or skipped (missing = open).
     let checkStates: [String: CheckState]
     /// Gain-phase ceilings reached today (waist gain, waist-to-height, body fat): they open the review.
@@ -130,7 +131,7 @@ struct CoachContext {
             store: store, day: day, today: today, now: now, settings: settings, weights: weights, healthReadings: health,
             signal: signal, summary: summary, schedule: schedule, dueItems: due, board: board, proteinRule: rule,
             activePhase: phase, measurements: measurements, tapeRecords: tape, bodyFatReadings: fatReadings,
-            checkIns: store.checkIns(), reviewedPhases: store.reviewedPhaseIDs(), checkStates: store.checkStates(on: day),
+            checkIns: store.checkIns(), reviews: store.phaseReviews(), checkStates: store.checkStates(on: day),
             ceilings: ceilings, checkIn: nil)
         if checkIn { context.checkIn = context.evaluateCheckIn(week: day) }
         return context
@@ -141,7 +142,7 @@ struct CoachContext {
     /// The check-in of the week `week` falls in (any day of it), computed now.
     func evaluateCheckIn(week: DayKey) -> CheckInEvaluation {
         CheckInEvaluation.evaluate(store: store, settings: settings, signal: signal, week: week, today: today,
-                                   checkIns: checkIns, reviewedPhases: reviewedPhases)
+                                   checkIns: checkIns, reviews: reviews)
     }
 
     /// Measured maintenance over the 28 days ending on `day` (default today); nil without enough
@@ -170,7 +171,8 @@ struct CoachContext {
 
     private func proposal(for id: String, in started: CoachPlan) -> PhaseTransition.Proposal? {
         guard let phase = started.phase(id: id), phase.revisions.isEmpty else { return nil }
-        let weight = bodyWeight?.kilograms ?? settings.body.weightKg
+        // 0 = unknown: no derived rate and no g/kg floors from the 72 kg placeholder.
+        let weight = bodyWeight?.kilograms ?? 0
         return PhaseTransition.proposal(for: phase, in: started, on: today, weightKg: weight, maintenance: maintenance(),
                                         body: settings.body, fallback: settings.targets, calendar: calendar)
     }
@@ -191,29 +193,22 @@ struct CoachContext {
         return totals
     }
 
-    /// The gain-phase ceilings reached (`BodyCeiling.reached`): standard waist readings since the
-    /// phase start (against the last one on or before it, else the first after it), the latest
-    /// waist-to-height ratio and the latest tracking body fat against the phase's optional
-    /// body-fat ceiling. `heightCm`: the profile's stored height (0 = not entered); the ratio
-    /// needs only the height, not the birth year. `bodyFat`: `PhaseBodyFat.latest` (nil = none).
+    /// The gain-phase ceilings reached (`BodyCeiling.reached(phase:waists:…)`): standard waist
+    /// readings since the phase start (against the last one on or before it, else the first after
+    /// it), the waist-to-height ratio once it rose to 0.5 during the phase, and the latest
+    /// tracking body fat against the phase's optional body-fat ceiling. `heightCm`: the profile's
+    /// stored height (0 = not entered); the ratio needs only the height, not the birth year.
+    /// `bodyFat`: `PhaseBodyFat.latest` (nil = none).
     static func reachedCeilings(phase: CoachPlan.Phase?, tape: [BodyTapeRecord], settings: NinaSettings,
                                 heightCm: Double, bodyFat: Double? = nil) -> [BodyCeiling] {
-        guard let phase, phase.goal == .gain, let start = phase.start else { return [] }
+        guard let phase, phase.goal == .gain else { return [] }
         let sex = settings.body.sex
         var waists: [(day: DayKey, cm: Double)] = []
         for record in tape where record.isStandard {
             if let cm = BodyComposition.waist(in: record.values, sex: sex) { waists.append((day: record.day, cm: cm)) }
         }
-        waists.sort { $0.day < $1.day }
-        var change: Double?
-        var ratio: Double?
-        if let latest = waists.last {
-            let base = waists.last(where: { $0.day <= start }) ?? waists.first(where: { $0.day >= start })
-            if let base, latest.day > base.day { change = latest.cm - base.cm }
-            if heightCm > 0 { ratio = BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) }
-        }
-        return BodyCeiling.reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio,
-                                   bodyFat: bodyFat, bodyFatCeiling: phase.bodyFatCeiling)
+        return BodyCeiling.reached(phase: phase, waists: waists, heightCm: heightCm, bodyFat: bodyFat,
+                                   bodyFatCeiling: phase.bodyFatCeiling)
     }
 
     /// The typed or Health weight nearest the phase start (the summary's start weight when the
@@ -245,10 +240,11 @@ struct CheckInEvaluation {
     let phase: CoachPlan.Phase?
     let input: CheckInInput
     let result: CheckInResult
-    /// The decision window (the adherence gate) and "How it went" (the 7 days before).
+    /// The decision window (the adherence gate) and "How it went" (the 7 days before, from the
+    /// day the plan was set up).
     let windowSummary: AdherenceSummary
     let weekSummary: AdherenceSummary
-    /// The 7 days of "How it went", oldest first.
+    /// The days of "How it went" (up to 7, none before the set-up day), oldest first.
     let weekDays: [DayAdherence]
     /// Measured maintenance (28 days ending on the check-in day).
     let maintenance: Insights.Maintenance?
@@ -270,7 +266,7 @@ struct CheckInEvaluation {
     }
 
     static func evaluate(store: NinaStore, settings: NinaSettings, signal: WeightSignal, week: DayKey, today: DayKey,
-                         checkIns: [CheckInSnapshot], reviewedPhases: Set<String>) -> CheckInEvaluation {
+                         checkIns: [CheckInSnapshot], reviews: PhaseReviews) -> CheckInEvaluation {
         let calendar = store.calendar
         let plan = settings.plan
         let monday = week.startOfWeek(calendar: calendar)
@@ -283,7 +279,7 @@ struct CheckInEvaluation {
         var input = CheckInInput(day: day, plan: plan, fallback: settings.targets, history: history,
                                  weightCheck: CheckInEngine.weightCheck(in: plan, ticks: store.checkTicks()),
                                  bmr: GoalCalculator.bmr(settings.body), sex: settings.body.sex)
-        input.use(signal: signal, reviewed: phase.map { reviewedPhases.contains($0.id) } ?? false)
+        input.use(signal: signal, reviews: reviews)
 
         // Diary totals for the decision window, the week and the 28-day maintenance window.
         let windowKeys = input.adherenceDays(calendar: calendar)
@@ -295,7 +291,7 @@ struct CheckInEvaluation {
         input.maintenance = maintenance
 
         let done = store.doneChecks(from: start, through: day)
-        let incomplete = Set(store.dayMarks(.event, from: start, through: day).filter { $0.key == "incompleteLog" }.map(\.dayKey))
+        let incomplete = store.incompleteDays(from: start, through: day)
         let marks = settings.dayTypeMarks
         let weightKg = input.weightKg
         let mealSlots = settings.meals.count

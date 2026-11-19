@@ -131,6 +131,51 @@ struct PlanEditsTests {
         #expect(latest.byType["gym"]?.energy == 2750)
     }
 
+    @Test func anAdjustmentFromTomorrowSurvivesAnEditToday() throws {
+        // "Apply from tomorrow" (+100 from Tue 5 Feb), then a My Plan edit on Mon 4 Feb.
+        let today = editsDay("2030-02-04"), tomorrow = editsDay("2030-02-05")
+        let applied = CheckInEngine.applying(100, to: EditsFixture.plan(), from: tomorrow, weightKg: 80, fallback: EditsFixture.rest)
+        let adjusted = try #require(applied.phase(id: "1")?.revision(on: tomorrow))
+        let adjustedGym = try #require(adjusted.byType["gym"])
+        let adjustedRest = try #require(adjusted.byType["rest"])
+        #expect(adjustedGym.energy == 2700)
+        #expect(adjusted.reason.hasPrefix("adjust"))
+
+        // Gym energy 2600 → 2650 today: tomorrow 2700 → 2750, the other types keep the +100.
+        var gym = EditsFixture.gym
+        gym.energy = 2650
+        let energyEdit = PlanEdits.settingTargets(gym, forType: "gym", in: applied, on: today)
+        let later = try #require(energyEdit.phase(id: "1")?.revision(on: tomorrow))
+        #expect(later.from == tomorrow)
+        #expect(later.reason == adjusted.reason)
+        #expect(later.byType["gym"]?.energy == 2750)
+        #expect(later.byType["gym"]?.protein == adjustedGym.protein)
+        #expect(later.byType["rest"] == adjustedRest)
+        #expect(later.baseline == adjusted.baseline)
+        #expect(energyEdit.phase(id: "1")?.revision(on: today)?.byType["gym"]?.energy == 2650)
+
+        // Protein only: tomorrow keeps its +100 energy and gets the protein.
+        var protein = EditsFixture.gym
+        protein.protein = 170
+        let proteinEdit = PlanEdits.settingTargets(protein, forType: "gym", in: applied, on: today)
+        let laterProtein = try #require(proteinEdit.phase(id: "1")?.revision(on: tomorrow)?.byType["gym"])
+        #expect(laterProtein.energy == 2700)
+        #expect(laterProtein.protein == 170)
+        #expect(laterProtein.carbs == adjustedGym.carbs)
+
+        // The baseline moves by the same difference.
+        var baseline = EditsFixture.rest
+        baseline.energy = 2450
+        let baselineEdit = PlanEdits.settingBaseline(baseline, in: applied, on: today)
+        let laterBaseline = try #require(baselineEdit.phase(id: "1")?.revision(on: tomorrow)?.baseline)
+        #expect(laterBaseline.energy == (adjusted.baseline?.energy ?? 0) + 50)
+        #expect(baselineEdit.phase(id: "1")?.revision(on: tomorrow)?.byType["gym"] == adjustedGym)
+
+        // "Same as baseline" stays nil later too.
+        let same = PlanEdits.settingTargets(nil, forType: "gym", in: applied, on: today)
+        #expect(same.phase(id: "1")?.revision(on: tomorrow)?.byType["gym"] == nil)
+    }
+
     @Test func calculatedTargetsMoveEveryDayTypeTheSame() throws {
         let calculated = DailyTargets(energy: 2500, protein: 160, carbs: 285, fat: 80)
         let plan = PlanEdits.applyingCalculated(calculated, to: EditsFixture.plan(), on: editsDay("2030-01-20"),

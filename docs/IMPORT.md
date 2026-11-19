@@ -171,7 +171,9 @@ number is how many there will be).
   saved; the rest of the file still imports.
 - **Import** is only active when the file changes something. Afterwards a message says what
   changed, and its **Undo** puts back everything the import touched: your goals and settings, the
-  whole plan, the body values and the weight it logged.
+  whole plan, the body values and the weight it logged. When the same import also brings foods,
+  diary entries or meals & recipes, that one Undo takes them back too: new ones go to Recently
+  Deleted, changed ones get their old values.
 - The first import that sets up a plan asks once: **"Turn on coach reminders?"** (Turn On / Not
   Now). You can change them any time in Settings → Reminders → Coach.
 - **Imported checks remind you** (a supplement at its meal or time) unless the file says

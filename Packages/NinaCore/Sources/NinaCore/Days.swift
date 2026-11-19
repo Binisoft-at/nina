@@ -54,10 +54,16 @@ public struct DayKey: Hashable, Comparable, Sendable, Codable, CustomStringConve
         calendar.date(from: DateComponents(year: year, month: month, day: day)) ?? Date(timeIntervalSince1970: 0)
     }
 
-    /// A moment on this day: `minutes` after midnight.
+    /// A moment on this day at the wall-clock time `minutes` after midnight ("07:00" stays 07:00
+    /// on daylight-saving change days). Minutes of 1,440 or more (or below 0) move to the days
+    /// after (or before): 1,510 = 01:10 the next day. A time the clock skips (02:30 when it
+    /// springs forward) moves forward with it.
     public func date(minutes: Int, calendar: Calendar = .current) -> Date {
-        let start = date(calendar: calendar)
-        return calendar.date(byAdding: .minute, value: minutes, to: start) ?? start
+        let days = Int((Double(minutes) / 1440).rounded(.down))
+        let rest = minutes - days * 1440
+        let target = days == 0 ? self : adding(days: days, calendar: calendar)
+        let parts = DateComponents(year: target.year, month: target.month, day: target.day, hour: rest / 60, minute: rest % 60)
+        return calendar.date(from: parts) ?? target.date(calendar: calendar)
     }
 
     public func adding(days: Int, calendar: Calendar = .current) -> DayKey {

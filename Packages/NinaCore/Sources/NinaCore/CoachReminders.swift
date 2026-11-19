@@ -77,8 +77,9 @@ public enum CoachReminders {
         /// The first day the 7-day average reached the active phase's review weight
         /// (`WeightSignal.checkpointCrossing(in:through:)`).
         public var checkpoint: DayKey?
-        /// Phases with a review decision.
-        public var reviewedPhases: Set<String> = []
+        /// The review decisions per phase: the checkpoint's notification is off once a decision
+        /// on or after its crossing exists (a ceiling review earlier doesn't count).
+        public var reviews = PhaseReviews()
         /// When each phase's review notification was first planned (device-only): it comes once.
         public var reviewPlannedAt: [String: Date] = [:]
         public var days: Int = CoachReminders.windowDays
@@ -349,7 +350,7 @@ public enum CoachReminders {
     static func review(_ input: Input) -> Request? {
         let plan = input.plan, calendar = input.calendar
         guard input.kinds.contains(.phase), let crossed = input.checkpoint, crossed <= input.today,
-              let phase = plan.activePhase(on: input.today), !input.reviewedPhases.contains(phase.id),
+              let phase = plan.activePhase(on: input.today), input.reviews.checkpointIsOpen(phase.id, crossing: crossed),
               let weight = WeightSignal.checkpoint(of: phase) else { return nil }
         let date = input.reviewPlannedAt[phase.id] ?? nextAllowed(after: input.now, calendar: calendar)
         let day = DayKey(date: date, calendar: calendar)
