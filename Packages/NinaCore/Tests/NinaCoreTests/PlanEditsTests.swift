@@ -155,6 +155,14 @@ struct PlanEditsTests {
         let plan = PlanEdits.updatingCheck(check, in: added.plan)
         #expect(plan.check(id: "creatine")?.timing == .meal("breakfast"))
         #expect(PlanEdits.addingCheck(named: "Creatine", to: plan).id == "creatine2")
+
+        // Nothing ticked under "Weekdays" or "Day types": every day, as the settings file reads it back.
+        check.days = .dayTypes([])
+        #expect(PlanEdits.updatingCheck(check, in: plan).check(id: "creatine")?.days == .daily)
+        check.days = .weekdays(Weekdays([]))
+        #expect(PlanEdits.updatingCheck(check, in: plan).check(id: "creatine")?.days == .daily)
+        check.days = .weekdays(Weekdays([1, 4]))
+        #expect(PlanEdits.updatingCheck(check, in: plan).check(id: "creatine")?.days == .weekdays(Weekdays([1, 4])))
     }
 
     @Test func pausingAndResuming() throws {

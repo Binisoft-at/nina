@@ -272,8 +272,17 @@ struct PlanEditorView: View {
         } header: {
             Text("Your AI")
         } footer: {
-            Text("Import from My AI reads the settings file your AI wrote, with a preview first. Export writes your goals and the whole plan in that format. Copy for My AI adds your last 4 weeks and body numbers and asks for an answer you can import. Weights from Apple Health are only included when you switch them on.")
+            Text(aiFooter)
         }
+    }
+
+    private var aiFooter: String {
+        let text = "Import from My AI reads the settings file your AI wrote, with a preview first. Export writes your goals and the whole plan in that format. Copy for My AI adds your last 4 weeks and body numbers and asks for an answer you can import."
+        #if os(iOS)
+        return text + " Weights from Apple Health are only included when you switch them on."
+        #else
+        return text
+        #endif
     }
 
     // MARK: Actions

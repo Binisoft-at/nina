@@ -81,13 +81,23 @@ struct PlanEditorCheckView: View {
     private var daysSection: some View {
         Section {
             Picker("Days", selection: daysKind) {
-                ForEach(PlanEditorDaysKind.allCases) { (kind: PlanEditorDaysKind) in
+                ForEach(daysOptions) { (kind: PlanEditorDaysKind) in
                     Text(kind.title).tag(kind)
                 }
             }
             daysDetail
         } header: {
             Text("On Which Days")
+        } footer: {
+            Text("Nothing ticked means every day.")
+        }
+    }
+
+    /// "Day types" only once the plan has day types (or the check already uses them).
+    private var daysOptions: [PlanEditorDaysKind] {
+        let usesTypes: Bool = daysKind.wrappedValue == .dayTypes
+        return PlanEditorDaysKind.allCases.filter { (kind: PlanEditorDaysKind) -> Bool in
+            kind != .dayTypes || !plan.dayTypes.isEmpty || usesTypes
         }
     }
 

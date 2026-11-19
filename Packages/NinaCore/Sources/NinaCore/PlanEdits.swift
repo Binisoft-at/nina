@@ -146,11 +146,18 @@ public enum PlanEdits {
         return (result, id)
     }
 
-    /// The plan with a check changed (matched by id).
+    /// The plan with a check changed (matched by id). A check left with no weekdays or no day types
+    /// is due every day, as the settings file reads such a check back (it would otherwise never be due).
     public static func updatingCheck(_ check: CoachPlan.Check, in plan: CoachPlan) -> CoachPlan {
         guard let index = plan.checks.firstIndex(where: { $0.id == check.id }) else { return plan }
+        var changed = check
+        switch check.days {
+        case .daily: break
+        case .weekdays(let days): if days.isEmpty { changed.days = .daily }
+        case .dayTypes(let ids): if ids.isEmpty { changed.days = .daily }
+        }
         var result = plan
-        result.checks[index] = check
+        result.checks[index] = changed
         return result
     }
 

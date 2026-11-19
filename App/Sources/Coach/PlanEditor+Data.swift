@@ -220,7 +220,7 @@ enum PlanEditorData {
         return "Planned"
     }
 
-    /// "7 Jan – ~31 May · Gain weight 0.10–0.20 kg a week".
+    /// "3 Mar – ~30 Jun · Gain weight 0.15–0.25 kg a week".
     static func phaseDetail(_ phase: CoachPlan.Phase) -> String {
         var parts: [String] = []
         let start = phase.start.map { (phase.startApprox ? "~" : "") + Fmt.shortDay($0) }
@@ -259,7 +259,7 @@ enum PlanEditorData {
         }
     }
 
-    /// "2,600 kcal · 160 g P · 310 g C · 80 g F".
+    /// "2,400 kcal · 150 g P · 280 g C · 75 g F".
     static func targetsLine(_ targets: DailyTargets, unit: EnergyUnit) -> String {
         "\(Fmt.energy(targets.energy, unit: unit)) · \(Fmt.number(targets.protein)) g P · \(Fmt.number(targets.carbs)) g C · "
             + "\(Fmt.number(targets.fat)) g F"

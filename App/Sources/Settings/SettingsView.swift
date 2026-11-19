@@ -487,15 +487,17 @@ struct GoalsView: View {
 
     private var paceTitle: String { "Pace \(Fmt.number(rate, decimals: 2)) kg a week" }
 
-    /// "0.31 % of your weight a week · Slow (lean) gain", plus a calm caution when it's fast.
+    /// "0.31 % of your weight a week · Slow (lean) gain", plus a calm caution when it's fast. The
+    /// percentage uses the 7-day average (spec F2), else the weight above.
     private var paceNote: String {
+        let bodyWeight: Double = app.settings.bodyWeightKg ?? weight
         var parts: [String] = []
-        if let percent = WeightSignal.percent(rate, of: weight) {
+        if let percent = WeightSignal.percent(rate, of: bodyWeight) {
             parts.append("\(Fmt.number(percent, decimals: 2)) % of your weight a week")
         }
         if let label = CoachPlan.Phase.rateLabel(goal: goal, rate: rate...rate) { parts.append(label) }
         var text = parts.joined(separator: " · ")
-        if let caution = CoachPlan.Phase.rateCaution(goal: goal, rate: rate...rate, weightKg: weight) {
+        if let caution = CoachPlan.Phase.rateCaution(goal: goal, rate: rate...rate, weightKg: bodyWeight) {
             text += text.isEmpty ? caution : "\n" + caution
         }
         return text
