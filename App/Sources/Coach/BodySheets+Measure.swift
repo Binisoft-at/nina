@@ -162,9 +162,16 @@ struct MeasureSheet: View {
         }
     }
 
-    /// The pager's last page has Done at the bottom instead.
+    /// The pager's last page has Done at the bottom instead. On the Mac the pager has no Save up
+    /// top: Return there would save the session after the first site, so Return goes to the
+    /// bottom bar's Next and Done.
     private var showsToolbarSave: Bool {
-        record != nil || page != pager.lastPage
+        if record != nil { return true }
+        #if os(macOS)
+        return false
+        #else
+        return page != pager.lastPage
+        #endif
     }
 
     /// Editing a record: one form with every site.
@@ -288,6 +295,9 @@ struct MeasureSheet: View {
                 }
                 .primaryActionStyle()
                 .disabled(nextIsDisabled)
+                #if os(macOS)
+                .keyboardShortcut(.defaultAction)
+                #endif
             }
         }
         .controlSize(.large)
