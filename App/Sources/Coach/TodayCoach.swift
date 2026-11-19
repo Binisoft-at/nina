@@ -14,6 +14,15 @@ struct TodayCoachState: Equatable, Sendable {
     /// A past day's daily checks with their state (done ones too), for the "Checks of this day"
     /// menu; empty on today and later days (the strip covers them).
     var dayChecks: [TodayCoachDayCheck] = []
+    /// The calories a day before and after "Start" on a phase card (one row per day type, or
+    /// one for the whole day without day types); empty for other cards.
+    var cardTargets: [CoachBoard.TargetChange] = []
+    /// Today's running phase as one line above the summary card; nil on other days.
+    var phaseLine: TodayCoachPhaseLine?
+    /// The day can be marked "incomplete log" (a set-up plan, today or earlier).
+    var offersIncompleteLog = false
+    /// The day is marked "incomplete log": check-ins and adherence leave it out.
+    var isIncompleteLog = false
     /// False until the first load finished (the strip then appears without an animation).
     var isLoaded = false
 
@@ -46,7 +55,29 @@ struct TodayCoachState: Equatable, Sendable {
         if day < today {
             state.dayChecks = TodayCoachState.pastChecks(context)
         }
+        if let card = context.board.card, case .startPhase(let id) = card.primary.action {
+            state.cardTargets = TodayCoachState.targetRows(context, startingPhase: id)
+        }
+        if day == today {
+            state.phaseLine = TodayCoachPhaseLine(context)
+        }
+        if context.isSetUp, day <= today {
+            state.offersIncompleteLog = true
+            state.isIncompleteLog = app.store.hasDayEvent(TodayCoachEvent.incompleteLog, on: day)
+        }
         return state
+    }
+
+    /// The calories a day now and after "Start" on `id`, per day type (in plan order), or one row
+    /// for the whole day without day types. Now: the running phase's targets today, else the
+    /// profile's. After: what Start writes (`CoachContext.startingPlan`: the phase's own targets,
+    /// or the proposed ones when it has none). Empty when nothing can be worked out.
+    @MainActor
+    static func targetRows(_ context: CoachContext, startingPhase id: String) -> [CoachBoard.TargetChange] {
+        let today = context.today
+        guard let started = context.startingPlan(phase: id), let after = started.revision(on: today) else { return [] }
+        return CoachBoard.targetChanges(plan: context.plan, before: context.plan.revision(on: today), after: after,
+                                        fallback: context.settings.targets)
     }
 
     /// The checks of a past day: those due that day (by its day type) and any with a mark, in the
@@ -68,6 +99,20 @@ struct TodayCoachState: Equatable, Sendable {
         }
     }
 
+    /// "Week avg 2,380 of 2,400 kcal" once two days of this week are logged (eaten against those
+    /// days' targets); nil before that. The plan's planned average belongs to the plan editor.
+    func weekAverageText(unit: EnergyUnit) -> String? {
+        guard let average = board.weekAverage, let eaten = average.eaten, let target = average.target else { return nil }
+        return "Week avg \(Fmt.energy(eaten, unit: unit, showUnit: false)) of \(Fmt.energy(target, unit: unit))"
+    }
+
+    /// "Protein meals 3 of 4" (eaten meals that reached the minimum, at most the day's count);
+    /// nil without a protein rule.
+    static func proteinMealsText(_ day: ProteinMeals.Day?) -> String? {
+        guard let day, day.target > 0 else { return nil }
+        return "Protein meals \(day.text)"
+    }
+
     /// Protein pills and the search hint show with a set-up plan (minimum from the plan, else
     /// 0.4 g/kg of the body weight, as the check-in counts protein meals) or, without one, when
     /// the plan sets a minimum per meal.
@@ -87,6 +132,60 @@ struct TodayCoachWeighIn: Equatable, Sendable {
         guard let average else { return Fmt.kilograms(kilograms) }
         return "\(Fmt.number(kilograms, decimals: 1)) · avg \(Fmt.number(average, decimals: 1))"
     }
+}
+
+/// A phase card's "before → after" line in the app's energy unit.
+extension CoachBoard.TargetChange {
+    /// "2,450 → 2,150 kcal", or "2,450 kcal" when it stays.
+    func todayCoachText(unit: EnergyUnit) -> String {
+        let next = Fmt.energy(after, unit: unit)
+        guard changes else { return next }
+        return "\(Fmt.energy(before, unit: unit, showUnit: false)) → \(next)"
+    }
+
+    /// "Gym: 2,450 kcal now, 2,150 kcal after starting"
+    func todayCoachAccessibility(unit: EnergyUnit) -> String {
+        let next = Fmt.energy(after, unit: unit)
+        guard changes else { return "\(name): stays at \(next)" }
+        return "\(name): \(Fmt.energy(before, unit: unit)) now, \(next) after starting"
+    }
+}
+
+/// Today's running phase in one line above the summary card: "Lean gain · week 3 of 16", the
+/// status words of the body page ("In range", "Slower", "Off track" …) and the share of the phase
+/// gone. Built from `BodyPageData.header`, so Today and Progress always say the same.
+struct TodayCoachPhaseLine: Equatable, Sendable {
+    var phaseID: String
+    /// "Lean gain · week 3 of 16"
+    var title: String
+    /// "In range"
+    var status: String
+    var tone: BodyPageTone
+    /// Share of the phase gone (0…1); nil without an end date.
+    var progress: Double?
+
+    /// The active phase of today; nil without a set-up plan or without a running phase.
+    @MainActor
+    init?(_ context: CoachContext) {
+        guard context.isSetUp, context.day == context.today, context.activePhase != nil,
+              let header = BodyPageData.header(context), header.isActive else { return nil }
+        phaseID = header.phaseID
+        title = header.title
+        status = header.status
+        tone = header.tone
+        progress = header.progress
+    }
+
+    /// "Lean gain, week 3 of 16, In range"
+    var accessibilityText: String {
+        "\(title.replacingOccurrences(of: " · ", with: ", ")), \(status)"
+    }
+}
+
+/// Keys of `DayMark(kind: event)` marks Today writes.
+enum TodayCoachEvent {
+    /// The day's log is incomplete: check-ins and adherence leave it out.
+    static let incompleteLog = "incompleteLog"
 }
 
 /// One daily check of a past day in the "Checks of this day" menu.

@@ -361,13 +361,23 @@ private struct TodayCoachPill: View {
 // MARK: - Coach card
 
 /// The one coach card above the meals (phase start or end, review, weekly check-in, baseline,
-/// welcome back): title, one sentence, its buttons, more choices and "Later" (hides it on this
-/// device until tomorrow).
+/// welcome back): title, one sentence, the calories before and after a phase start, its buttons,
+/// more choices, "Pause Coaching" and "Later" (hides it on this device until tomorrow).
 struct TodayCoachCard: View {
     let card: CoachBoard.Card
     let day: DayKey
+    /// A phase card's calories a day now and after Start (empty for other cards).
+    let targets: [CoachBoard.TargetChange]
 
     @Environment(AppModel.self) private var app
+    /// The reason picked in "Pause Coaching"; the dialog then asks for how long.
+    @State private var pauseReason: CoachPlan.PauseReason? = nil
+
+    init(card: CoachBoard.Card, day: DayKey, targets: [CoachBoard.TargetChange] = []) {
+        self.card = card
+        self.day = day
+        self.targets = targets
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -382,13 +392,24 @@ struct TodayCoachCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if !targets.isEmpty {
+                TodayCoachTargetList(rows: targets, unit: app.energyUnit)
+            }
             buttons
                 .padding(.top, 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 16, cornerRadius: 22)
         .accessibilityElement(children: .contain)
+        .confirmationDialog(pauseTitle, isPresented: pauseBinding, titleVisibility: .visible,
+                            presenting: pauseReason) { (reason: CoachPlan.PauseReason) in
+            pauseActions(reason)
+        } message: { (_: CoachPlan.PauseReason) in
+            Text(TodayCoachCard.pauseMessage)
+        }
     }
+
+    private static let pauseMessage = "No check pills, check-ins or coach reminders while paused, and paused days stay out of your averages. Meal reminders keep going."
 
     private var buttons: some View {
         HStack(spacing: 10) {
@@ -401,38 +422,91 @@ struct TodayCoachCard: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 0)
-            laterButton
+            if showsLaterButton {
+                Button("Later") { app.dismissCard(card.key) }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHint("Hides this card for now")
+            }
+            moreMenu
         }
     }
 
-    /// "Later", or a ⋯ menu with the card's other choices and "Later".
-    @ViewBuilder
-    private var laterButton: some View {
-        if !card.more.isEmpty {
-            Menu {
-                ForEach(Array(card.more.enumerated()), id: \.offset) { _, choice in
-                    Button(choice.title) { act(choice) }
-                }
-                if !closesItself {
-                    Divider()
-                    Button("Later", systemImage: "clock") { app.dismissCard(card.key) }
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.title3)
-                    .foregroundStyle(Brand.accent)
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .accessibilityLabel("More")
-        } else if !closesItself {
-            Button("Later") { app.dismissCard(card.key) }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .accessibilityHint("Hides this card for now")
+    /// A plain "Later" next to the ⋯ menu while the card has room for it (one button, no more
+    /// choices); otherwise "Later" sits in the menu.
+    private var showsLaterButton: Bool {
+        !closesItself && card.secondary == nil && card.more.isEmpty
+    }
+
+    /// The ⋯ menu: the card's other choices, "Pause Coaching" and "Later".
+    private var moreMenu: some View {
+        Menu {
+            moreItems
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.title3)
+                .foregroundStyle(Brand.accent)
         }
+        .menuStyle(.button)
+        .buttonStyle(.borderless)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("More")
+    }
+
+    @ViewBuilder
+    private var moreItems: some View {
+        ForEach(Array(card.more.enumerated()), id: \.offset) { _, choice in
+            Button(choice.title) { act(choice) }
+        }
+        if !card.more.isEmpty {
+            Divider()
+        }
+        Menu {
+            ForEach(CoachPlan.PauseReason.allCases) { (reason: CoachPlan.PauseReason) in
+                Button(PlanEditorData.reasonTitle(reason)) { pauseReason = reason }
+            }
+        } label: {
+            Label("Pause Coaching", systemImage: "pause.circle")
+        }
+        if !closesItself && !showsLaterButton {
+            Divider()
+            Button("Later", systemImage: "clock") { app.dismissCard(card.key) }
+        }
+    }
+
+    // MARK: Pause
+
+    private var pauseBinding: Binding<Bool> {
+        Binding<Bool>(
+            get: { pauseReason != nil },
+            set: { (isShown: Bool) in
+                if !isShown { pauseReason = nil }
+            }
+        )
+    }
+
+    private var pauseTitle: String {
+        switch pauseReason {
+        case .holiday?: "Pause coaching for your holiday?"
+        case .sick?: "Pause coaching while you're ill?"
+        default: "Pause coaching?"
+        }
+    }
+
+    @ViewBuilder
+    private func pauseActions(_ reason: CoachPlan.PauseReason) -> some View {
+        Button("For a Week") { pause(reason, forAWeek: true) }
+        Button("Until I Resume") { pause(reason, forAWeek: false) }
+        Button("Cancel", role: .cancel) { pauseReason = nil }
+    }
+
+    /// From today for 7 days (until 6 days from now), or until resumed in My Plan; the toast's
+    /// Undo puts the plan back.
+    private func pause(_ reason: CoachPlan.PauseReason, forAWeek: Bool) {
+        let until: DayKey? = forAWeek ? app.today.adding(days: 6) : nil
+        pauseReason = nil
+        PlanEditorData.pause(until: until, reason: reason, app: app)
     }
 
     /// The card has its own "Got it" (closing it is one of its buttons).
@@ -453,6 +527,80 @@ struct TodayCoachCard: View {
 
     private func act(_ choice: CoachBoard.Card.Choice) {
         app.perform(choice.action, on: day, card: card)
+    }
+}
+
+/// The phase card's calories a day before and after Start: "🏋️ Gym   2,450 → 2,150 kcal".
+private struct TodayCoachTargetList: View {
+    let rows: [CoachBoard.TargetChange]
+    let unit: EnergyUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Calories a day")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            ForEach(rows) { (row: CoachBoard.TargetChange) in
+                rowView(row)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Brand.accent.opacity(0.08), in: .rect(cornerRadius: 12, style: .continuous))
+    }
+
+    private func rowView(_ row: CoachBoard.TargetChange) -> some View {
+        HStack(spacing: 8) {
+            Text(row.title)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(row.todayCoachText(unit: unit))
+                .fontWeight(.semibold)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+        .font(.subheadline)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.todayCoachAccessibility(unit: unit))
+    }
+}
+
+// MARK: - Phase line
+
+/// Today's running phase above the summary card: "Lean gain · week 3 of 16", a thin progress
+/// capsule and the status pill. A tap opens Progress → Body.
+struct TodayCoachPhaseLineView: View {
+    let line: TodayCoachPhaseLine
+
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        Button {
+            app.showProgress(.body)
+        } label: {
+            content
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(line.accessibilityText)
+        .accessibilityHint("Opens your body progress")
+    }
+
+    private var content: some View {
+        HStack(spacing: 8) {
+            Text(line.title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+            if let progress = line.progress {
+                BodyPageCapsule(progress: progress)
+                    .frame(width: 44)
+            }
+            Spacer(minLength: 4)
+            Chip(text: line.status, tint: BodyPageStyle.color(line.tone), isSelected: line.tone == .alert)
+        }
+        .padding(.horizontal, 6)
+        .contentShape(.rect)
     }
 }
 

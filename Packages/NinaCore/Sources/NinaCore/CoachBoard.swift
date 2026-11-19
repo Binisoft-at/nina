@@ -345,7 +345,8 @@ extension CoachBoard {
             let body = input.bodyItems.filter { $0.kind != .weighIn || day == input.today }
             // The weigh-in first, then the measurements in the schedule's order.
             items += body.filter { $0.kind == .weighIn }.map(item(body:))
-            items += body.filter { $0.kind != .weighIn }.map(item(body:))
+            items += body.filter { $0.kind != .weighIn && showsInStrip($0, on: day, plan: plan, calendar: calendar) }
+                .map(item(body:))
         }
         let typeID = plan.dayType(on: day, marks: input.dayTypeMarks, calendar: calendar)?.id
         let checks = plan.checks.enumerated().filter { _, check in
@@ -363,6 +364,15 @@ extension CoachBoard {
         }
         guard items.contains(where: { $0.state == .open }) else { return [] }
         return items
+    }
+
+    /// A measurement shows in the strip from its due day until it is `BodySchedule.overdueNoticeDays`
+    /// overdue (that day it says "overdue 3 days" once); after that it waits for the check-in day,
+    /// where it shows again ("overdue 8 days"). The body page and the check-in still list it.
+    static func showsInStrip(_ body: BodyDueItem, on day: DayKey, plan: CoachPlan, calendar: Calendar) -> Bool {
+        guard body.kind != .weighIn, body.overdueDays > BodySchedule.overdueNoticeDays else { return true }
+        let weekday = min(7, max(1, plan.routine.checkInWeekday))
+        return BodySchedule.onOrBefore(weekday: weekday, day, calendar: calendar) == day
     }
 
     /// Meal-timed checks first (by the meal's usual time), then clock times, then anytime.
@@ -584,6 +594,54 @@ extension CoachBoard {
         }.reduce(0, +) / Double(logged.count)
         return WeekAverage(planned: planned, eaten: eaten, target: target, loggedDays: logged.count,
                            text: "Week avg \(SettingsCSV.grouped(eaten)) of \(SettingsCSV.grouped(target)) kcal")
+    }
+}
+
+// MARK: - Phase start: targets before and after
+
+extension CoachBoard {
+    /// One line of a phase card's "before → after": "🏋️ Gym 2,450 → 2,150 kcal" (kcal a day).
+    public struct TargetChange: Equatable, Sendable, Identifiable {
+        /// The day type's id ("day" without day types).
+        public var id: String
+        public var name: String
+        /// The type's emoji, else a fitting one ("" when none fits).
+        public var emoji: String
+        /// kcal a day now.
+        public var before: Double
+        /// kcal a day after Start.
+        public var after: Double
+
+        public init(id: String, name: String, emoji: String, before: Double, after: Double) {
+            self.id = id
+            self.name = name
+            self.emoji = emoji
+            self.before = before
+            self.after = after
+        }
+
+        /// "🏋️ Gym"
+        public var title: String { emoji.isEmpty ? name : "\(emoji) \(name)" }
+
+        /// The whole kcal differ.
+        public var changes: Bool { before.rounded() != after.rounded() }
+    }
+
+    /// What a phase start changes, per day type in plan order (one "Every day" line without day
+    /// types). `before`: the revision in force today (nil = none, `fallback` applies); `after`:
+    /// the revision Start writes for today. A type without its own targets uses the revision's
+    /// baseline, then `fallback` (the profile's targets).
+    public static func targetChanges(plan: CoachPlan, before: CoachPlan.Revision?, after: CoachPlan.Revision,
+                                     fallback: DailyTargets) -> [TargetChange] {
+        guard !plan.dayTypes.isEmpty else {
+            return [TargetChange(id: "day", name: "Every day", emoji: "", before: (before?.baseline ?? fallback).energy,
+                                 after: (after.baseline ?? fallback).energy)]
+        }
+        return plan.dayTypes.map { type in
+            TargetChange(id: type.id, name: type.name, emoji: emoji(of: type),
+                         before: (before?.targets(for: type.id) ?? fallback).energy,
+                         after: (after.targets(for: type.id) ?? fallback).energy)
+        }
     }
 }
 

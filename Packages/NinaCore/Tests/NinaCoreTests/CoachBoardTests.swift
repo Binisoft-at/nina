@@ -146,6 +146,46 @@ struct CoachBoardTests {
         #expect(CoachBoard(boardInput(day: "2030-01-15") { $0.bodyItems = [early] }).strip.first?.detail == nil)
     }
 
+    @Test func overdueNoticeShowsOnceThenWaitsForTheCheckIn() {
+        // A full set due on Thu 10 Jan; the check-in day is Monday.
+        func pill(_ day: String) -> CoachBoard.StripItem? {
+            let overdue = boardDay("2030-01-10").days(to: boardDay(day), calendar: boardUTC)
+            let full = BodyDueItem(kind: .full, dueDay: boardDay("2030-01-10"), overdueDays: overdue, reason: .phaseStart)
+            return CoachBoard(boardInput(day: day) { $0.bodyItems = [full] }).strip.first { $0.id == "body.full" }
+        }
+        #expect(pill("2030-01-10")?.detail == nil)
+        #expect(pill("2030-01-12") != nil)
+        #expect(pill("2030-01-12")?.detail == nil)
+        // Sunday: overdue 3 days, said once.
+        #expect(pill("2030-01-13")?.detail == "overdue 3 days")
+        // Monday is the check-in day: it shows again.
+        #expect(pill("2030-01-14")?.detail == "overdue 4 days")
+        // Then it waits for the next check-in day.
+        #expect(pill("2030-01-15") == nil)
+        #expect(pill("2030-01-17") == nil)
+        #expect(pill("2030-01-20") == nil)
+        #expect(pill("2030-01-21")?.detail == "overdue 11 days")
+        // The checks still show on the quiet days.
+        let quiet = CoachBoard(boardInput(day: "2030-01-15") { input in
+            input.bodyItems = [BodyDueItem(kind: .full, dueDay: boardDay("2030-01-10"), overdueDays: 5)]
+        })
+        #expect(!quiet.strip.isEmpty)
+        #expect(!quiet.strip.contains { $0.kind == .body })
+        // A plan with Thursday check-ins brings it back on Thursday.
+        var thursday = boardPlan()
+        thursday.routine.checkInWeekday = 4
+        let back = CoachBoard(boardInput(thursday, day: "2030-01-17") { input in
+            input.bodyItems = [BodyDueItem(kind: .full, dueDay: boardDay("2030-01-10"), overdueDays: 7)]
+        })
+        #expect(back.strip.first { $0.id == "body.full" }?.detail == "overdue 7 days")
+        // Overdue 1–2 days on the check-in day: shown, nothing said yet.
+        let soon = CoachBoard(boardInput(day: "2030-01-14") { input in
+            input.bodyItems = [BodyDueItem(kind: .assessment, dueDay: boardDay("2030-01-12"), overdueDays: 2)]
+        })
+        #expect(soon.strip.first { $0.id == "body.assessment" }?.detail == nil)
+        #expect(soon.strip.contains { $0.id == "body.assessment" })
+    }
+
     @Test func stripHidesWhenEverythingIsDone() {
         let done: [String: CheckState] = ["omega": .done, "vitd": .skipped, "creatine": .done, "magnesium": .done]
         let board = CoachBoard(boardInput(day: "2030-01-14") { $0.checkStates = done })
@@ -330,6 +370,33 @@ struct CoachBoardTests {
         // Not without day types, nor before the phase.
         #expect(CoachBoard(boardInput(boardPlan(types: false), day: "2030-01-09")).weekAverage == nil)
         #expect(CoachBoard(boardInput(day: "2030-01-01")).weekAverageLine == nil)
+    }
+
+    @Test func phaseStartTargetChanges() {
+        let plan = boardPlan()
+        let before = plan.revision(on: boardDay("2030-04-01"))
+        // The cut's targets: every type 300 kcal lower, Rest only from the baseline.
+        let after = CoachPlan.Revision(from: boardDay("2030-04-01"), baseline: DailyTargets(energy: 2000, protein: 160, carbs: 200, fat: 60),
+                                       byType: ["gym": DailyTargets(energy: 2200, protein: 160, carbs: 230, fat: 60),
+                                                "tennis": DailyTargets(energy: 2300, protein: 160, carbs: 250, fat: 60)])
+        let changes = CoachBoard.targetChanges(plan: plan, before: before, after: after, fallback: boardFallback)
+        #expect(changes.map(\.id) == ["gym", "tennis", "rest"])
+        #expect(changes.map(\.before) == [2500, 2600, 2300])
+        #expect(changes.map(\.after) == [2200, 2300, 2000])
+        #expect(changes[0].title == "🏋️ Gym")
+        #expect(changes[1].emoji == CoachPlan.DayType.suggestedEmoji(for: "Tennis"))
+        let allChange = changes.allSatisfy { $0.changes }
+        #expect(allChange)
+        // Nothing running yet: the profile's targets before.
+        let fresh = CoachBoard.targetChanges(plan: plan, before: nil, after: after, fallback: boardFallback)
+        #expect(fresh.map(\.before) == [2200, 2200, 2200])
+        // Without day types one line for the whole day; the same kcal is no change.
+        let plain = CoachBoard.targetChanges(plan: boardPlan(types: false), before: nil,
+                                             after: CoachPlan.Revision(from: boardDay("2030-04-01"), baseline: boardFallback),
+                                             fallback: boardFallback)
+        #expect(plain.map(\.id) == ["day"])
+        #expect(plain.first?.title == "Every day")
+        #expect(plain.first?.changes == false)
     }
 
     @Test func postponingAPhase() {
