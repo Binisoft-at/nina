@@ -369,7 +369,7 @@ final class AppModel {
         let entry = store.addWeight(kilograms, day: day ?? DayKey.today(now: time, dayStartHour: settings.dayStartHour),
                                     time: time, bodyFat: bodyFat, note: note)
         let health = self.health
-        let write = Task { await health.writeWeight(kilograms, date: time) }
+        let write: Task<Void, Never> = Task { await health.writeWeight(kilograms, date: time) }
         toasts.show("Weight \(Fmt.kilograms(kilograms)) saved", symbol: "scalemass.fill") { [weak self] in
             _ = self?.store.trash([entry])
             Task {
@@ -381,16 +381,16 @@ final class AppModel {
     }
 
     /// Deletes a weigh-in (30-day trash) and the sample Nina wrote for it in Apple Health; Undo
-    /// brings both back.
+    /// brings both back (the Health sample only when there was one).
     func trash(_ weight: WeightEntry) {
         let kilograms = weight.kilograms, time = weight.time
         let trashed = store.trash([weight])
         let health = self.health
-        let delete = Task { await health.deleteWeight(kilograms, date: time) }
+        let delete: Task<Bool, Never> = Task { await health.deleteWeight(kilograms, date: time) }
         toasts.show("Weigh-in deleted", symbol: "trash.fill") { [weak self] in
             self?.store.restore(trashed)
             Task {
-                await delete.value
+                guard await delete.value else { return }
                 await health.replaceWeight(old: (kilograms, time), new: (kilograms, time))
             }
         }

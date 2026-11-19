@@ -222,8 +222,8 @@ struct CoachRemindersTests {
         // A change of more than 3 cm within a week needs a look; later it's fine.
         let monday = reminderDay("2030-01-14")
         #expect(!CoachReminders.tapeNeedsALook(84.6, site: .waist, on: monday, records: records, calendar: reminderUTC))
-        #expect(CoachReminders.tapeNeedsALook(88.0, site: .waist, on: monday, records: records, calendar: reminderUTC))
-        #expect(!CoachReminders.tapeNeedsALook(88.0, site: .waist, on: reminderDay("2030-01-21"), records: records, calendar: reminderUTC))
+        #expect(CoachReminders.tapeNeedsALook(87.6, site: .waist, on: monday, records: records, calendar: reminderUTC))
+        #expect(!CoachReminders.tapeNeedsALook(87.6, site: .waist, on: reminderDay("2030-01-21"), records: records, calendar: reminderUTC))
         #expect(!CoachReminders.tapeNeedsALook(120.0, site: .chest, on: monday, records: records, calendar: reminderUTC))
     }
 

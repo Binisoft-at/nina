@@ -287,11 +287,14 @@ final class HealthService {
         await refreshReadings()
     }
 
-    /// A deleted or undone weigh-in: the sample Nina wrote for it leaves Apple Health.
-    func deleteWeight(_ kilograms: Double, date: Date) async {
-        guard canWriteWeight else { return }
-        await deleteWeightSamples(kilograms: kilograms, date: date)
+    /// A deleted or undone weigh-in: the sample Nina wrote for it leaves Apple Health. Returns
+    /// whether there was one (only then does an Undo write it back).
+    @discardableResult
+    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool {
+        guard canWriteWeight else { return false }
+        let removed = await deleteWeightSamples(kilograms: kilograms, date: date)
         await refreshReadings()
+        return removed > 0
     }
 
     private var canWriteWeight: Bool {
@@ -311,9 +314,10 @@ final class HealthService {
     }
 
     /// Deletes the body-mass samples Nina wrote at `date` (within a second) with that weight
-    /// (within 0.05 kg). Health only lets an app delete its own samples: weigh-ins from scales and
-    /// other apps always stay.
-    private func deleteWeightSamples(kilograms: Double, date: Date) async {
+    /// (within 0.05 kg); returns how many. Health only lets an app delete its own samples:
+    /// weigh-ins from scales and other apps always stay.
+    @discardableResult
+    private func deleteWeightSamples(kilograms: Double, date: Date) async -> Int {
         let kilo = HKUnit.gramUnit(with: .kilo)
         let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForSamples(withStart: date.addingTimeInterval(-1), end: date.addingTimeInterval(1), options: []),
@@ -322,8 +326,8 @@ final class HealthService {
             HKQuery.predicateForQuantitySamples(with: .lessThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms + 0.05)),
         ])
         let type = HKQuantityType(.bodyMass)
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            store.deleteObjects(of: type, predicate: predicate) { _, _, _ in continuation.resume() }
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+            store.deleteObjects(of: type, predicate: predicate) { _, count, _ in continuation.resume(returning: count) }
         }
     }
 
@@ -342,7 +346,8 @@ final class HealthService {
     func syncNow(container: ModelContainer) async {}
     func writeWeight(_ kilograms: Double, date: Date) async {}
     func replaceWeight(old: (kilograms: Double, date: Date), new: (kilograms: Double, date: Date)) async {}
-    func deleteWeight(_ kilograms: Double, date: Date) async {}
+    @discardableResult
+    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool { false }
     #endif
 }
 

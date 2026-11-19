@@ -9,19 +9,14 @@ struct RootView: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        @Bindable var app = app
         navigation
             .modifier(AppChrome(app: app))
             .modifier(TourPresenter(app: app))
-            .coachRemindersPrompt(isPresented: $app.askCoachReminders)
+            .modifier(RootCoachRemindersQuestion(app: app))
             .onOpenURL { url in app.open(url) }
             .onReceive(NotificationCenter.default.publisher(for: .ninaOpenURL)) { _ in
                 // The link a notification asked for: whoever takes it first opens it, so only once.
                 if let url = NotificationScheduler.shared.takePendingURL() { app.open(url) }
-            }
-            .onChange(of: app.sheet == nil) { _, closed in
-                // "Turn on coach reminders?" waits for a closing sheet (a plan just set up there).
-                if closed { app.offerCoachRemindersIfNeeded() }
             }
             .task {
                 // A notification button tapped on a cold start can answer before this window listens.
@@ -209,6 +204,20 @@ private struct SheetContent: View {
             NavigationStack { TrashView() }
                 .sheetFrame(minWidth: 520, minHeight: 600)
         }
+    }
+}
+
+/// iPhone: "Turn on coach reminders?" once a plan is set up (`AppModel.offerCoachRemindersIfNeeded`),
+/// asked again for a look when a sheet closes (a plan may just have been set up there).
+private struct RootCoachRemindersQuestion: ViewModifier {
+    @Bindable var app: AppModel
+
+    func body(content: Content) -> some View {
+        content
+            .coachRemindersPrompt(isPresented: $app.askCoachReminders)
+            .onChange(of: app.sheet == nil) { _, closed in
+                if closed { app.offerCoachRemindersIfNeeded() }
+            }
     }
 }
 

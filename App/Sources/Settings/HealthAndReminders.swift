@@ -267,8 +267,10 @@ private struct ReminderCoachPrompt: ViewModifier {
     private func answer(_ yes: Bool) {
         let container = app.container
         let settings = app.settings
-        // Answered right away, so no other screen asks again while the answer is being saved.
+        // Answered right away, so no other screen asks again while the answer is being saved (and
+        // the iPhone's own question from RootView, if it is waiting, is withdrawn).
         NotificationScheduler.shared.coachAsked = true
+        app.askCoachReminders = false
         Task {
             await NotificationScheduler.shared.answerCoachReminders(yes, context: container.mainContext, settings: settings)
         }
