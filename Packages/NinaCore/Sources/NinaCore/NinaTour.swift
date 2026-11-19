@@ -41,14 +41,14 @@ public enum NinaTour {
         steps: [
             TourStep(
                 id: "create", symbol: "plus.circle", title: "Everything starts at Create",
-                body: "Tap ⋯ at the top, then Create…. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
-                macBody: "Click + in the toolbar or press ⇧⌘N. Foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
+                body: "Tap ⋯ at the top, then Create…: foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
+                macBody: "Click Create in the toolbar or press ⇧⌘N: foods, quick entries, meals, recipes, water, weight – and importing the data you already have.",
                 goal: .isTrue(\.isCreateOpen)
             ),
             TourStep(
                 id: "setup-ai", since: 2, symbol: "sparkles", title: "Let your AI set Nina up",
                 body: "In ⋯ → Create… → Import My Data, tap Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: your goal, daily targets, meal times, foods and usual meals are set in one go – with a preview first.",
-                macBody: "In + → Import My Data, click Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: goal, targets, meal times, foods and meals are set in one go – with a preview first.",
+                macBody: "In Create → Import My Data, click Copy the Setup Prompt. Paste it into ChatGPT or Claude with a few lines about you and the foods you eat, then paste its answer back: goal, targets, meal times, foods and meals are set in one go – with a preview first.",
                 goal: .none
             ),
             TourStep(

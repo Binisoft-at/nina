@@ -66,10 +66,12 @@ struct CoachTourTests {
     }
 
     /// On iPhone and iPad the + at the top of Today opens Log Food; Create… (weight, measurements,
-    /// import …) lives in the ⋯ menu. The iPhone texts must name the path that really exists.
+    /// import …) lives in the ⋯ menu. On the Mac the toolbar's + is Log Food too, next to Create.
+    /// The texts must name the path that really exists.
     @Test func iPhoneTextsUseTheMoreMenuForCreate() {
         for step in NinaTour.catalog.allSteps {
             #expect(!step.body.contains("+ →"), "\(step.id) sends people to + for Create")
+            #expect(!step.macBody.contains("+ →"), "\(step.id) sends Mac people to + for Create")
         }
         let byID = Dictionary(uniqueKeysWithValues: NinaTour.catalog.allSteps.map { ($0.id, $0) })
         #expect(byID["create"]?.body.contains("⋯ at the top, then Create…") == true)
@@ -77,6 +79,8 @@ struct CoachTourTests {
         #expect(byID["weigh-in"]?.body.contains("⋯ → Create… → Weight") == true)
         #expect(byID["measure"]?.body.contains("⋯ → Create… → Measurements") == true)
         // The Mac has its own Create button in the toolbar and the File menu.
+        #expect(byID["create"]?.macBody.contains("Click Create in the toolbar") == true)
+        #expect(byID["setup-ai"]?.macBody.contains("Create → Import My Data") == true)
         #expect(byID["measure"]?.macBody.contains("File → Log Measurements…") == true)
     }
 
