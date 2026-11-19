@@ -23,6 +23,10 @@ struct PlanEditorView: View {
     @State private var newName = ""
     @State private var exportText = ""
     @State private var proteinRatio: String?
+    /// "Turn on coach reminders?" after the plan was first set up here.
+    @State private var askReminders = false
+    /// The plan when the phase sheet opened: closing it may have set the plan up.
+    @State private var planBeforeSheet: CoachPlan?
     @AppStorage("nina.coach.copyIncludesHealth") private var copyIncludesHealth = false
 
     private var plan: CoachPlan { app.settings.plan }
@@ -54,7 +58,7 @@ struct PlanEditorView: View {
         .navigationDestination(item: $pushed) { (route: PlanEditorRoute) in
             destination(route)
         }
-        .sheet(item: $sheet) { (sheet: PlanEditorSheet) in
+        .sheet(item: $sheet, onDismiss: sheetClosed) { (sheet: PlanEditorSheet) in
             sheetContent(sheet)
                 .environment(app)
                 .modelContainer(app.container)
@@ -64,6 +68,7 @@ struct PlanEditorView: View {
             Button("Add") { add() }
             Button("Cancel", role: .cancel) {}
         }
+        .coachRemindersPrompt(isPresented: $askReminders)
         .task(id: app.dataVersion) {
             exportText = PlanEditorData.exportText(app: app)
             proteinRatio = PlanEditorData.proteinRatio(app: app)
@@ -103,13 +108,13 @@ struct PlanEditorView: View {
             Text("A plan adds phases with dates, day types with their own calories, daily checks, a measuring routine and a weekly check-in. Without one, Nina works as before.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Set Up My Plan", systemImage: "sparkles") { PlanEditorData.setUp(app: app) }
+            Button("Set Up My Plan", systemImage: "sparkles", action: setUp)
                 .primaryActionStyle()
-            Button("Add a Phase", systemImage: "flag") { sheet = .phase(nil) }
+            Button("Add a Phase", systemImage: "flag") { openPhase(nil) }
         } header: {
             Text("Your Plan")
         } footer: {
-            Text("Set Up My Plan starts one phase today from your goal and turns your training days into day types. Or let your AI write the whole plan: Import from My AI, below.")
+            Text("Set Up My Plan starts one phase today from your goal; Add a Phase lets you describe it first. Both turn your training days into day types, with the calories you have now. Or let your AI write the whole plan: Import from My AI, below.")
         }
     }
 
@@ -118,7 +123,7 @@ struct PlanEditorView: View {
             ForEach(sortedPhases) { (phase: CoachPlan.Phase) in
                 phaseRow(phase)
             }
-            Button("Add a Phase", systemImage: "plus") { sheet = .phase(nil) }
+            Button("Add a Phase", systemImage: "plus") { openPhase(nil) }
         } header: {
             Text("Phases")
         } footer: {
@@ -134,7 +139,7 @@ struct PlanEditorView: View {
     private func phaseRow(_ phase: CoachPlan.Phase) -> some View {
         let isActive = plan.activePhase(on: today)?.id == phase.id
         return Button {
-            sheet = .phase(phase.id)
+            openPhase(phase.id)
         } label: {
             PlanEditorPhaseRow(name: PlanEditorData.phaseName(phase),
                                status: PlanEditorData.phaseStatus(phase, plan: plan, today: today),
@@ -145,7 +150,7 @@ struct PlanEditorView: View {
             Button("Delete", systemImage: "trash", role: .destructive) { PlanEditorData.deletePhase(phase.id, app: app) }
         }
         .contextMenu {
-            Button("Edit…", systemImage: "pencil") { sheet = .phase(phase.id) }
+            Button("Edit…", systemImage: "pencil") { openPhase(phase.id) }
             Button("Delete", systemImage: "trash", role: .destructive) { PlanEditorData.deletePhase(phase.id, app: app) }
         }
     }
@@ -301,6 +306,32 @@ struct PlanEditorView: View {
         case .phase(let id): PhaseSheet(phaseID: id)
         case .importSettings: ImportView(initialKind: .settings)
         }
+    }
+
+    /// "Set Up My Plan", then "Turn on coach reminders?" once per device.
+    private func setUp() {
+        let change = PlanEditorData.setUp(app: app)
+        offerReminders(before: change.before, after: change.after)
+    }
+
+    /// Opens the phase sheet (nil = a new phase); a first phase sets the plan up.
+    private func openPhase(_ id: String?) {
+        planBeforeSheet = PlanEditorData.storedPlan(app)
+        sheet = .phase(id)
+    }
+
+    /// After the phase sheet: ask about coach reminders when it set the plan up. (The import asks
+    /// itself, so it isn't checked here.)
+    private func sheetClosed() {
+        guard let before = planBeforeSheet else { return }
+        planBeforeSheet = nil
+        offerReminders(before: before, after: PlanEditorData.storedPlan(app))
+    }
+
+    private func offerReminders(before: CoachPlan, after: CoachPlan) {
+        guard !app.isSandbox, !app.launch.isDemo,
+              NotificationScheduler.shared.shouldOfferCoachReminders(before: before, after: after) else { return }
+        askReminders = true
     }
 
     private func startNaming(_ kind: PlanEditorNaming) {

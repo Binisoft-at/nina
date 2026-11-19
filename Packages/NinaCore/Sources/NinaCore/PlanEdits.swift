@@ -27,6 +27,38 @@ public enum PlanEdits {
         return result
     }
 
+    /// The plan after its first phase was added before "Set Up My Plan" (the phase sheet on a plan
+    /// that isn't set up): the same migration as setting up – the training days become "Training"
+    /// on its weekdays plus "Rest" on the others (`CoachPlan.migrated(from:on:)`), the routine for
+    /// the person's sex while the plan has the default one – and `phase` as the plan's only phase.
+    /// A phase without targets gets the targets people had as its first revision from its start
+    /// (baseline = the daily targets, Training = the training-day targets, Rest = the daily ones),
+    /// so training days keep their calories once it runs and the profile mirror keeps them.
+    /// Checks, notes, the long-term goal, protein per meal and pauses stay. A plan that is already
+    /// set up gets `phase` put in (replacing the one with its id, else added) and nothing else.
+    public static func addingFirstPhase(_ phase: CoachPlan.Phase, to plan: CoachPlan, from state: SettingsState,
+                                        on day: DayKey, now: Date = Date()) -> CoachPlan {
+        var result = plan
+        guard !plan.isSetUp else {
+            if let index = result.phases.firstIndex(where: { $0.id == phase.id }) {
+                result.phases[index] = phase
+            } else {
+                result.phases.append(phase)
+            }
+            return result
+        }
+        let migrated = CoachPlan.migrated(from: state, on: day, now: now)
+        result.dayTypes = migrated.dayTypes
+        if plan.routine == CoachPlan.Routine() { result.routine = migrated.routine }
+        var first = phase
+        if first.revisions.isEmpty, let template = migrated.phases.first?.revisions.first {
+            first.revisions = [CoachPlan.Revision(from: phase.start ?? day, baseline: template.baseline, byType: template.byType,
+                                                  reason: template.reason)]
+        }
+        result.phases = [first]
+        return result
+    }
+
     // MARK: Ids
 
     /// An id for a new day type or check: the name in lowercase letters and digits ("Gym" → "gym",
@@ -74,6 +106,22 @@ public enum PlanEdits {
             for other in result.dayTypes.indices where other != index && result.dayTypes[other].schedule == .default {
                 result.dayTypes[other].schedule = .flexible
             }
+        }
+        return result
+    }
+
+    /// The plan without a day type: the type goes, and every daily check that named it no longer
+    /// does – a check left without day types is due every day again (as `updatingCheck` saves
+    /// it), so no pill or reminder silently disappears. Revisions keep their targets for the type
+    /// (they are ignored without it, and come back with Undo). Unknown ids: unchanged.
+    public static func deletingDayType(_ id: String, in plan: CoachPlan) -> CoachPlan {
+        guard plan.dayType(id: id) != nil else { return plan }
+        var result = plan
+        result.dayTypes.removeAll { $0.id == id }
+        for index in result.checks.indices {
+            guard case .dayTypes(let ids) = result.checks[index].days, ids.contains(id) else { continue }
+            let rest = ids.filter { $0 != id }
+            result.checks[index].days = rest.isEmpty ? .daily : .dayTypes(rest)
         }
         return result
     }

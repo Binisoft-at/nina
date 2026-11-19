@@ -1094,6 +1094,8 @@ extension SettingsCSV {
         if let waist = longTerm.waistCm { plan.longTerm.waistCm = waist }
         if let date = longTerm.date { plan.longTerm.date = date }
         if let note = longTerm.note { plan.longTerm.note = note }
+        // A new weight or body-fat goal counts from today (F8); an unchanged one keeps its day.
+        plan.longTerm = plan.longTerm.stamped(after: oldPlan?.longTerm ?? CoachPlan.LongTerm(), on: today)
         let measure = rows.measure
         if let minutes = measure.weighInMinutes { plan.routine.weighInMinutes = minutes }
         if let minutes = measure.morningCutoffMinutes { plan.routine.morningCutoffMinutes = minutes }

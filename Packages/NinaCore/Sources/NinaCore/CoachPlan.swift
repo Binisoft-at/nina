@@ -268,6 +268,9 @@ extension CoachPlan {
         public var targetBodyFat: Double
         /// Waist gain since the phase start that opens the review (4 cm by default in a gain phase).
         public var maxWaistGainCm: Double
+        /// Body fat (%) that opens the review in a gain phase (`BodyCeiling.bodyFat`), 0 = off (the
+        /// default). Compared with the latest value of the tracking series.
+        public var bodyFatCeiling: Double
         /// kg, 0 = taken from the weigh-ins.
         public var startWeight: Double
         /// When the person confirmed the start. Only started phases are active.
@@ -283,7 +286,7 @@ extension CoachPlan {
                     end: DayKey? = nil, endApprox: Bool = false, rateMin: Double = 0, rateMax: Double = 0,
                     reviewMin: Double = 0, reviewMax: Double = 0, targetWeight: Double = 0, targetBodyFat: Double = 0,
                     maxWaistGainCm: Double? = nil, startWeight: Double = 0, startedAt: Date? = nil,
-                    status: PhaseStatus = .planned, note: String = "", revisions: [Revision] = []) {
+                    status: PhaseStatus = .planned, note: String = "", revisions: [Revision] = [], bodyFatCeiling: Double = 0) {
             self.id = id
             self.name = name
             self.goal = goal
@@ -298,6 +301,7 @@ extension CoachPlan {
             self.targetWeight = targetWeight
             self.targetBodyFat = targetBodyFat
             self.maxWaistGainCm = maxWaistGainCm ?? Phase.defaultMaxWaistGain(for: goal)
+            self.bodyFatCeiling = max(0, bodyFatCeiling)
             self.startWeight = startWeight
             self.startedAt = startedAt.map(CoachPlan.wholeSeconds)
             self.status = status
@@ -421,7 +425,7 @@ extension CoachPlan {
 
         enum CodingKeys: String, CodingKey {
             case id, name, goal, start, startApprox, end, endApprox, rateMin, rateMax, reviewMin, reviewMax, targetWeight,
-                 targetBodyFat, maxWaistGainCm, startWeight, startedAt, status, note, revisions
+                 targetBodyFat, maxWaistGainCm, bodyFatCeiling, startWeight, startedAt, status, note, revisions
         }
 
         public init(from decoder: Decoder) throws {
@@ -441,6 +445,7 @@ extension CoachPlan {
             targetWeight = c.number(.targetWeight, 0)
             targetBodyFat = c.number(.targetBodyFat, 0)
             maxWaistGainCm = c.number(.maxWaistGainCm, Phase.defaultMaxWaistGain(for: goal))
+            bodyFatCeiling = max(0, c.number(.bodyFatCeiling, 0))
             startWeight = c.number(.startWeight, 0)
             startedAt = c.moment(.startedAt)
             status = PhaseStatus(rawValue: c.text(.status)) ?? .planned
@@ -465,6 +470,8 @@ extension CoachPlan {
             try c.encode(targetWeight, forKey: .targetWeight)
             try c.encode(targetBodyFat, forKey: .targetBodyFat)
             try c.encode(maxWaistGainCm, forKey: .maxWaistGainCm)
+            // Written only when set, so plans without a ceiling keep their exact text.
+            if bodyFatCeiling > 0 { try c.encode(bodyFatCeiling, forKey: .bodyFatCeiling) }
             try c.encode(startWeight, forKey: .startWeight)
             try c.encode(startedAt.map(CoachPlan.momentText) ?? "", forKey: .startedAt)
             try c.encode(status.rawValue, forKey: .status)
@@ -487,18 +494,38 @@ extension CoachPlan {
         public var waistCm: Double
         public var date: DayKey?
         public var note: String
+        /// The day the weight or body-fat goal was set (F8: progress starts at the first value of
+        /// the tracking series on or after it). nil = not known (the series' first value).
+        public var since: DayKey?
 
-        public init(weightKg: Double = 0, bodyFat: Double = 0, waistCm: Double = 0, date: DayKey? = nil, note: String = "") {
+        public init(weightKg: Double = 0, bodyFat: Double = 0, waistCm: Double = 0, date: DayKey? = nil, note: String = "",
+                    since: DayKey? = nil) {
             self.weightKg = weightKg
             self.bodyFat = bodyFat
             self.waistCm = waistCm
             self.date = date
             self.note = note
+            self.since = since
         }
 
         public var isSet: Bool { weightKg > 0 || bodyFat > 0 || waistCm > 0 }
 
-        enum CodingKeys: String, CodingKey { case weightKg, bodyFat, waistCm, date, note }
+        /// This goal as saved on `day` over `previous`: a new weight or body-fat goal counts from
+        /// `day` (`since` = `day`); with both unchanged the goal keeps `previous.since`; without
+        /// either goal there is nothing to count from (nil).
+        public func stamped(after previous: LongTerm, on day: DayKey) -> LongTerm {
+            var copy = self
+            if weightKg <= 0, bodyFat <= 0 {
+                copy.since = nil
+            } else if abs(weightKg - previous.weightKg) > 1e-9 || abs(bodyFat - previous.bodyFat) > 1e-9 {
+                copy.since = day
+            } else {
+                copy.since = previous.since
+            }
+            return copy
+        }
+
+        enum CodingKeys: String, CodingKey { case weightKg, bodyFat, waistCm, date, note, since }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -507,6 +534,7 @@ extension CoachPlan {
             waistCm = c.number(.waistCm, 0)
             date = c.day(.date)
             note = c.text(.note)
+            since = c.day(.since)
         }
 
         public func encode(to encoder: Encoder) throws {
@@ -516,6 +544,8 @@ extension CoachPlan {
             try c.encode(waistCm, forKey: .waistCm)
             try c.encode(date?.rawValue ?? "", forKey: .date)
             try c.encode(note, forKey: .note)
+            // Written only when set, so goals without it keep their exact text.
+            if let since { try c.encode(since.rawValue, forKey: .since) }
         }
     }
 

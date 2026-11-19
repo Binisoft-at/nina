@@ -149,6 +149,33 @@ enum PhaseSheetPlan {
         return (start: starting(id, in: copy, on: day, context: context), phaseID: id)
     }
 
+    /// The maintenance bridge a review offers after a long gain phase before a loss phase
+    /// (`PhaseTransition.suggestsBridge`): a maintain phase from `day` for `days` days, started
+    /// right away at maintenance (the running phase ends the day before, as with Hold), and `next`
+    /// moved to start the day after it. An end of `next` that would fall before its new start
+    /// moves by the same number of days.
+    @MainActor
+    static func bridging(after active: CoachPlan.Phase, before next: CoachPlan.Phase, days: Int, in plan: CoachPlan,
+                         from day: DayKey, context: CoachContext) -> (start: Start, phaseID: String) {
+        let calendar = context.calendar
+        let id = newID(in: plan)
+        let end = day.adding(days: max(1, days) - 1, calendar: calendar)
+        let bridge = CoachPlan.Phase(id: id, name: "Maintenance bridge", goal: .maintain, start: day, end: end)
+        var copy = plan
+        if let index = copy.phases.firstIndex(where: { $0.id == next.id }) {
+            let newStart = end.adding(days: 1, calendar: calendar)
+            if let oldStart = copy.phases[index].start, let oldEnd = copy.phases[index].end, oldEnd < newStart {
+                let moved = max(0, oldStart.days(to: newStart, calendar: calendar))
+                copy.phases[index].end = oldEnd.adding(days: moved, calendar: calendar)
+            }
+            copy.phases[index].start = newStart
+            copy.phases[index].startApprox = false
+        }
+        let index = copy.phases.firstIndex(where: { $0.id == active.id }).map { $0 + 1 } ?? copy.phases.count
+        copy.phases.insert(bridge, at: index)
+        return (start: starting(id, in: copy, on: day, context: context), phaseID: id)
+    }
+
     /// The phase marked done; it ends today unless it ended earlier.
     static func markingDone(_ id: String, in plan: CoachPlan, today: DayKey) -> CoachPlan {
         guard let index = plan.phases.firstIndex(where: { $0.id == id }) else { return plan }
@@ -245,6 +272,9 @@ struct PhaseReviewFacts {
     let onPlanDays: Int
     /// The review asks for a full measurement set first (none in the last 14 days).
     let needsFullSet: Bool
+    /// A 1–2 week maintenance bridge is worth offering before the next phase: a gain phase of
+    /// more than 12 weeks is under review or at its end, and a loss phase comes next.
+    let offersBridge: Bool
 
     var name: String { phase.map(CheckInSheetText.phaseName) ?? "Phase" }
 
@@ -294,14 +324,21 @@ struct PhaseReviewFacts {
         }
     }
 
-    static func load(context: CoachContext, phaseID: String) -> PhaseReviewFacts {
+    /// `heightCm`: the profile's height (0 = not set), for the tape estimate.
+    static func load(context: CoachContext, phaseID: String, heightCm: Double = 0) -> PhaseReviewFacts {
         let plan = context.plan
         let today = context.today
         let calendar = context.calendar
         let phase = plan.phase(id: phaseID)
         let active = plan.activePhase(on: today)
         let crossing = phase.flatMap { $0.isStarted ? context.signal.checkpointCrossing(of: $0, through: today) : nil }
-        let ceilings = phase?.id == active?.id ? context.ceilings : []
+        var ceilings = phase?.id == active?.id ? context.ceilings : []
+        if let active, phase?.id == active.id {
+            let latest = PhaseBodyFat.latest(context.bodyFatReadings, tape: context.tapeRecords, sex: context.settings.body.sex,
+                                             heightCm: heightCm, method: plan.routine.bodyFatMethod, on: today,
+                                             calendar: calendar)
+            ceilings = PhaseBodyFat.ceilings(ceilings, phase: active, latestBodyFat: latest)
+        }
 
         let mode: Mode
         if let phase {
@@ -333,26 +370,24 @@ struct PhaseReviewFacts {
             return nil
         }
 
-        var composition: CompositionChange?
-        let series = BodyFatSeries.group(context.bodyFatReadings)
-        if let start, let tracking = BodyFatSeries.tracking(series, method: plan.routine.bodyFatMethod) {
-            let points = context.signal.compositionPoints(tracking.readings, today: today)
-            let first = points.last { $0.day <= start } ?? points.first { $0.day >= start }
-            if let first, let latest = points.last, first.day < latest.day {
-                composition = CompositionChange(from: first, to: latest)
-            }
+        // The tracking series with the live tape estimate, as the Body page shows it.
+        let composition = start.flatMap { PhaseBodyFat.change(context: context, since: $0, through: today, heightCm: heightCm) }
+
+        let next = PhaseSheetPlan.nextPhase(after: active ?? phase, in: plan)
+        var offersBridge = false
+        if let phase, mode == .review || mode == .end, next?.goal == .lose {
+            offersBridge = PhaseTransition.suggestsBridge(after: phase, on: today, calendar: calendar)
         }
 
         let checkIns = context.checkIns.filter { $0.phaseID == phaseID }
         let recent = today.adding(days: -BodySchedule.recentDays, calendar: calendar)
         let hasRecentFull = context.schedule.fullDays.contains { $0 >= recent && $0 <= today }
         return PhaseReviewFacts(
-            mode: mode, today: today, phase: phase, active: active,
-            next: PhaseSheetPlan.nextPhase(after: active ?? phase, in: plan),
+            mode: mode, today: today, phase: phase, active: active, next: next,
             summary: context.summary, checkpointReached: crossing, ceilings: ceilings,
             waist: change([waistSite]), arm: change([.arm, .armLeft]), chest: change([.chest]), composition: composition,
             checkInDays: checkIns.compactMap(\.days).reduce(0, +), onPlanDays: checkIns.compactMap(\.onPlan).reduce(0, +),
-            needsFullSet: mode == .review && !plan.routine.fullSites.isEmpty && !hasRecentFull)
+            needsFullSet: mode == .review && !plan.routine.fullSites.isEmpty && !hasRecentFull, offersBridge: offersBridge)
     }
 }
 

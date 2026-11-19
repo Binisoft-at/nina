@@ -189,7 +189,8 @@ struct SettingsPlanImportTests {
         #expect(abs(result.state.ratePerWeek - 0.15) < 0.0001)
         #expect(result.state.targetWeight == 83)
 
-        #expect(plan.longTerm == CoachPlan.LongTerm(weightKg: 78, bodyFat: 14, note: "Leaner and stronger"))
+        // A new long-term goal counts from the import day.
+        #expect(plan.longTerm == CoachPlan.LongTerm(weightKg: 78, bodyFat: 14, note: "Leaner and stronger", since: Self.today))
         #expect(plan.protein == CoachPlan.Protein(mealMin: 35, mealMax: 45, count: 4))
         let creatine = try #require(plan.check(id: "creatine"))
         #expect(creatine.timing == .meal("breakfast"))
@@ -235,6 +236,7 @@ struct SettingsPlanImportTests {
         var expected = first.state
         expected.meals.sort { $0.minutes < $1.minutes } // the import keeps meals in time order
         #expect(again.state == expected)
+        #expect(again.plan?.longTerm.since == Self.today)
 
         // Months later, with phase 2 due but not confirmed: re-importing doesn't start it.
         let june = planImportDay("2030-06-03")
@@ -243,6 +245,11 @@ struct SettingsPlanImportTests {
         let inJune = Self.imported(juneText, to: first.state, today: june, now: later)
         #expect(inJune.changes.isEmpty, "\(inJune.changes)")
         #expect(inJune.plan?.phase(id: "2")?.isStarted == false)
+        // The unchanged goal keeps its day; a new goal weight counts from the day it came in.
+        #expect(inJune.plan?.longTerm.since == Self.today)
+        let lighter = Self.imported("setting,value\nlong_term.weight_kg,77\n", to: first.state, today: june, now: later)
+        #expect(lighter.plan?.longTerm.weightKg == 77)
+        #expect(lighter.plan?.longTerm.since == june)
     }
 
     @Test func groupsReplaceAndListRemovals() throws {

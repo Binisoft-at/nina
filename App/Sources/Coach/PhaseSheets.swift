@@ -24,7 +24,11 @@ struct PhaseSheet: View {
     @State private var reviewMaxText = ""
     @State private var targetWeightText = ""
     @State private var targetFatText = ""
+    @State private var bodyFatCeilingText = ""
     @State private var calculation: PhaseTransition.Proposal?
+    /// The goals people had, while no plan is set up: a first phase migrates them
+    /// (`PlanEdits.addingFirstPhase`).
+    @State private var setUpState: SettingsState?
 
     private var isNew: Bool { original == nil }
     private var isDone: Bool { original?.status == .done }
@@ -71,7 +75,8 @@ struct PhaseSheet: View {
                 PhaseSheetRate(draft: $draft, weightKg: weightKg, isDone: isDone)
             }
             PhaseSheetGoals(draft: $draft, reviewOn: $reviewOn, reviewMin: $reviewMinText, reviewMax: $reviewMaxText,
-                            targetWeight: $targetWeightText, targetFat: $targetFatText, isDone: isDone)
+                            targetWeight: $targetWeightText, targetFat: $targetFatText, bodyFatCeiling: $bodyFatCeilingText,
+                            isDone: isDone)
             targetsSection
             if !isDone {
                 actionsSection
@@ -116,17 +121,21 @@ struct PhaseSheet: View {
         return "Calculate uses your maintenance from the last 28 days when there's enough data, else your profile, plus the middle of the rate. Every day type moves by the same amount."
     }
 
-    /// The phase's own targets in force (one row per day type).
+    /// The phase's own targets in force (one row per day type). A first phase before the plan is
+    /// set up shows the targets it takes over (training days and the rest).
     private var currentRows: [PhaseSheetTargetRow] {
-        guard let revision = PhaseSheetPlan.currentRevision(of: draft, on: revisionDay) else { return [] }
-        return PhaseSheetPlan.rows(plan: plan, before: revision, after: revision, fallback: app.settings.targets)
+        let working = workingPlan
+        let phase = working.phase(id: draft.id) ?? draft
+        guard let revision = PhaseSheetPlan.currentRevision(of: phase, on: revisionDay) else { return [] }
+        return PhaseSheetPlan.rows(plan: working, before: revision, after: revision, fallback: app.settings.targets)
     }
 
     private func calculationRows(_ proposal: PhaseTransition.Proposal) -> [PhaseSheetTargetRow] {
-        let phase = builtPhase()
+        let working = workingPlan
+        let phase = working.phase(id: draft.id) ?? builtPhase()
         let before = PhaseSheetPlan.currentRevision(of: phase, on: proposal.day)
-            ?? PhaseTransition.targetsBefore(phase, in: PhaseSheetPlan.placing(phase, in: plan), on: proposal.day)
-        return PhaseSheetPlan.rows(plan: plan, before: before, after: proposal.revision, fallback: app.settings.targets)
+            ?? PhaseTransition.targetsBefore(phase, in: working, on: proposal.day)
+        return PhaseSheetPlan.rows(plan: working, before: before, after: proposal.revision, fallback: app.settings.targets)
     }
 
     // MARK: Actions
@@ -152,6 +161,17 @@ struct PhaseSheet: View {
 
     private var plan: CoachPlan { context?.plan ?? app.settings.plan }
 
+    /// The plan as it would be saved (before a calculation): see `placed(_:in:)`.
+    private var workingPlan: CoachPlan { placed(builtPhase(), in: plan) }
+
+    /// `current` with `phase` in place. While no plan is set up, the first phase sets it up the
+    /// way "Set Up My Plan" does: training days become day types and the phase takes over the
+    /// targets people had, so training days keep their calories (`PlanEdits.addingFirstPhase`).
+    private func placed(_ phase: CoachPlan.Phase, in current: CoachPlan) -> CoachPlan {
+        guard !current.isSetUp else { return PhaseSheetPlan.placing(phase, in: current) }
+        return PlanEdits.addingFirstPhase(phase, to: current, from: setUpState ?? app.settingsState, on: app.today)
+    }
+
     private var weightKg: Double { context?.bodyWeight?.kilograms ?? app.settings.body.weightKg }
 
     private var revisionDay: DayKey { PhaseSheetPlan.revisionDay(of: draft, today: app.today) }
@@ -164,12 +184,15 @@ struct PhaseSheet: View {
     private var isValid: Bool {
         guard loaded else { return false }
         if let start = draft.start, let end = draft.end, end < start { return false }
+        // Only a gain phase keeps its ceiling (`builtPhase`), so only there can it block Save.
+        if draft.goal == .gain, PhaseSheetFormat.number(bodyFatCeilingText) > PhaseSheetFormat.maxBodyFat { return false }
         return true
     }
 
     private func load() {
         let context = CoachContext.load(app: app, day: app.today)
         self.context = context
+        setUpState = context.plan.isSetUp ? nil : app.settingsState
         guard !loaded else { return }
         loaded = true
         if let phaseID, let phase = context.plan.phase(id: phaseID) {
@@ -183,6 +206,7 @@ struct PhaseSheet: View {
         reviewMaxText = PhaseSheetFormat.text(draft.reviewMax)
         targetWeightText = PhaseSheetFormat.text(draft.targetWeight)
         targetFatText = PhaseSheetFormat.text(draft.targetBodyFat)
+        bodyFatCeilingText = PhaseSheetFormat.text(draft.bodyFatCeiling)
     }
 
     /// The draft with the typed numbers.
@@ -191,6 +215,8 @@ struct PhaseSheet: View {
         phase.name = phase.name.trimmingCharacters(in: .whitespacesAndNewlines)
         phase.targetWeight = PhaseSheetFormat.number(targetWeightText)
         phase.targetBodyFat = PhaseSheetFormat.number(targetFatText)
+        // Only a gain phase has ceilings (`BodyCeiling`).
+        phase.bodyFatCeiling = phase.goal == .gain ? PhaseSheetFormat.number(bodyFatCeilingText) : 0
         var low = PhaseSheetFormat.number(reviewMinText)
         var high = PhaseSheetFormat.number(reviewMaxText)
         if low > 0, high > 0, low > high { swap(&low, &high) }
@@ -214,7 +240,7 @@ struct PhaseSheet: View {
     /// The saved plan (read fresh) with the edited phase and the calculated targets.
     private func editedPlan() -> CoachPlan {
         let current = app.store.settings.plan
-        var plan = PhaseSheetPlan.placing(builtPhase(), in: current)
+        var plan = placed(builtPhase(), in: current)
         if current.isEmpty { plan.routine = CoachPlan.Routine.defaults(for: app.settings.body.sex) }
         if let calculation {
             // The calculated targets hold from their day on: a later revision (a check-in applied
@@ -231,7 +257,10 @@ struct PhaseSheet: View {
         let context = self.context ?? CoachContext.load(app: app, day: app.today)
         let phase = builtPhase()
         let day = PhaseSheetPlan.revisionDay(of: phase, today: context.today)
-        calculation = PhaseSheetPlan.calculation(for: phase, in: context.plan, on: day, context: context)
+        // A first phase starts from the targets it takes over (per day type), like a phase with its own.
+        let base = placed(phase, in: context.plan)
+        let subject = base.phase(id: phase.id) ?? phase
+        calculation = PhaseSheetPlan.calculation(for: subject, in: base, on: day, context: context)
     }
 
     private func save() {
@@ -269,6 +298,9 @@ struct PhaseSheet: View {
 
 /// Typed numbers of the phase sheet (0 = none).
 private enum PhaseSheetFormat {
+    /// A body-fat ceiling above this (%) isn't saved.
+    static let maxBodyFat = 60.0
+
     static func text(_ value: Double) -> String {
         value > 0 ? NumberText.plain(value, decimals: 2) : ""
     }
@@ -364,6 +396,14 @@ private struct PhaseSheetRate: View {
             Toggle("Weekly rate", isOn: rateOn)
                 .disabled(isDone)
             if draft.rateMax > 0 {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(rangeText)
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                    PhaseRateRangeSlider(low: minBinding, high: maxBinding, sign: draft.goal == .lose ? "−" : "+")
+                        .disabled(isDone)
+                }
+                .padding(.vertical, 4)
                 Stepper("From \(kgText(draft.rateMin))", value: minBinding, in: 0.05...max(0.05, draft.rateMax), step: 0.05)
                     .disabled(isDone)
                 Stepper("To \(kgText(draft.rateMax))", value: maxBinding, in: min(max(0.05, draft.rateMin), 1.0)...1.0, step: 0.05)
@@ -389,10 +429,18 @@ private struct PhaseSheetRate: View {
         guard draft.rateMax > 0 else {
             return "Without a rate, Calculate works one out from the target weight and end date."
         }
-        var text = "Targets use the middle of the range: \(CheckInSheetText.signedKcal(draft.energyAdjustment)) a day."
-        if let low = WeightSignal.percent(draft.rateRange.lowerBound, of: weightKg),
-           let high = WeightSignal.percent(draft.rateRange.upperBound, of: weightKg) {
-            text += " That's \(Fmt.number(low, decimals: 2))–\(Fmt.number(high, decimals: 2)) % of your weight a week."
+        return "Drag either end, or use the steppers. Targets use the middle of the range: "
+            + "\(CheckInSheetText.signedKcal(draft.energyAdjustment)) a day."
+    }
+
+    /// "+0.15 to +0.25 kg a week · 0.19–0.31 % of your weight".
+    private var rangeText: String {
+        let sign = draft.goal == .lose ? "−" : "+"
+        let range = draft.rateRange
+        var text = "\(sign)\(Fmt.number(range.lowerBound, decimals: 2)) to \(sign)\(Fmt.number(range.upperBound, decimals: 2)) kg a week"
+        if let low = WeightSignal.percent(range.lowerBound, of: weightKg),
+           let high = WeightSignal.percent(range.upperBound, of: weightKg) {
+            text += " · \(Fmt.number(low, decimals: 2))–\(Fmt.number(high, decimals: 2)) % of your weight"
         }
         return text
     }
@@ -410,11 +458,128 @@ private struct PhaseSheetRate: View {
     }
 
     private var minBinding: Binding<Double> {
-        Binding<Double>(get: { draft.rateMin }, set: { draft.rateMin = ($0 * 100).rounded() / 100 })
+        Binding<Double>(get: { draft.rateMin }, set: { (value: Double) in draft.rateMin = (value * 100).rounded() / 100 })
     }
 
     private var maxBinding: Binding<Double> {
-        Binding<Double>(get: { draft.rateMax }, set: { draft.rateMax = ($0 * 100).rounded() / 100 })
+        Binding<Double>(get: { draft.rateMax }, set: { (value: Double) in draft.rateMax = (value * 100).rounded() / 100 })
+    }
+}
+
+/// Which end of the rate range a drag moves.
+private enum PhaseRateThumb {
+    case low, high
+}
+
+/// The weekly rate as a range with two handles on one track (0.05–1.0 kg in 0.05 steps): the
+/// low end never passes the high one. A drag moves the nearer handle (when both sit on one spot,
+/// the one in the drag's direction); VoiceOver adjusts each handle on its own.
+private struct PhaseRateRangeSlider: View {
+    @Binding var low: Double
+    @Binding var high: Double
+    /// "+" for a gain, "−" for a loss (spoken values).
+    let sign: String
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var dragging: PhaseRateThumb?
+
+    private let bounds: ClosedRange<Double> = 0.05...1.0
+    private let step = 0.05
+    private let thumb: CGFloat = 26
+
+    var body: some View {
+        GeometryReader { (proxy: GeometryProxy) in
+            content(width: proxy.size.width)
+        }
+        .frame(height: thumb + 4)
+    }
+
+    private func content(width: CGFloat) -> some View {
+        let usable: CGFloat = max(1, width - thumb)
+        let lowX: CGFloat = position(low, usable: usable)
+        let highX: CGFloat = position(high, usable: usable)
+        let fillWidth: CGFloat = max(6, highX - lowX + 6)
+        let fillStart: CGFloat = thumb / 2 + lowX - 3
+        return ZStack(alignment: .leading) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(width: usable, height: 6)
+                .offset(x: thumb / 2)
+            Capsule()
+                .fill(isEnabled ? Brand.accent : Color.secondary)
+                .frame(width: fillWidth, height: 6)
+                .offset(x: fillStart)
+            handle(.low)
+                .offset(x: lowX)
+            handle(.high)
+                .offset(x: highX)
+        }
+        .frame(width: width, height: thumb + 4, alignment: .leading)
+        .contentShape(Rectangle())
+        .gesture(drag(usable: usable, lowX: lowX, highX: highX))
+        .accessibilityElement(children: .contain)
+    }
+
+    private func handle(_ which: PhaseRateThumb) -> some View {
+        let value: Double = which == .low ? low : high
+        let label: String = which == .low ? "Slowest rate" : "Fastest rate"
+        let spoken: String = "\(sign)\(Fmt.number(value, decimals: 2)) kg a week"
+        return Circle()
+            .fill(Color.white)
+            .overlay { Circle().strokeBorder(Color.secondary.opacity(0.35), lineWidth: 0.5) }
+            .shadow(color: Color.black.opacity(0.18), radius: 2, y: 1)
+            .frame(width: thumb, height: thumb)
+            .accessibilityElement()
+            .accessibilityLabel(label)
+            .accessibilityValue(spoken)
+            .accessibilityAdjustableAction { (direction: AccessibilityAdjustmentDirection) in
+                if direction == .increment {
+                    move(which, to: value + step)
+                } else if direction == .decrement {
+                    move(which, to: value - step)
+                }
+            }
+    }
+
+    private func drag(usable: CGFloat, lowX: CGFloat, highX: CGFloat) -> some Gesture {
+        // Locations are in the track's own space (the frame above).
+        DragGesture(minimumDistance: 2)
+            .onChanged { (gesture: DragGesture.Value) in
+                let which = dragging ?? nearest(to: gesture.startLocation.x - thumb / 2, lowX: lowX, highX: highX,
+                                                 direction: gesture.translation.width)
+                dragging = which
+                move(which, to: value(at: gesture.location.x - thumb / 2, usable: usable))
+            }
+            .onEnded { (_: DragGesture.Value) in
+                dragging = nil
+            }
+    }
+
+    /// The handle nearer to `x`; on one spot, the low one for a drag to the left.
+    private func nearest(to x: CGFloat, lowX: CGFloat, highX: CGFloat, direction: CGFloat) -> PhaseRateThumb {
+        let toLow = abs(x - lowX), toHigh = abs(x - highX)
+        if abs(toLow - toHigh) < 1 { return direction < 0 ? .low : .high }
+        return toLow < toHigh ? .low : .high
+    }
+
+    private func position(_ value: Double, usable: CGFloat) -> CGFloat {
+        let span = bounds.upperBound - bounds.lowerBound
+        let fraction = (min(max(value, bounds.lowerBound), bounds.upperBound) - bounds.lowerBound) / span
+        return CGFloat(fraction) * usable
+    }
+
+    private func value(at x: CGFloat, usable: CGFloat) -> Double {
+        let fraction = Double(min(max(x / usable, 0), 1))
+        return bounds.lowerBound + fraction * (bounds.upperBound - bounds.lowerBound)
+    }
+
+    /// Snaps to 0.05 kg within 0.05–1.0, keeping the low end at or below the high one.
+    private func move(_ which: PhaseRateThumb, to raw: Double) {
+        let snapped = min(max((raw / step).rounded() * step, bounds.lowerBound), bounds.upperBound)
+        let value = (snapped * 100).rounded() / 100
+        switch which {
+        case .low: if abs(value - low) > 1e-9 { low = min(value, high) }
+        case .high: if abs(value - high) > 1e-9 { high = max(value, low) }
+        }
     }
 }
 
@@ -426,6 +591,7 @@ private struct PhaseSheetGoals: View {
     @Binding var reviewMax: String
     @Binding var targetWeight: String
     @Binding var targetFat: String
+    @Binding var bodyFatCeiling: String
     let isDone: Bool
 
     var body: some View {
@@ -442,6 +608,7 @@ private struct PhaseSheetGoals: View {
                 }
                 if draft.goal == .gain {
                     Stepper(waistTitle, value: $draft.maxWaistGainCm, in: 0...10, step: 0.5)
+                    PhaseSheetNumberField(title: "Body-fat ceiling", text: $bodyFatCeiling, unit: "%")
                 }
             }
             .disabled(isDone)
@@ -470,6 +637,7 @@ private struct PhaseSheetGoals: View {
         }
         if draft.goal == .gain {
             text += " The waist check opens the same review when your waist grows that much since the start."
+            text += " So does the body-fat ceiling (empty = off, at most 60 %) once your tracked body fat reaches it."
         }
         return text
     }
@@ -684,6 +852,9 @@ struct PhaseReviewSheet: View {
                 PhaseReviewChoice(title: "Keep going", detail: keepDetail(facts), symbol: "arrow.forward.circle") { keep(facts) }
             }
             PhaseReviewChoice(title: "Hold my weight", detail: holdDetail(facts), symbol: "pause.circle") { hold(facts) }
+            if facts.offersBridge, let next = facts.next {
+                bridgeChoices(next, facts: facts)
+            }
             if let next = facts.next {
                 PhaseReviewChoice(title: "Start \(CheckInSheetText.phaseName(next)) now",
                                   detail: "From \(switchDayText.lowercased()), with these targets:",
@@ -706,6 +877,15 @@ struct PhaseReviewSheet: View {
         } footer: {
             Text("Each choice saves right away and can be undone from the message that follows.")
         }
+    }
+
+    /// "1 week / 2 weeks at maintenance first" before a loss phase, after a long gain phase.
+    @ViewBuilder
+    private func bridgeChoices(_ next: CoachPlan.Phase, facts: PhaseReviewFacts) -> some View {
+        PhaseReviewChoice(title: "1 week at maintenance first", detail: bridgeDetail(next, days: 7),
+                          symbol: "arrow.right.to.line") { bridge(next, days: 7, facts: facts) }
+        PhaseReviewChoice(title: "2 weeks at maintenance first", detail: bridgeDetail(next, days: 14),
+                          symbol: "arrow.right.to.line") { bridge(next, days: 14, facts: facts) }
     }
 
     // MARK: Choices for a phase that is due to start
@@ -767,6 +947,12 @@ struct PhaseReviewSheet: View {
         return text + "."
     }
 
+    /// "Maintenance from tomorrow, then Cut from Mon 12 May. A short break after a long gain."
+    private func bridgeDetail(_ next: CoachPlan.Phase, days: Int) -> String {
+        let nextStart = switchDay.adding(days: days)
+        return "Maintenance from \(switchDayText.lowercased()), then \(CheckInSheetText.phaseName(next)) from \(CheckInSheetText.day(nextStart)). A short break after a long gain."
+    }
+
     private func endDetail(_ facts: PhaseReviewFacts) -> String {
         guard let end = facts.phase?.end else { return "No end date yet." }
         return "Now \(Fmt.dayTitle(end, today: app.today))."
@@ -786,7 +972,7 @@ struct PhaseReviewSheet: View {
 
     private func load() {
         let context = CoachContext.load(app: app, day: app.today)
-        let facts = PhaseReviewFacts.load(context: context, phaseID: phaseID)
+        let facts = PhaseReviewFacts.load(context: context, phaseID: phaseID, heightCm: app.store.profile()?.heightCm ?? 0)
         self.context = context
         self.facts = facts
         let dayAfter = context.today.adding(days: 1, calendar: context.calendar)
@@ -837,6 +1023,21 @@ struct PhaseReviewSheet: View {
         let event: PhaseEvent = facts.mode == .review ? .reviewCut : .ended
         app.phaseSheetCommit(start.plan, events: [(phaseID: phase.id, event: event), (phaseID: next.id, event: .started)],
                              message: "\(CheckInSheetText.phaseName(next)) starts \(switchDayText.lowercased())")
+        dismiss()
+    }
+
+    /// A maintenance bridge from the switch day, then `next` (moved to start right after it).
+    private func bridge(_ next: CoachPlan.Phase, days: Int, facts: PhaseReviewFacts) {
+        guard let phase = facts.phase else { return }
+        let context = self.context ?? CoachContext.load(app: app, day: app.today)
+        let result = PhaseSheetPlan.bridging(after: phase, before: next, days: days, in: app.store.settings.plan,
+                                             from: switchDay, context: context)
+        let event: PhaseEvent = facts.mode == .review ? .reviewCut : .ended
+        let weeks = days >= 14 ? "2 weeks" : "1 week"
+        app.phaseSheetCommit(result.start.plan,
+                             events: [(phaseID: phase.id, event: event), (phaseID: result.phaseID, event: .started)],
+                             message: "\(weeks) at maintenance, then \(CheckInSheetText.phaseName(next))",
+                             symbol: "pause.circle.fill")
         dismiss()
     }
 

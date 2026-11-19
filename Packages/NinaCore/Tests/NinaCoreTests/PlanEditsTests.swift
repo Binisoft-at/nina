@@ -206,4 +206,77 @@ struct PlanEditsTests {
         // A plan that is set up stays as it is.
         #expect(PlanEdits.settingUp(EditsFixture.plan(), from: state, on: day) == EditsFixture.plan())
     }
+
+    @Test func firstPhaseAddedBeforeSetUpKeepsTrainingDays() throws {
+        var before = CoachPlan()
+        before.checks = [.init(id: "creatine", name: "Creatine")]
+        let state = SettingsState(sex: .male, goal: .gain, ratePerWeek: 0.2, targets: EditsFixture.rest,
+                                  trainingTargets: EditsFixture.gym, trainingDays: Weekdays([1, 3, 5]))
+        let start = editsDay("2030-03-04") // a Monday
+        let today = editsDay("2030-02-25")
+        let phase = CoachPlan.Phase(id: "1", name: "Slow gain", goal: .gain, start: start, rateMin: 0.1, rateMax: 0.2)
+        let added = PlanEdits.addingFirstPhase(phase, to: before, from: state, on: today, now: today.date(calendar: editsUTC))
+        #expect(added.isSetUp)
+        #expect(added.checks.map(\.id) == ["creatine"])
+        #expect(added.dayTypes.map(\.id) == ["training", "rest"])
+        #expect(added.dayType(id: "training")?.weekdays == Weekdays([1, 3, 5]))
+        #expect(added.phases.map(\.id) == ["1"])
+        let revision = try #require(added.phase(id: "1")?.revisions.first)
+        #expect(revision.from == start)
+        #expect(revision.baseline == EditsFixture.rest)
+        #expect(revision.byType["training"] == EditsFixture.gym)
+        #expect(revision.byType["rest"] == EditsFixture.rest)
+        // Planned only: nothing changes before it starts.
+        #expect(added.activePhase(on: start) == nil)
+
+        // Started: training weekdays keep their own targets, and the profile mirror keeps them.
+        let started = added.starting(phase: "1", on: start, now: start.date(calendar: editsUTC), calendar: editsUTC)
+        #expect(started.targets(on: start, marks: [:], fallback: .standard, calendar: editsUTC) == EditsFixture.gym)
+        #expect(started.targets(on: editsDay("2030-03-05"), marks: [:], fallback: .standard, calendar: editsUTC) == EditsFixture.rest)
+        let mirror = try #require(started.mirror(on: start))
+        #expect(mirror.trainingTargets == EditsFixture.gym)
+        #expect(mirror.trainingDays == Weekdays([1, 3, 5]))
+        #expect(mirror.targets == EditsFixture.rest)
+        let state2 = mirror.applied(to: state)
+        #expect(state2.trainingTargets == EditsFixture.gym)
+        #expect(state2.trainingDays == Weekdays([1, 3, 5]))
+
+        // A phase that already has targets keeps them; without training days there are no day types.
+        let own = CoachPlan.Revision(from: start, baseline: EditsFixture.gym, reason: "calculate")
+        var withTargets = phase
+        withTargets.revisions = [own]
+        let plain = SettingsState(goal: .gain, targets: EditsFixture.rest)
+        let kept = PlanEdits.addingFirstPhase(withTargets, to: CoachPlan(), from: plain, on: today)
+        #expect(kept.dayTypes.isEmpty)
+        #expect(kept.phase(id: "1")?.revisions == [own])
+
+        // A plan that is set up only gets the phase.
+        let second = CoachPlan.Phase(id: "2", goal: .lose, start: editsDay("2030-06-03"))
+        let more = PlanEdits.addingFirstPhase(second, to: EditsFixture.plan(), from: state, on: today)
+        #expect(more.dayTypes == EditsFixture.plan().dayTypes)
+        #expect(more.phases.map(\.id) == ["1", "2"])
+        #expect(more.phase(id: "2")?.revisions.isEmpty == true)
+    }
+
+    @Test func deletingADayTypeFreesItsChecks() throws {
+        var plan = EditsFixture.plan()
+        plan.dayTypes.append(.init(id: "tennis", name: "Tennis", schedule: .flexible, perWeek: 2))
+        plan.checks = [
+            .init(id: "creatine", name: "Creatine", days: .dayTypes(["gym"])),
+            .init(id: "shake", name: "Shake", days: .dayTypes(["gym", "tennis"])),
+            .init(id: "fish", name: "Fish oil", days: .weekdays(Weekdays([1]))),
+        ]
+        let deleted = PlanEdits.deletingDayType("gym", in: plan)
+        #expect(deleted.dayTypes.map(\.id) == ["rest", "tennis"])
+        // Only gym days: every day now, so the pill doesn't silently disappear.
+        #expect(deleted.check(id: "creatine")?.days == .daily)
+        #expect(deleted.check(id: "creatine")?.isDue(on: editsDay("2030-01-08"), dayTypeID: "rest", calendar: editsUTC) == true)
+        #expect(deleted.check(id: "shake")?.days == .dayTypes(["tennis"]))
+        #expect(deleted.check(id: "fish")?.days == .weekdays(Weekdays([1])))
+        // Revisions keep the type's targets (ignored without it; Undo brings the type back).
+        #expect(deleted.phase(id: "1")?.revisions.first?.byType["gym"] == EditsFixture.gym)
+        #expect(deleted.targets(on: editsDay("2030-01-07"), marks: [:], fallback: .standard, calendar: editsUTC) == EditsFixture.rest)
+        // Unknown ids change nothing.
+        #expect(PlanEdits.deletingDayType("swim", in: plan) == plan)
+    }
 }
