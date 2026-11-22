@@ -31,6 +31,8 @@ struct MeasureSheet: View {
     @State private var note: String
     @State private var showsGuide = false
     @State private var thenAssessment = true
+    /// After a new full set: the photo session follows (device-only, remembered).
+    @AppStorage(BodyPhotoKeys.afterFullSet) private var thenPhotos = true
     @State private var context: BodySheetTapeContext?
     /// The pager's page (a new session).
     @State private var page: BodySheetMeasurePage = .start
@@ -342,6 +344,7 @@ struct MeasureSheet: View {
             guard let site = target.site else { return "Next" }
             return "Next: \(siteTitle(site))"
         case .done:
+            if offersPhotos && thenPhotos { return "Next: Photos" }
             return offersAssessment && thenAssessment ? "Next: Body Fat" : "Done"
         }
     }
@@ -496,11 +499,19 @@ struct MeasureSheet: View {
             if offersAssessment {
                 Toggle("Then add body fat", isOn: $thenAssessment)
             }
+            if offersPhotos {
+                Toggle("Then add progress photos", isOn: $thenPhotos)
+            }
         } footer: {
             if offersAssessment {
                 Text("A body-fat check is due as well.")
             }
         }
+    }
+
+    /// A new full set can be followed by progress photos (BodyPhotosSession.swift); not in the tour.
+    private var offersPhotos: Bool {
+        record == nil && current == .full && !app.isSandbox
     }
 
     private var offersAssessment: Bool {
@@ -552,8 +563,11 @@ struct MeasureSheet: View {
         let draft = BodyMeasurementDraft(day: context.day(for: time), time: time, kind: .tape, values: draftValues,
                                          conditions: conditionsText,
                                          note: note.trimmingCharacters(in: .whitespacesAndNewlines))
-        app.saveMeasurement(draft, editing: record)
-        if offersAssessment, thenAssessment {
+        let saved = app.saveMeasurement(draft, editing: record)
+        let assessmentFollows = offersAssessment && thenAssessment
+        if offersPhotos, thenPhotos {
+            app.present(.photos(.session(BodyPhotoStart(measurementID: saved.uuid, thenAssessment: assessmentFollows))))
+        } else if assessmentFollows {
             app.present(.assessment(nil))
         } else {
             dismiss()

@@ -194,6 +194,8 @@ private struct SheetContent: View {
         case .planGoal:
             NavigationStack { PlanEditorView(showsDone: true, initialRoute: .longTerm) }
                 .sheetFrame(minWidth: 580, minHeight: 700)
+        case .photos(let sheet):
+            BodyPhotoSheetContent(sheet: sheet)
         case .water(let day):
             WaterAmountView(day: day)
         case .scanBarcode(let day, let meal):

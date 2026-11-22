@@ -449,6 +449,9 @@ struct NinaStore {
         sweep(PlanRule.self)
         sweep(BodyMeasurement.self)
         sweep(DayMark.self)
+        #if !os(watchOS)
+        sweep(ProgressPhoto.self)
+        #endif
         guard count > 0 else { return }
         AppLog.info("Emptied \(count) record(s) from the trash", category: "store")
         save()
