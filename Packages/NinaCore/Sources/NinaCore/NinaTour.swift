@@ -31,7 +31,7 @@ public struct NinaTourSnapshot: Equatable, Sendable {
 /// `version`; people who already took the tour then get just the new steps as "What's new".
 /// `swift test` checks the catalog.
 public enum NinaTour {
-    public static let version = 4
+    public static let version = 5
 
     public static let catalog = TourCatalog<NinaTourSnapshot>.standard(
         appName: "Nina",
@@ -157,6 +157,12 @@ public enum NinaTour {
                 id: "history", since: 4, symbol: "clock.arrow.circlepath", title: "Bring your history",
                 body: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? ⋯ → Create… → Import My Data → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
                 macBody: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? File → Import My Data… (⇧⌘I) → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
+                goal: .none
+            ),
+            TourStep(
+                id: "thalia", since: 5, symbol: "arrow.up.forward.app", title: "Your numbers in Thalia",
+                body: "Nina hands Thalia your daily calories, protein, carbs, fat and water on this device – Thalia takes them as soon as you open it. Turn it off in Settings → Thalia.",
+                macBody: "Nina hands Thalia your daily calories, protein, carbs, fat and water on this Mac – Thalia takes them as soon as you open it here. Turn it off in Settings (⌘,) → General → Thalia.",
                 goal: .none
             ),
             TourStep(

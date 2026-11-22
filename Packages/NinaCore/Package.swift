@@ -3,7 +3,8 @@ import PackageDescription
 
 // NinaCore: all of Nina's logic that doesn't need Apple frameworks (Foundation only): nutrients,
 // the bundled food catalog (Resources/foods.json, built by scripts/build_food_db.py), search, the
-// quick-add parser, goals, insights, plans, CSV import/export and the AI prompts.
+// quick-add parser, goals, insights, plans, CSV import/export, the AI prompts and the Binisoft
+// exchange with Thalia (ExchangeFormat, ThaliaFeed, ThaliaExchangeWriter).
 // Tested with Swift Testing on Linux in CI, so keep UIKit/SwiftUI/SwiftData out of here.
 let package = Package(
     name: "NinaCore",
@@ -20,7 +21,8 @@ let package = Package(
             dependencies: [.product(name: "BinisoftKitCore", package: "BinisoftKit")],
             resources: [.copy("Resources/foods.json")]
         ),
-        .testTarget(name: "NinaCoreTests", dependencies: ["NinaCore"]),
+        // Fixtures/exchange: the Binisoft exchange files from Thalia's tests (ThaliaExchangeTests).
+        .testTarget(name: "NinaCoreTests", dependencies: ["NinaCore"], resources: [.copy("Fixtures")]),
     ],
     swiftLanguageModes: [.v5]
 )

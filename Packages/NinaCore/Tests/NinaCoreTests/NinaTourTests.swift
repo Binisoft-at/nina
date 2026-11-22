@@ -3,12 +3,14 @@ import BinisoftKitCore
 @testable import NinaCore
 
 /// The coach steps of tour version 3 (day types, daily checks, protein per meal, weigh-in,
-/// measurements, Progress, check-in) and the steps of version 4 (progress photos, the coach on the
-/// watch, body data from Apple Health, importing the weight & body history).
+/// measurements, Progress, check-in), the steps of version 4 (progress photos, the coach on the
+/// watch, body data from Apple Health, importing the weight & body history) and version 5 (Nina
+/// hands its day values to Thalia).
 @Suite("Coach tour")
 struct CoachTourTests {
     static let coachSteps = ["daytype", "plan-ahead", "checks", "protein", "weigh-in", "measure", "progress", "checkin"]
     static let versionFourSteps = ["photos", "watchCoach", "healthBody", "history"]
+    static let versionFiveSteps = ["thalia"]
 
     @Test func versionThreeAddsTheCoachSteps() {
         let ids = NinaTour.catalog.steps.filter { $0.since == 3 }.map(\.id)
@@ -20,7 +22,6 @@ struct CoachTourTests {
     }
 
     @Test func versionFourAddsPhotosWatchHealthAndHistory() {
-        #expect(NinaTour.version == 4)
         let ids = NinaTour.catalog.steps.filter { $0.since == 4 }.map(\.id)
         #expect(ids == Self.versionFourSteps)
         for step in NinaTour.catalog.steps where step.since == 4 {
@@ -30,16 +31,35 @@ struct CoachTourTests {
         }
     }
 
-    @Test func peopleWhoTookVersionTwoSeeTheCoachAndTheVersionFourSteps() {
-        let ids = NinaTour.catalog.steps(newerThan: 2).map(\.id)
-        #expect(ids == ["whats-new"] + Self.coachSteps + Self.versionFourSteps + ["finish"])
+    /// Version 5: Nina hands Thalia the day's calories, macros and water (Settings → Thalia).
+    @Test func versionFiveAddsThalia() throws {
+        #expect(NinaTour.version == 5)
+        let ids = NinaTour.catalog.steps.filter { $0.since == 5 }.map(\.id)
+        #expect(ids == Self.versionFiveSteps)
+        let step = try #require(NinaTour.catalog.steps.first { $0.id == "thalia" })
+        #expect(step.goal.isManual, "read-only: the practice page has no Thalia")
+        #expect(step.macBody != step.body)
+        #expect(step.body.contains("Settings → Thalia"))
+        #expect(step.macBody.contains("Settings (⌘,) → General → Thalia"))
     }
 
-    /// Version 3 is on TestFlight: those testers get only the four new steps as "What's new".
-    @Test func peopleWhoTookVersionThreeSeeOnlyTheVersionFourSteps() {
+    @Test func peopleWhoTookVersionTwoSeeTheCoachAndTheNewerSteps() {
+        let ids = NinaTour.catalog.steps(newerThan: 2).map(\.id)
+        let newer: [String] = Self.coachSteps + Self.versionFourSteps + Self.versionFiveSteps
+        #expect(ids == ["whats-new"] + newer + ["finish"])
+    }
+
+    @Test func peopleWhoTookVersionThreeSeeTheVersionFourAndFiveSteps() {
         let ids = NinaTour.catalog.steps(newerThan: 3).map(\.id)
-        #expect(ids == ["whats-new"] + Self.versionFourSteps + ["finish"])
-        #expect(NinaTour.catalog.steps(newerThan: 4).isEmpty)
+        let newer: [String] = Self.versionFourSteps + Self.versionFiveSteps
+        #expect(ids == ["whats-new"] + newer + ["finish"])
+    }
+
+    /// Version 4 is on TestFlight: those testers get only the Thalia step as "What's new".
+    @Test func peopleWhoTookVersionFourSeeOnlyTheThaliaStep() {
+        let ids = NinaTour.catalog.steps(newerThan: 4).map(\.id)
+        #expect(ids == ["whats-new"] + Self.versionFiveSteps + ["finish"])
+        #expect(NinaTour.catalog.steps(newerThan: 5).isEmpty)
     }
 
     @Test func firstRunHasEverythingInOrder() {
@@ -55,12 +75,14 @@ struct CoachTourTests {
         let checkin = everything.firstIndex(of: "checkin") ?? 0
         let photos = everything.firstIndex(of: "photos") ?? 0
         let history = everything.firstIndex(of: "history") ?? 0
+        let thalia = everything.firstIndex(of: "thalia") ?? 0
         let everywhere = everything.firstIndex(of: "everywhere") ?? 0
         #expect(water < daytype)
         #expect(daytype < checkin)
         #expect(checkin < photos)
         #expect(photos < history)
-        #expect(history < everywhere)
+        #expect(history < thalia)
+        #expect(thalia < everywhere)
     }
 
     @Test func coachStepsTickOff() {
@@ -120,7 +142,7 @@ struct CoachTourTests {
     }
 
     @Test func readOnlyStepsSayContinue() {
-        for id in ["protein", "progress", "checkin"] + Self.versionFourSteps {
+        for id in ["protein", "progress", "checkin"] + Self.versionFourSteps + Self.versionFiveSteps {
             let progress = TourProgress(steps: NinaTour.catalog.allSteps, start: NinaTourSnapshot(), startAt: id)
             #expect(progress.step?.id == id)
             #expect(progress.primaryTitle == "Continue")
