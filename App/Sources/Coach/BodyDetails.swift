@@ -30,6 +30,7 @@ struct BodyDetailsSiteView: View {
                     readingsSection(detail)
                 }
             }
+            BodyDetailsHealthWaistSection(site: site, since: since)
         }
         .navigationTitle(site.title)
         .task(id: "\(app.dataVersion)-\(includeAll)") {
@@ -310,6 +311,7 @@ struct BodyDetailsMeasurementsView: View {
                 }
             }
         }
+        .bodyHistoryExportMenu()
     }
 }
 

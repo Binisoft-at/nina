@@ -186,6 +186,10 @@ public enum HealthMapping {
     /// same identifier comes with a higher version, so edits never duplicate.
     public static func syncIdentifier(entry: UUID) -> String { "nina.entry.\(entry.uuidString)" }
     public static func syncIdentifier(water: UUID) -> String { "nina.water.\(water.uuidString)" }
+    /// A weigh-in's body-mass sample: the same on every device, so iPhone and iPad never write it twice.
+    public static func syncIdentifier(weight: UUID) -> String { syncIdentifier(weightID: weight.uuidString) }
+    /// The same from the weigh-in's uuid text (`HealthWeightSync.Item.id`).
+    public static func syncIdentifier(weightID: String) -> String { "nina.weight.\(weightID)" }
 
     /// A version that grows with every edit (seconds since 2001 of the last change).
     public static func syncVersion(modifiedAt: Date) -> Int {

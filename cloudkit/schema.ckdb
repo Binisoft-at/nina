@@ -1,5 +1,6 @@
 // Nina – CloudKit schema of iCloud.at.binisoft.nina (SwiftData mirroring: CD_ prefix, one
-// record type per @Model, to-one relationships as CD_<name> STRING, to-many sides are not stored).
+// record type per @Model, to-one relationships as CD_<name> STRING, to-many sides are not stored,
+// Data as CD_<name> BYTES plus CD_<name>_ckAsset ASSET for values too big for the record).
 //
 // Generated from Shared/Model/Models.swift by tools/cloudkit-schema.py – run it after every model
 // change. Order on every model change:
@@ -188,6 +189,32 @@ DEFINE SCHEMA
         CD_title      STRING,
         CD_uuid       STRING,
         CD_weekdays   STRING,
+        GRANT WRITE TO "_creator",
+        GRANT CREATE TO "_icloud",
+        GRANT READ TO "_world"
+    );
+
+    RECORD TYPE CD_ProgressPhoto (
+        "___createTime" TIMESTAMP,
+        "___createdBy"  REFERENCE,
+        "___etag"       STRING,
+        "___modTime"    TIMESTAMP,
+        "___modifiedBy" REFERENCE,
+        "___recordID"   REFERENCE QUERYABLE,
+        CD_createdAt         TIMESTAMP,
+        CD_day               STRING,
+        CD_deletedAt         TIMESTAMP,
+        CD_entityName        STRING,
+        CD_image             BYTES,
+        CD_image_ckAsset     ASSET,
+        CD_measurementID     STRING,
+        CD_modifiedAt        TIMESTAMP,
+        CD_note              STRING,
+        CD_pose              STRING,
+        CD_thumbnail         BYTES,
+        CD_thumbnail_ckAsset ASSET,
+        CD_time              TIMESTAMP,
+        CD_uuid              STRING,
         GRANT WRITE TO "_creator",
         GRANT CREATE TO "_icloud",
         GRANT READ TO "_world"

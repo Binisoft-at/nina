@@ -3,7 +3,7 @@ import BinisoftKitCore
 
 /// Which of Nina's CSV formats a file is.
 public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
-    case settings, foods, recipes, diary
+    case settings, foods, recipes, diary, measurements
 
     public var id: String { rawValue }
 
@@ -13,6 +13,7 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
         case .foods: "Foods"
         case .diary: "Diary"
         case .recipes: "Meals & Recipes"
+        case .measurements: "Weight & Body"
         }
     }
 
@@ -23,6 +24,7 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
         case .foods: "Foods"
         case .diary: "Diary"
         case .recipes: "Recipes"
+        case .measurements: "Body"
         }
     }
 
@@ -32,6 +34,7 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
         case .foods: "Your foods with their nutrition values – from labels, a spreadsheet or another app."
         case .diary: "What you ate on which day – e.g. an export from another app."
         case .recipes: "Saved meals (logged together) and recipes (cooked, then eaten in portions)."
+        case .measurements: "Past weigh-ins, tape measurements and body-fat results – from a DEXA, InBody or 3D-scan report, an old spreadsheet or another app."
         }
     }
 
@@ -40,9 +43,12 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
         let firstLine = text.split(whereSeparator: \.isNewline).first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map(String.init) ?? ""
         let firstCell = firstLine.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "\t" }).first.map(String.init) ?? ""
         if SettingsCSV.isHeader([firstCell]) { return .settings }
-        let header = CSV.records(text).header.map(ImportColumns.canonical)
+        let cells = CSV.records(text).header
+        let header = cells.map(ImportColumns.canonical)
         let set = Set(header)
         if set.contains("recipe") || set.contains("ingredient") { return .recipes }
+        // Before the diary: a weight & body history has a date too.
+        if BodyHistoryCSV.isHeader(cells) { return .measurements }
         if set.contains("date") { return .diary }
         if set.contains("name") || set.contains("food") { return .foods }
         return nil

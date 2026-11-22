@@ -27,6 +27,7 @@ struct DaySummaryCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let chip {
                     TodayCoachChip(chip: chip, day: day)
+                        .todayCoachWorkoutHint(day: day)
                 }
                 ringRow
             }

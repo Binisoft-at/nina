@@ -31,7 +31,7 @@ public struct NinaTourSnapshot: Equatable, Sendable {
 /// `version`; people who already took the tour then get just the new steps as "What's new".
 /// `swift test` checks the catalog.
 public enum NinaTour {
-    public static let version = 3
+    public static let version = 4
 
     public static let catalog = TourCatalog<NinaTourSnapshot>.standard(
         appName: "Nina",
@@ -133,6 +133,30 @@ public enum NinaTour {
                 id: "checkin", since: 3, symbol: "calendar.badge.checkmark", title: "Weekly check-in",
                 body: "Once a week a card asks for a two-minute check-in in four steps: your week, your waist, how it went and next week – with a small calorie change when the numbers call for it. Nothing changes until you tap Apply, and Undo takes it back.",
                 macBody: "Once a week a card asks for a two-minute check-in in four steps: your week, your waist, how it went and next week – with a small calorie change when the numbers call for it. Nothing changes until you click Apply, and Undo (⌘Z) takes it back.",
+                goal: .none
+            ),
+            TourStep(
+                id: "photos", since: 4, symbol: "camera", title: "Progress photos",
+                body: "Progress → Body → Photos → Take Photos. Front, side and back – your last photo shows faintly over the camera, so you stand the same way. Compare puts two days side by side with your weight and waist. Photos sync only to your iCloud; lock them with Face ID in the card's ⋯ menu.",
+                macBody: "Body → Photos → Add Photos: pick front, side and back from Photos or a file. Compare shows two days side by side, or one over the other with a slider, with your weight and waist. Photos sync only to your iCloud; lock them with Touch ID in the card's ⋯ menu.",
+                goal: .none
+            ),
+            TourStep(
+                id: "watchCoach", since: 4, symbol: "applewatch", title: "Coach on your watch",
+                body: "With a plan, your Apple Watch shows today's day type under the ring – tap it to switch. Weigh in or measure your waist with the Digital Crown, tap Creatine when you've had it, and see how your weight is going.",
+                macBody: "With a plan, Nina on your Apple Watch shows today's day type, your checks and how your weight is going. Weigh in and measure your waist with the Digital Crown.",
+                goal: .none
+            ),
+            TourStep(
+                id: "healthBody", since: 4, symbol: "heart.text.square", title: "Body data from Apple Health",
+                body: "Turn on Body in Settings → Apple Health: body fat, lean mass and waist from your scale show in Progress → Body as their own series, marked Health. After a workout, Today asks \u{201C}Make it a tennis day?\u{201D} – only your tap changes the day.",
+                macBody: "List workouts in My Plan → a day type → Apple Health workouts (tennis, strength …). After a matching workout, your iPhone asks whether to make it that kind of day – only your tap changes it.",
+                goal: .none
+            ),
+            TourStep(
+                id: "history", since: 4, symbol: "clock.arrow.circlepath", title: "Bring your history",
+                body: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? ⋯ → Create… → Import My Data → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
+                macBody: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? File → Import My Data… (⇧⌘I) → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
                 goal: .none
             ),
             TourStep(

@@ -40,16 +40,32 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
                        week average line
   CoachReminders       the coach notifications as plain values (times, quiet hours, actions)
   CoachCopy            the "Copy for My AI" text
+  WatchCoach           the coach on Apple Watch: day-type chip, checks row (weigh-in, weekly
+                       tape, daily checks), Digital Crown values, the status line in the phone's words
+  HealthBody           Apple Health body data as series of their own: body fat (with lean mass)
+                       per source app and the method it counts as, waist, the height hint
+  HealthWorkouts       a finished Health workout → which day type it suggests ("Make it a tennis day?")
+  HealthWeightSync     which weigh-ins the iPhone writes to Health on its sync (saved on the watch,
+                       iPad or Mac; edits and deletions follow; imported ones never)
+  BodyHistoryCSV       the weight & body history import and export (weigh-ins, tape, body fat; one
+                       row = one moment), its AI prompt, re-import adds nothing
+  ProgressPhotos       photo poses, the session order, image sizes, what Compare shows (the pair of
+                       days, the days between, 7-day average weight and waist on each day)
 Shared/                compiled into the app, the Mac app and the watch app
   Model/Models         SwiftData models (CloudKit rules: defaults, optional relationships with
                        inverses, nothing unique; nutrients as one text field so new nutrients need
-                       no schema change); BodyMeasurement and DayMark for the coach
+                       no schema change); BodyMeasurement and DayMark for the coach;
+                       ProgressPhoto (the photo and its thumbnail with external storage, synced as
+                       CKAssets; app only – the watch's store leaves it out, Persistence.models)
   Model/Model+Core     conversions to Core types, NinaSettings (the profile and the plan as plain
                        values: every day's targets and day type)
   Store/NinaStore      every change goes through here: logging, editing, moving, copying, plans,
                        soft delete, save, widget snapshot, change notification, settings import
   Store/NinaStore+Coach  reading and writing body records and day marks, the plan (with its
                        mirror), check-ins and phase decisions – each write returns a CoachUndo
+  Store/NinaStore+History  the weight & body history: Nina's own weigh-ins and measurements as
+                       BodyHistoryRecord, the import plan and the import (imported weigh-ins get
+                       the #import tag), the export – never Apple Health values
   Store/FoodLibrary    catalog + own foods + recipes merged, search index, usage ranking, quick add
   Store/Persistence    opens the store via BinisoftKit ModelStore (+ the tour's practice store)
   Store/DemoData       sample data for -Demo launches and the tour (in memory, never synced)
@@ -67,12 +83,20 @@ App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tre
   Coach                CoachContext (everything for one day, built in one go); TodayCoach* (chip,
                        checks strip, coach card, protein pills); BodySheets* (weigh-in, measure,
                        body fat); ProgressHome and BodyPage*/BodyDetails (Progress → Body);
-                       CheckInSheet*; PhaseSheets* (phase and review); PlanEditor* (My Plan)
-  Settings, Import     goals, meals, Health, reminders (incl. Coach), data; import/export with
-                       the settings preview
-  Services             Apple Health, notifications (meal and coach, with banner actions), App Intents
+                       CheckInSheet*; PhaseSheets* (phase and review); PlanEditor* (My Plan);
+                       BodyPhotos* (progress photos: card, camera, session, compare, viewer, lock,
+                       store helpers, demo); HealthBodyPage/HealthBodyViews (Health on the body
+                       page, the workout hint under Today's chip, the height hint)
+  Settings, Import     goals, meals, Health (incl. the Body switches), reminders (incl. Coach),
+                       data; import/export with the settings preview; ImportHistory (the history
+                       preview lines and the Import & Export menu of All measurements)
+  Services             Apple Health (HealthService; HealthService+Body reads body fat, lean mass,
+                       waist, height and today's workouts live), notifications (meal and coach,
+                       with banner actions), App Intents
   Tour                 the tour on the practice day + TipKit hints
-Watch/Sources          watch app: today, water, planned meals, dictation, Digital Crown amounts
+Watch/Sources          watch app: today, water, planned meals, dictation, Digital Crown amounts;
+                       the coach (WatchModel+Coach: one load for the day and the writes with Undo;
+                       WatchCoachViews: chip, checks, Crown screens, status line)
 Widgets/Sources        widgets (iPhone) and complications (watch) from one source, day-type emoji
 ```
 
@@ -92,6 +116,15 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
 - **Apple Health** (iPhone only): eaten entries of the last 14 days are written as food correlations
   with `HKMetadataKeySyncIdentifier` + version; edits replace, deletions remove. What was written is
   remembered in a device-only file. Weight and active energy are read live, never stored.
+  Weigh-ins saved on the watch, iPad or Mac are written by the iPhone on its sync
+  (`HealthWeightSync`): once, found again if already there, removed when edited, deleted or gone
+  from the window; the ledger remembers them. Weight samples carry the sync identifier
+  `nina.weight.<uuid>` + version, so two devices or passes never write one twice. Every weight write
+  asks `HealthWeightSync.writes` first: weigh-ins whose note has the `#import` tag are never written.
+- **Apple Health body data** (iPhone and iPad, `HealthBodyReader` in HealthService+Body): body fat,
+  lean mass, waist, height and today's workouts are read live when their switch is on and kept in
+  memory. They become series of their own (`HealthBody`), never merged into Nina's records or the
+  goal; a workout only offers a day type (`HealthWorkouts`) and the person's tap writes the mark.
 - **Sync**: SwiftData + CloudKit private database of `iCloud.at.binisoft.nina`; the watch syncs on its
   own. The shared App Group only holds today's snapshot for widgets and complications.
 
@@ -136,11 +169,21 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
   into a mark, a measurement, the plan or a check-in snapshot (a snapshot drops its weight numbers
   when a Health weight was involved and recomputes them live). The tape estimate (US Navy) is
   computed live and never stored either.
+- **Progress photos** (`ProgressPhoto`): JPEGs at most 2048 px without location or camera
+  metadata, plus a 360 px thumbnail, both external storage (CKAssets in the private database).
+  Soft-deleted like everything else (Recently Deleted, 30 days). The watch's store doesn't have the
+  model, so the watch never downloads them.
+- **History import** (`BodyHistoryCSV`, `NinaStore+History`): each row becomes up to three records
+  (weigh-in, tape, body fat). Measurements keep an import key, and a record of the same kind on the
+  same day with the same values counts as already saved, so importing again adds nothing. One Undo
+  trashes what the import added.
 - **Device-only settings** (UserDefaults, never synced): `nina.coach.later` (Later taps),
   `nina.coach.reminders.device|off|asked|review` (coach reminders on this device, kinds turned off,
   the one-time question, review times), `nina.coach.measureGuideSeen`, `nina.coach.navyFormula`,
   `nina.coach.copyIncludesHealth`, `nina.body.weightRange`, `nina.body.tip.highCarb`,
-  `nina.body.tip.glycogen`.
+  `nina.body.tip.glycogen`, `nina.health.body.bodyFat|waist|workouts` (the Body switches),
+  `nina.health.body.labels` (the method per Health app), `nina.photos.lock`,
+  `nina.photos.afterFullSet`.
 
 ## Decisions
 
@@ -158,3 +201,6 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
 | Tape estimate | Computed live from tape, height and sex | Never stored, always follows the latest tape |
 | Body fat | Each method and device is its own series | Methods disagree by several points; only like with like is compared |
 | Training | Day type and a 1–5 rating only | Training lives in the owner's training app |
+| Health body data | Read live as series of their own, never stored | Guideline 5.1.3(ii); methods and devices disagree, so they are never mixed with Nina's own values |
+| Progress photos | A SwiftData model with external storage, app only | Private iCloud only (not the photo library); the watch doesn't need them |
+| Weigh-ins from other devices to Health | The iPhone writes them on its sync, imported ones never | One device writes, so nothing reaches Health twice; history may already be in Health from the scale |

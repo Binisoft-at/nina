@@ -32,10 +32,10 @@ struct BodyPageView: View {
         }
     }
 
-    /// Reload on every data change, when the day changes, when Apple Health weigh-ins arrive
-    /// (read live, never stored) and when a tape formula is picked.
+    /// Reload on every data change, when the day changes, when Apple Health weigh-ins or body data
+    /// arrive (read live, never stored) and when a tape formula is picked.
     private var loadKey: String {
-        "\(app.dataVersion)-\(app.today.rawValue)-\(app.health.weightSamples.count)-\(navyFormula)"
+        "\(app.dataVersion)-\(app.today.rawValue)-\(app.health.weightSamples.count)-\(app.health.bodyData.version)-\(navyFormula)"
     }
 
     @ViewBuilder
@@ -141,6 +141,7 @@ private struct BodyPageLayout: View {
         if !data.composition.isEmpty {
             BodyPageCompositionCard(composition: data.composition, today: data.today)
         }
+        BodyPhotosCard()
     }
 
     @ViewBuilder

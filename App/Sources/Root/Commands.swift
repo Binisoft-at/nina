@@ -160,7 +160,7 @@ struct NinaCreateSheet: View {
                              symbol: "frying.pan.fill", tint: .brown, isFeatured: false) { app.sheet = .recipe(nil, kind: .recipe) },
                 CreateOption(id: "routine", title: "New Routine", subtitle: "Plan a meal on chosen weekdays",
                              symbol: "calendar.badge.clock", tint: .purple, isFeatured: false) { app.sheet = .planRule(nil, recipe: nil) },
-                CreateOption(id: "import", title: "Import My Data", subtitle: "Foods, diary or recipes – your file, or one another AI wrote",
+                CreateOption(id: "import", title: "Import My Data", subtitle: "Plan, foods, diary, recipes or weigh-ins – your file, or one another AI wrote",
                              symbol: "square.and.arrow.down", tint: .pink, isFeatured: false) { app.sheet = .importData(nil) },
             ],
             footnote: "Tip: on the Mac and iPad, ⌘N logs a food right away; ⌥⌘N adds quick calories."

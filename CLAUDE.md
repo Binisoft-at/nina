@@ -26,6 +26,12 @@ click below and the occasional account step you ask for.
   App: `App/Sources/Coach/` – `CoachContext` (one day's coach data in one go), `TodayCoach*`,
   `BodySheets*`, `ProgressHome`, `BodyPage*`, `BodyDetails`, `CheckInSheet*`, `PhaseSheets*`,
   `PlanEditor*`. Demo coach data: `DemoCoach` in `Shared/Store/DemoData.swift` (made-up numbers).
+- Photos, Health body data, history and the watch coach: `ProgressPhoto` (synced, app only – not in
+  the watch store) with `ProgressPhotos` and `App/Sources/Coach/BodyPhotos*`; `HealthBody`,
+  `HealthWorkouts`, `HealthWeightSync` with `App/Sources/Services/HealthService+Body.swift` and
+  `HealthBody*` (Health values are read live, never stored); `BodyHistoryCSV` with
+  `Shared/Store/NinaStore+History.swift` and `App/Sources/Import/ImportHistory.swift`; `WatchCoach`
+  with `Watch/Sources/WatchModel+Coach.swift` and `WatchCoachViews.swift`.
 - `project.yml` (XcodeGen) generates the Xcode project; never committed. All identifiers live in
   `Config/Base.xcconfig`; entitlements use its variables.
 - `cloudkit/schema.ckdb` is generated from the models: `python3 tools/cloudkit-schema.py`

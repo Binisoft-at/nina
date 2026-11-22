@@ -14,7 +14,7 @@ a coach card on top. Each step ticks itself off once the practice page shows it 
 
 ## Steps
 
-The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 3). Every step has its
+The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 4). Every step has its
 own Mac text (click, right-click, menus and shortcuts instead of tap and touch and hold).
 
 | id | Since | Teaches | Ticks off when |
@@ -36,10 +36,16 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | measure | 3 | ⋯ → Create… → Measurements (Mac: File → Log Measurements…, ⌥⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
 | progress | 3 | Progress → Body (Mac: Body in the sidebar, ⌘6) | – (Continue) |
 | checkin | 3 | the weekly check-in card and its four steps (your week, waist, how it went, next week), Apply and Undo | – (Continue) |
+| photos | 4 | progress photos: Progress → Body → Photos → Take Photos (Mac: Body → Photos → Add Photos), the last photo faintly over the camera, Compare, the Face ID lock in the card's ⋯ menu | – (Continue) |
+| watchCoach | 4 | the coach on Apple Watch: today's day type under the ring, weigh-in and waist with the Digital Crown, daily checks, the weight status | – (Continue) |
+| healthBody | 4 | Settings → Apple Health → Body: body fat, lean mass and waist from Health as their own series, and "Make it a tennis day?" after a workout (Mac: the workouts of a day type in My Plan) | – (Continue) |
+| history | 4 | importing old weigh-ins, tape logs and scan reports: ⋯ → Create… → Import My Data → Body (Mac: File → Import My Data…, ⇧⌘I), only what's new, one Undo | – (Continue) |
 | everywhere | 1 | sync, watch, widgets, Health | – (Continue) |
 | finish | 1 | where to replay | – (Done) |
 
-People who finished version 2 get "What's new" with the eight coach steps (daytype … checkin).
+People who finished version 3 (on TestFlight) get "What's new" with the four version 4 steps
+(photos, watchCoach, healthBody, history). People who finished version 2 get the eight coach steps
+(daytype … checkin) and the four version 4 steps.
 
 ## Coach parts without their own step
 
@@ -59,6 +65,11 @@ in [BODY.md](BODY.md):
 - **Reminders**: the morning notification takes the weight (Weight…) and, on a day the weekly
   waist is due, the waist too (Waist…). "Turn on coach reminders?" is asked once per device when a
   plan is first set up.
+- **Photos** (from the photos step): the timer, Skip, picking from the library, Compare's Side by
+  Side, Fade and Slider, the full-screen viewer and Recently Deleted.
+- **Watch, Health and history** (from their steps): the version 4 steps are read-only, because the
+  practice page has no watch, no Health data and no file to import. [BODY.md](BODY.md),
+  [HEALTH.md](HEALTH.md) and [IMPORT.md](IMPORT.md) have the details.
 
 To teach a new feature: add a step with `since: <version + 1>`, bump `NinaTour.version`; people who
 took the tour get only the new steps. `swift test` checks the catalog (`NinaTourTests.swift` and the

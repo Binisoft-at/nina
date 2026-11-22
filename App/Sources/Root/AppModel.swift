@@ -57,7 +57,7 @@ final class AppModel {
         self.sync = SyncMonitor(mode: isSandbox ? .demo : mode, appName: AppInfo.name)
         self.toasts = ToastCenter()
         self.library = FoodLibrary()
-        self.health = HealthService(enabled: !isSandbox && !launch.isDemo)
+        self.health = HealthService(enabled: !isSandbox && !launch.isDemo, storeIsSaved: AppModel.keepsData(mode))
         let store = NinaStore(context: container.mainContext)
         let settings = store.coachSettings()
         self.settings = settings
@@ -363,46 +363,57 @@ final class AppModel {
     }
 
     /// Logs a weigh-in (also to Apple Health when that's on) with Undo; Undo takes it out of
-    /// Apple Health again.
+    /// Apple Health again. HealthService decides what is written (never imported history).
     @discardableResult
     func logWeight(_ kilograms: Double, day: DayKey? = nil, time: Date = Date(), bodyFat: Double = 0, note: String = "") -> WeightEntry {
         let entry = store.addWeight(kilograms, day: day ?? DayKey.today(now: time, dayStartHour: settings.dayStartHour),
                                     time: time, bodyFat: bodyFat, note: note)
         let health = self.health
-        let write: Task<Void, Never> = Task { await health.writeWeight(kilograms, date: time) }
+        let weight = entry.healthWeight
+        let write: Task<Void, Never> = Task { await health.writeWeight(weight) }
         toasts.show("Weight \(Fmt.kilograms(kilograms)) saved", symbol: "scalemass.fill") { [weak self] in
             _ = self?.store.trash([entry])
             Task {
                 await write.value
-                await health.deleteWeight(kilograms, date: time)
+                await health.deleteWeight(weight)
             }
         }
         return entry
     }
 
     /// Deletes a weigh-in (30-day trash) and the sample Nina wrote for it in Apple Health; Undo
-    /// brings both back (the Health sample only when there was one).
+    /// brings both back (the Health sample only when there was one; imported history never).
     func trash(_ weight: WeightEntry) {
-        let kilograms = weight.kilograms, time = weight.time
+        let before = weight.healthWeight
         let trashed = store.trash([weight])
         let health = self.health
-        let delete: Task<Bool, Never> = Task { await health.deleteWeight(kilograms, date: time) }
+        let delete: Task<Bool, Never> = Task { await health.deleteWeight(before) }
         toasts.show("Weigh-in deleted", symbol: "trash.fill") { [weak self] in
             self?.store.restore(trashed)
+            let restored = weight.healthWeight
             Task {
                 guard await delete.value else { return }
-                await health.replaceWeight(old: (kilograms, time), new: (kilograms, time))
+                await health.replaceWeight(old: (before.kilograms, before.time), with: restored)
             }
         }
     }
 
     /// Brings a weigh-in back from Recently Deleted, and its sample back to Apple Health (written
-    /// once: one that is still there is replaced).
+    /// once: one that is still there is replaced). Imported history stays out of Health.
     func restore(_ weight: WeightEntry) {
         let kilograms = weight.kilograms, time = weight.time
         store.restore([weight])
+        let restored = weight.healthWeight
         let health = self.health
-        Task { await health.replaceWeight(old: (kilograms, time), new: (kilograms, time)) }
+        Task { await health.replaceWeight(old: (kilograms, time), with: restored) }
+    }
+
+    /// The store keeps what is saved (iCloud or this device), not the in-memory fallback or the demo.
+    private static func keepsData(_ mode: StorageMode) -> Bool {
+        switch mode {
+        case .iCloud, .local: true
+        case .memory, .demo: false
+        }
     }
 
     /// Adds a body measurement, or changes `editing`, with Undo.
@@ -729,6 +740,7 @@ final class AppModel {
     /// `-Demo -DemoScreen <name>` opens a screen; `-Tour` / `-TourStep <id>` open the tour.
     private func applyLaunchOptions() {
         if launch.resetTour { TourSchedule().reset() }
+        if launch.isDemo { BodyPhotosDemo.seed(container.mainContext, today: today) }
         switch launch.screen {
         case "foods":
             tab = .foods
@@ -750,6 +762,8 @@ final class AppModel {
             sheet = .checkIn(currentCheckInWeek)
         case "myplan":
             sheet = .plan
+        case "photos":
+            sheet = .photos(.compare(.front))
         case "phase":
             sheet = .phase(demoPhaseID)
         case "review":
@@ -766,6 +780,8 @@ final class AppModel {
             sheet = .goals
         case "import":
             sheet = .importData(.foods)
+        case "importbody":
+            sheet = .importData(.measurements)
         case "settings":
             sheet = .settings
         case "nutrition":

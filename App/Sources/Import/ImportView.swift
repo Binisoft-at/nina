@@ -4,10 +4,10 @@ import UniformTypeIdentifiers
 import BinisoftKit
 import NinaCore
 
-/// Import & Export: one setup prompt for another AI that writes goals & settings, foods and meals &
-/// recipes at once, plus each format on its own (goals & settings, foods, meals & recipes, diary) with
-/// its prompt, a file picker, a preview before anything changes, and an export. Importing the same
-/// file again updates instead of duplicating.
+/// Import & Export: one setup prompt for another AI that writes goals & settings, foods, meals &
+/// recipes and the weight & body history at once, plus each format on its own (goals & settings,
+/// foods, meals & recipes, diary, weight & body) with its prompt, a file picker, a preview before
+/// anything changes, and an export. Importing the same file again updates instead of duplicating.
 struct ImportView: View {
     let initialKind: ImportKind?
 
@@ -42,7 +42,7 @@ struct ImportView: View {
                 } header: {
                     Text("Set Up Nina with Your AI")
                 } footer: {
-                    Text("Paste the prompt into ChatGPT, Claude or any AI and add a few lines about you: age, height, weight, goal, training, meal times, the foods and meals you eat (label photos work too). Paste its whole answer below – goals, settings, foods and meals are imported in one go, with a preview first.")
+                    Text("Paste the prompt into ChatGPT, Claude or any AI and add a few lines about you: age, height, weight, goal, training, meal times, the foods and meals you eat (label photos work too) and, if you like, past weigh-ins or a DEXA or body-scan report. Paste its whole answer below – everything is imported in one go, with a preview first.")
                 }
 
                 Section {
@@ -105,6 +105,7 @@ struct ImportView: View {
                     Button("Export Foods (CSV)", systemImage: "carrot") { export(.foods) }
                     Button("Export Diary (CSV)", systemImage: "book") { export(.diary) }
                     Button("Export Meals & Recipes (CSV)", systemImage: "frying.pan") { export(.recipes) }
+                    Button("Export Weight & Body (CSV)", systemImage: "figure") { export(.measurements) }
                 } header: {
                     Text("Export")
                 } footer: {
@@ -164,6 +165,8 @@ struct ImportView: View {
             return DiaryCSV.prompt(appName: AppInfo.name, mealNames: app.settings.meals.map(\.name)).text
         case .recipes:
             return RecipeCSV.prompt(appName: AppInfo.name, existingNames: store.recipes().map(\.displayName)).text
+        case .measurements:
+            return BodyHistoryCSV.prompt(appName: AppInfo.name).text
         }
     }
 
@@ -283,6 +286,8 @@ struct ImportView: View {
             text = DiaryCSV.export(entries.map { ($0.key, $0.draft) })
         case .recipes:
             text = RecipeCSV.export(store.recipes().map(\.draft))
+        case .measurements:
+            text = store.bodyHistoryExport()
         }
         exportName = "\(AppInfo.name) \(kind.title) \(app.today.rawValue)"
         exportFile = CSVFile(text: text)
@@ -311,6 +316,10 @@ struct ImportPreview {
     private(set) var settings: (result: SettingsResult, previous: SettingsState)?
     /// What the AI found that Nina can't store yet.
     var wishes: [String] = []
+    /// Weight & body history: the weigh-ins and measurements the file adds (for the preview) and
+    /// the file's text, planned again when it is imported.
+    private var historyPlan: BodyHistoryPlan?
+    private var historyText: String?
 
     /// Every changed setting is shown; rows of other files up to ten.
     var visibleLines: Int { kind == .settings ? 50 : 10 }
@@ -378,6 +387,10 @@ struct ImportPreview {
             }
             return ImportPreview(kind: kind, lines: lines, skipped: plan.skipped, summary: plan.summary, hasChanges: plan.hasChanges,
                                  recipePlan: plan)
+        case .measurements:
+            let plan = store.bodyHistoryPlan(text, cutoffMinutes: app.settings.plan.routine.morningCutoffMinutes, today: app.today)
+            return ImportPreview(kind: kind, lines: historyLines(plan, today: app.today), skipped: plan.notes, summary: plan.summary,
+                                 hasChanges: plan.hasChanges, historyPlan: plan, historyText: text)
         }
     }
 
@@ -401,6 +414,20 @@ struct ImportPreview {
     private func applyRows(app: AppModel) -> (summary: String, undo: ImportRowsUndo) {
         let store = app.store
         var undo = ImportRowsUndo()
+        if let preview = historyPlan {
+            // Planned again now: the settings part of the same answer was applied first, so the
+            // weigh-in and body values it just saved count as existing (today's weight in block 1
+            // and a row for today in block 4 are one weigh-in).
+            let plan = historyText.map {
+                store.bodyHistoryPlan($0, cutoffMinutes: app.settings.plan.routine.morningCutoffMinutes, today: app.today)
+            } ?? preview
+            // Imported weigh-ins are not written to Apple Health.
+            let added = store.importBodyHistory(plan)
+            undo.weights = added.weights
+            undo.measurements = added.measurements
+            AppLog.info("Import \(kind.rawValue): \(plan.records.count) new, \(plan.duplicates) already saved", category: "import")
+            return (plan.importedText, undo)
+        }
         var created = 0
         var updated = 0
         var skipped = 0
@@ -517,8 +544,8 @@ struct ImportPreview {
     }
 }
 
-/// What Undo puts back after a foods, diary or meals & recipes import: the new records go to the
-/// trash (kept 30 days, like any delete), the changed ones get their previous values.
+/// What Undo puts back after a foods, diary, meals & recipes or weight & body import: the new
+/// records go to the trash (kept 30 days, like any delete), the changed ones get their previous values.
 struct ImportRowsUndo {
     var foods: [Food] = []
     var foodDrafts: [ImportFoodState] = []
@@ -526,9 +553,12 @@ struct ImportRowsUndo {
     var entryStates: [ImportEntryState] = []
     var recipes: [Recipe] = []
     var recipeStates: [ImportRecipeState] = []
+    var weights: [WeightEntry] = []
+    var measurements: [BodyMeasurement] = []
 
     var isEmpty: Bool {
         foods.isEmpty && foodDrafts.isEmpty && entries.isEmpty && entryStates.isEmpty && recipes.isEmpty && recipeStates.isEmpty
+            && weights.isEmpty && measurements.isEmpty
     }
 
     mutating func merge(_ other: ImportRowsUndo) {
@@ -538,12 +568,17 @@ struct ImportRowsUndo {
         entryStates += other.entryStates
         recipes += other.recipes
         recipeStates += other.recipeStates
+        weights += other.weights
+        measurements += other.measurements
     }
 
-    /// Puts everything back, last imported first: recipes, then diary entries, then foods.
+    /// Puts everything back, last imported first: weigh-ins and measurements, recipes, then diary
+    /// entries, then foods.
     @MainActor
     func undo(store: NinaStore) {
         guard !isEmpty else { return }
+        if !measurements.isEmpty { store.trash(measurements) }
+        if !weights.isEmpty { store.trash(weights) }
         for state in recipeStates.reversed() { state.restore(store: store) }
         for state in entryStates.reversed() { state.restore() }
         for state in foodDrafts.reversed() { state.restore() }

@@ -143,6 +143,8 @@ enum AppSheet: Identifiable {
     case plan
     /// The plan editor opened on its Long-Term Goal page (the body page's "Add a Goal…").
     case planGoal
+    /// Progress photos: a photo session or Compare (`BodyPhotoSheetContent`, BodyPhotosCard.swift).
+    case photos(BodyPhotoSheet)
     case water(DayKey)
     case scanBarcode(day: DayKey, meal: String?)
     case dayNutrition(DayKey)
@@ -172,6 +174,7 @@ enum AppSheet: Identifiable {
         case .phaseReview(let id): "phase-review-" + id
         case .plan: "coach-plan"
         case .planGoal: "coach-plan-goal"
+        case .photos(let sheet): "photos-" + sheet.id
         case .water(let day): "water-\(day)"
         case .scanBarcode: "scan"
         case .dayNutrition(let day): "nutrition-\(day)"

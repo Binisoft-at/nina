@@ -394,9 +394,9 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let today = settings.today(now: now)
         let signal = store.weightSignal(adding: CoachContext.latestHealthReadings, settings: settings)
         if let kilograms, case .ok = signal.sanity(kilograms, on: today) {
-            store.addWeight(kilograms, day: today, time: now)
+            let weight = store.addWeight(kilograms, day: today, time: now).healthWeight
             let health = HealthService(enabled: true)
-            Task { await health.writeWeight(kilograms, date: now) }
+            Task { await health.writeWeight(weight) }
             AppLog.info("Weight saved from a notification", category: "notifications")
             return true
         }
