@@ -175,6 +175,8 @@ struct BodyPageTile: Identifiable {
     let value: Double?
     let day: DayKey?
     let change: GirthChange?
+    /// The waist tile: Apple Health's own waist series, never merged into the tape (read live).
+    var health: BodyPageHealthWaist? = nil
     var id: String { site.rawValue }
 
     /// "+1.2 cm" when clear, else "no clear change"; nil without two readings.
@@ -205,6 +207,10 @@ struct BodyPageFatSeries: Identifiable {
     let band: String
     let count: Int
     let isTracking: Bool
+    /// Read live from Apple Health (its own series per app, never tracking the goal, never stored).
+    var isHealth = false
+    /// The latest value's lean mass (Health).
+    var leanKg: Double? = nil
 }
 
 /// Body composition: body fat by method, lean and fat mass, ratios, FFMI and the next full set.
@@ -332,13 +338,16 @@ struct BodyPageData {
     let gainLine: String?
     let measurementCount: Int
 
-    /// The page for today with the app's data (typed and live Health weigh-ins).
+    /// The page for today with the app's data (typed and live Health weigh-ins, and Health's body
+    /// fat and waist as series of their own).
     static func load(app: AppModel, now: Date = Date()) -> BodyPageData {
         let context = CoachContext.load(app: app, day: app.today, now: now)
-        return BodyPageData(context: context, store: app.store)
+        let health = app.health.bodyData.snapshot(dayStartHour: app.settings.dayStartHour, calendar: context.calendar)
+        return BodyPageData(context: context, store: app.store, health: health)
     }
 
-    init(context: CoachContext, store: NinaStore) {
+    /// `health`: Apple Health body data read live (shown next to Nina's records, never merged).
+    init(context: CoachContext, store: NinaStore, health: HealthBodySnapshot = .empty) {
         let today = context.today
         let plan = context.plan
         let sex = context.settings.body.sex
@@ -356,11 +365,12 @@ struct BodyPageData {
         let sites = BodyPageData.tileSites(routine: routine)
         tiles = sites.map { site in
             BodyPageData.tile(site, records: context.tapeRecords, since: phase?.start)
+                .addingHealth(health, since: phase?.start, calendar: context.calendar)
         }
         let baseline = BodyPageData.baseline(sites, records: context.tapeRecords, since: phase?.start, calendar: context.calendar)
         self.baseline = baseline
         gainLine = phase?.goal == .gain ? GirthTrend.gainLine(baseline) : nil
-        let composition = BodyPageData.composition(context, heightCm: heightCm)
+        let composition = BodyPageData.composition(context, heightCm: heightCm, health: health.bodyFat)
         self.composition = composition.page
         goal = BodyPageData.goal(context, points: composition.trackingPoints, seriesTitle: composition.page.latestTitle)
         timeline = BodyPageData.timeline(context)
@@ -677,7 +687,8 @@ extension BodyPageData {
         let trackingPoints: [BodyCompositionPoint]
     }
 
-    static func composition(_ context: CoachContext, heightCm: Double) -> CompositionResult {
+    /// `health`: Apple Health's body-fat series, added after Nina's own (never tracking the goal).
+    static func composition(_ context: CoachContext, heightCm: Double, health: [HealthBodyFatSeries] = []) -> CompositionResult {
         let calendar = context.calendar
         let today = context.today
         let sex = context.settings.body.sex
@@ -703,6 +714,7 @@ extension BodyPageData {
             series.append(BodyPageFatSeries(id: group.id, title: group.title, latest: latest.bodyFat, latestDay: latest.day,
                                             band: group.method.errorText, count: group.count, isTracking: group.id == tracking?.id))
         }
+        BodyPageData.appendHealth(health, points: &points, series: &series, calendar: calendar)
 
         let latestPoint = trackingPoints.last
         var change: CompositionChange?

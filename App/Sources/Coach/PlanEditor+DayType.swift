@@ -25,6 +25,7 @@ struct PlanEditorDayTypeView: View {
                 nameSection
                 scheduleSection
                 targetsSection
+                PlanEditorHealthWorkoutsSection(workouts: $type.workouts)
                 deleteSection
             } else {
                 Text("This day type isn't in your plan any more.")
