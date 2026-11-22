@@ -310,6 +310,7 @@ struct BodyDetailsMeasurementsView: View {
                 }
             }
         }
+        .bodyHistoryExportMenu()
     }
 }
 

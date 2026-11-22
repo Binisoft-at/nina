@@ -355,7 +355,7 @@ public struct BodyFatSeries: Equatable, Sendable, Identifiable {
 
     /// The series that drives goal progress. With a tracking method (`routine.bodyFatMethod`): its
     /// longest series (nil when there is none yet). Without one: the most accurate series with at
-    /// least 2 values (dexa > bodpod > bia_pro > skinfold > navy > scale > estimate); while no
+    /// least 2 values (dexa > bodpod > bia_pro > scan_3d > skinfold > navy > scale > estimate); while no
     /// series has 2 values yet, the most accurate one with a value, so a baseline shows.
     public static func tracking(_ series: [BodyFatSeries], method: BodyMethod?) -> BodyFatSeries? {
         func best(_ list: [BodyFatSeries]) -> BodyFatSeries? {
@@ -537,13 +537,13 @@ extension BodyComposition {
 
 extension BodyMethod {
     /// kg: a lean (or fat) mass change smaller than this is "within measurement error" (DEXA about
-    /// 0.5 kg, Bod Pod and professional BIA about 1 kg, the tape estimate, scales and the rest
-    /// about 1.5 kg).
+    /// 0.5 kg, Bod Pod and professional BIA about 1 kg, 3D scans, the tape estimate, scales and the
+    /// rest about 1.5 kg).
     public var leanNoiseKg: Double {
         switch self {
         case .dexa: 0.5
         case .bodpod, .biaPro: 1.0
-        case .skinfold, .navy, .scale, .estimate: 1.5
+        case .scan3D, .skinfold, .navy, .scale, .estimate: 1.5
         }
     }
 }

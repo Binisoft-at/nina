@@ -153,7 +153,7 @@ struct AssessmentSheet: View {
                 }
             }
             if BodySheetAssessment.usesDevice(method) {
-                TextField("Device", text: $device, prompt: Text("Device, e.g. InBody 570"))
+                TextField("Device", text: $device, prompt: Text(method == .scan3D ? "Device, e.g. Styku" : "Device, e.g. InBody 570"))
             }
         } header: {
             Text("How it was measured")

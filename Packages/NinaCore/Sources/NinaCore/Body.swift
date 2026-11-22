@@ -244,6 +244,8 @@ public enum BodyMethod: String, CaseIterable, Codable, Sendable, Identifiable {
     case dexa
     case bodpod
     case biaPro = "bia_pro"
+    /// A 3D body scanner (Styku, Fit3D …): body fat from the body's shape.
+    case scan3D = "scan_3d"
     case scale
     case skinfold
     /// The US Navy tape estimate: computed live from tape values, never stored.
@@ -257,6 +259,7 @@ public enum BodyMethod: String, CaseIterable, Codable, Sendable, Identifiable {
         case .dexa: "DEXA scan"
         case .bodpod: "Bod Pod"
         case .biaPro: "Professional BIA (InBody …)"
+        case .scan3D: "3D body scan"
         case .scale: "Smart scale"
         case .skinfold: "Skinfold calipers"
         case .navy: "Tape estimate"
@@ -271,6 +274,7 @@ public enum BodyMethod: String, CaseIterable, Codable, Sendable, Identifiable {
         case .dexa: 1.5
         case .bodpod: 2.5
         case .biaPro: 3
+        case .scan3D: 3.5
         case .skinfold: 3.5
         case .navy: 3.5
         case .scale: 4.5
@@ -278,17 +282,18 @@ public enum BodyMethod: String, CaseIterable, Codable, Sendable, Identifiable {
         }
     }
 
-    /// "±1.5", "±4–5", "unknown".
+    /// "±1.5", "±3–4", "±4–5", "unknown".
     public var errorText: String {
         switch self {
+        case .scan3D: "±3–4"
         case .scale: "±4–5"
         case .estimate: "unknown"
         default: "±" + NumberText.plain(errorBand ?? 0, decimals: 1)
         }
     }
 
-    /// Most accurate first: dexa > bodpod > bia_pro > skinfold > navy > scale > estimate.
-    public static let accuracyOrder: [BodyMethod] = [.dexa, .bodpod, .biaPro, .skinfold, .navy, .scale, .estimate]
+    /// Most accurate first: dexa > bodpod > bia_pro > scan_3d > skinfold > navy > scale > estimate.
+    public static let accuracyOrder: [BodyMethod] = [.dexa, .bodpod, .biaPro, .scan3D, .skinfold, .navy, .scale, .estimate]
 
     /// Position in `accuracyOrder` (0 = most accurate).
     public var accuracyRank: Int { BodyMethod.accuracyOrder.firstIndex(of: self) ?? BodyMethod.accuracyOrder.count }

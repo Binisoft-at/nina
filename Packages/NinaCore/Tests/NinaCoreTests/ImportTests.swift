@@ -234,6 +234,7 @@ struct PromptExportTests {
             "### Foods\n\n```text\n" + FoodCSV.prompt(appName: "Nina").text + "```\n",
             "### Diary\n\n```text\n" + DiaryCSV.prompt(appName: "Nina", mealNames: meals).text + "```\n",
             "### Meals & recipes\n\n```text\n" + RecipeCSV.prompt(appName: "Nina", existingNames: []).text + "```\n",
+            "### Weight & body history\n\n```text\n" + BodyHistoryCSV.prompt(appName: "Nina").text + "```\n",
         ].joined(separator: "\n")
         try text.write(toFile: path, atomically: true, encoding: .utf8)
     }

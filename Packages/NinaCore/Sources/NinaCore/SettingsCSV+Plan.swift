@@ -931,13 +931,16 @@ extension SettingsCSV {
         return sites.isEmpty ? nil : sites
     }
 
-    static let methodNames = "dexa, bodpod, bia_pro, scale, skinfold, navy or estimate"
+    static let methodNames = "dexa, bodpod, bia_pro, scan_3d, scale, skinfold, navy or estimate"
 
     static func bodyMethod(named text: String) -> BodyMethod? {
         let key = SearchText.normalize(text).replacingOccurrences(of: " ", with: "_")
         if let method = BodyMethod(rawValue: key) { return method }
         let map: [String: BodyMethod] = [
-            "dxa": .dexa, "dexa_scan": .dexa, "bod_pod": .bodpod, "air_displacement": .bodpod,
+            "dxa": .dexa, "dexa_scan": .dexa, "dxa_scan": .dexa, "bod_pod": .bodpod, "air_displacement": .bodpod,
+            "3d_scan": .scan3D, "3d_body_scan": .scan3D, "3d_scanner": .scan3D, "3d_body_scanner": .scan3D, "3d": .scan3D,
+            "body_scan": .scan3D, "bodyscan": .scan3D, "body_scanner": .scan3D, "scan3d": .scan3D, "styku": .scan3D,
+            "fit3d": .scan3D, "fit_3d": .scan3D, "3d_korperscan": .scan3D, "korperscan": .scan3D, "korperscanner": .scan3D,
             "bia": .biaPro, "inbody": .biaPro, "professional_bia": .biaPro, "bioimpedance": .biaPro, "tanita_pro": .biaPro,
             "smart_scale": .scale, "waage": .scale, "korperfettwaage": .scale, "bia_scale": .scale, "body_fat_scale": .scale,
             "calipers": .skinfold, "caliper": .skinfold, "skinfolds": .skinfold, "hautfalte": .skinfold, "hautfalten": .skinfold,
