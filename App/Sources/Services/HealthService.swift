@@ -165,7 +165,7 @@ final class HealthService {
 
     /// Writes new and changed entries of the last 14 days, removes deleted, planned and skipped ones.
     func syncNow(container: ModelContainer) async {
-        guard isAvailable, options.contains(.writeDiary) || options.contains(.writeWater) else { return }
+        guard isAvailable, options.contains(.writeDiary) || options.contains(.writeWater) || options.contains(.weight) else { return }
         let context = container.mainContext
         let first = DayKey.today().adding(days: -14).rawValue
         var ledger = HealthLedger.load()
@@ -226,11 +226,51 @@ final class HealthService {
             }
         }
         ledger.prune(keeping: Set(entries.map(\.uuid.uuidString) + waters.map { "w:" + $0.uuid.uuidString }))
+        written += await syncWeights(context: context, from: first, ledger: &ledger)
         ledger.save()
         lastSync = Date()
         if written > 0 || !removeIDs.isEmpty {
             AppLog.info("Health: wrote \(written), removed \(removeIDs.count + waterRemove.count)", category: "health")
         }
+    }
+
+    /// Weigh-ins of the sync window that Health doesn't have yet – saved on the watch, an iPad or a
+    /// Mac – are written here once (HealthWeightSync plans it). The ones typed on this iPhone were
+    /// written right away; they are found in Health and only remembered. Imported history stays out.
+    private func syncWeights(context: ModelContext, from first: String, ledger: inout HealthLedger) async -> Int {
+        guard canWriteWeight else { return 0 }
+        let weights = (try? context.fetch(FetchDescriptor<WeightEntry>(predicate: #Predicate<WeightEntry> { $0.day >= first }))) ?? []
+        let items: [HealthWeightSync.Item] = weights.map { (weight: WeightEntry) in
+            HealthWeightSync.Item(id: weight.uuid.uuidString, kilograms: weight.kilograms, time: weight.time,
+                                  version: HealthMapping.syncVersion(modifiedAt: weight.modifiedAt),
+                                  isDeleted: weight.deletedAt != nil, isImported: Self.isImported(weight))
+        }
+        var marks = ledger.weights ?? [:]
+        var written = 0
+        for step in HealthWeightSync.plan(items, marks: marks) {
+            switch step {
+            case .remove(let kilograms, let time):
+                await deleteWeightSamples(kilograms: kilograms, date: time)
+            case .forget(let id):
+                marks[id] = nil
+            case .ensure(let id, let mark):
+                if await hasWeightSample(kilograms: mark.kilograms, date: mark.time) {
+                    marks[id] = mark
+                } else if await saveWeightSample(mark.kilograms, date: mark.time) {
+                    marks[id] = mark
+                    written += 1
+                }
+            }
+        }
+        ledger.weights = HealthWeightSync.pruned(marks, keeping: Set(items.map(\.id)))
+        return written
+    }
+
+    /// Weigh-ins that came from an import (the settings file's weight or the history file) are
+    /// history, maybe already in Health from the scale they came from.
+    private static func isImported(_ weight: WeightEntry) -> Bool {
+        let note = weight.note.lowercased()
+        return note == "import" || note.hasPrefix("import") || note.contains("#import")
     }
 
     private func save(_ entry: LogEntry, version: Int) async -> Bool {
@@ -306,14 +346,40 @@ final class HealthService {
             && store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized
     }
 
-    private func saveWeightSample(_ kilograms: Double, date: Date) async {
+    @discardableResult
+    private func saveWeightSample(_ kilograms: Double, date: Date) async -> Bool {
         let sample = HKQuantitySample(type: HKQuantityType(.bodyMass), quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kilograms),
                                       start: date, end: date, metadata: ["NinaWeight": "1"])
         do {
             try await store.save(sample)
+            return true
         } catch {
             lastError = error.localizedDescription
             AppLog.warning("Health weight write failed: \(error.localizedDescription)", category: "health")
+            return false
+        }
+    }
+
+    /// The samples Nina wrote at `date` (within a second) with that weight (within 0.05 kg).
+    private func weightPredicate(kilograms: Double, date: Date) -> NSPredicate {
+        let kilo = HKUnit.gramUnit(with: .kilo)
+        return NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: date.addingTimeInterval(-1), end: date.addingTimeInterval(1), options: []),
+            HKQuery.predicateForObjects(withMetadataKey: "NinaWeight"),
+            HKQuery.predicateForQuantitySamples(with: .greaterThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms - 0.05)),
+            HKQuery.predicateForQuantitySamples(with: .lessThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms + 0.05)),
+        ])
+    }
+
+    /// Whether Health already has the sample Nina wrote for this weigh-in.
+    private func hasWeightSample(kilograms: Double, date: Date) async -> Bool {
+        let predicate = weightPredicate(kilograms: kilograms, date: date)
+        let type = HKQuantityType(.bodyMass)
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 1, sortDescriptors: nil) { _, samples, _ in
+                continuation.resume(returning: !(samples ?? []).isEmpty)
+            }
+            store.execute(query)
         }
     }
 
@@ -322,13 +388,7 @@ final class HealthService {
     /// weigh-ins from scales and other apps always stay.
     @discardableResult
     private func deleteWeightSamples(kilograms: Double, date: Date) async -> Int {
-        let kilo = HKUnit.gramUnit(with: .kilo)
-        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-            HKQuery.predicateForSamples(withStart: date.addingTimeInterval(-1), end: date.addingTimeInterval(1), options: []),
-            HKQuery.predicateForObjects(withMetadataKey: "NinaWeight"),
-            HKQuery.predicateForQuantitySamples(with: .greaterThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms - 0.05)),
-            HKQuery.predicateForQuantitySamples(with: .lessThanOrEqualTo, quantity: HKQuantity(unit: kilo, doubleValue: kilograms + 0.05)),
-        ])
+        let predicate = weightPredicate(kilograms: kilograms, date: date)
         let type = HKQuantityType(.bodyMass)
         return await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
             store.deleteObjects(of: type, predicate: predicate) { _, count, _ in continuation.resume(returning: count) }
@@ -365,6 +425,8 @@ struct HealthWeightSample: Equatable, Sendable {
 /// Support (never synced, never in iCloud).
 struct HealthLedger: Codable {
     var versions: [String: Int] = [:]
+    /// Weigh-ins this device made sure Health has (optional, so older ledger files still load).
+    var weights: [String: HealthWeightSync.Mark]?
 
     static var url: URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
