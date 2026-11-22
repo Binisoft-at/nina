@@ -91,6 +91,53 @@ struct ThaliaExchangeTests {
         #expect(day.map(\.metric) == ["carbs_g", "fat_g", "kcal", "protein_g", "water_ml"])
     }
 
+    @Test func atIsCutToTheWholeSecond() {
+        // This device holds the dinner at …30.9996; another one got it through iCloud to the
+        // millisecond (…30.999). Both write :30 – never :31 on one of them.
+        var here = Self.meals
+        here[2].time = Self.time("2026-11-22T19:00:30.9996+01:00")
+        var there = Self.meals
+        there[2].time = Self.time("2026-11-22T19:00:30.999+01:00")
+        let mine = Self.facts(here, Self.drinks)
+        #expect(mine == Self.facts(there, Self.drinks))
+        #expect(mine[Self.today]?.first { $0.metric == "kcal" }?.at == "2026-11-22T19:00:30+01:00")
+        // The same for the day of a record without a stored day: 23:59:59.9996 stays on its day.
+        let late = ThaliaFeed.FoodRecord(id: "late", day: "", time: Self.time("2026-11-22T23:59:59.9996+01:00"),
+                                         energy: 100, protein: 1, carbs: 2, fat: 3)
+        #expect(Self.facts([late], [])[Self.today]?.first?.at == "2026-11-22T23:59:59+01:00")
+    }
+
+    /// The exact bytes: keys sorted, compact, numbers without ".0", dates without fractions, facts
+    /// by (at, id) – what every device writes for the same diary.
+    @Test func theFilesAreTheseBytes() throws {
+        let folder = TemporaryFolder()
+        let now = Self.time("2026-11-22T21:15:00.700+01:00")
+        try ThaliaExchangeWriter.sync(Self.facts(), source: ThaliaFeed.source, appFolder: folder.app, today: Self.today, now: now,
+                                      timeZone: Self.vienna)
+        let day = try String(decoding: Data(contentsOf: BinisoftExchange.dayFileURL(appFolder: folder.app, day: Self.today)),
+                             as: UTF8.self)
+        func fact(_ metric: String, _ title: String, _ unit: String, _ value: String, at: String) -> String {
+            #"{"at":"\#(at)","id":"\#(metric)-2026-11-22","kind":"value","metric":"\#(metric)","origin":"app","ref":"\#(metric)","refTitle":"\#(title)","unit":"\#(unit)","value":\#(value)}"#
+        }
+        let dinner = "2026-11-22T19:00:30+01:00"
+        let facts = [
+            fact("carbs_g", "Kohlenhydrate", "g", "182.5", at: dinner), fact("fat_g", "Fett", "g", "60.6", at: dinner),
+            fact("kcal", "Kalorien", "kcal", "1786", at: dinner), fact("protein_g", "Protein", "g", "104.6", at: dinner),
+            fact("water_ml", "Wasser", "ml", "1080", at: "2026-11-22T21:00:00+01:00"),
+        ]
+        #expect(day == #"{"day":"2026-11-22","facts":["# + facts.joined(separator: ",")
+            + #"],"generatedAt":"2026-11-22T21:15:00+01:00","source":"nina","v":1}"#)
+
+        try ThaliaExchangeWriter.syncSource(ThaliaFeed.sourceInfo(appVersion: "1.1.0", now: now, timeZone: Self.vienna),
+                                            appFolder: folder.app, today: Self.today, timeZone: Self.vienna)
+        let source = try String(decoding: Data(contentsOf: BinisoftExchange.exchangeFolder(appFolder: folder.app)
+            .appendingPathComponent("source.json")), as: UTF8.self)
+        let refs = [("kcal", "Kalorien"), ("protein_g", "Protein"), ("carbs_g", "Kohlenhydrate"), ("fat_g", "Fett"), ("water_ml", "Wasser")]
+            .map { #"{"id":"\#($0.0)","kind":"metric","title":"\#($0.1)"}"# }
+        #expect(source == #"{"app":"Nina","appVersion":"1.1.0","generatedAt":"2026-11-22T21:15:00+01:00","refs":["#
+            + refs.joined(separator: ",") + #"],"source":"nina","v":1}"#)
+    }
+
     @Test func valuesAreRoundedTheSameEverywhere() {
         #expect(ThaliaFeed.rounded(1785.6, unit: "kcal") == 1786)
         #expect(ThaliaFeed.rounded(104.56, unit: "g") == 104.6)
@@ -237,6 +284,32 @@ struct ThaliaExchangeTests {
         let left = try FileManager.default.contentsOfDirectory(atPath: days.path).sorted()
         #expect(left == [".x.json", "2026-09-21.json", "2026-11-22.json"])
         #expect(try !ThaliaExchangeWriter.removeExpired(appFolder: folder.app, today: Self.today))
+    }
+
+    @Test func aDayThatCantBeWrittenDoesntStopTheOthers() throws {
+        let folder = TemporaryFolder()
+        let yesterday = "2026-11-21"
+        // A folder (not a file) sits where yesterday's file goes, so it can't be written.
+        let blocked = BinisoftExchange.dayFileURL(appFolder: folder.app, day: yesterday)
+        try FileManager.default.createDirectory(at: blocked.appendingPathComponent("x", isDirectory: true),
+                                                withIntermediateDirectories: true)
+        let old = BinisoftExchange.dayFileURL(appFolder: folder.app, day: "2026-09-01")
+        try Data("{}".utf8).write(to: old)
+        var records = Self.meals
+        records.append(ThaliaFeed.FoodRecord(id: "entry-0", day: yesterday, time: Self.time("2026-11-21T13:00:00+01:00"),
+                                             energy: 500, protein: 30, carbs: 50, fat: 15))
+        do {
+            try ThaliaExchangeWriter.sync(Self.facts(records, []), source: "nina", appFolder: folder.app, today: Self.today,
+                                          now: Self.time("2026-11-22T20:00:00+01:00"), timeZone: Self.vienna)
+            Issue.record("yesterday's file can't be written")
+        } catch let failure as ThaliaExchangeWriter.SyncFailure {
+            #expect(failure.changed, "today was written, so the notification is still due")
+            #expect(failure.reason.hasPrefix("2026-11-21.json"), "\(failure.reason)")
+        }
+        // Today was written and the expired file deleted all the same.
+        let today = try ExchangeReader.dayFile(Data(contentsOf: BinisoftExchange.dayFileURL(appFolder: folder.app, day: Self.today))).get()
+        #expect(today.file.facts.count == 4)
+        #expect(!FileManager.default.fileExists(atPath: old.path))
     }
 
     @Test func factsOutsideTheWindowAreIgnored() throws {

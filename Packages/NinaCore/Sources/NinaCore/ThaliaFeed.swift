@@ -90,13 +90,13 @@ public enum ThaliaFeed {
     /// and day with the day's total. kcal, protein, carbs and fat only on days with eaten entries,
     /// water only on days with water logs (a real 0 stays 0). Planned, skipped, deleted and Health
     /// records never count; days after `today` and before the window are left out. `at` is the time
-    /// of the day's latest record of that metric, in `timeZone`, without fractions. The same records
-    /// in any order give the same facts.
+    /// of the day's latest record of that metric, in `timeZone`, cut to the whole second. The same
+    /// records in any order give the same facts.
     public static func facts(food: [FoodRecord], water: [WaterRecord], today: String,
                              timeZone: TimeZone = .current) -> [String: [ExchangeFact]] {
         guard BinisoftExchange.isDay(today), let first = BinisoftExchange.day(today, adding: -BinisoftExchange.keepDays) else { return [:] }
         func day(_ raw: String, _ time: Date) -> String? {
-            let day = BinisoftExchange.isDay(raw) ? raw : ExchangeDate.day(time, timeZone: timeZone)
+            let day = BinisoftExchange.isDay(raw) ? raw : ExchangeDate.day(wholeSecond(time), timeZone: timeZone)
             return day >= first && day <= today ? day : nil
         }
 
@@ -141,7 +141,14 @@ public enum ThaliaFeed {
     static func fact(_ metric: ExchangeMetric, day: String, value: Double, at: Date, timeZone: TimeZone) -> ExchangeFact {
         ExchangeFact(id: "\(metric.id)-\(day)", kind: ExchangeKind.value.rawValue, ref: metric.id, refTitle: metric.title,
                      value: rounded(value, unit: metric.unit), unit: metric.unit, metric: metric.id,
-                     at: ExchangeDate.string(at, timeZone: timeZone), origin: .app)
+                     at: ExchangeDate.string(wholeSecond(at), timeZone: timeZone), origin: .app)
+    }
+
+    /// `date` without its fraction of a second (cut, never rounded up). CloudKit keeps dates to the
+    /// millisecond, so another device may hold 19:00:30.999 for this device's 19:00:30.9996 – both
+    /// become 19:00:30 (`ExchangeDate.string` alone would round the second one up to 19:00:31).
+    static func wholeSecond(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: date.timeIntervalSince1970.rounded(.down))
     }
 
     /// kcal and ml to whole numbers, grams to 0.1 – so every device writes the same bytes. Never "-0".

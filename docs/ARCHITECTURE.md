@@ -166,7 +166,13 @@ them when it opens there.
   once, off the main thread); without the group (unsigned builds) nothing is written.
 - **The switch** "Send to Thalia" is per device (`nina.thalia.deliver`, default on), because the
   synced profile has no free settings field. Off: one pass without facts empties the window's day
-  files, then nothing more (`nina.thalia.cleared`); on: a full pass at once.
+  files, then nothing more (`nina.thalia.cleared`) except deleting files older than 62 days once a
+  day; on: a full pass at once.
+- **Same bytes on every device**: the diary day as stored, sums in id order, kcal/ml whole and grams
+  to 0.1, `at` cut to the whole second (iCloud keeps dates to the millisecond), facts by (`at`,
+  `id`), sorted keys. A file that can't be written doesn't stop the others
+  (`ThaliaExchangeWriter.SyncFailure` says whether anything was written, so the notification still
+  goes out).
 - **No Apple Health values**: Nina doesn't import foods or water from Health; a record from Health
   (`ThaliaFeed.isHealthSource`) would never count, and active energy is never added.
 

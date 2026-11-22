@@ -104,7 +104,8 @@ private final class GroupCheck: @unchecked Sendable {
 /// after 2 s of quiet), the end of the own CloudKit import, coming to the foreground
 /// (`becameActive`), the day change, and the switch. The switch "Send to Thalia" and the time of the
 /// last write are per device (UserDefaults). Off: one pass without values empties the day files of
-/// the window, then nothing is written until it is on again.
+/// the window, then nothing is written until it is on again – only day files older than 62 days
+/// are still deleted, once a day.
 @MainActor
 @Observable
 final class ThaliaDelivery {
@@ -141,6 +142,8 @@ final class ThaliaDelivery {
     @ObservationIgnored private var again = false
     @ObservationIgnored private var started = false
     @ObservationIgnored private var hasRun = false
+    /// Off: the day the expired day files were last deleted.
+    @ObservationIgnored private var cleanedDay: String?
 
     /// `canWrite` false (demo, tour, previews): the switch works on screen only and nothing is
     /// read from or written to the device.
@@ -199,21 +202,44 @@ final class ThaliaDelivery {
         runPass()
     }
 
-    /// A pass after `after` of quiet (a newer trigger starts the wait again).
+    /// A pass after `after` of quiet (a newer trigger starts the wait again). Off with the day files
+    /// emptied: only the daily clean-up of expired files.
     func passSoon(after delay: Duration = ThaliaDelivery.debounce) {
-        guard canWrite, hasWork else { return }
+        guard canWrite, hasWork || needsCleanUp else { return }
         let wait = hasRun ? delay : max(delay, ThaliaDelivery.firstDelay)
         pending?.cancel()
         pending = Task { @MainActor [weak self] in
             try? await Task.sleep(for: wait)
-            guard !Task.isCancelled else { return }
-            self?.runPass()
+            guard !Task.isCancelled, let self else { return }
+            if self.hasWork { self.runPass() } else { self.cleanUp() }
         }
     }
 
     /// On, or off with the day files not emptied yet.
     private var hasWork: Bool {
         isOn || !defaults.bool(forKey: ThaliaDelivery.clearedKey)
+    }
+
+    /// Off: the expired day files weren't deleted yet today.
+    private var needsCleanUp: Bool {
+        cleanedDay != ExchangeDate.day(Date())
+    }
+
+    /// Off: deletes the day files older than 62 days (they would stay forever otherwise) and
+    /// writes nothing – off the main thread, once a day.
+    private func cleanUp() {
+        guard canWrite, !hasWork, needsCleanUp, !running else { return }
+        let today = ExchangeDate.day(Date())
+        cleanedDay = today
+        Task.detached(priority: .utility) {
+            guard let folder = ThaliaExchange.appFolder() else { return }
+            do {
+                if try ThaliaExchangeWriter.removeExpired(appFolder: folder, today: today) { ThaliaExchange.postChanged() }
+            } catch {
+                if (error as? ThaliaExchangeWriter.SyncFailure)?.changed == true { ThaliaExchange.postChanged() }
+                AppLog.warning("Thalia: old day files not deleted: \(error.localizedDescription)", category: "thalia")
+            }
+        }
     }
 
     /// Reads the window from the store now, then writes off the main thread. A trigger meanwhile
@@ -241,13 +267,15 @@ final class ThaliaDelivery {
 
     private func finish(_ result: WriteResult, deliver: Bool, now: Date) {
         running = false
-        if result == .written {
+        if result == .written || result == .partly {
             lastWritten = now
             defaults.set(now, forKey: ThaliaDelivery.lastWrittenKey)
         }
         // Off, and the day files are empty now: nothing more until it is on again.
         if !deliver, !isOn, result == .written || result == .unchanged {
             defaults.set(true, forKey: ThaliaDelivery.clearedKey)
+            // This pass deleted the expired files too.
+            cleanedDay = ExchangeDate.day(now)
         }
         if again {
             again = false
@@ -276,7 +304,8 @@ final class ThaliaDelivery {
     }
 
     enum WriteResult: Equatable, Sendable {
-        case written, unchanged, noFolder, failed
+        /// `partly`: some files were written, another one failed (the next pass tries again).
+        case written, partly, unchanged, noFolder, failed
     }
 
     /// One pass's file work (off the main thread): the day files (empty ones when `deliver` is off),
@@ -292,6 +321,8 @@ final class ThaliaDelivery {
                                                     timeZone: timeZone)
         } catch {
             failed = true
+            // The other days were still written: Thalia hears about those.
+            if (error as? ThaliaExchangeWriter.SyncFailure)?.changed == true { changed = true }
             AppLog.warning("Thalia: day files not written: \(error.localizedDescription)", category: "thalia")
         }
         if deliver {
@@ -306,7 +337,7 @@ final class ThaliaDelivery {
         guard changed else { return failed ? .failed : .unchanged }
         ThaliaExchange.postChanged()
         AppLog.debug(deliver ? "Thalia: day values updated" : "Thalia: day values emptied", category: "thalia")
-        return .written
+        return failed ? .partly : .written
     }
 }
 #endif

@@ -169,7 +169,7 @@ struct SettingsView: View {
             DataFact("barcode.viewfinder", "Open Food Facts", "Scanning sends only the barcode number to Open Food Facts to look the product up. Nothing about you is sent."),
         ]), at: 2)
         sections.insert(DataSection("Thalia", [
-            DataFact("arrow.up.forward.app", "Day values, on this device", "With Send to Thalia on, \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days into a folder on this device that Binisoft's apps share, where Thalia picks them up. Nothing from Apple Health goes there, and nothing leaves the device."),
+            DataFact("arrow.up.forward.app", "Day values, on this device", "With Send to Thalia on, \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
         ]), at: 3)
         return sections
     }

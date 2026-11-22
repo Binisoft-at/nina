@@ -46,7 +46,8 @@ writes the same numbers.
   and now has none gets an empty file, so Thalia removes them. Files older than 62 days are deleted.
 - `source.json` is written when the metrics or Nina's version change, otherwise once a day.
 - Writing never slows down Nina, and never shows an error – problems go to the app log
-  (Settings → Diagnostics → App Log).
+  (Settings → Diagnostics → App Log). A file that can't be written doesn't stop the others; the
+  next pass tries it again.
 
 ## What never goes there
 
@@ -61,8 +62,8 @@ writes the same numbers.
 Settings → **Thalia**: the switch **Send to Thalia** (on by default), the line "Last written: …"
 ("Not written yet", "Off on this device") and the hint "Thalia picks up the values as soon as you
 open Thalia on this device." The switch is per device. Turning it off empties the files of the
-last 62 days once (Thalia removes the values) and then writes nothing more; turning it on writes
-everything again at once. Settings → iCloud & Data → Where your data lives explains it under
+last 62 days once (Thalia removes the values) and then writes nothing more – only files older than
+62 days are still deleted, once a day; turning it on writes everything again at once. Settings → iCloud & Data → Where your data lives explains it under
 "Thalia".
 
 ## Decisions
@@ -74,21 +75,31 @@ everything again at once. Settings → iCloud & Data → Where your data lives e
 2. **The switch is per device** (UserDefaults `nina.thalia.deliver`, default on): the synced
    profile has no free settings field, and a new field would need a CloudKit schema change. Off:
    one pass with no values (every existing day file of the window gets `"facts":[]`), then no more
-   writes and no heartbeat until it is on again. On: a full pass at once.
+   writes and no heartbeat until it is on again; only day files older than 62 days are still
+   deleted (once a day), so none stays behind. On: a full pass at once.
 3. **The day of a value is Nina's diary day** of the entry (`LogEntry.day`, `WaterLog.day` – it
    already follows "Day starts at"). `at` is the time of the latest entry of that day that counts
-   for the metric, in the device's time zone, without fractions. Days after today are skipped.
+   for the metric, in the device's time zone, cut to the whole second (iCloud keeps times to the
+   millisecond, so rounding could differ between devices). Days after today are skipped.
 4. **What counts**: eaten entries only (`EntryStatus.eaten`, as Today's totals count them: not
    planned, not skipped, not deleted); energy in kcal, protein, carbs and fat in g, unknown values
    as 0 (like Today's totals). Water = the sum of the day's water logs (Today's water card). A
    record from Apple Health never counts – today no food or water record in Nina comes from Health.
 5. **Rounding**, so every device writes identical bytes: kcal and ml to whole numbers, grams to
    0.1. One value per metric and day, id `<metric>-<day>` (`kcal-2026-11-22`), kind `value`,
-   `ref` = the metric, German `refTitle`, `unit`, `origin` `app`.
-6. **Never written** in demo (`-Demo`), the tour's practice day, from an in-memory or fallback store
-   (`AppModel.keepsData`), in SwiftUI previews, in tests, or on the watch.
-7. **Version 1.1.0** (`MARKETING_VERSION`); `appVersion` in `source.json` is the app's version.
-8. **Tour**: one read-only step "thalia" (since 5), tour version 5.
+   `ref` = the metric, German `refTitle`, `unit`, `origin` `app`. A metric gets a value only on a
+   day with records for it (food entries for kcal, protein, carbs, fat; water logs for water); a
+   real 0 is sent as 0. Sums run in a fixed order and the facts are sorted by (`at`, `id`).
+6. **Never written** in demo (`-Demo`), the tour's practice day (`isSandbox`), from an in-memory
+   or fallback store (`AppModel.keepsData`, `isStoredInMemoryOnly`), in SwiftUI previews
+   (`XCODE_RUNNING_FOR_PREVIEWS`), in tests, or on the watch (App/Sources isn't in the watch target,
+   and the file is `#if !os(watchOS)`).
+7. **Version 1.1.0** (`MARKETING_VERSION`); `appVersion` in `source.json` is the app's version
+   (`CFBundleShortVersionString`).
+8. **Tour**: one read-only step "thalia" (since 5), tour version 5. iPhone/iPad: "Nina hands Thalia
+   your daily calories, protein, carbs, fat and water on this device – Thalia takes them as soon as
+   you open it. Turn it off in Settings → Thalia." Mac: "… on this Mac – Thalia takes them as soon
+   as you open it here. Turn it off in Settings (⌘,) → General → Thalia."
 
 ## Code
 

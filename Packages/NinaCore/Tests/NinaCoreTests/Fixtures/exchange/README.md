@@ -1,6 +1,6 @@
 # Exchange fixtures (Binisoft exchange, format v1)
 
-Copied unchanged from Thalia's test files (`Packages/ThaliaCore/Tests/ThaliaCoreTests/Fixtures/exchange`),
+A subset of Thalia's test files, copied unchanged (`Packages/ThaliaCore/Tests/ThaliaCoreTests/Fixtures/exchange`),
 laid out like the shared App Group `group.at.binisoft.shared`. Neutral example data only.
 `ThaliaExchangeTests.swift` reads them:
 

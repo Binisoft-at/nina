@@ -5,6 +5,21 @@ import Foundation
 /// any folder works (tests use temporary ones). The caller posts `BinisoftExchange.changedNotification`
 /// once per pass when something was written.
 public enum ThaliaExchangeWriter {
+    /// A pass that couldn't write or delete every file. The other files were still done; `changed`
+    /// says whether any was written or deleted (then the notification is still due).
+    public struct SyncFailure: Error, LocalizedError, Equatable {
+        public var changed: Bool
+        /// The first file that failed and why.
+        public var reason: String
+
+        public init(changed: Bool, reason: String) {
+            self.changed = changed
+            self.reason = reason
+        }
+
+        public var errorDescription: String? { reason }
+    }
+
     /// Brings the day files in line with `facts` (day → that day's facts) for `today` and the
     /// `BinisoftExchange.keepDays` days before it:
     ///
@@ -16,11 +31,14 @@ public enum ThaliaExchangeWriter {
     /// - day files older than `keepDays` are deleted.
     ///
     /// Facts for days outside the window are ignored. Returns whether a file was written or deleted.
+    /// A file that can't be written doesn't stop the others: the pass goes on and then throws
+    /// `SyncFailure` (with `changed`).
     @discardableResult
     public static func sync(_ facts: [String: [ExchangeFact]], source: String, appFolder: URL, today: String, now: Date,
                             timeZone: TimeZone = .current) throws -> Bool {
         guard BinisoftExchange.isDay(today) else { return false }
         var changed = false
+        var failure: String?
         let generatedAt = ExchangeDate.string(now, timeZone: timeZone)
         for offset in 0...BinisoftExchange.keepDays {
             guard let day = BinisoftExchange.day(today, adding: -offset) else { continue }
@@ -28,27 +46,46 @@ public enum ThaliaExchangeWriter {
             let url = BinisoftExchange.dayFileURL(appFolder: appFolder, day: day)
             let old = try? Data(contentsOf: url)
             if old == nil, dayFacts.isEmpty { continue }
-            if let old, case .success(let read) = ExchangeReader.dayFile(old, fileName: BinisoftExchange.dayFileName(day)) {
-                let same = ExchangeDayFile(source: source, day: day, generatedAt: read.file.generatedAt, facts: dayFacts)
-                if try same.encoded() == old { continue }
+            do {
+                if let old, case .success(let read) = ExchangeReader.dayFile(old, fileName: BinisoftExchange.dayFileName(day)) {
+                    let same = ExchangeDayFile(source: source, day: day, generatedAt: read.file.generatedAt, facts: dayFacts)
+                    if try same.encoded() == old { continue }
+                }
+                let file = ExchangeDayFile(source: source, day: day, generatedAt: generatedAt, facts: dayFacts)
+                try BinisoftExchange.write(try file.encoded(), to: url)
+                changed = true
+            } catch {
+                failure = failure ?? "\(BinisoftExchange.dayFileName(day)): \(error.localizedDescription)"
             }
-            let file = ExchangeDayFile(source: source, day: day, generatedAt: generatedAt, facts: dayFacts)
-            try BinisoftExchange.write(try file.encoded(), to: url)
-            changed = true
         }
-        return try removeExpired(appFolder: appFolder, today: today) || changed
+        do {
+            if try removeExpired(appFolder: appFolder, today: today) { changed = true }
+        } catch let error as SyncFailure {
+            if error.changed { changed = true }
+            failure = failure ?? error.reason
+        }
+        if let failure { throw SyncFailure(changed: changed, reason: failure) }
+        return changed
     }
 
     /// Deletes the day files older than `BinisoftExchange.keepDays` before `today`; whether one went.
+    /// One that can't be deleted doesn't stop the others (then `SyncFailure`).
     @discardableResult
     public static func removeExpired(appFolder: URL, today: String) throws -> Bool {
         let folder = BinisoftExchange.daysFolder(appFolder: appFolder)
         let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []
-        let expired = BinisoftExchange.expiredDayFiles(names, today: today)
-        for name in expired {
-            try FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+        var removed = false
+        var failure: String?
+        for name in BinisoftExchange.expiredDayFiles(names, today: today) {
+            do {
+                try FileManager.default.removeItem(at: folder.appendingPathComponent(name))
+                removed = true
+            } catch {
+                failure = failure ?? "\(name): \(error.localizedDescription)"
+            }
         }
-        return !expired.isEmpty
+        if let failure { throw SyncFailure(changed: removed, reason: failure) }
+        return removed
     }
 
     /// The heartbeat rule for `source.json`: write when there is none (or it can't be read), when its
