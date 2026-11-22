@@ -18,6 +18,9 @@ final class AppModel {
     let isSandbox: Bool
     let library: FoodLibrary
     let health: HealthService
+    /// Nina's day values for Thalia in the shared App Group (Settings → Thalia). Writes only for
+    /// the real store – never the demo, the tour's practice page or an in-memory store.
+    let thalia: ThaliaDelivery
 
     private(set) var settings: NinaSettings
     var tab: AppTab = .today
@@ -58,6 +61,7 @@ final class AppModel {
         self.toasts = ToastCenter()
         self.library = FoodLibrary()
         self.health = HealthService(enabled: !isSandbox && !launch.isDemo, storeIsSaved: AppModel.keepsData(mode))
+        self.thalia = ThaliaDelivery(container: container, canWrite: !isSandbox && !launch.isDemo && AppModel.keepsData(mode))
         let store = NinaStore(context: container.mainContext)
         let settings = store.coachSettings()
         self.settings = settings
@@ -70,6 +74,7 @@ final class AppModel {
             return
         }
         observeChanges(rebuildOnly: false)
+        thalia.start()
         applyLaunchOptions()
         if !launch.isDemo {
             store.purgeExpired()
@@ -132,6 +137,7 @@ final class AppModel {
         let newToday = settings.today()
         if selectedDay < newToday, selectedDay == newToday.adding(days: -1) { selectedDay = newToday }
         store.materializePlans(today: newToday)
+        thalia.becameActive()
         Task { @MainActor [weak self] in
             guard let self else { return }
             let before = self.health.weightSamples

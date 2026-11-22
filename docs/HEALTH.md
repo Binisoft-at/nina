@@ -10,6 +10,7 @@
 | Progress photos (front, side, back) – Nina's own data, not Health data | SwiftData (`ProgressPhoto`), the photo and its thumbnail as files in Nina's private iCloud database; not in iCloud Photos, not on the watch | Only the user's Apple Account |
 | Built-in food catalog | In the app bundle | Everyone (public data) |
 | Today's numbers for widgets and complications | `group.at.binisoft.shared/Nina/today.json` on each device | Nina's widgets on that device |
+| The day totals for Thalia (calories, protein, carbs, fat, water of the last 62 days – from Nina's own diary, never from Health) | `group.at.binisoft.shared/Nina/exchange/` on each iPhone, iPad and Mac (not the watch), while Settings → Thalia → Send to Thalia is on | Thalia and Nina on that device |
 | Apple Health values (weight, active energy) | Read live from HealthKit on each device, kept in memory only | Never stored or synced by Nina |
 | Apple Health body values (body fat, lean mass, waist, height) and today's workouts | Read live from HealthKit on iPhone and iPad, kept in memory only | Never stored or synced by Nina |
 | What Nina wrote to Health | A device-only ledger file (entry id → version, and the weigh-ins it wrote) in Application Support | Nina on that device |
@@ -19,6 +20,14 @@
 
 No servers, accounts or analytics. App Store guideline 5.1.3(ii) – no Health data in iCloud – is
 respected: Nina writes *its own* diary to Health, and reads Health values only live.
+
+## Thalia gets no Apple Health values
+
+The day totals Nina hands Thalia ([THALIA.md](THALIA.md)) come only from what you log in Nina:
+eaten entries and water logs. Thalia keeps what it receives in its iCloud, so nothing from Health
+may go there: Nina doesn't import foods or water from Health, the active energy it reads from
+Health is never added, and weight and body data aren't sent at all. Should a record from Health
+ever exist in Nina, it is left out.
 
 ## The coach and Apple Health
 

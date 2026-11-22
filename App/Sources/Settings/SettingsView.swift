@@ -3,8 +3,8 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
-/// Settings: goals & plan, diary preferences, Apple Health, reminders, appearance, help, iCloud & data,
-/// import/export, the app log, about.
+/// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, help,
+/// iCloud & data, import/export, the app log, about.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -80,6 +80,8 @@ struct SettingsView: View {
                 }
             }
             #endif
+
+            ThaliaSection()
 
             Section("Appearance") {
                 AppearancePicker()
@@ -166,6 +168,9 @@ struct SettingsView: View {
         sections.insert(DataSection("Barcodes", [
             DataFact("barcode.viewfinder", "Open Food Facts", "Scanning sends only the barcode number to Open Food Facts to look the product up. Nothing about you is sent."),
         ]), at: 2)
+        sections.insert(DataSection("Thalia", [
+            DataFact("arrow.up.forward.app", "Day values, on this device", "With Send to Thalia on, \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days into a folder on this device that Binisoft's apps share, where Thalia picks them up. Nothing from Apple Health goes there, and nothing leaves the device."),
+        ]), at: 3)
         return sections
     }
 }
@@ -621,6 +626,28 @@ private struct GoalsPlanLink: View {
         }
         .padding(.vertical, 4)
         .contentShape(.rect)
+    }
+}
+
+/// Settings → Thalia: "Send to Thalia" on this device, when Nina last wrote the day values
+/// (docs/THALIA.md). Off empties the values once; on writes them all again at once.
+private struct ThaliaSection: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        let thalia = app.thalia
+        Section {
+            Toggle(isOn: Binding(get: { thalia.isOn }, set: { thalia.setDeliver($0) })) {
+                Label("Send to Thalia", systemImage: "arrow.up.forward.app")
+            }
+            Text(thalia.statusText)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Thalia")
+        } footer: {
+            Text("Thalia picks up the values as soon as you open Thalia on this device.")
+        }
     }
 }
 

@@ -62,7 +62,8 @@ Settings → **Thalia**: the switch **Send to Thalia** (on by default), the line
 ("Not written yet", "Off on this device") and the hint "Thalia picks up the values as soon as you
 open Thalia on this device." The switch is per device. Turning it off empties the files of the
 last 62 days once (Thalia removes the values) and then writes nothing more; turning it on writes
-everything again at once.
+everything again at once. Settings → iCloud & Data → Where your data lives explains it under
+"Thalia".
 
 ## Decisions
 

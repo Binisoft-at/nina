@@ -32,6 +32,8 @@ click below and the occasional account step you ask for.
   `HealthBody*` (Health values are read live, never stored); `BodyHistoryCSV` with
   `Shared/Store/NinaStore+History.swift` and `App/Sources/Import/ImportHistory.swift`; `WatchCoach`
   with `Watch/Sources/WatchModel+Coach.swift` and `WatchCoachViews.swift`.
+- Thalia (`docs/THALIA.md`): NinaCore `ExchangeFormat` (copied unchanged from Thalia), `ThaliaFeed`,
+  `ThaliaExchangeWriter`; app `App/Sources/Services/ThaliaExchange.swift` (`ThaliaDelivery`).
 - `project.yml` (XcodeGen) generates the Xcode project; never committed. All identifiers live in
   `Config/Base.xcconfig`; entitlements use its variables.
 - `cloudkit/schema.ckdb` is generated from the models: `python3 tools/cloudkit-schema.py`

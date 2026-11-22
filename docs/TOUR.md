@@ -14,7 +14,7 @@ a coach card on top. Each step ticks itself off once the practice page shows it 
 
 ## Steps
 
-The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 4). Every step has its
+The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 5). Every step has its
 own Mac text (click, right-click, menus and shortcuts instead of tap and touch and hold).
 
 | id | Since | Teaches | Ticks off when |
@@ -40,12 +40,13 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | watchCoach | 4 | the coach on Apple Watch: today's day type under the ring, weigh-in and waist with the Digital Crown, daily checks, the weight status | – (Continue) |
 | healthBody | 4 | Settings → Apple Health → Body: body fat, lean mass and waist from Health as their own series, and "Make it a tennis day?" after a workout (Mac: the workouts of a day type in My Plan) | – (Continue) |
 | history | 4 | importing old weigh-ins, tape logs and scan reports: ⋯ → Create… → Import My Data → Body (Mac: File → Import My Data…, ⇧⌘I), only what's new, one Undo | – (Continue) |
+| thalia | 5 | Nina hands Thalia the day's calories, protein, carbs, fat and water on this device; off in Settings → Thalia (Mac: Settings, ⌘, → General → Thalia) | – (Continue) |
 | everywhere | 1 | sync, watch, widgets, Health | – (Continue) |
 | finish | 1 | where to replay | – (Done) |
 
-People who finished version 3 (on TestFlight) get "What's new" with the four version 4 steps
-(photos, watchCoach, healthBody, history). People who finished version 2 get the eight coach steps
-(daytype … checkin) and the four version 4 steps.
+People who finished version 4 (on TestFlight) get "What's new" with the thalia step. People who
+finished version 3 get the four version 4 steps (photos, watchCoach, healthBody, history) and
+thalia; people who finished version 2 also get the eight coach steps (daytype … checkin).
 
 ## Coach parts without their own step
 

@@ -39,6 +39,9 @@ itself stays in your training app.
 - **Bring your history** – old weigh-ins, tape logs and DEXA, InBody or 3D-scan reports come in
   through your AI; Nina adds only what's new, one Undo takes it back, and the export gives it all
   back as CSV.
+- **Thalia** – on each iPhone, iPad and Mac, Nina hands Thalia (Binisoft's planner) the day's
+  calories, protein, carbs, fat and water, never anything from Apple Health; Settings → Thalia
+  turns it off: [docs/THALIA.md](docs/THALIA.md).
 
 - **Today** – a calorie ring with what's left (swipe it for other days), your priority nutrients,
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
