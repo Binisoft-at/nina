@@ -37,6 +37,10 @@ final class WatchModel {
     let container: ModelContainer
     let library = FoodLibrary()
     private(set) var settings: NinaSettings
+    /// Bumped on every refresh: the coach on the home screen reloads on it.
+    private(set) var dataVersion = 0
+    /// The last coach write the home screen offers to undo for a few seconds (`WatchModel+Coach`).
+    var undo: WatchUndo?
     @ObservationIgnored private var observer: NSObjectProtocol?
 
     init(container: ModelContainer) {
@@ -58,6 +62,7 @@ final class WatchModel {
     func refresh() {
         settings = store.settings
         library.rebuild(context: container.mainContext, language: settings.language)
+        dataVersion += 1
         WidgetBridge.publish(store.todaySnapshot(activityBonus: 0))
     }
 
