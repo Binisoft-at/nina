@@ -141,6 +141,7 @@ private struct BodyPageLayout: View {
         if !data.composition.isEmpty {
             BodyPageCompositionCard(composition: data.composition, today: data.today)
         }
+        BodyPhotosCard()
     }
 
     @ViewBuilder

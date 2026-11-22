@@ -729,6 +729,7 @@ final class AppModel {
     /// `-Demo -DemoScreen <name>` opens a screen; `-Tour` / `-TourStep <id>` open the tour.
     private func applyLaunchOptions() {
         if launch.resetTour { TourSchedule().reset() }
+        if launch.isDemo { BodyPhotosDemo.seed(container.mainContext, today: today) }
         switch launch.screen {
         case "foods":
             tab = .foods
@@ -750,6 +751,8 @@ final class AppModel {
             sheet = .checkIn(currentCheckInWeek)
         case "myplan":
             sheet = .plan
+        case "photos":
+            sheet = .photos(.compare(.front))
         case "phase":
             sheet = .phase(demoPhaseID)
         case "review":

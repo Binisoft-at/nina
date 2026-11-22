@@ -44,7 +44,9 @@
 		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Nina uses the camera to scan the barcode of a food package and look up its nutrition values.</string>
+	<string>Nina uses the camera to scan the barcode of a food package and to take your progress photos.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Nina uses Face ID to unlock your progress photos when you lock them.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Nina reads your weight and active energy from Apple Health to show your weight trend and, if you like, add burned calories to your daily budget. If you turn them on, Nina also reads body fat, lean mass, waist and height to show them next to your own measurements, and finished workouts to suggest the day type.</string>
 	<key>NSHealthUpdateUsageDescription</key>

@@ -360,6 +360,38 @@ final class DayMark {
     }
 }
 
+/// A progress photo (front, side or back), taken or picked in Nina. The image and its thumbnail
+/// are JPEG files kept outside the database (CloudKit assets), synced only to the person's own
+/// iCloud. Not part of the watch's store (Persistence.models).
+@Model
+final class ProgressPhoto {
+    var uuid: UUID = UUID()
+    var day: String = ""
+    var time: Date = Date()
+    /// "front" | "side" | "back" | "other" (PhotoPose)
+    var pose: String = "front"
+    /// JPEG, at most 2048 px on the long side, without location or camera metadata.
+    @Attribute(.externalStorage) var image: Data?
+    /// JPEG, about 360 px on the long side (the Body card and lists).
+    @Attribute(.externalStorage) var thumbnail: Data?
+    var note: String = ""
+    /// The BodyMeasurement (uuid text) of the same session, "" = none.
+    var measurementID: String = ""
+    var createdAt: Date = Date()
+    var modifiedAt: Date = Date()
+    var deletedAt: Date?
+
+    init(day: DayKey, time: Date, pose: PhotoPose) {
+        let now = Date()
+        self.uuid = UUID()
+        self.day = day.rawValue
+        self.time = time
+        self.pose = pose.rawValue
+        self.createdAt = now
+        self.modifiedAt = now
+    }
+}
+
 extension LogEntry: SoftDeletable {}
 extension Food: SoftDeletable {}
 extension Recipe: SoftDeletable {}
@@ -368,3 +400,4 @@ extension WeightEntry: SoftDeletable {}
 extension PlanRule: SoftDeletable {}
 extension BodyMeasurement: SoftDeletable {}
 extension DayMark: SoftDeletable {}
+extension ProgressPhoto: SoftDeletable {}

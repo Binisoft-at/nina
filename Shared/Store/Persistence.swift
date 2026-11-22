@@ -7,10 +7,19 @@ import BinisoftKit
 /// available, sample data in memory for `-Demo`, and a separate practice store for the tour.
 /// No Apple Health values are stored: they are read live on each device.
 enum Persistence {
+    /// The watch leaves out the progress photos: it never shows them, so its store doesn't keep
+    /// them (a store skips CloudKit records of models it doesn't have, as older builds do).
+    #if os(watchOS)
     static let models: [any PersistentModel.Type] = [
         LogEntry.self, Food.self, Recipe.self, RecipeItem.self, WaterLog.self, WeightEntry.self, PlanRule.self, NinaProfile.self,
         BodyMeasurement.self, DayMark.self,
     ]
+    #else
+    static let models: [any PersistentModel.Type] = [
+        LogEntry.self, Food.self, Recipe.self, RecipeItem.self, WaterLog.self, WeightEntry.self, PlanRule.self, NinaProfile.self,
+        BodyMeasurement.self, DayMark.self, ProgressPhoto.self,
+    ]
+    #endif
 
     #if DEBUG
     static let isDebugBuild = true
