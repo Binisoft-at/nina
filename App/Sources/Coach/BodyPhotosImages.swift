@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
@@ -7,7 +8,7 @@ import NinaCore
 // Progress photo images with ImageIO (the same code on iPhone, iPad and Mac): a picked or taken
 // photo is turned upright, downscaled to 2048 px on the long side and saved as JPEG (quality 0.8)
 // with a 360 px thumbnail. Writing a new image leaves the location, camera and other metadata
-// behind. Encoding and decoding run off the main thread.
+// behind. Reading files and stored photos, encoding and decoding run off the main thread.
 
 /// A decoded image (a class, so NSCache can hold it and tasks can hand it over).
 final class BodyPhotoBitmap: @unchecked Sendable {
@@ -27,12 +28,44 @@ enum BodyPhotoImages {
         let capturedAt: Date?
     }
 
-    /// Decoded images by key ("<uuid>-thumb", "<uuid>-full"); the system empties it when memory is short.
+    /// Decoded images by key ("<uuid>-thumb", "<uuid>-full-<pixels>"), at most about 150 MB (a
+    /// 2048 px photo takes about 12 MB decoded, a thumbnail about half a MB); the system empties it
+    /// when memory is short.
     static let cache: NSCache<NSString, BodyPhotoBitmap> = {
         let cache = NSCache<NSString, BodyPhotoBitmap>()
         cache.countLimit = 120
+        cache.totalCostLimit = 150 * 1024 * 1024
         return cache
     }()
+
+    /// The memory a decoded image takes (what the cache counts).
+    static func cost(_ bitmap: BodyPhotoBitmap) -> Int {
+        bitmap.image.bytesPerRow * bitmap.image.height
+    }
+
+    // MARK: Reading
+
+    /// A chosen file (the Mac's "Choose File…"), read off the main thread.
+    static func read(_ url: URL) async -> Data? {
+        let task = Task.detached(priority: .userInitiated) { () -> Data? in
+            let access = url.startAccessingSecurityScopedResource()
+            defer { if access { url.stopAccessingSecurityScopedResource() } }
+            return try? Data(contentsOf: url)
+        }
+        return await task.value
+    }
+
+    /// A stored photo's JPEG (external storage, up to about 1 MB), read off the main thread in a
+    /// context of its own; nil when it isn't there (not saved yet, or no image).
+    static func storedImage(of id: UUID, in container: ModelContainer) async -> Data? {
+        let task = Task.detached(priority: .userInitiated) { () -> Data? in
+            let context = ModelContext(container)
+            var descriptor = FetchDescriptor<ProgressPhoto>(predicate: #Predicate<ProgressPhoto> { $0.uuid == id })
+            descriptor.fetchLimit = 1
+            return (try? context.fetch(descriptor))?.first?.image
+        }
+        return await task.value
+    }
 
     // MARK: Saving
 
@@ -111,7 +144,7 @@ enum BodyPhotoImages {
     static func bitmap(_ data: Data, key: String, maxPixels: Int? = nil) async -> BodyPhotoBitmap? {
         if let cached = cache.object(forKey: key as NSString) { return cached }
         guard let decoded = await decode(data, maxPixels: maxPixels) else { return nil }
-        cache.setObject(decoded, forKey: key as NSString)
+        cache.setObject(decoded, forKey: key as NSString, cost: cost(decoded))
         return decoded
     }
 }
@@ -124,11 +157,12 @@ enum BodyPhotoSize {
     case full(Int)
 }
 
-/// A stored photo's image, decoded off the main thread (a soft tile until then).
+/// A stored photo's image, read and decoded off the main thread (a soft tile until then).
 struct BodyPhotoImageView: View {
     let photo: ProgressPhoto
     var size: BodyPhotoSize = .thumbnail
     var contentMode: ContentMode = .fill
+    @Environment(\.modelContext) private var modelContext
     @State private var bitmap: BodyPhotoBitmap?
 
     var body: some View {
@@ -160,17 +194,27 @@ struct BodyPhotoImageView: View {
         }
         switch size {
         case .thumbnail:
-            guard let data = photo.thumbnail ?? photo.image else { return }
-            bitmap = await BodyPhotoImages.bitmap(data, key: key, maxPixels: ProgressPhotos.thumbnailPixels)
+            // The small thumbnail is read here; the photo itself only when there is none.
+            if let thumb = photo.thumbnail {
+                bitmap = await BodyPhotoImages.bitmap(thumb, key: key, maxPixels: ProgressPhotos.thumbnailPixels)
+            } else if let data = await storedImage() {
+                bitmap = await BodyPhotoImages.bitmap(data, key: key, maxPixels: ProgressPhotos.thumbnailPixels)
+            }
         case .full(let pixels):
             // The thumbnail first, so the photo shows at once.
             if bitmap == nil, let thumb = photo.thumbnail {
                 bitmap = await BodyPhotoImages.bitmap(thumb, key: photo.uuid.uuidString + "-thumb",
                                                       maxPixels: ProgressPhotos.thumbnailPixels)
             }
-            guard let data = photo.image else { return }
+            guard let data = await storedImage() else { return }
             if let full = await BodyPhotoImages.bitmap(data, key: key, maxPixels: pixels) { bitmap = full }
         }
+    }
+
+    /// The photo's JPEG, read off the main thread; here only when that finds nothing (not saved yet).
+    private func storedImage() async -> Data? {
+        if let data = await BodyPhotoImages.storedImage(of: photo.uuid, in: modelContext.container) { return data }
+        return photo.image
     }
 }
 

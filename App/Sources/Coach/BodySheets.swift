@@ -14,6 +14,8 @@ import NinaCore
 /// the number and clears it.
 struct WeighInSheet: View {
     let entry: WeightEntry?
+    /// The weigh-in came from an import: its note keeps the import tag on save, hidden in the field.
+    private let isImported: Bool
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -28,8 +30,9 @@ struct WeighInSheet: View {
 
     init(entry: WeightEntry?) {
         self.entry = entry
+        isImported = entry.map { HealthWeightSync.isImported(note: $0.note) } ?? false
         let fat = entry?.bodyFat ?? 0
-        let note = entry?.note ?? ""
+        let note = HealthWeightSync.editableNote(entry?.note ?? "")
         _text = State(initialValue: entry.map { BodySheetNumber.text($0.kilograms) } ?? "")
         _bodyFat = State(initialValue: fat > 0 ? BodySheetNumber.text(fat) : "")
         _note = State(initialValue: note)
@@ -293,7 +296,8 @@ struct WeighInSheet: View {
     private func commit(_ kilograms: Double) {
         let day = (context ?? BodySheetWeighInContext.load(app: app, editing: entry)).day(for: time)
         let fat = bodyFatValue ?? 0
-        let cleanNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        // An imported weigh-in stays history (never written to Apple Health), whatever the field says.
+        let cleanNote = HealthWeightSync.savedNote(note.trimmingCharacters(in: .whitespacesAndNewlines), imported: isImported)
         if let entry {
             app.bodySheetUpdate(entry, to: BodySheetWeighIn(kilograms: kilograms, day: day, time: time, bodyFat: fat, note: cleanNote))
         } else {

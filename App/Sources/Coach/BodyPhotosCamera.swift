@@ -5,12 +5,15 @@ import AVFoundation
 import BinisoftKit
 import NinaCore
 
-// The camera for one pose (iPhone, iPad; full screen): the live picture in a 3:4 frame with the
-// last photo of the pose over it at 30 % (the "ghost") to stand the same way again, a 3 or 10
-// second timer, and the back or front camera. AVFoundation draws the picture in exactly the frame
-// the ghost uses, so lining up with the ghost lines up the photos (the system camera picker places
-// its picture differently from one iPhone to the next). Portrait photos; the front camera's
-// picture is mirrored like a mirror, the saved photo is not, and the ghost follows the picture.
+// The camera for one pose (iPhone, iPad; full screen): the live picture in a 3:4 frame (4:3 while
+// the picture is landscape) with the last photo of the pose over it at 30 % (the "ghost") to stand
+// the same way again, a 3 or 10 second timer, and the back or front camera. AVFoundation draws the
+// picture in exactly the frame the ghost uses, so lining up with the ghost lines up the photos (the
+// system camera picker places its picture differently from one iPhone to the next). A rotation
+// coordinator keeps the picture and the photo upright however the device is held and the screen
+// turned; the ghost shows only while the picture and the photo are turned like the last photo, so
+// it never sits sideways over the picture. The front camera's picture is mirrored like a mirror,
+// the saved photo is not, and the ghost follows the picture.
 
 enum BodyPhotoCamera {
     /// The device has a camera (looked up once).
@@ -42,8 +45,9 @@ final class BodyPhotoCapture: NSObject, AVCapturePhotoCaptureDelegate, @unchecke
         }
     }
 
-    /// A photo (HEIC or JPEG with its orientation); nil when it failed.
-    func capture() async -> Data? {
+    /// A photo (HEIC or JPEG with its orientation) turned by `angle` (the rotation coordinator's
+    /// capture angle, so it is upright); nil when it failed.
+    func capture(angle: CGFloat) async -> Data? {
         await withCheckedContinuation { (continuation: CheckedContinuation<Data?, Never>) in
             queue.async {
                 guard self.session.isRunning, self.pending == nil else {
@@ -51,8 +55,8 @@ final class BodyPhotoCapture: NSObject, AVCapturePhotoCaptureDelegate, @unchecke
                     return
                 }
                 self.pending = continuation
-                if let connection = self.output.connection(with: .video), connection.isVideoRotationAngleSupported(90) {
-                    connection.videoRotationAngle = 90
+                if let connection = self.output.connection(with: .video), connection.isVideoRotationAngleSupported(angle) {
+                    connection.videoRotationAngle = angle
                 }
                 self.output.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
             }
@@ -67,10 +71,14 @@ final class BodyPhotoCapture: NSObject, AVCapturePhotoCaptureDelegate, @unchecke
         }
     }
 
+    /// The camera used for `position` (the same lookup on the session queue and for the rotation).
+    static func device(at position: AVCaptureDevice.Position) -> AVCaptureDevice? {
+        AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) ?? AVCaptureDevice.default(for: .video)
+    }
+
     /// The camera at `position` (front or back) with the photo output; on the session queue.
     private func configure(_ position: AVCaptureDevice.Position) -> Bool {
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position)
-                ?? AVCaptureDevice.default(for: .video),
+        guard let device = BodyPhotoCapture.device(at: position),
               let newInput = try? AVCaptureDeviceInput(device: device) else { return false }
         session.beginConfiguration()
         defer { session.commitConfiguration() }
@@ -89,25 +97,110 @@ final class BodyPhotoCapture: NSObject, AVCapturePhotoCaptureDelegate, @unchecke
     }
 }
 
-/// The live picture (portrait, fitted into its frame like the ghost).
+/// Keeps the live picture and the photo upright however the iPhone or iPad is held and the screen
+/// turned: `AVCaptureDevice.RotationCoordinator` for the camera in use and the preview layer, its
+/// two angles observed (KVO) until the camera screen closes or the camera changes.
+@MainActor
+@Observable
+final class BodyPhotoRotation {
+    /// The preview's angle (90: the picture is portrait on screen).
+    private(set) var previewAngle: CGFloat = 90
+    /// The photo's angle (90: a portrait photo).
+    private(set) var captureAngle: CGFloat = 90
+    @ObservationIgnored private weak var layer: AVCaptureVideoPreviewLayer?
+    @ObservationIgnored private var device: AVCaptureDevice?
+    @ObservationIgnored private var coordinator: AVCaptureDevice.RotationCoordinator?
+    @ObservationIgnored private var observations: [NSKeyValueObservation] = []
+
+    /// The picture is portrait on screen.
+    var previewIsPortrait: Bool { BodyPhotoRotation.isPortrait(previewAngle) }
+
+    /// The photo will be portrait.
+    var captureIsPortrait: Bool { BodyPhotoRotation.isPortrait(captureAngle) }
+
+    /// 90° or 270°.
+    nonisolated static func isPortrait(_ angle: CGFloat) -> Bool {
+        Int((angle / 90).rounded()) % 2 != 0
+    }
+
+    /// The preview layer is on screen.
+    func attach(_ layer: AVCaptureVideoPreviewLayer) {
+        guard self.layer !== layer else { return }
+        self.layer = layer
+        connect()
+    }
+
+    /// The camera in use (after it started or was switched).
+    func follow(_ device: AVCaptureDevice?) {
+        self.device = device
+        connect()
+    }
+
+    /// The camera screen closes: the observations end.
+    func stop() {
+        for observation in observations { observation.invalidate() }
+        observations = []
+        coordinator = nil
+    }
+
+    private func connect() {
+        stop()
+        guard let device, let layer else { return }
+        let coordinator = AVCaptureDevice.RotationCoordinator(device: device, previewLayer: layer)
+        self.coordinator = coordinator
+        previewAngle = coordinator.videoRotationAngleForHorizonLevelPreview
+        captureAngle = coordinator.videoRotationAngleForHorizonLevelCapture
+        observations = [
+            BodyPhotoRotation.observe(coordinator, \.videoRotationAngleForHorizonLevelPreview) { [weak self] angle in
+                guard let self else { return }
+                Task { @MainActor in self.previewAngle = angle }
+            },
+            BodyPhotoRotation.observe(coordinator, \.videoRotationAngleForHorizonLevelCapture) { [weak self] angle in
+                guard let self else { return }
+                Task { @MainActor in self.captureAngle = angle }
+            },
+        ]
+    }
+
+    /// KVO of one angle; the change can come on any thread, `handler` hops to the main actor.
+    private nonisolated static func observe(_ coordinator: AVCaptureDevice.RotationCoordinator,
+                                           _ keyPath: KeyPath<AVCaptureDevice.RotationCoordinator, CGFloat>,
+                                           handler: @escaping @Sendable (CGFloat) -> Void) -> NSKeyValueObservation {
+        coordinator.observe(keyPath, options: [.new]) { _, change in
+            if let angle = change.newValue { handler(angle) }
+        }
+    }
+}
+
+/// The live picture (turned by the rotation coordinator, fitted into its frame like the ghost).
 private struct BodyPhotoCameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    let rotation: BodyPhotoRotation
+    let angle: CGFloat
 
     func makeUIView(context: Context) -> BodyPhotoPreviewView {
         let view = BodyPhotoPreviewView()
         view.backgroundColor = .black
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspect
+        view.angle = angle
+        let rotation = self.rotation
+        // After this update: attaching sets the rotation's angles.
+        Task { @MainActor in rotation.attach(view.previewLayer) }
         return view
     }
 
     func updateUIView(_ view: BodyPhotoPreviewView, context: Context) {
+        view.angle = angle
         view.setNeedsLayout()
     }
 }
 
 private final class BodyPhotoPreviewView: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
+
+    /// The rotation coordinator's preview angle.
+    var angle: CGFloat = 90
 
     var previewLayer: AVCaptureVideoPreviewLayer {
         // layerClass makes the layer a preview layer.
@@ -116,8 +209,10 @@ private final class BodyPhotoPreviewView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        if let connection = previewLayer.connection, connection.isVideoRotationAngleSupported(90) {
-            connection.videoRotationAngle = 90
+        // Also after the camera was switched (the session makes a new connection).
+        if let connection = previewLayer.connection, connection.videoRotationAngle != angle,
+           connection.isVideoRotationAngleSupported(angle) {
+            connection.videoRotationAngle = angle
         }
     }
 }
@@ -132,6 +227,7 @@ struct BodyPhotoCameraView: View {
 
     @Environment(\.openURL) private var openURL
     @State private var capture = BodyPhotoCapture()
+    @State private var rotation = BodyPhotoRotation()
     @State private var state: BodyPhotoCameraState = .starting
     @State private var position: AVCaptureDevice.Position = .back
     @State private var showsGhost = true
@@ -158,6 +254,7 @@ struct BodyPhotoCameraView: View {
         .onDisappear {
             countdownTask?.cancel()
             capture.stop()
+            rotation.stop()
         }
     }
 
@@ -174,7 +271,7 @@ struct BodyPhotoCameraView: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
             Spacer(minLength: 4)
-            if ghost != nil {
+            if ghostFits {
                 Button(ghostTitle, systemImage: showsGhost ? "person.fill.viewfinder" : "person.crop.rectangle") {
                     showsGhost.toggle()
                 }
@@ -197,9 +294,20 @@ struct BodyPhotoCameraView: View {
     private var timerLabel: String { timerSeconds == 0 ? "Timer off" : "Timer \(timerSeconds) seconds" }
     private var shutterLabel: String { countdown == nil ? "Take photo" : "Stop timer" }
 
+    /// 3:4 while the picture is portrait on screen, 4:3 while it is landscape (the picture fills it).
+    private var frameRatio: CGFloat { rotation.previewIsPortrait ? 3.0 / 4.0 : 4.0 / 3.0 }
+
+    /// The ghost lines up only when the picture and the photo are turned like the last photo
+    /// (a portrait photo over a landscape picture, or a picture turned against the screen, wouldn't).
+    private var ghostFits: Bool {
+        guard let ghost else { return false }
+        let portrait = ghost.image.height >= ghost.image.width
+        return portrait == rotation.previewIsPortrait && portrait == rotation.captureIsPortrait
+    }
+
     private var viewfinder: some View {
         Color.black
-            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .aspectRatio(frameRatio, contentMode: .fit)
             .overlay { picture }
             .overlay { ghostLayer }
             .overlay { guides }
@@ -211,7 +319,7 @@ struct BodyPhotoCameraView: View {
     private var picture: some View {
         switch state {
         case .running:
-            BodyPhotoCameraPreview(session: capture.session)
+            BodyPhotoCameraPreview(session: capture.session, rotation: rotation, angle: rotation.previewAngle)
         case .starting:
             ProgressView()
                 .tint(.white)
@@ -226,7 +334,7 @@ struct BodyPhotoCameraView: View {
 
     @ViewBuilder
     private var ghostLayer: some View {
-        if showsGhost, state == .running, let ghost {
+        if showsGhost, state == .running, ghostFits, let ghost {
             Image(decorative: ghost.image, scale: 1)
                 .resizable()
                 .scaledToFit()
@@ -325,13 +433,17 @@ struct BodyPhotoCameraView: View {
             state = .denied
             return
         }
-        state = await capture.start(position) ? .running : .unavailable
+        let started = await capture.start(position)
+        state = started ? .running : .unavailable
+        if started { rotation.follow(BodyPhotoCapture.device(at: position)) }
     }
 
     private func flip() {
         let next: AVCaptureDevice.Position = position == .back ? .front : .back
         Task {
-            if await capture.start(next) { position = next }
+            guard await capture.start(next) else { return }
+            position = next
+            rotation.follow(BodyPhotoCapture.device(at: next))
         }
     }
 
@@ -369,8 +481,9 @@ struct BodyPhotoCameraView: View {
     private func take() {
         guard !isTaking else { return }
         isTaking = true
+        let angle = rotation.captureAngle
         Task {
-            let data = await capture.capture()
+            let data = await capture.capture(angle: angle)
             isTaking = false
             if let data { onPhoto(data) }
         }

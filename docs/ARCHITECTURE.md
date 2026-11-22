@@ -117,8 +117,10 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
   with `HKMetadataKeySyncIdentifier` + version; edits replace, deletions remove. What was written is
   remembered in a device-only file. Weight and active energy are read live, never stored.
   Weigh-ins saved on the watch, iPad or Mac are written by the iPhone on its sync
-  (`HealthWeightSync`): once, found again if already there, removed when edited or deleted; the
-  ledger remembers them. Weigh-ins whose note has the `#import` tag are never written.
+  (`HealthWeightSync`): once, found again if already there, removed when edited, deleted or gone
+  from the window; the ledger remembers them. Weight samples carry the sync identifier
+  `nina.weight.<uuid>` + version, so two devices or passes never write one twice. Every weight write
+  asks `HealthWeightSync.writes` first: weigh-ins whose note has the `#import` tag are never written.
 - **Apple Health body data** (iPhone and iPad, `HealthBodyReader` in HealthService+Body): body fat,
   lean mass, waist, height and today's workouts are read live when their switch is on and kept in
   memory. They become series of their own (`HealthBody`), never merged into Nina's records or the

@@ -341,13 +341,14 @@ struct BodyPhotoSessionSheet: View {
         }
     }
 
-    /// The Mac's "Choose File…".
+    /// The Mac's "Choose File…" (the file is read off the main thread).
     private func loadFile(_ url: URL) {
         guard case .pose(let pose) = step else { return }
-        let access = url.startAccessingSecurityScopedResource()
-        let data = try? Data(contentsOf: url)
-        if access { url.stopAccessingSecurityScopedResource() }
-        Task { await use(data, for: pose, picked: true) }
+        working = pose
+        Task {
+            let data = await BodyPhotoImages.read(url)
+            await use(data, for: pose, picked: true)
+        }
     }
 
     /// Downscales and encodes a photo (off the main thread) and keeps it for this pose.
@@ -383,12 +384,24 @@ struct BodyPhotoSessionSheet: View {
         }
     }
 
+    /// The last photo of the pose for the camera's ghost: the thumbnail at once, then the photo
+    /// (read off the main thread; on it only when that finds nothing).
     private func loadGhost(_ pose: PhotoPose) async {
-        guard ghosts[pose] == nil, let last = latest(pose), let data = last.image ?? last.thumbnail else { return }
+        guard let last = latest(pose) else { return }
         let key = last.uuid.uuidString + "-full-1200"
-        if let bitmap = await BodyPhotoImages.bitmap(data, key: key, maxPixels: 1200) {
-            ghosts[pose] = bitmap
+        if let cached = BodyPhotoImages.cache.object(forKey: key as NSString) {
+            ghosts[pose] = cached
+            return
         }
+        if ghosts[pose] == nil, let thumb = last.thumbnail,
+           let small = await BodyPhotoImages.bitmap(thumb, key: last.uuid.uuidString + "-thumb", maxPixels: ProgressPhotos.thumbnailPixels) {
+            ghosts[pose] = small
+        }
+        let id = last.uuid
+        var stored = await BodyPhotoImages.storedImage(of: id, in: app.container)
+        if stored == nil { stored = last.image }
+        guard let data = stored, let bitmap = await BodyPhotoImages.bitmap(data, key: key, maxPixels: 1200) else { return }
+        ghosts[pose] = bitmap
     }
 
     private func save() {

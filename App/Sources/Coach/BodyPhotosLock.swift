@@ -8,8 +8,10 @@ import AppKit
 #endif
 
 /// "Lock Photos with Face ID" (this device only, UserDefaults): the photos stay blurred until Face
-/// ID, Touch ID or the device passcode (the Mac's password) unlocks them, and lock again when Nina
-/// goes to the background, the Mac sleeps or Nina is hidden. Off in the demo.
+/// ID, Touch ID or the device passcode (the Mac's password) unlocks them, and lock again as soon as
+/// Nina stops being active on iPhone and iPad (the app switcher, Control Center, a call – early
+/// enough for the blur to be in the app switcher's picture), goes to the background, the Mac
+/// sleeps or Nina is hidden. Off in the demo.
 @MainActor
 @Observable
 final class BodyPhotoLock {
@@ -86,10 +88,16 @@ final class BodyPhotoLock {
 
     private func observeBackground() {
         #if os(iOS)
-        observers.append(NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil,
-                                                                queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lock() }
-        })
+        // Resigning active comes before the app switcher takes its picture; entering the background
+        // can be too late for the blur to be drawn. (Face ID's own prompt also resigns active – the
+        // photos are locked then anyway.)
+        let names = [UIApplication.willResignActiveNotification, UIScene.willDeactivateNotification,
+                     UIApplication.didEnterBackgroundNotification]
+        for name in names {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.lock() }
+            })
+        }
         #elseif os(macOS)
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didHideNotification, object: nil,
                                                                 queue: .main) { [weak self] _ in

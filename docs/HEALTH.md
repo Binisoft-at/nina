@@ -73,8 +73,10 @@ Settings → Apple Health → turn on what to share:
 - **Water** – each water log.
 - **Weight** – weigh-ins typed in Nina are written; weigh-ins from the scale are read live for the
   trend and the coach. Weigh-ins you save on the watch, iPad or Mac are written by your iPhone on its
-  next sync, once (editing or deleting one there updates or removes it in Health too). Imported
-  history is never written to Health.
+  next sync, once (editing or deleting one there updates or removes it in Health too, and so does
+  moving it more than 14 days back). Each weigh-in carries a sync identifier, so Health keeps it
+  once even when your iPhone and iPad both write it. Imported history is never written to Health –
+  not when you edit it, restore it from Recently Deleted or undo either.
 - **Active energy** – read to show "budget incl. activity" when you choose to add half or all of it.
 
 Only the iPhone writes, so entries from the Mac or the watch reach Health once the iPhone has synced

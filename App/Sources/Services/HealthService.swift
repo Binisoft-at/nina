@@ -30,6 +30,9 @@ final class HealthService {
     }
 
     let enabled: Bool
+    /// The store keeps what is saved (not the in-memory fallback): only then may a weigh-in that
+    /// is gone from it take its sample out of Health.
+    let storeIsSaved: Bool
     private(set) var options: Set<Option> = []
     private(set) var activeEnergyToday: Double = 0
     private(set) var weights: [DayKey: Double] = [:]
@@ -43,8 +46,9 @@ final class HealthService {
     let bodyData: HealthBodyReader
     @ObservationIgnored private var syncTask: Task<Void, Never>?
 
-    init(enabled: Bool) {
+    init(enabled: Bool, storeIsSaved: Bool = true) {
         self.enabled = enabled
+        self.storeIsSaved = storeIsSaved
         bodyData = HealthBodyReader(enabled: enabled)
         for option in Option.allCases where UserDefaults.standard.bool(forKey: option.key) {
             options.insert(option)
@@ -77,6 +81,9 @@ final class HealthService {
 
     #if os(iOS)
     @ObservationIgnored private let store = HKHealthStore()
+    /// The pass that is running; a call meanwhile waits for it (and has it run once more).
+    @ObservationIgnored private var runningSync: Task<Void, Never>?
+    @ObservationIgnored private var syncAgain = false
 
     private var shareTypes: Set<HKSampleType> {
         var types = Set<HKSampleType>()
@@ -164,10 +171,31 @@ final class HealthService {
     }
 
     /// Writes new and changed entries of the last 14 days, removes deleted, planned and skipped ones.
+    /// One pass at a time: a call while one runs waits for it and has it run once more, so two
+    /// passes never write the same entry or weigh-in twice and every change is covered.
     func syncNow(container: ModelContainer) async {
+        if let runningSync {
+            syncAgain = true
+            await runningSync.value
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            repeat {
+                self.syncAgain = false
+                await self.syncPass(container: container)
+            } while self.syncAgain
+            self.runningSync = nil
+        }
+        runningSync = task
+        await task.value
+    }
+
+    private func syncPass(container: ModelContainer) async {
         guard isAvailable, options.contains(.writeDiary) || options.contains(.writeWater) || options.contains(.weight) else { return }
         let context = container.mainContext
-        let first = DayKey.today().adding(days: -14).rawValue
+        let firstDay = DayKey.today().adding(days: -14)
+        let first = firstDay.rawValue
         var ledger = HealthLedger.load()
         var removeIDs: [String] = []
         var write: [(id: String, version: Int, entry: LogEntry)] = []
@@ -226,7 +254,7 @@ final class HealthService {
             }
         }
         ledger.prune(keeping: Set(entries.map(\.uuid.uuidString) + waters.map { "w:" + $0.uuid.uuidString }))
-        written += await syncWeights(context: context, from: first, ledger: &ledger)
+        written += await syncWeights(context: context, from: firstDay, ledger: &ledger)
         ledger.save()
         lastSync = Date()
         if written > 0 || !removeIDs.isEmpty {
@@ -234,20 +262,25 @@ final class HealthService {
         }
     }
 
-    /// Weigh-ins of the sync window that Health doesn't have yet – saved on the watch, an iPad or a
-    /// Mac – are written here once (HealthWeightSync plans it). The ones typed on this iPhone were
-    /// written right away; they are found in Health and only remembered. Imported history stays out.
-    private func syncWeights(context: ModelContext, from first: String, ledger: inout HealthLedger) async -> Int {
+    /// Weigh-ins of the sync window that Health doesn't have yet – saved on the watch, another
+    /// iPhone or iPad, or a Mac – are written here once (HealthWeightSync plans it). The ones typed
+    /// on this device were written right away; they are found in Health and only remembered. One
+    /// that is gone from the window since the last pass takes its sample along. Imported history
+    /// stays out.
+    private func syncWeights(context: ModelContext, from firstDay: DayKey, ledger: inout HealthLedger) async -> Int {
         guard canWriteWeight else { return 0 }
-        let weights = (try? context.fetch(FetchDescriptor<WeightEntry>(predicate: #Predicate<WeightEntry> { $0.day >= first }))) ?? []
-        let items: [HealthWeightSync.Item] = weights.map { (weight: WeightEntry) in
-            HealthWeightSync.Item(id: weight.uuid.uuidString, kilograms: weight.kilograms, time: weight.time,
-                                  version: HealthMapping.syncVersion(modifiedAt: weight.modifiedAt),
-                                  isDeleted: weight.deletedAt != nil, isImported: Self.isImported(weight))
+        let first = firstDay.rawValue
+        // A store that can't be read must not look like every weigh-in was deleted.
+        guard let weights = try? context.fetch(FetchDescriptor<WeightEntry>(predicate: #Predicate<WeightEntry> { $0.day >= first })) else {
+            return 0
         }
+        let items: [HealthWeightSync.Item] = weights.map(\.healthWeight)
+        // From the second day of the window: a weigh-in early on its first day can count for the day
+        // before (the day-start hour), so it isn't mistaken for one that is gone.
+        let windowStart: Date? = storeIsSaved ? firstDay.adding(days: 1).date(minutes: 0) : nil
         var marks = ledger.weights ?? [:]
         var written = 0
-        for step in HealthWeightSync.plan(items, marks: marks) {
+        for step in HealthWeightSync.plan(items, marks: marks, windowStart: windowStart) {
             switch step {
             case .remove(let kilograms, let time):
                 await deleteWeightSamples(kilograms: kilograms, date: time)
@@ -256,7 +289,7 @@ final class HealthService {
             case .ensure(let id, let mark):
                 if await hasWeightSample(kilograms: mark.kilograms, date: mark.time) {
                     marks[id] = mark
-                } else if await saveWeightSample(mark.kilograms, date: mark.time) {
+                } else if await saveWeightSample(mark.kilograms, date: mark.time, id: id, version: mark.version) {
                     marks[id] = mark
                     written += 1
                 }
@@ -264,12 +297,6 @@ final class HealthService {
         }
         ledger.weights = HealthWeightSync.pruned(marks, keeping: Set(items.map(\.id)))
         return written
-    }
-
-    /// Weigh-ins that came from an import (the settings file's weight or the history file) are
-    /// history, maybe already in Health from the scale they came from.
-    private static func isImported(_ weight: WeightEntry) -> Bool {
-        HealthWeightSync.isImported(note: weight.note)
     }
 
     private func save(_ entry: LogEntry, version: Int) async -> Bool {
@@ -314,28 +341,33 @@ final class HealthService {
     }
 
     /// A new weigh-in typed in Nina goes to Apple Health (marked `NinaWeight`, so Nina never reads
-    /// it back as a Health weigh-in).
-    func writeWeight(_ kilograms: Double, date: Date) async {
-        guard canWriteWeight else { return }
-        await saveWeightSample(kilograms, date: date)
+    /// it back as a Health weigh-in, with its sync identifier, so no device writes it twice).
+    /// Imported history, deleted and implausible weigh-ins are never written (HealthWeightSync.writes).
+    func writeWeight(_ weight: HealthWeightSync.Item) async {
+        guard canWriteWeight, HealthWeightSync.writes(weight) else { return }
+        await saveWeightSample(weight.kilograms, date: weight.time, id: weight.id, version: weight.version)
         await refreshReadings()
     }
 
-    /// An edited weigh-in: the sample Nina wrote for the old weight and time leaves Apple Health
-    /// and the new one is written, so Health doesn't keep both.
-    func replaceWeight(old: (kilograms: Double, date: Date), new: (kilograms: Double, date: Date)) async {
-        guard canWriteWeight else { return }
+    /// An edited or restored weigh-in: the sample Nina wrote for the old weight and time leaves
+    /// Apple Health and the new one is written, so Health doesn't keep both. Nothing happens for
+    /// imported history (never written, so nothing to replace either).
+    func replaceWeight(old: (kilograms: Double, date: Date), with weight: HealthWeightSync.Item) async {
+        guard canWriteWeight, HealthWeightSync.writes(weight) else { return }
         await deleteWeightSamples(kilograms: old.kilograms, date: old.date)
-        await saveWeightSample(new.kilograms, date: new.date)
+        await saveWeightSample(weight.kilograms, date: weight.time, id: weight.id, version: weight.version)
         await refreshReadings()
     }
 
-    /// A deleted or undone weigh-in: the sample Nina wrote for it leaves Apple Health. Returns
-    /// whether there was one (only then does an Undo write it back).
+    /// A deleted or undone weigh-in: the sample Nina wrote for it leaves Apple Health (found by its
+    /// sync identifier, and by weight and time for samples written before there were identifiers).
+    /// Returns whether there was one (only then does an Undo write it back). Imported history was
+    /// never written, so nothing is removed for it.
     @discardableResult
-    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool {
-        guard canWriteWeight else { return false }
-        let removed = await deleteWeightSamples(kilograms: kilograms, date: date)
+    func deleteWeight(_ weight: HealthWeightSync.Item) async -> Bool {
+        guard canWriteWeight, !weight.isImported else { return false }
+        var removed = await deleteWeightSamples(kilograms: weight.kilograms, date: weight.time)
+        removed += await deleteWeightSamples(syncIdentifier: HealthMapping.syncIdentifier(weightID: weight.id))
         await refreshReadings()
         return removed > 0
     }
@@ -345,10 +377,17 @@ final class HealthService {
             && store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized
     }
 
+    /// Writes the weigh-in `id` (its uuid text) with a sync identifier and version: Health keeps one
+    /// sample per identifier, the one with the highest version, whichever device wrote it.
     @discardableResult
-    private func saveWeightSample(_ kilograms: Double, date: Date) async -> Bool {
+    private func saveWeightSample(_ kilograms: Double, date: Date, id: String, version: Int) async -> Bool {
+        let metadata: [String: Any] = [
+            "NinaWeight": "1",
+            HKMetadataKeySyncIdentifier: HealthMapping.syncIdentifier(weightID: id),
+            HKMetadataKeySyncVersion: NSNumber(value: version),
+        ]
         let sample = HKQuantitySample(type: HKQuantityType(.bodyMass), quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kilograms),
-                                      start: date, end: date, metadata: ["NinaWeight": "1"])
+                                      start: date, end: date, metadata: metadata)
         do {
             try await store.save(sample)
             return true
@@ -394,6 +433,19 @@ final class HealthService {
         }
     }
 
+    /// Deletes the body-mass sample Nina wrote with this sync identifier (wherever its time is now).
+    @discardableResult
+    private func deleteWeightSamples(syncIdentifier: String) async -> Int {
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: [syncIdentifier]),
+            HKQuery.predicateForObjects(withMetadataKey: "NinaWeight"),
+        ])
+        let type = HKQuantityType(.bodyMass)
+        return await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+            store.deleteObjects(of: type, predicate: predicate) { _, count, _ in continuation.resume(returning: count) }
+        }
+    }
+
     private static func unit(_ text: String) -> HKUnit {
         switch text {
         case "kcal": .kilocalorie()
@@ -407,11 +459,21 @@ final class HealthService {
     func refreshReadings() async {}
     func scheduleSync(container: ModelContainer) {}
     func syncNow(container: ModelContainer) async {}
-    func writeWeight(_ kilograms: Double, date: Date) async {}
-    func replaceWeight(old: (kilograms: Double, date: Date), new: (kilograms: Double, date: Date)) async {}
+    func writeWeight(_ weight: HealthWeightSync.Item) async {}
+    func replaceWeight(old: (kilograms: Double, date: Date), with weight: HealthWeightSync.Item) async {}
     @discardableResult
-    func deleteWeight(_ kilograms: Double, date: Date) async -> Bool { false }
+    func deleteWeight(_ weight: HealthWeightSync.Item) async -> Bool { false }
     #endif
+}
+
+extension WeightEntry {
+    /// The weigh-in as the Apple Health writes see it; `HealthWeightSync.writes` decides whether
+    /// it may be written (never imported history).
+    var healthWeight: HealthWeightSync.Item {
+        HealthWeightSync.Item(id: uuid.uuidString, kilograms: kilograms, time: time,
+                              version: HealthMapping.syncVersion(modifiedAt: modifiedAt),
+                              isDeleted: deletedAt != nil, isImported: HealthWeightSync.isImported(note: note))
+    }
 }
 
 /// One weigh-in read from Apple Health (shown and used live, never stored).

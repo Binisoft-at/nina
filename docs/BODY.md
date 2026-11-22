@@ -122,7 +122,8 @@ Find them under **Progress → Body → Photos** (Mac: **Body** in the sidebar �
 
 - **Taking them**: **Take Photos** (Mac: **Add Photos**) asks for front, side and back, one at a
   time; **Skip** leaves one out. On iPhone and iPad the camera shows your last photo of that pose
-  faintly over the picture: line up with it. Use the timer (3 or 10 seconds) and the back camera
+  faintly over the picture: line up with it (it shows while you hold the device the way you did for
+  that photo, upright or sideways). Use the timer (3 or 10 seconds) and the back camera
   for the best photos. Or choose photos from your library (on the Mac also a file); they keep the
   day they were taken.
 - **Photos you can compare**: the same spot and light, the same distance with the phone at chest
@@ -136,7 +137,7 @@ Find them under **Progress → Body → Photos** (Mac: **Body** in the sidebar �
   Recently Deleted, and in Settings → Recently Deleted.
 - **Privacy**: photos are stored in Nina's private iCloud only (not in iCloud Photos, never shared),
   shrunk to 2048 px, without location data. **Lock Photos with Face ID** (⋯ on the card) is set per
-  device and blurs them until you unlock.
+  device and blurs them until you unlock; they lock again as soon as you leave Nina.
 
 ## The measuring schedule
 

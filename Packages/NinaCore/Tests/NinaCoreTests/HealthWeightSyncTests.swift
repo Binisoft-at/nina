@@ -58,6 +58,56 @@ struct HealthWeightSyncTests {
         #expect(HealthWeightSync.pruned(marks, keeping: ["n"]).isEmpty)
     }
 
+    @Test func onlyLiveTypedPlausibleWeighInsAreWritten() {
+        #expect(HealthWeightSync.writes(.init(id: "a", kilograms: 74.2, time: morning, version: 1)))
+        #expect(!HealthWeightSync.writes(.init(id: "a", kilograms: 74.2, time: morning, version: 1, isImported: true)))
+        #expect(!HealthWeightSync.writes(.init(id: "a", kilograms: 74.2, time: morning, version: 1, isDeleted: true)))
+        #expect(!HealthWeightSync.writes(.init(id: "a", kilograms: 301, time: morning, version: 1)))
+        #expect(!HealthWeightSync.writes(.init(id: "a", kilograms: 24.9, time: morning, version: 1)))
+    }
+
+    @Test func aWeighInGoneFromTheWindowTakesItsSampleAlong() {
+        let windowStart = morning.addingTimeInterval(-13 * 86_400)
+        let marks = [
+            "gone": HealthWeightSync.Mark(kilograms: 74.6, time: morning.addingTimeInterval(-86_400), version: 5),
+            "old": HealthWeightSync.Mark(kilograms: 75.0, time: windowStart.addingTimeInterval(-3_600), version: 4),
+            "kept": HealthWeightSync.Mark(kilograms: 74.2, time: morning, version: 10),
+        ]
+        let kept = HealthWeightSync.Item(id: "kept", kilograms: 74.2, time: morning, version: 10)
+        let steps = HealthWeightSync.plan([kept], marks: marks, windowStart: windowStart)
+        // Deleted for good on another device (or moved far back): its sample leaves Health; one
+        // older than the window is only forgotten.
+        #expect(steps == [
+            .remove(kilograms: 74.6, time: morning.addingTimeInterval(-86_400)),
+            .forget(id: "gone"),
+            .forget(id: "old"),
+        ])
+        // Without a window (the store couldn't be read for real) nothing is removed.
+        #expect(HealthWeightSync.plan([kept], marks: marks) == [.forget(id: "gone"), .forget(id: "old")])
+    }
+
+    @Test func weightSamplesHaveASyncIdentifier() throws {
+        let id = try #require(UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF"))
+        #expect(HealthMapping.syncIdentifier(weight: id) == "nina.weight.6F9619FF-8B86-D011-B42D-00C04FC964FF")
+        #expect(HealthMapping.syncIdentifier(weightID: id.uuidString) == HealthMapping.syncIdentifier(weight: id))
+        #expect(HealthMapping.syncIdentifier(weight: id) != HealthMapping.syncIdentifier(entry: id))
+    }
+
+    @Test func theSheetHidesTheImportTagAndKeepsIt() {
+        #expect(HealthWeightSync.editableNote("after holiday #import") == "after holiday")
+        #expect(HealthWeightSync.editableNote("#import").isEmpty)
+        #expect(HealthWeightSync.editableNote("import").isEmpty)
+        #expect(HealthWeightSync.editableNote("hotel scale  #travel") == "hotel scale  #travel")
+        // An imported weigh-in stays history, also when the note was cleared.
+        #expect(HealthWeightSync.savedNote("", imported: true) == "#import")
+        #expect(HealthWeightSync.savedNote("after holiday #salty", imported: true) == "after holiday #salty #import")
+        #expect(HealthWeightSync.isImported(note: HealthWeightSync.savedNote("", imported: true)))
+        // A typed one never becomes history from the field.
+        #expect(HealthWeightSync.savedNote("hotel scale #import", imported: false) == "hotel scale")
+        #expect(HealthWeightSync.savedNote("hotel scale  #travel", imported: false) == "hotel scale  #travel")
+        #expect(!HealthWeightSync.isImported(note: HealthWeightSync.savedNote("#Import", imported: false)))
+    }
+
     @Test func importedWeighInsCarryATag() {
         #expect(HealthWeightSync.importedNote("") == "#import")
         #expect(HealthWeightSync.importedNote("after holiday") == "after holiday #import")

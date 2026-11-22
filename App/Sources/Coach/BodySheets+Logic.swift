@@ -84,19 +84,25 @@ extension NinaStore {
 extension AppModel {
     /// Saves an edited weigh-in with an Undo toast. When the weight or its time changed, the
     /// sample Nina wrote to Apple Health is replaced (old out, new in), and Undo swaps it back.
+    /// HealthService leaves imported history alone (never written, so nothing to replace).
     func bodySheetUpdate(_ entry: WeightEntry, to values: BodySheetWeighIn) {
         let previous = store.update(entry, to: values)
         let changed = previous.kilograms != values.kilograms || previous.time != values.time
         let health = self.health
+        let edited = entry.healthWeight
         let replace: Task<Void, Never>? = changed
-            ? Task { await health.replaceWeight(old: (previous.kilograms, previous.time), new: (values.kilograms, values.time)) }
+            ? Task { await health.replaceWeight(old: (previous.kilograms, previous.time), with: edited) }
             : nil
         toasts.show("Weigh-in updated", symbol: "scalemass.fill") { [weak self] in
             _ = self?.store.update(entry, to: previous)
             guard let replace else { return }
+            var undone = entry.healthWeight
+            // An Undo within the same second as the edit still gets a higher version than the
+            // edit's sample, so Health takes it.
+            undone.version = max(undone.version, edited.version + 1)
             Task {
                 await replace.value
-                await health.replaceWeight(old: (values.kilograms, values.time), new: (previous.kilograms, previous.time))
+                await health.replaceWeight(old: (values.kilograms, values.time), with: undone)
             }
         }
     }

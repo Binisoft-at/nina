@@ -275,6 +275,18 @@ struct BodyHistoryCSVTests {
         #expect(plan.records[2].day == Self.day("2030-01-08"))
     }
 
+    @Test func aSetupAnswerCountsTheWeightItsSettingsPartSaved() {
+        // The history part is planned again after the settings part is applied, so today's weight
+        // from block 1 (saved with the note "import") and a row for today in block 4 are one weigh-in.
+        let file = "date,time,weight_kg\n2030-03-01,07:30,78.4\n2030-02-28,07:20,78.6\n"
+        let before = BodyHistoryCSV.plan(file, existing: [], today: Self.today)
+        #expect(before.records.count == 2)
+        let saved: [BodyHistoryRecord] = [.weight(day: Self.today, minutes: 545, kilograms: 78.4, note: "import")]
+        let after = BodyHistoryCSV.plan(file, existing: saved, today: Self.today)
+        #expect(after.duplicates == 1)
+        #expect(after.records.map(\.day) == [Self.day("2030-02-28")])
+    }
+
     // MARK: Export
 
     @Test func exportReadsBackWithoutChanges() throws {

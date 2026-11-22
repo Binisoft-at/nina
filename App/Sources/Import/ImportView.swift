@@ -316,8 +316,10 @@ struct ImportPreview {
     private(set) var settings: (result: SettingsResult, previous: SettingsState)?
     /// What the AI found that Nina can't store yet.
     var wishes: [String] = []
-    /// Weight & body history: the weigh-ins and measurements the file adds.
+    /// Weight & body history: the weigh-ins and measurements the file adds (for the preview) and
+    /// the file's text, planned again when it is imported.
     private var historyPlan: BodyHistoryPlan?
+    private var historyText: String?
 
     /// Every changed setting is shown; rows of other files up to ten.
     var visibleLines: Int { kind == .settings ? 50 : 10 }
@@ -388,7 +390,7 @@ struct ImportPreview {
         case .measurements:
             let plan = store.bodyHistoryPlan(text, cutoffMinutes: app.settings.plan.routine.morningCutoffMinutes, today: app.today)
             return ImportPreview(kind: kind, lines: historyLines(plan, today: app.today), skipped: plan.notes, summary: plan.summary,
-                                 hasChanges: plan.hasChanges, historyPlan: plan)
+                                 hasChanges: plan.hasChanges, historyPlan: plan, historyText: text)
         }
     }
 
@@ -412,7 +414,13 @@ struct ImportPreview {
     private func applyRows(app: AppModel) -> (summary: String, undo: ImportRowsUndo) {
         let store = app.store
         var undo = ImportRowsUndo()
-        if let plan = historyPlan {
+        if let preview = historyPlan {
+            // Planned again now: the settings part of the same answer was applied first, so the
+            // weigh-in and body values it just saved count as existing (today's weight in block 1
+            // and a row for today in block 4 are one weigh-in).
+            let plan = historyText.map {
+                store.bodyHistoryPlan($0, cutoffMinutes: app.settings.plan.routine.morningCutoffMinutes, today: app.today)
+            } ?? preview
             // Imported weigh-ins are not written to Apple Health.
             let added = store.importBodyHistory(plan)
             undo.weights = added.weights
