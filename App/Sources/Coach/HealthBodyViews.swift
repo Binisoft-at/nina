@@ -163,12 +163,11 @@ private struct BodyDetailsHealthWaistChart: View {
 
 // MARK: - Height hint
 
-/// Goals & Plan → Body & Calculator, under the height: "Health: 176 cm" and Use. Only a hint – a
-/// tap on Use puts it in the field as if typed (the person's own entry, saved with the page).
+/// Goals & Plan → Body & Calculator, under the height: "Health: 176 cm". Only a hint – the person
+/// sets the height with the stepper; nothing read from Health is copied into the synced profile.
 struct HealthHeightHint: View {
     /// What the height field shows (0 = not set).
     let heightCm: Double
-    let onUse: (Double) -> Void
     @Environment(AppModel.self) private var app
 
     var body: some View {
@@ -182,11 +181,9 @@ struct HealthHeightHint: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                Spacer(minLength: 8)
-                Button("Use") { onUse(hint) }
-                    .buttonStyle(.borderless)
-                    .accessibilityLabel("Use \(HealthBody.heightHintText(hint))")
+                Spacer(minLength: 0)
             }
+            .accessibilityElement(children: .combine)
         }
     }
 }

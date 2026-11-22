@@ -201,7 +201,7 @@ public enum HealthBody {
         samples.filter { $0.value.isFinite && heightRange.contains($0.value) }.max { $0.date < $1.date }?.value
     }
 
-    /// The height to offer next to the profile's height field ("Health: 176 cm – Use"): Health's
+    /// The height to offer next to the profile's height field ("Health: 176 cm"): Health's
     /// height in whole cm, inside the field's range, when it differs from what the field shows
     /// (`profileCm` 0 = not set). nil = nothing to offer.
     public static func heightHint(health: Double?, profileCm: Double, range: ClosedRange<Double> = 120...230) -> Double? {

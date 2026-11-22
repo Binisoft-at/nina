@@ -284,10 +284,7 @@ struct GoalsView: View {
             }
             Stepper(birthTitle, value: birthYearValue, in: 1920...2015)
             Stepper(heightTitle, value: heightValue, in: 120...230)
-            HealthHeightHint(heightCm: heightKnown ? height : 0) { (centimeters: Double) in
-                height = centimeters
-                heightKnown = true
-            }
+            HealthHeightHint(heightCm: heightKnown ? height : 0)
             Stepper("Weight \(Fmt.number(weight, decimals: 1)) kg", value: $weight, in: 30...250, step: 0.5)
             Picker("Activity", selection: $activity) {
                 ForEach(ActivityLevel.allCases) { level in
