@@ -28,6 +28,17 @@ itself stays in your training app.
   phases on a timeline, check-ins and all weigh-ins and measurements. **Nutrition**: calories
   against your goal, consistency streaks, macros, fiber/sugar/salt limits, top foods, eating
   rhythm, weekday pattern and your *measured* maintenance calories.
+- **Progress photos** – front, side and back, with your last photo shown faintly over the camera so
+  you stand the same way, and Compare: two days side by side, faded or with a slider, next to your
+  weight and waist. Kept only in Nina's private iCloud, with an optional Face ID lock.
+- **Coach on Apple Watch** – today's day type under the ring (tap to switch), weigh-in and waist
+  with the Digital Crown, daily checks in one tap and how your weight is going, each with Undo.
+- **Body data from Apple Health** – body fat, lean mass and waist from your scale as series of their
+  own, your height as a hint, and "Make it a tennis day?" after a matching workout. Read live, never
+  stored: [docs/HEALTH.md](docs/HEALTH.md).
+- **Bring your history** – old weigh-ins, tape logs and DEXA, InBody or 3D-scan reports come in
+  through your AI; Nina adds only what's new, one Undo takes it back, and the export gives it all
+  back as CSV.
 
 - **Today** – a calorie ring with what's left (swipe it for other days), your priority nutrients,
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
@@ -49,8 +60,8 @@ itself stays in your training app.
   phases, day types, daily checks, measuring, adjustments, protein per meal, long-term goal, notes,
   pause. On the Mac it is a tab of the Settings window.
 - **Import from anywhere** – one setup prompt for your AI that writes your goals, the whole coach
-  plan, your foods and your meals in one go, plus four CSV formats (goals & settings, foods, diary,
-  meals & recipes) with their own prompts. Preview first, with a switch per body value; importing
+  plan, your foods, your meals and your weight history in one go, plus five CSV formats (goals &
+  settings, foods, diary, meals & recipes, weight & body history) with their own prompts. Preview first, with a switch per body value; importing
   again updates instead of duplicating, and Undo puts everything back. "Copy for My AI" hands your
   last four weeks to your AI and asks for an answer you can import. Formats and prompts:
   [docs/IMPORT.md](docs/IMPORT.md).

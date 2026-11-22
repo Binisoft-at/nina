@@ -93,9 +93,11 @@ after that:
   device). A smart scale is easy, a professional BIA or DEXA scan more exact.
 - **Each method and each device is its own series**, never averaged with another. Changes are only
   worked out within a series; a new method says "new series – compare like with like".
-- **Typical error** (body-fat points): DEXA ±1.5, Bod Pod ±2.5, professional BIA ±3, skinfolds ±3.5,
-  tape estimate ±3.5, smart scale ±4–5. The charts draw these bands, and a lean-mass change smaller
-  than the method's error reads "within measurement error".
+- **Typical error** (body-fat points): DEXA ±1.5, Bod Pod ±2.5, professional BIA ±3, 3D body scan
+  ±3–4, skinfolds ±3.5, tape estimate ±3.5, smart scale ±4–5. The charts draw these bands, and a
+  lean-mass change smaller than the method's error reads "within measurement error".
+- **3D body scan**: a 3D body scanner (Styku, Fit3D …) is its own method; each scanner is its own
+  series.
 - **Tape estimate**: worked out live from your tape values with the US Navy formula – waist and neck
   (women: narrow waist, hip and neck) plus your height. It is never saved as a value, so it always
   follows your latest tape. It needs your height and sex in Goals & Plan → Body & Calculator. With
@@ -104,6 +106,37 @@ after that:
 - **Lean and fat mass**: body fat % × the mean of the morning weights from 3 days before to 3 days
   after that day.
   During a gain, part of a "lean" increase is water and glycogen from the extra carbs.
+- **Old results**: past weigh-ins, tape logs and DEXA, InBody or 3D-scan reports can be imported
+  in one go (⋯ → Create… → Import My Data → Body), see [IMPORT.md](IMPORT.md).
+
+## Body data from Apple Health
+
+On iPhone and iPad, Nina can also show body fat, lean mass and waist from your scale or another app
+in Apple Health – each as a series of its own, marked Health, next to what you measure in Nina.
+After a workout, Today can ask whether to switch the day type. Nothing from Health is stored in
+Nina. How to turn it on and what it does: [HEALTH.md](HEALTH.md).
+
+## Progress photos
+
+Find them under **Progress → Body → Photos** (Mac: **Body** in the sidebar → Photos).
+
+- **Taking them**: **Take Photos** (Mac: **Add Photos**) asks for front, side and back, one at a
+  time; **Skip** leaves one out. On iPhone and iPad the camera shows your last photo of that pose
+  faintly over the picture: line up with it. Use the timer (3 or 10 seconds) and the back camera
+  for the best photos. Or choose photos from your library (on the Mac also a file); they keep the
+  day they were taken.
+- **Photos you can compare**: the same spot and light, the same distance with the phone at chest
+  height, the same clothing, ideally the morning of a full measurement before eating. After a full
+  measurement Nina asks "Add progress photos?" – turn that off with **Then add progress photos** on
+  the measurement's first page.
+- **Compare**: pick a pose and two days, then **Side by Side**, **Fade** or **Slider**, with the days
+  between, your 7-day average weight and your waist on each day.
+- **One photo**: tap a photo for full screen. Swipe through that pose over time, change the pose,
+  add a note, or delete it (with Undo). Deleted photos stay 30 days under Photos → All photos →
+  Recently Deleted, and in Settings → Recently Deleted.
+- **Privacy**: photos are stored in Nina's private iCloud only (not in iCloud Photos, never shared),
+  shrunk to 2048 px, without location data. **Lock Photos with Face ID** (⋯ on the card) is set per
+  device and blurs them until you unlock.
 
 ## The measuring schedule
 
@@ -189,6 +222,27 @@ Today's strip shows what is due, so you never have to remember it:
   switch day and moves the loss phase to start right after it – one message with Undo.
 - **Pause** (holiday, ill): no checks, check-ins or coach reminders, and the paused days are left
   out of every average. Afterwards "Welcome back – weigh in tomorrow morning" restarts your average.
+
+## On Apple Watch
+
+Once your plan is set up, Nina on your watch shows three things under the calorie ring:
+
+1. **Today's day type** with what's left, for example "🎾 Tennis · 1,240 left". Tap it to pick
+   another type for today; each type shows its calories, and flexible ones show "1 of 2 this week".
+   **Back to Schedule** undoes a day you picked by hand.
+2. **Today's checks**: **Weigh in** (until your morning cutoff if you haven't weighed in yet), your
+   weekly tape site such as **Waist** on its day, and daily checks such as **Creatine**.
+   - Weigh in and Waist show a big number you set with the Digital Crown, 0.1 kg or 0.1 cm per
+     click, starting from your last value; then tap **Save**. If several weekly sites are due they
+     come one after the other, and **Skip** moves on.
+   - A check is ticked with one tap, and tapping again opens it again.
+   - After every change a small **Undo** shows for a few seconds.
+3. **A status line** with the same words as on your iPhone, your 7-day average and your weekly rate.
+
+- Full measurements and body-fat checks stay on the iPhone.
+- The watch counts weigh-ins typed in Nina on any of your devices, not ones that exist only in
+  Apple Health.
+- Weigh-ins from the watch reach Apple Health through your iPhone's next Health sync.
 
 ## Coach reminders
 

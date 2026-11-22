@@ -4,8 +4,8 @@
 Mac: Create in the toolbar → Import My Data). Paste it into ChatGPT, Claude or any AI, add a few
 lines about you (age, height, weight, goal, training, meal times) and the foods and meals you eat
 (product names, label photos, your own dishes), and paste its whole answer back. It writes up to
-three CSV blocks – goals & settings, foods, meals & recipes – and Nina imports them together,
-settings first, with a preview of every change.
+four CSV blocks – goals & settings, foods, meals & recipes and (if you give one) your weight and
+body history – and Nina imports them together, settings first, with a preview of every change.
 
 Each format also works on its own, with its own **"Copy the prompt for another AI"** button in
 Settings → Import & Export (or ⋯ → Create… → Import My Data): paste the prompt into any AI
@@ -23,6 +23,7 @@ edit in Numbers or Excel, and import again.
 | Foods | food | per 100 g (or 100 ml for drinks) | `id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,portions,barcode,favorite,notes` |
 | Diary | thing eaten | totals of that row | `id,date,time,meal,food,brand,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,note,status` |
 | Meals & recipes | ingredient | totals of that ingredient | `recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes` |
+| Weight & body history | moment (a weigh-in, a tape session or a scan) | – (kg, cm and %) | `date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note` |
 
 ## Goals & settings
 
@@ -45,7 +46,9 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
 - **Body values** (`body_fat_percent` with `body_fat_method`, and `neck_cm`, `chest_cm`, `arm_cm`,
   `waist_cm`, `waist_narrow_cm`, `hip_cm`, `thigh_cm`, `calf_cm`) become today's baseline: one
   body-fat record (method `estimate` unless the file says otherwise) and one tape record. Each value
-  is listed in the preview with its own switch; switch one off and it isn't saved.
+  is listed in the preview with its own switch; switch one off and it isn't saved. The methods are
+  `dexa`, `bodpod`, `bia_pro` (InBody …), `scan_3d` (a 3D body scanner), `scale`, `skinfold`, `navy`
+  (tape) and `estimate`. Values with a date in the past belong in the weight & body history below.
 - **`note`** rows: advice from a plan that isn't a setting (training, recovery, timing). They are
   kept in the coach plan and shown there.
 - **`not_supported`** rows: only real wishes – something you want Nina to do that no row covers.
@@ -76,6 +79,25 @@ Keys are read like every setting (`.`, spaces and `-` become `_`, upper or lower
 | `long_term.weight_kg`, `.body_fat_percent`, `.waist_cm`, `.date`, `.note` | The long-term goal, separate from the current phase's target weight. A new goal weight or body-fat goal counts from the day you import it; importing the same goal again keeps its day. |
 | `meal_protein_g` (`35-45`), `protein_meals` (`4` or `breakfast;lunch;snack;dinner`) | Protein per eating occasion. |
 | `note` (one row each) | Plan notes. |
+
+**Workouts** (`day_type.<id>.workouts`, for example `day_type.tennis.workouts,tennis` or
+`day_type.gym.workouts,strength`): the Apple Health workouts that suggest this day type on iPhone
+and iPad (see [HEALTH.md](HEALTH.md)), separated by `;`. Upper or lower case, spaces or `_`, and
+accents don't matter (`Fußball` = `fussball`). Nina knows these words:
+
+- `strength` (also `strength_training`, `gym`, `weights`, `lifting`, `kraft`, `krafttraining`;
+  `functional` for functional strength), `core`, `hiit` (`intervals`), `crossfit`, `cardio`
+- `tennis`, `table_tennis` (`ping_pong`, `tischtennis`), `badminton`, `squash`, `pickleball`,
+  `racquetball`, `football` (`soccer`, `fussball`), `basketball`, `volleyball`, `golf`
+- `running` (`run`, `jogging`, `laufen`), `cycling` (`bike`, `biking`, `cycle`, `radfahren`, `rad`),
+  `swimming` (`swim`, `schwimmen`), `walking` (`walk`, `gehen`), `hiking` (`hike`, `wandern`),
+  `rowing` (`row`, `rudern`), `elliptical` (`crosstrainer`), `stairs`
+- `yoga`, `pilates`, `stretching`, `dance` (`dancing`, `tanzen`), `jump_rope`, `boxing`,
+  `kickboxing`, `martial_arts`, `climbing` (`bouldering`, `klettern`), `skiing` (`ski`, `langlauf`),
+  `snowboarding`
+
+Apple Health's own names work too (`traditional_strength_training`, `high_intensity_interval_training`,
+`stair_climbing`, `flexibility` …). Other workouts don't suggest a day type.
 
 How an import changes the plan:
 
@@ -200,6 +222,56 @@ Paste it into your AI with your question. Its answer is a goals & settings block
 above, with the preview and Undo. Weigh-ins from Apple Health are only included when "Include
 Apple Health weights" is switched on (iPhone and iPad; off by default).
 
+## Weight & body history
+
+Past weigh-ins, tape measurements and body-fat results – an old spreadsheet, another app's export,
+or a DEXA, InBody, Bod Pod or 3D-scan report – come into Nina with this format: ⋯ → Create… →
+Import My Data → **Body** (Mac: File → Import My Data… → Body), or **Import History…** in Progress →
+Body → All measurements → Import & Export. Copy the prompt, give it to your AI together with your
+data (a photo or PDF of the report works), and paste its answer back. The setup prompt asks for it
+too, as its fourth block.
+
+```csv
+date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note
+2030-01-07,07:10,78.4,,,,,,,,,,,84.5,,,,,,,,morning;fasted,
+2030-01-20,09:30,78.6,19.8,dexa,Hologic Horizon,60.1,15.6,2.9,,,,,,,,,,,,,morning;fasted,Visceral fat 410 g
+2030-02-03,,,21.5,scan_3d,Styku,,,,,100.5,35.2,,83.6,,98,57.5,37,,,,,
+```
+
+- **One row = one moment**: a weigh-in, a tape session or a scan. A row may have only a weight,
+  only tape values, only body fat, or any mix; Nina makes up to three records of it – a weigh-in,
+  a tape session and a body-fat value.
+- **Time**: a row without a time counts as 07:00. A time in the date cell works too
+  (`2030-01-07 07:15`).
+- **Conditions** (`morning`, `fasted`, `later`, `after_training`, `late_heavy_meal`, `high_salt`,
+  `alcohol_yesterday`, `sick`, `menstrual_phase`, `not_fasted`, separated by `;`): without them Nina
+  goes by the time, like the measure sheet – before your morning cutoff (11:00 unless you change it)
+  a reading counts as morning and fasted, after it as later. Only morning, fasted readings without
+  an exception count for trends ([BODY.md](BODY.md)). Salty, late meal, alcohol, ill and period
+  become a weigh-in's reason.
+- **Body fat**: `body_fat_method` is `dexa`, `bodpod`, `bia_pro` (InBody and other professional
+  machines), `scan_3d` (a 3D body scanner: Styku, Fit3D …), `scale` (smart scale), `skinfold`,
+  `navy` (tape formula) or `estimate`; words like "DXA", "InBody 770" or "Styku 3D scan" work too.
+  Without a method the value is saved as an estimate, and the preview says so. `device` keeps each
+  machine its own series. Lean, fat and bone mass are kept as the report gives them; a weight with
+  a smart scale's body fat (and no masses) stays one weigh-in with its body fat.
+- **Unknown numbers go to the note**: a column Nina doesn't know (visceral fat, skeletal muscle
+  mass, BMR …) is kept in that row's note, for example "Visceral fat: 8", so nothing from a report
+  is lost.
+- **The preview** counts what will be added ("12 weigh-ins · 4 tape sessions · 2 body-fat values to
+  add · 3 already saved") with a line per record. Rows Nina can't read – a date it doesn't
+  understand, a value that looks like a typo, a day in the future – are listed in orange and left
+  out.
+- **Importing again adds nothing**: a row Nina already has (the same file again, or the same
+  values on the same day) counts as "already saved". Nothing you have is changed.
+- **One Undo** takes the whole import back; the new weigh-ins and measurements go to Recently
+  Deleted.
+- **Apple Health**: imported weigh-ins are never written to Apple Health (they may be there already
+  from the scale they came from) and show as "Imported" in the weigh-in list.
+- **Export**: Import & Export → **Export Weight & Body (CSV)**, or Progress → Body → All
+  measurements → **Import & Export** (save as a file, share or copy). It holds only what you typed
+  or imported in Nina, never values from Apple Health, and importing it again adds nothing.
+
 ## Forgiving on purpose
 
 - **Delimiters**: comma, semicolon, tab or `|` – detected from the header line.
@@ -218,8 +290,15 @@ Apple Health weights" is switched on (iPhone and iPad; off by default).
   `2` + `slice`). Rows it can't find are reported in the preview and skipped.
 - **Ranges** (rates, review weight, protein per meal, check-in steps): `0.15-0.25`, `0.15–0.25`,
   `0.15 to 0.25`.
-- **Dates**: `2026-11-13`, `13.11.2026`, `13.11.26`, `11/13/2026`. **Meals**: `breakfast`, `lunch`,
-  `dinner`, `snack` or your own meal names; `Frühstück`, `Mittagessen`, `Abendessen`, `Jause` work too.
+- **Dates**: `2026-11-13`, `13.11.2026`, `13.11.26`, `11/13/2026`; in the weight & body history
+  also `7 Jan 2030`, `Jan 7, 2030`, `7. Jänner 2030` and `Mo, 07.01.2030`. **Meals**: `breakfast`,
+  `lunch`, `dinner`, `snack` or your own meal names; `Frühstück`, `Mittagessen`, `Abendessen`,
+  `Jause` work too.
+- **Weight & body history**: units in the header are converted – `Weight (lb)` and `Waist (in)` to
+  kg and cm, `Lean (g)` and `Fat (g)` from a DEXA report to kg; a body fat of `0.198` reads as
+  19.8 %. German headers work (`Gewicht`, `Körperfett`, `Taille`, `Hüfte`, `Oberarm links`,
+  `Fettfreie Masse`, `Datum`, `Uhrzeit`, `Bemerkung` …), and so do conditions like `nüchtern` or
+  `nach dem Training`.
 
 ## The prompts
 
@@ -230,13 +309,14 @@ existing tags, meal names and recipes so the AI reuses them). Regenerate this se
 ### Set up Nina (everything at once)
 
 ````text
-You set up my nutrition app "Nina" from what I tell you: about me (body, goal, training, habits, meal times, preferences), my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements), the foods I eat (product names, label photos, my own dishes) and my usual meals and recipes.
+You set up my nutrition app "Nina" from what I tell you: about me (body, goal, training, habits, meal times, preferences), my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements), the foods I eat (product names, label photos, my own dishes), my usual meals and recipes, and my weight and body history if I give one (weigh-ins, tape measurements, body-fat results).
 
 ## Output rules
-- Answer with up to THREE csv code blocks and nothing else, in this order. Each block starts with its header line. Leave a block out when my notes have nothing for it.
+- Answer with up to FOUR csv code blocks and nothing else, in this order. Each block starts with its header line. Leave a block out when my notes have nothing for it.
   1. Goals & settings – header: setting,value
   2. My foods – header: id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,portions,barcode,favorite,notes
   3. My meals & recipes – header: recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes
+  4. My weight and body history – header: date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note
 - Comma separated, UTF-8. Put a value in "double quotes" if it contains a comma, a quote or a line break. Decimal point, not comma (4.5). No units inside number cells.
 - Never invent data; leave a cell empty when it doesn't apply and skip a row when it's unclear. Keep my own words and names as I wrote them.
 - Nina already knows about 1,000 basic foods (fruit, vegetables, bread, dairy, meat, fish, drinks …) in English and German. Put a food into block 2 only if it's a branded product, my own item, or I give label values. Ingredients of meals and recipes may be basic foods: leave their nutrient cells empty and Nina looks them up.
@@ -256,7 +336,7 @@ You set up my nutrition app "Nina" from what I tell you: about me (body, goal, t
 | height_cm | Height in cm – e.g. 171 |
 | weight_kg | Current weight in kg (logged as today's weight) – e.g. 67.3 |
 | body_fat_percent | Body fat in %, if I know it (saved as today's body-fat value) |
-| body_fat_method | How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scale, skinfold, navy (tape) or estimate (the default) |
+| body_fat_method | How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scan_3d (3D body scanner), scale, skinfold, navy (tape) or estimate (the default) |
 | neck_cm | Neck circumference in cm, just below the larynx (today's tape values; also chest_cm, arm_cm, waist_cm, hip_cm, thigh_cm, calf_cm) |
 | chest_cm | Chest at nipple height in cm |
 | arm_cm | Relaxed upper arm in cm |
@@ -346,7 +426,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | measure.full | Tape sites of the full set – e.g. waist;chest;arm;thigh;hip |
 | measure.full_every_weeks | Full set every n weeks – e.g. 8 |
 | measure.body_fat_every_weeks | Body-fat check every n weeks – e.g. 8 |
-| measure.body_fat_method | The body-fat method I'll repeat: dexa, bodpod, bia_pro, scale, skinfold, navy or estimate |
+| measure.body_fat_method | The body-fat method I'll repeat: dexa, bodpod, bia_pro, scan_3d, scale, skinfold, navy or estimate |
 | measure.side | right, left or both (arm, thigh, calf) |
 | measure.thigh_mark | Where the thigh is measured, e.g. 20 cm above the kneecap |
 | measure.two_readings | yes: two readings per site in a full set |
@@ -476,6 +556,43 @@ Turn my recipes and usual meals into rows: one row per ingredient, rows of the s
 | salt | Total salt in g. | no |
 | notes | Notes for the recipe (preparation), on its first row. | no |
 
+## 4. My weight and body history (only if I give dated weigh-ins, measurements or scan results)
+Turn my weight and body history – weigh-ins, tape measurements and body-fat results from a DEXA, InBody or 3D-scan report, an old spreadsheet, another app's export or my notes – into rows.
+- Dated values go here, not into block 1: block 1's body_fat_percent and *_cm rows are only for values I give without a date.
+- One row per moment: a weigh-in, a tape session or a scan. A row may have only a weight, only tape values, only body fat, or any mix – leave the other cells empty.
+- A scan or lab report (DEXA, InBody, Bod Pod, 3D scan): one row with its date, weight_kg, body_fat_pct, body_fat_method, device, lean_kg, fat_kg, bone_kg and any girths it lists. Other numbers worth keeping (visceral fat, skeletal muscle mass, segment values) go into note.
+- Smart-scale weigh-ins with body fat: weight_kg and body_fat_pct with body_fat_method scale.
+- Lean mass is not skeletal muscle mass: skeletal muscle mass goes into note.
+- Copy the values as written; don't calculate missing ones (Nina works out lean and fat mass itself).
+- Decimal point, not comma (84.5). Only kg, cm and %: convert pounds (× 0.4536), inches (× 2.54) and grams from a DEXA report (÷ 1000).
+- Tape values are circumferences in cm. arm, thigh and calf are the right side (or the only side measured); the _l columns are the left side.
+
+| column | meaning | required |
+|---|---|---|
+| date | Day of the measurement in YYYY-MM-DD. | yes |
+| time | Time HH:MM (24 h), if known. Empty = 07:00. | no |
+| weight_kg | Body weight in kg. | no |
+| body_fat_pct | Body fat in %. | no |
+| body_fat_method | How the body fat was measured: dexa, bodpod, bia_pro (InBody and other professional machines), scan_3d (3D body scanner: Styku, Fit3D …), scale (smart scale), skinfold, navy (tape formula) or estimate. | no |
+| device | The machine or scale model (InBody 570, Styku), if known. Each device is its own series. | no |
+| lean_kg | Lean mass in kg, if the report gives it (DEXA: lean without bone; InBody: fat-free mass). | no |
+| fat_kg | Fat mass in kg, if the report gives it. | no |
+| bone_kg | Bone mineral mass in kg (DEXA: BMC), if the report gives it. | no |
+| neck_cm | Neck in cm, just below the larynx. | no |
+| chest_cm | Chest at nipple height in cm. | no |
+| arm_cm | Relaxed upper arm in cm (right side, or the only side). | no |
+| arm_flexed_cm | Flexed upper arm in cm. | no |
+| waist_cm | Waist at the navel in cm. | no |
+| waist_narrow_cm | Narrowest waist in cm. | no |
+| hip_cm | Hip at the widest point in cm. | no |
+| thigh_cm | Thigh in cm (right side, or the only side). | no |
+| calf_cm | Calf in cm (right side, or the only side). | no |
+| arm_l_cm | Left upper arm in cm, only if I measure both sides. | no |
+| thigh_l_cm | Left thigh in cm, only if I measure both sides. | no |
+| calf_l_cm | Left calf in cm, only if I measure both sides. | no |
+| conditions | How it was measured, separated by ; – morning, fasted, later, after_training, late_heavy_meal, high_salt, alcohol_yesterday, sick, menstrual_phase, not_fasted. Empty = Nina decides from the time (before the morning cutoff, 11:00 by default: morning;fasted). | no |
+| note | Anything else worth keeping (visceral fat, skeletal muscle mass, where it was measured). | no |
+
 ## Example answer
 ```csv
 setting,value
@@ -498,6 +615,10 @@ id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,satu
 recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes
 Usual breakfast,meal,,,Oats,60,g,60,233,8.1,40,4.1,6,0.6,0.7,0,
 Usual breakfast,meal,,,Milk 1.5%,250,ml,250,118,8.5,12,3.8,0,12,2.4,0.3,
+```
+```csv
+date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note
+2030-01-07,07:10,78.4,,,,,,,,,,,84.5,,,,,,,,morning;fasted,
 ```
 
 ## About me and my foods
@@ -527,7 +648,7 @@ setting,value
 | height_cm | Height in cm – e.g. 171 |
 | weight_kg | Current weight in kg (logged as today's weight) – e.g. 67.3 |
 | body_fat_percent | Body fat in %, if I know it (saved as today's body-fat value) |
-| body_fat_method | How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scale, skinfold, navy (tape) or estimate (the default) |
+| body_fat_method | How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scan_3d (3D body scanner), scale, skinfold, navy (tape) or estimate (the default) |
 | neck_cm | Neck circumference in cm, just below the larynx (today's tape values; also chest_cm, arm_cm, waist_cm, hip_cm, thigh_cm, calf_cm) |
 | chest_cm | Chest at nipple height in cm |
 | arm_cm | Relaxed upper arm in cm |
@@ -617,7 +738,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | measure.full | Tape sites of the full set – e.g. waist;chest;arm;thigh;hip |
 | measure.full_every_weeks | Full set every n weeks – e.g. 8 |
 | measure.body_fat_every_weeks | Body-fat check every n weeks – e.g. 8 |
-| measure.body_fat_method | The body-fat method I'll repeat: dexa, bodpod, bia_pro, scale, skinfold, navy or estimate |
+| measure.body_fat_method | The body-fat method I'll repeat: dexa, bodpod, bia_pro, scan_3d, scale, skinfold, navy or estimate |
 | measure.side | right, left or both (arm, thigh, calf) |
 | measure.thigh_mark | Where the thigh is measured, e.g. 20 cm above the kneecap |
 | measure.two_readings | yes: two readings per site in a full set |
@@ -838,6 +959,64 @@ recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,ca
 recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes
 Usual breakfast,meal,,,Oats,60,g,60,233,8.1,40,4.1,6,0.6,0.7,0,
 Usual breakfast,meal,,,Milk 1.5%,250,ml,250,118,8.5,12,3.8,0,12,2.4,0.3,
+```
+
+Here is my data:
+```
+
+### Weight & body history
+
+```text
+You convert my data into the CSV import format of my app "Nina". Turn my weight and body history – weigh-ins, tape measurements and body-fat results from a DEXA, InBody or 3D-scan report, an old spreadsheet, another app's export or my notes – into rows.
+
+## Output rules
+- Answer with ONE csv code block and nothing else. The first line is exactly this header:
+date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note
+- Comma separated, UTF-8. Put a value in "double quotes" if it contains a comma, a quote or a line break.
+- Leave a column empty when it doesn't apply. Never invent data; skip a row if it is unclear.
+- Keep my own words and names exactly as I wrote them.
+- One row per moment: a weigh-in, a tape session or a scan. A row may have only a weight, only tape values, only body fat, or any mix – leave the other cells empty.
+- A scan or lab report (DEXA, InBody, Bod Pod, 3D scan): one row with its date, weight_kg, body_fat_pct, body_fat_method, device, lean_kg, fat_kg, bone_kg and any girths it lists. Other numbers worth keeping (visceral fat, skeletal muscle mass, segment values) go into note.
+- Smart-scale weigh-ins with body fat: weight_kg and body_fat_pct with body_fat_method scale.
+- Lean mass is not skeletal muscle mass: skeletal muscle mass goes into note.
+- Copy the values as written; don't calculate missing ones (Nina works out lean and fat mass itself).
+- Decimal point, not comma (84.5). Only kg, cm and %: convert pounds (× 0.4536), inches (× 2.54) and grams from a DEXA report (÷ 1000).
+- Tape values are circumferences in cm. arm, thigh and calf are the right side (or the only side measured); the _l columns are the left side.
+
+## Columns
+| column | meaning | required |
+|---|---|---|
+| date | Day of the measurement in YYYY-MM-DD. | yes |
+| time | Time HH:MM (24 h), if known. Empty = 07:00. | no |
+| weight_kg | Body weight in kg. | no |
+| body_fat_pct | Body fat in %. | no |
+| body_fat_method | How the body fat was measured: dexa, bodpod, bia_pro (InBody and other professional machines), scan_3d (3D body scanner: Styku, Fit3D …), scale (smart scale), skinfold, navy (tape formula) or estimate. | no |
+| device | The machine or scale model (InBody 570, Styku), if known. Each device is its own series. | no |
+| lean_kg | Lean mass in kg, if the report gives it (DEXA: lean without bone; InBody: fat-free mass). | no |
+| fat_kg | Fat mass in kg, if the report gives it. | no |
+| bone_kg | Bone mineral mass in kg (DEXA: BMC), if the report gives it. | no |
+| neck_cm | Neck in cm, just below the larynx. | no |
+| chest_cm | Chest at nipple height in cm. | no |
+| arm_cm | Relaxed upper arm in cm (right side, or the only side). | no |
+| arm_flexed_cm | Flexed upper arm in cm. | no |
+| waist_cm | Waist at the navel in cm. | no |
+| waist_narrow_cm | Narrowest waist in cm. | no |
+| hip_cm | Hip at the widest point in cm. | no |
+| thigh_cm | Thigh in cm (right side, or the only side). | no |
+| calf_cm | Calf in cm (right side, or the only side). | no |
+| arm_l_cm | Left upper arm in cm, only if I measure both sides. | no |
+| thigh_l_cm | Left thigh in cm, only if I measure both sides. | no |
+| calf_l_cm | Left calf in cm, only if I measure both sides. | no |
+| conditions | How it was measured, separated by ; – morning, fasted, later, after_training, late_heavy_meal, high_salt, alcohol_yesterday, sick, menstrual_phase, not_fasted. Empty = Nina decides from the time (before the morning cutoff, 11:00 by default: morning;fasted). | no |
+| note | Anything else worth keeping (visceral fat, skeletal muscle mass, where it was measured). | no |
+
+## Example
+```csv
+date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note
+2030-01-07,07:10,78.4,,,,,,,,,,,84.5,,,,,,,,morning;fasted,
+2030-01-14,07:05,78.1,,,,,,,38.5,101,35,,84,,98.5,58,,,,,morning;fasted,
+2030-01-20,09:30,78.6,19.8,dexa,Hologic Horizon,60.1,15.6,2.9,,,,,,,,,,,,,morning;fasted,Visceral fat 410 g
+2030-02-03,,,21.5,scan_3d,Styku,,,,,100.5,35.2,,83.6,,98,57.5,37,,,,,
 ```
 
 Here is my data:

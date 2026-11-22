@@ -769,6 +769,8 @@ final class AppModel {
             sheet = .goals
         case "import":
             sheet = .importData(.foods)
+        case "importbody":
+            sheet = .importData(.measurements)
         case "settings":
             sheet = .settings
         case "nutrition":

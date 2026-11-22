@@ -303,7 +303,7 @@ final class BodyMeasurement {
     /// BodyValues k=v, cm or kg/%: "waist=84.0;chest=101.5;arm=34.5"
     /// assessments: "bodyFat=20;leanKg=64;fatKg=16;boneKg=3.1;sf_chest=12"
     var values: String = ""
-    /// assessments: dexa|bodpod|bia_pro|scale|skinfold|estimate
+    /// assessments: dexa|bodpod|bia_pro|scan_3d|scale|skinfold|estimate
     var method: String = ""
     /// e.g. "InBody 570": separates BIA series
     var device: String = ""

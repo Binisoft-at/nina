@@ -145,7 +145,8 @@ private struct WeightRowContent: View {
     }
 }
 
-/// Recently Deleted: entries, foods, meals, weigh-ins and body measurements stay 30 days.
+/// Recently Deleted: entries, foods, meals, weigh-ins, body measurements and progress photos stay
+/// 30 days. App only (the watch's store has no photos).
 struct TrashView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<LogEntry> { $0.deletedAt != nil }, sort: \LogEntry.time, order: .reverse) private var entries: [LogEntry]
@@ -155,11 +156,13 @@ struct TrashView: View {
     private var weights: [WeightEntry]
     @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt != nil }, sort: \BodyMeasurement.time, order: .reverse)
     private var measurements: [BodyMeasurement]
+    @Query(filter: #Predicate<ProgressPhoto> { $0.deletedAt != nil }, sort: \ProgressPhoto.time, order: .reverse)
+    private var photos: [ProgressPhoto]
     /// "Empty" asks first: it can't be undone, and weigh-ins and measurements can't be typed again.
     @State private var confirmEmpty = false
 
     private var isEmpty: Bool {
-        entries.isEmpty && foods.isEmpty && recipes.isEmpty && weights.isEmpty && measurements.isEmpty
+        entries.isEmpty && foods.isEmpty && recipes.isEmpty && weights.isEmpty && measurements.isEmpty && photos.isEmpty
     }
 
     var body: some View {
@@ -227,10 +230,13 @@ struct TrashView: View {
             if !measurements.isEmpty {
                 measurementsSection
             }
+            if !photos.isEmpty {
+                photosSection
+            }
         }
         .overlay {
             if isEmpty {
-                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals, weigh-ins and measurements stay here for 30 days."))
+                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals, weigh-ins, measurements and photos stay here for 30 days."))
             }
         }
         .navigationTitle("Recently Deleted")
@@ -256,6 +262,7 @@ struct TrashView: View {
         store.purge(recipes)
         store.purge(weights)
         store.purge(measurements)
+        store.purge(photos)
     }
 
     /// "3 diary entries, 2 weigh-ins and 1 measurement can't be brought back."
@@ -266,6 +273,7 @@ struct TrashView: View {
             (recipes.count, "meal or recipe", "meals and recipes"),
             (weights.count, "weigh-in", "weigh-ins"),
             (measurements.count, "measurement", "measurements"),
+            (photos.count, "photo", "photos"),
         ]
         let parts: [String] = counts.filter { $0.count > 0 }.map { "\($0.count) \($0.count == 1 ? $0.one : $0.many)" }
         guard let last = parts.last else { return "This can't be undone." }
@@ -315,6 +323,37 @@ struct TrashView: View {
                 .contextMenu {
                     Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([measurement]) }
                     Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([measurement]) }
+                }
+            }
+        }
+    }
+
+    /// Deleted progress photos: restore or delete for good. The thumbnails stay blurred while the
+    /// photo lock is on.
+    private var photosSection: some View {
+        let isLocked: Bool = BodyPhotoLock.shared.isLocked
+        return Section("Photos") {
+            ForEach(photos) { photo in
+                HStack(spacing: 12) {
+                    BodyPhotoImageView(photo: photo)
+                        .bodyPhotoLocked(isLocked)
+                        .frame(width: 36, height: 48)
+                        .clipShape(.rect(cornerRadius: 6, style: .continuous))
+                    VStack(alignment: .leading) {
+                        Text(BodyPhotoText.title(photo, today: app.today))
+                        Text("\(daysLeft(photo.deletedAt)) days left")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .swipeActions(edge: .leading) {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([photo]) }.tint(Brand.accent)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([photo]) }
+                }
+                .contextMenu {
+                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([photo]) }
+                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([photo]) }
                 }
             }
         }
