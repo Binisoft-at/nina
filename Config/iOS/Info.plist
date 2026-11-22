@@ -46,7 +46,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Nina uses the camera to scan the barcode of a food package and look up its nutrition values.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Nina reads your weight and active energy from Apple Health to show your weight trend and, if you like, add burned calories to your daily budget.</string>
+	<string>Nina reads your weight and active energy from Apple Health to show your weight trend and, if you like, add burned calories to your daily budget. If you turn them on, Nina also reads body fat, lean mass, waist and height to show them next to your own measurements, and finished workouts to suggest the day type.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Nina writes what you eat and drink – calories, protein, carbs, fat, fiber, vitamins and water – to Apple Health, and weigh-ins you type in Nina.</string>
 	<key>CFBundleURLTypes</key>

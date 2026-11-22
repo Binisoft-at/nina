@@ -289,6 +289,13 @@ struct BodyPageTileView: View {
                 .foregroundStyle(tile.change?.isClear == true ? Brand.accent : Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
+            if let health = tile.health {
+                Text(health.text)
+                    .font(.caption2)
+                    .foregroundStyle(.pink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
@@ -296,7 +303,7 @@ struct BodyPageTileView: View {
         .contentShape(.rect)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(tile.site.title)
-        .accessibilityValue("\(valueText), \(changeText)")
+        .accessibilityValue([valueText, changeText, tile.health?.text].compactMap { $0 }.joined(separator: ", "))
         .accessibilityHint("Shows the chart")
     }
 

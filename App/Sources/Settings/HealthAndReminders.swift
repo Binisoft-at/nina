@@ -42,6 +42,7 @@ struct HealthSettingsView: View {
                         Text("Watches tend to overestimate burned calories, so adding half is the usual choice.")
                     }
                 }
+                HealthBodySettingsSection()
                 Section {
                     if let last = app.health.lastSync {
                         LabeledContent("Last sync", value: last.formatted(.relative(presentation: .named)))

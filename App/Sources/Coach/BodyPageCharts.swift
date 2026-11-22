@@ -435,6 +435,7 @@ struct BodyPageCompositionCard: View {
         if composition.series.count > 1 {
             lines.append("Each method and device is its own series, never averaged with another – compare like with like.")
         }
+        if composition.series.contains(where: { $0.isHealth }) { lines.append(HealthBody.liveNote) }
         if let note = composition.tapeNote { lines.append(note) }
         if let next = composition.nextFull {
             let overdue = next.overdueDays(on: today)
@@ -514,6 +515,7 @@ struct BodyPageFatSeriesRow: View {
     private var detail: String {
         let band = series.band == "unknown" ? "error unknown" : series.band + " points"
         var parts = [band, Fmt.shortDay(series.latestDay), "\(series.count) \(series.count == 1 ? "value" : "values")"]
+        if let lean = series.leanKg { parts.append("lean " + Fmt.kilograms(lean)) }
         if series.isTracking { parts.append("tracks your goal") }
         return parts.joined(separator: " · ")
     }

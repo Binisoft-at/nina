@@ -39,10 +39,13 @@ final class HealthService {
     private(set) var latestWeight: Double?
     private(set) var lastSync: Date?
     private(set) var lastError: String?
+    /// Body fat, lean mass, waist, height and today's workouts, read live (HealthService+Body.swift).
+    let bodyData: HealthBodyReader
     @ObservationIgnored private var syncTask: Task<Void, Never>?
 
     init(enabled: Bool) {
         self.enabled = enabled
+        bodyData = HealthBodyReader(enabled: enabled)
         for option in Option.allCases where UserDefaults.standard.bool(forKey: option.key) {
             options.insert(option)
         }
@@ -146,6 +149,7 @@ final class HealthService {
             weightSamples = []
             latestWeight = nil
         }
+        await bodyData.refresh()
     }
 
     /// Debounced: many saves in a row cause one Health sync.
