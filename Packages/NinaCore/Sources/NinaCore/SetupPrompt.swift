@@ -2,7 +2,7 @@ import Foundation
 import BinisoftKitCore
 
 /// What another AI writes back can hold several files at once – goals & settings, foods, meals &
-/// recipes – as ```csv blocks or one after another. This splits it into its parts.
+/// recipes, weight & body history – as ```csv blocks or one after another. This splits it into its parts.
 public enum ImportBundle {
     public struct Part: Equatable, Sendable {
         public let kind: ImportKind
@@ -59,21 +59,24 @@ public enum ImportBundle {
     }
 }
 
-/// One prompt that sets Nina up from a few lines about me: goals & settings, my foods, and my
-/// usual meals and recipes – three ```csv blocks that are pasted back in one go.
+/// One prompt that sets Nina up from a few lines about me: goals & settings, my foods, my usual
+/// meals and recipes, and (optional) my weight and body history – up to four ```csv blocks that are
+/// pasted back in one go.
 public enum SetupPrompt {
     public static func text(appName: String, currentSettings: String = "", existingTags: [String] = [],
                             existingRecipes: [String] = []) -> String {
         let foods = FoodCSV.prompt(appName: appName, existingTags: existingTags)
         let recipes = RecipeCSV.prompt(appName: appName, existingNames: existingRecipes)
+        let history = BodyHistoryCSV.prompt(appName: appName)
         var lines: [String] = []
-        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you: about me (body, goal, training, habits, meal times, preferences), my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements), the foods I eat (product names, label photos, my own dishes) and my usual meals and recipes.")
+        lines.append("You set up my nutrition app \"\(appName)\" from what I tell you: about me (body, goal, training, habits, meal times, preferences), my plan if I have one (phases, calorie cycling, measurements, check-ins, supplements), the foods I eat (product names, label photos, my own dishes), my usual meals and recipes, and my weight and body history if I give one (weigh-ins, tape measurements, body-fat results).")
         lines.append("")
         lines.append("## Output rules")
-        lines.append("- Answer with up to THREE csv code blocks and nothing else, in this order. Each block starts with its header line. Leave a block out when my notes have nothing for it.")
+        lines.append("- Answer with up to FOUR csv code blocks and nothing else, in this order. Each block starts with its header line. Leave a block out when my notes have nothing for it.")
         lines.append("  1. Goals & settings – header: setting,value")
         lines.append("  2. My foods – header: \(foods.header)")
         lines.append("  3. My meals & recipes – header: \(recipes.header)")
+        lines.append("  4. My weight and body history – header: \(history.header)")
         lines.append("- Comma separated, UTF-8. Put a value in \"double quotes\" if it contains a comma, a quote or a line break. Decimal point, not comma (4.5). No units inside number cells.")
         lines.append("- Never invent data; leave a cell empty when it doesn't apply and skip a row when it's unclear. Keep my own words and names as I wrote them.")
         lines.append("- \(appName) already knows about 1,000 basic foods (fruit, vegetables, bread, dairy, meat, fish, drinks …) in English and German. Put a food into block 2 only if it's a branded product, my own item, or I give label values. Ingredients of meals and recipes may be basic foods: leave their nutrient cells empty and \(appName) looks them up.")
@@ -101,6 +104,12 @@ public enum SetupPrompt {
         lines.append(recipes.task)
         lines.append(contentsOf: recipes.rules.map { "- " + $0 })
         lines.append(contentsOf: table(recipes.columns))
+        lines.append("")
+        lines.append("## 4. My weight and body history (only if I give dated weigh-ins, measurements or scan results)")
+        lines.append(history.task)
+        lines.append("- Dated values go here, not into block 1: block 1's body_fat_percent and *_cm rows are only for values I give without a date.")
+        lines.append(contentsOf: history.rules.map { "- " + $0 })
+        lines.append(contentsOf: table(history.columns))
         let names = (foods.existingNames + recipes.existingNames).filter { !$0.1.isEmpty }
         if !names.isEmpty {
             lines.append("")
@@ -129,6 +138,10 @@ public enum SetupPrompt {
         lines.append("```csv")
         lines.append(recipes.header)
         for row in recipes.exampleRows { lines.append(row.map { CSV.escape($0) }.joined(separator: ",")) }
+        lines.append("```")
+        lines.append("```csv")
+        lines.append(history.header)
+        for row in history.exampleRows.prefix(1) { lines.append(row.map { CSV.escape($0) }.joined(separator: ",")) }
         lines.append("```")
         lines.append("")
         lines.append("## About me and my foods")

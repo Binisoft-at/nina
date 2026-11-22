@@ -242,7 +242,7 @@ public enum SettingsCSV {
         Key(name: "height_cm", meaning: "Height in cm", example: "171", aliases: ["height", "grosse", "korpergrosse"]),
         Key(name: "weight_kg", meaning: "Current weight in kg (logged as today's weight)", example: "67.3", aliases: ["weight", "gewicht", "current_weight"]),
         Key(name: "body_fat_percent", meaning: "Body fat in %, if I know it (saved as today's body-fat value)", example: "", aliases: ["body_fat", "korperfett", "kfa", "body_fat_pct", "bodyfat"]),
-        Key(name: "body_fat_method", meaning: "How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scale, skinfold, navy (tape) or estimate (the default)", example: "", aliases: ["body_fat_source", "korperfett_methode"]),
+        Key(name: "body_fat_method", meaning: "How that body fat was measured: dexa, bodpod, bia_pro (InBody …), scan_3d (3D body scanner), scale, skinfold, navy (tape) or estimate (the default)", example: "", aliases: ["body_fat_source", "korperfett_methode"]),
         Key(name: "neck_cm", meaning: "Neck circumference in cm, just below the larynx (today's tape values; also chest_cm, arm_cm, waist_cm, hip_cm, thigh_cm, calf_cm)", example: "", aliases: ["neck", "hals", "halsumfang"]),
         Key(name: "chest_cm", meaning: "Chest at nipple height in cm", example: "", aliases: ["chest", "brust", "brustumfang"]),
         Key(name: "arm_cm", meaning: "Relaxed upper arm in cm", example: "", aliases: ["arm", "upper_arm_cm", "upper_arm", "oberarm", "oberarm_cm"]),

@@ -311,6 +311,7 @@ struct BodyDetailsMeasurementsView: View {
                 }
             }
         }
+        .bodyHistoryExportMenu()
     }
 }
 

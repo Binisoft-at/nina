@@ -651,9 +651,10 @@ enum BodySheetAssessment {
     /// Body fat % accepted (anything else is a typo).
     static let bodyFatRange: ClosedRange<Double> = NavyBodyFat.plausibleRange
 
-    /// Methods whose device name starts a series of its own.
+    /// Methods whose device name starts a series of its own (a 3D scanner too: Styku and Fit3D
+    /// differ).
     static func usesDevice(_ method: BodyMethod) -> Bool {
-        method == .scale || method == .biaPro
+        method == .scale || method == .biaPro || method == .scan3D
     }
 
     /// "DEXA scan · ±1.5"
