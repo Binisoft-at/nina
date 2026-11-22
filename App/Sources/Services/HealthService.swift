@@ -269,8 +269,7 @@ final class HealthService {
     /// Weigh-ins that came from an import (the settings file's weight or the history file) are
     /// history, maybe already in Health from the scale they came from.
     private static func isImported(_ weight: WeightEntry) -> Bool {
-        let note = weight.note.lowercased()
-        return note == "import" || note.hasPrefix("import") || note.contains("#import")
+        HealthWeightSync.isImported(note: weight.note)
     }
 
     private func save(_ entry: LogEntry, version: Int) async -> Bool {

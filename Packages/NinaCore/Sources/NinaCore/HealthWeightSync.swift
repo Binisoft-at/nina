@@ -79,6 +79,30 @@ public enum HealthWeightSync {
         marks.filter { ids.contains($0.key) }
     }
 
+    /// The tag an imported weigh-in carries in its note, so every device knows it is history.
+    public static let importTag = "#import"
+
+    /// The note of an imported weigh-in: the file's note plus the import tag.
+    public static func importedNote(_ note: String) -> String {
+        let trimmed = note.trimmingCharacters(in: .whitespaces)
+        if isImported(note: trimmed) { return trimmed }
+        return trimmed.isEmpty ? importTag : trimmed + " " + importTag
+    }
+
+    /// The note without the import tag (what an export writes back out).
+    public static func noteWithoutImportTag(_ note: String) -> String {
+        note.split(separator: " ", omittingEmptySubsequences: true)
+            .filter { $0.lowercased() != importTag }
+            .joined(separator: " ")
+    }
+
+    /// Whether a weigh-in came from an import: the history file's tag, or the settings file's
+    /// weight (note "import").
+    public static func isImported(note: String) -> Bool {
+        let lower = note.lowercased().trimmingCharacters(in: .whitespaces)
+        return lower == "import" || lower.split(separator: " ").contains { $0 == importTag }
+    }
+
     static func sameSample(_ mark: Mark, kilograms: Double, time: Date) -> Bool {
         abs(mark.kilograms - kilograms) < 0.05 && abs(mark.time.timeIntervalSince(time)) < 1
     }

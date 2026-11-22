@@ -57,4 +57,15 @@ struct HealthWeightSyncTests {
         #expect(steps.last == .ensure(id: "n", mark: .init(kilograms: 74.0, time: morning.addingTimeInterval(86_400), version: 20)))
         #expect(HealthWeightSync.pruned(marks, keeping: ["n"]).isEmpty)
     }
+
+    @Test func importedWeighInsCarryATag() {
+        #expect(HealthWeightSync.importedNote("") == "#import")
+        #expect(HealthWeightSync.importedNote("after holiday") == "after holiday #import")
+        #expect(HealthWeightSync.importedNote("after holiday #import") == "after holiday #import")
+        #expect(HealthWeightSync.isImported(note: "after holiday #import"))
+        #expect(HealthWeightSync.isImported(note: "import"))
+        #expect(!HealthWeightSync.isImported(note: "important day #salty"))
+        #expect(HealthWeightSync.noteWithoutImportTag("after holiday #import") == "after holiday")
+        #expect(HealthWeightSync.noteWithoutImportTag("#import").isEmpty)
+    }
 }

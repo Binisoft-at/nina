@@ -12,7 +12,8 @@ import NinaCore
 extension WeightEntry {
     /// The weigh-in as a row of the history file.
     var historyRecord: BodyHistoryRecord {
-        BodyHistoryRecord.weight(day: dayKey, minutes: ClockTime.minutes(of: time), kilograms: kilograms, bodyFat: bodyFat, note: note)
+        BodyHistoryRecord.weight(day: dayKey, minutes: ClockTime.minutes(of: time), kilograms: kilograms, bodyFat: bodyFat,
+                                 note: HealthWeightSync.noteWithoutImportTag(note))
     }
 }
 
@@ -63,7 +64,8 @@ extension NinaStore {
             guard let kind = record.kind.recordKind else {
                 let entry = WeightEntry(day: record.day, time: time, kilograms: record.kilograms)
                 entry.bodyFat = record.bodyFat
-                entry.note = record.note
+                // Tagged as history, so no device writes it to Apple Health (HealthWeightSync).
+                entry.note = HealthWeightSync.importedNote(record.note)
                 context.insert(entry)
                 weights.append(entry)
                 continue

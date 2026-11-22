@@ -105,8 +105,10 @@ struct WeightView: View {
         let tags = WeightSignal.Tag.parse(row.note).map(\.title)
         if !tags.isEmpty { parts.append(tags.joined(separator: ", ")) }
         if row.bodyFat > 0 { parts.append(BodyPageText.percent(row.bodyFat) + " body fat") }
-        let note = WeightSignal.Tag.note(row.note, setting: []).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !note.isEmpty { parts.append(note) }
+        let note = HealthWeightSync.noteWithoutImportTag(WeightSignal.Tag.note(row.note, setting: []))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if HealthWeightSync.isImported(note: row.note) { parts.append("Imported") }
+        if !note.isEmpty, note.lowercased() != "import" { parts.append(note) }
         return parts.joined(separator: " · ")
     }
 }
