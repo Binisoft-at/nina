@@ -3,23 +3,43 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 
+/// What Settings does differently in the Mac Settings window (`SettingsWindowContent`): Import &
+/// Export opens as that window's own sheet, Replay the Tour starts in the main window, and Goals
+/// leaves out its link to My Plan (the window has a My Plan tab). Nil everywhere else.
+struct SettingsWindowActions {
+    var importData: @MainActor () -> Void
+    var replayTour: @MainActor () -> Void
+}
+
+private struct SettingsWindowActionsKey: EnvironmentKey {
+    static let defaultValue: SettingsWindowActions? = nil
+}
+
+extension EnvironmentValues {
+    var settingsWindowActions: SettingsWindowActions? {
+        get { self[SettingsWindowActionsKey.self] }
+        set { self[SettingsWindowActionsKey.self] = newValue }
+    }
+}
+
 /// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, help,
 /// iCloud & data, import/export, the app log, about.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.settingsWindowActions) private var windowActions
     @State private var hintsReset = false
 
     var body: some View {
         Form {
             Section {
                 NavigationLink {
-                    GoalsView(showsDone: false)
+                    goals
                 } label: {
                     LabeledContent {
                         Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: app.energyUnit))
                     } label: {
-                        Label("Goals & Plan", systemImage: "target")
+                        Label(windowActions == nil ? "Goals & Plan" : "Goals", systemImage: "target")
                     }
                 }
                 NavigationLink {
@@ -83,12 +103,12 @@ struct SettingsView: View {
 
             ThaliaSection()
 
-            Section("Appearance") {
+            Section {
                 AppearancePicker()
             }
 
             Section {
-                Button("Replay the Tour", systemImage: "graduationcap") { app.startTour() }
+                Button("Replay the Tour", systemImage: "graduationcap", action: replayTour)
                 Button(hintsReset ? "Hints Come Back at the Next Launch" : "Show Hints Again", systemImage: "lightbulb") {
                     BinisoftTips.requestReset()
                     // The coach's one-time tips (Body page, measuring guide) come back too.
@@ -112,7 +132,7 @@ struct SettingsView: View {
             }
 
             Section("Your data") {
-                Button("Import & Export…", systemImage: "square.and.arrow.up.on.square") { app.present(.importData(nil)) }
+                Button("Import & Export…", systemImage: "square.and.arrow.up.on.square", action: openImport)
                 NavigationLink {
                     TrashView()
                 } label: {
@@ -159,8 +179,40 @@ struct SettingsView: View {
         #endif
     }
 
+    /// Goals & Plan; in the Mac Settings window just the goals (My Plan is a tab there).
+    @ViewBuilder
+    private var goals: some View {
+        if windowActions == nil {
+            GoalsView(showsDone: false)
+        } else {
+            GoalsView(showsDone: false, showsPlanLink: false, title: "Goals")
+        }
+    }
+
+    private func replayTour() {
+        if let windowActions {
+            windowActions.replayTour()
+        } else {
+            app.startTour()
+        }
+    }
+
+    private func openImport() {
+        if let windowActions {
+            windowActions.importData()
+        } else {
+            app.present(.importData(nil))
+        }
+    }
+
+    /// "Where your data lives": the kit's facts with Nina's backup in place of its "CSV of
+    /// everything" (Nina's CSVs don't hold photos, check-ins, water or routines).
     private var dataSections: [DataSection] {
-        var sections = DataSection.standard(appName: AppInfo.name, dataNoun: "diary, foods and meals")
+        var sections = DataSection.standard(appName: AppInfo.name, dataNoun: "diary, foods and meals").map { section in
+            DataSection(section.title, section.facts.map { fact in
+                fact.title == "Export" ? Self.backupFact : fact
+            })
+        }
         sections.insert(DataSection("Apple Health", [
             DataFact("heart.fill", "Written to Health, on this iPhone", "If you allow it, \(AppInfo.name) writes what you eat and drink to Apple Health on this iPhone. Health keeps it in its own encrypted store."),
             DataFact("scalemass", "Read live, never synced by \(AppInfo.name)", "Weight and active energy from Health are read on each device when needed and never stored in \(AppInfo.name)'s iCloud."),
@@ -173,6 +225,11 @@ struct SettingsView: View {
         ]), at: 3)
         return sections
     }
+
+    private static let backupFact = DataFact(
+        "externaldrive", "Back up",
+        "Import & Export → Back Up Everything saves all your \(AppInfo.name) data (not Apple Health) in one file; the CSV exports cover goals & plan, foods, diary, meals and weight & body."
+    )
 }
 
 /// Goals & Plan: a prominent link to the plan editor, the calculator with every step explained,
@@ -183,6 +240,8 @@ struct GoalsView: View {
     let showsDone: Bool
     /// The "My Plan" link at the top (off when the plan editor opens this page).
     let showsPlanLink: Bool
+    /// The page title (default: "Goals & Plan", or "Body & Calculator" without the plan link).
+    let title: String?
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -208,9 +267,10 @@ struct GoalsView: View {
     @State private var showPlan = false
     @State private var loaded = false
 
-    init(showsDone: Bool, showsPlanLink: Bool = true) {
+    init(showsDone: Bool, showsPlanLink: Bool = true, title: String? = nil) {
         self.showsDone = showsDone
         self.showsPlanLink = showsPlanLink
+        self.title = title
     }
 
     private var profile: BodyProfile {
@@ -237,7 +297,7 @@ struct GoalsView: View {
             #endif
         }
         .formStyle(.grouped)
-        .navigationTitle(showsPlanLink ? "Goals & Plan" : "Body & Calculator")
+        .navigationTitle(title ?? (showsPlanLink ? "Goals & Plan" : "Body & Calculator"))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(showsDone ? "Done" : "Save") {
@@ -246,6 +306,7 @@ struct GoalsView: View {
                 }
             }
         }
+        .background { escapeSaves }
         .navigationDestination(isPresented: $showPlan) {
             PlanEditorView(showsDone: false)
         }
@@ -254,6 +315,23 @@ struct GoalsView: View {
         .onDisappear { if loaded, !showsDone { saveAll() } }
         // In the Mac Settings window its toasts show here (in a sheet, the sheet shows them).
         .ownToasts(app.toasts)
+    }
+
+    /// Mac sheet: Esc saves and closes, like Done (a sheet closes on Esc only through a button).
+    @ViewBuilder
+    private var escapeSaves: some View {
+        #if os(macOS)
+        if showsDone {
+            Button("Save and Close") {
+                saveAll()
+                dismiss()
+            }
+            .keyboardShortcut(.cancelAction)
+            .opacity(0)
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        }
+        #endif
     }
 
     // MARK: Sections
@@ -349,8 +427,14 @@ struct GoalsView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
-            Button(phase == nil ? "Use These Targets" : "Use for This Phase", systemImage: "checkmark.circle.fill") {
-                useCalculatedTargets()
+            Button(action: useCalculatedTargets) {
+                // An explicit white icon: in a form row the label's icon takes the accent colour,
+                // which disappears on the green button.
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(phase == nil ? "Use These Targets" : "Use for This Phase")
+                }
+                .foregroundStyle(.white)
             }
             .primaryActionStyle()
         } header: {
@@ -364,7 +448,7 @@ struct GoalsView: View {
 
     private var targetsSection: some View {
         Section {
-            targetRow("Calories", value: $targets.energy, unit: app.energyUnit.symbol, step: 50)
+            targetRow("Calories", value: $targets.energy, unit: "kcal", step: 50)
             targetRow("Protein", value: $targets.protein, unit: "g", step: 5)
             targetRow("Carbohydrates", value: $targets.carbs, unit: "g", step: 5)
             targetRow("Fat", value: $targets.fat, unit: "g", step: 2)
@@ -652,28 +736,24 @@ private struct ThaliaSection: View {
 }
 
 /// The meals of the day: names, emoji and usual times; own meals like "Jause" or "Pre-workout".
+/// Deleting an own meal that entries or routines still use asks first: move them to Snacks, or
+/// keep them as they are (the diary lists them under "Other meal"). The toast's Undo brings the
+/// meal back, and the moved entries and routines with it.
 struct MealsSettingsView: View {
     @Environment(AppModel.self) private var app
     @State private var meals: [MealSlot] = []
+    @State private var removal: NinaMealRemoval?
 
     var body: some View {
         Form {
             Section {
                 ForEach($meals) { $slot in
-                    HStack {
-                        TextField("🍽️", text: $slot.emoji)
-                            .frame(width: 36)
-                            .multilineTextAlignment(.center)
-                        TextField("Name", text: $slot.name)
-                        DatePicker("Time", selection: Binding(
-                            get: { DayKey.today().date(minutes: slot.minutes) },
-                            set: { slot.minutes = ClockTime.minutes(of: $0) }
-                        ), displayedComponents: .hourAndMinute)
-                        .labelsHidden()
-                    }
-                    .deleteDisabled(slot.isBuiltIn)
+                    MealSlotRow(slot: $slot) { requestDelete(slot.id) }
+                        .deleteDisabled(slot.isBuiltIn)
                 }
-                .onDelete { meals.remove(atOffsets: $0) }
+                .onDelete { offsets in
+                    if let index = offsets.first { requestDelete(meals[index].id) }
+                }
                 Button("Add a Meal", systemImage: "plus") {
                     meals.append(MealSlot(id: "meal-" + UUID().uuidString.prefix(8).lowercased(), name: "Jause", emoji: "🥪", minutes: 10 * 60))
                 }
@@ -685,20 +765,140 @@ struct MealsSettingsView: View {
         .navigationTitle("Meals")
         .onAppear { meals = app.settings.meals }
         .onDisappear(perform: save)
+        // An Undo (or a sync) changed the stored meals: show them, unless something here is unsaved.
+        .onChange(of: app.settings.meals) { old, new in
+            if meals == old { meals = new }
+        }
+        .confirmationDialog(removal?.question ?? "", isPresented: removalShown, titleVisibility: .visible, presenting: removal) { removal in
+            Button(removal.moveTitle) { remove(removal, moving: true) }
+            Button(removal.keepTitle) { remove(removal, moving: false) }
+            Button("Cancel", role: .cancel) {}
+        } message: { removal in
+            Text(removal.detail)
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
         }
     }
 
-    private func save() {
-        let cleaned = meals.map { slot -> MealSlot in
+    private var removalShown: Binding<Bool> {
+        Binding(get: { removal != nil }, set: { shown in
+            if !shown { removal = nil }
+        })
+    }
+
+    /// The list as it would be saved: empty names and emoji filled in.
+    private var cleaned: [MealSlot] {
+        meals.map { slot -> MealSlot in
             var copy = slot
             if copy.name.trimmingCharacters(in: .whitespaces).isEmpty { copy.name = MealSlot.defaults.first { $0.id == slot.id }?.name ?? "Meal" }
             if copy.emoji.isEmpty { copy.emoji = "🍽️" }
             return copy
         }
+    }
+
+    private func save() {
+        let cleaned = self.cleaned
         guard cleaned != app.settings.meals else { return }
         app.updateSettings { $0.meals = MealSlot.encode(cleaned) }
+    }
+
+    /// An unused meal goes at once (with Undo); a used one asks first.
+    private func requestDelete(_ id: String) {
+        guard let slot = cleaned.first(where: { $0.id == id }), !slot.isBuiltIn else { return }
+        let uses = MealSlotUses(mealID: id, app: app)
+        let removal = NinaMealRemoval(slot: slot, entries: uses.entries.count, routines: uses.rules.count, meals: cleaned)
+        if removal.isUsed {
+            self.removal = removal
+        } else {
+            remove(removal, moving: false)
+        }
+    }
+
+    /// Deletes the meal (saving the rest of the page with it); `moving` puts its entries and
+    /// routines into Snacks. One toast, whose Undo restores the list and what moved.
+    private func remove(_ removal: NinaMealRemoval, moving: Bool) {
+        let before = cleaned
+        let after = before.filter { $0.id != removal.slot.id }
+        var movedEntries: [(LogEntry, String)] = []
+        var movedRules: [(PlanRule, String)] = []
+        if moving {
+            let uses = MealSlotUses(mealID: removal.slot.id, app: app)
+            movedEntries = uses.entries.map { ($0, $0.meal) }
+            movedRules = uses.rules.map { ($0, $0.meal) }
+            let target = removal.target.id
+            for rule in uses.rules {
+                rule.meal = target
+                rule.touch()
+            }
+            // Saves the routines too.
+            app.store.move(uses.entries, to: target)
+        }
+        meals = after
+        app.updateSettings { $0.meals = MealSlot.encode(after) }
+        let app = self.app
+        app.toasts.show(removal.toast(moved: moving), symbol: "trash.fill") {
+            for (entry, meal) in movedEntries {
+                entry.meal = meal
+                entry.touch()
+            }
+            for (rule, meal) in movedRules {
+                rule.meal = meal
+                rule.touch()
+            }
+            // Saves the entries and routines too.
+            app.updateSettings { $0.meals = MealSlot.encode(before) }
+        }
+    }
+}
+
+/// One meal: emoji, name, usual time; on the Mac a delete button for own meals (iPhone and iPad
+/// swipe to delete).
+private struct MealSlotRow: View {
+    @Binding var slot: MealSlot
+    let onDelete: () -> Void
+
+    var body: some View {
+        HStack {
+            TextField("🍽️", text: $slot.emoji)
+                .frame(width: 36)
+                .multilineTextAlignment(.center)
+            TextField("Name", text: $slot.name)
+            DatePicker("Time", selection: time, displayedComponents: .hourAndMinute)
+                .labelsHidden()
+            #if os(macOS)
+            if !slot.isBuiltIn {
+                Button(action: onDelete) {
+                    Image(systemName: "minus.circle.fill")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.borderless)
+                .help("Delete Meal")
+                .accessibilityLabel("Delete \(slot.name)")
+            }
+            #endif
+        }
+    }
+
+    private var time: Binding<Date> {
+        Binding(
+            get: { DayKey.today().date(minutes: slot.minutes) },
+            set: { slot.minutes = ClockTime.minutes(of: $0) }
+        )
+    }
+}
+
+/// The live entries (eaten and planned) and routines in a meal.
+@MainActor
+private struct MealSlotUses {
+    let entries: [LogEntry]
+    let rules: [PlanRule]
+
+    init(mealID: String, app: AppModel) {
+        let key = mealID
+        let descriptor = FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { $0.meal == key && $0.deletedAt == nil })
+        entries = (try? app.container.mainContext.fetch(descriptor)) ?? []
+        rules = app.store.planRules().filter { $0.meal == mealID }
     }
 }
 
