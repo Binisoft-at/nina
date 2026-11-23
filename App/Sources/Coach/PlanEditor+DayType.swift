@@ -73,6 +73,7 @@ struct PlanEditorDayTypeView: View {
             scheduleDetail
         } header: {
             Text("When")
+                .info(PlanEditorInfo.schedule.title, PlanEditorInfo.schedule.text)
         } footer: {
             Text(scheduleFooter)
         }
@@ -123,7 +124,10 @@ struct PlanEditorDayTypeView: View {
     private var targetsSection: some View {
         if let phase = plan.activePhase(on: app.today) {
             Section {
-                Toggle("Same as baseline", isOn: sameAsBaseline)
+                Toggle(isOn: sameAsBaseline) {
+                    Text("Same as baseline")
+                        .info(PlanEditorInfo.baseline.title, PlanEditorInfo.baseline.text)
+                }
                 if ownTargets {
                     PlanEditorTargetsFields(targets: $targets, weightKg: app.settings.bodyWeightKg ?? 0)
                 }

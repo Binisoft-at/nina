@@ -289,6 +289,7 @@ struct PlanEditorPauseSection: View {
             }
         } header: {
             Text("Pause Coaching")
+                .info(PlanEditorInfo.pause.title, PlanEditorInfo.pause.text)
         } footer: {
             Text("For a holiday or while you're ill: no check pills, no check-ins and no coach reminders, and paused days stay out of your averages. Meal reminders keep going.")
         }

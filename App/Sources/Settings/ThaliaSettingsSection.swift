@@ -19,6 +19,7 @@ struct ThaliaSettingsSection: View {
                 .foregroundStyle(.secondary)
         } header: {
             Text("Thalia")
+                .info(SettingsInfo.thalia.title, SettingsInfo.thalia.text)
         } footer: {
             Text("Thalia übernimmt die Werte, sobald Thalia auf diesem Gerät geöffnet wird.")
         }

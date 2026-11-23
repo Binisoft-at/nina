@@ -31,12 +31,14 @@ struct HealthSettingsView: View {
                 if app.health.isOn(.activity) {
                     Section {
                         LabeledContent("Active energy today", value: Fmt.energy(app.health.activeEnergyToday, unit: app.energyUnit))
-                        Picker("Add to my budget", selection: Binding(get: { app.settings.activityBonusShare }, set: { value in
-                            app.updateSettings { $0.activityBonusShare = value }
-                        })) {
-                            Text("Nothing").tag(0.0)
-                            Text("Half").tag(0.5)
-                            Text("All").tag(1.0)
+                        SettingsInfoRow("Add to my budget", info: SettingsInfo.activeEnergy) {
+                            Picker("Add to my budget", selection: Binding(get: { app.settings.activityBonusShare }, set: { value in
+                                app.updateSettings { $0.activityBonusShare = value }
+                            })) {
+                                Text("Nothing").tag(0.0)
+                                Text("Half").tag(0.5)
+                                Text("All").tag(1.0)
+                            }
                         }
                     } footer: {
                         Text("Watches tend to overestimate burned calories, so adding half is the usual choice.")
@@ -181,6 +183,7 @@ private struct ReminderCoachSection: View {
                 }
             } header: {
                 Text("Coach")
+                    .info(SettingsInfo.coachReminders.title, SettingsInfo.coachReminders.text)
             } footer: {
                 Text(footer)
             }

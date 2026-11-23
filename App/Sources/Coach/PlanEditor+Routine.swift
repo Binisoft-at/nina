@@ -30,7 +30,10 @@ struct PlanEditorMeasuringView: View {
     private var timesSection: some View {
         Section {
             DatePicker("Weigh-in reminder", selection: clock($routine.weighInMinutes), displayedComponents: .hourAndMinute)
-            DatePicker("Morning weights until", selection: clock($routine.morningCutoffMinutes), displayedComponents: .hourAndMinute)
+            DatePicker(selection: clock($routine.morningCutoffMinutes), displayedComponents: .hourAndMinute) {
+                Text("Morning weights until")
+                    .info(PlanEditorInfo.morningCutoff.title, PlanEditorInfo.morningCutoff.text)
+            }
             Picker("Weekly check-in", selection: $routine.checkInWeekday) {
                 ForEach(1...7, id: \.self) { (weekday: Int) in
                     Text(PlanEditorMeasuringView.weekdayNames[weekday - 1]).tag(weekday)
@@ -58,7 +61,10 @@ struct PlanEditorMeasuringView: View {
     private var fullSection: some View {
         Section {
             Stepper(fullEveryTitle, value: $routine.fullEveryWeeks, in: 1...26)
-            Toggle("Two readings per site", isOn: $routine.twoReadings)
+            Toggle(isOn: $routine.twoReadings) {
+                Text("Two readings per site")
+                    .info(PlanEditorInfo.twoReadings.title, PlanEditorInfo.twoReadings.text)
+            }
             ForEach(BodySite.mainSites) { (site: BodySite) in
                 Toggle(site.title, isOn: siteBinding(site, in: $routine.fullSites))
             }
@@ -162,6 +168,7 @@ struct PlanEditorAdjustView: View {
                 Stepper(largestTitle, value: $adjust.stepMax, in: 50...400, step: 25)
             } header: {
                 Text("Step")
+                    .info(PlanEditorInfo.step.title, PlanEditorInfo.step.text)
             } footer: {
                 Text("One change moves every day type by the same calories, so the differences between them stay.")
             }
@@ -171,6 +178,7 @@ struct PlanEditorAdjustView: View {
                 Stepper(lockTitle, value: $adjust.lockDays, in: 0...42, step: 7)
             } header: {
                 Text("Timing")
+                    .info(PlanEditorInfo.timing.title, PlanEditorInfo.timing.text)
             } footer: {
                 Text("A change is only proposed after two check-ins in a row outside your range, when you logged most days – and you always decide.")
             }
@@ -211,7 +219,10 @@ struct PlanEditorProteinView: View {
     var body: some View {
         Form {
             Section {
-                Stepper(minimumTitle, value: $protein.mealMin, in: 0...100, step: 5)
+                Stepper(value: $protein.mealMin, in: 0...100, step: 5) {
+                    Text(minimumTitle)
+                        .info(PlanEditorInfo.protein.title, PlanEditorInfo.protein.text)
+                }
                 Stepper(maximumTitle, value: $protein.mealMax, in: 0...150, step: 5)
                 Stepper(countTitle, value: $protein.count, in: 0...8)
             } footer: {
@@ -292,6 +303,9 @@ struct PlanEditorLongTermView: View {
                 PlanEditorAmountRow(title: "Weight", value: $goal.weightKg, unit: "kg", decimals: 1)
                 PlanEditorAmountRow(title: "Body fat", value: $goal.bodyFat, unit: "%", decimals: 1)
                 PlanEditorAmountRow(title: "Waist", value: $goal.waistCm, unit: "cm", decimals: 1)
+            } header: {
+                Text("Your Goal")
+                    .info(PlanEditorInfo.longTerm.title, PlanEditorInfo.longTerm.text)
             } footer: {
                 Text("0 = no goal for that number. This is separate from the target weight of your current phase.")
             }

@@ -153,9 +153,20 @@ struct PhaseSheet: View {
                 Button("Calculate", systemImage: "function", action: calculate)
             }
         } header: {
-            Text("Targets")
+            targetsHeader
         } footer: {
             Text(targetsFooter)
+        }
+    }
+
+    /// "Targets", with an ⓘ on Calculate while it is offered.
+    @ViewBuilder
+    private var targetsHeader: some View {
+        if isDone {
+            Text("Targets")
+        } else {
+            Text("Targets")
+                .info(PhaseSheetInfo.calculate.title, PhaseSheetInfo.calculate.text)
         }
     }
 
@@ -496,6 +507,7 @@ private struct PhaseSheetRate: View {
             }
         } header: {
             Text(draft.goal == .lose ? "Loss per week" : "Gain per week")
+                .info(PhaseSheetInfo.rate.title, PhaseSheetInfo.rate.text)
         } footer: {
             Text(footer)
         }
@@ -713,15 +725,14 @@ private struct PhaseSheetGoals: View {
                 PhaseSheetNumberField(title: "Target weight", text: $targetWeight, unit: "kg")
                 PhaseSheetNumberField(title: "Target body fat", text: $targetFat, unit: "%")
                 if draft.goal != .maintain {
-                    Toggle("Review checkpoint", isOn: $reviewOn)
+                    Toggle(isOn: $reviewOn) {
+                        Text("Review checkpoint")
+                            .info(PhaseSheetInfo.review.title, PhaseSheetInfo.review.text)
+                    }
                     if reviewOn {
                         PhaseSheetNumberField(title: "Review from", text: $reviewMin, unit: "kg")
                         PhaseSheetNumberField(title: "Review to", text: $reviewMax, unit: "kg")
                     }
-                }
-                if draft.goal == .gain {
-                    Stepper(waistTitle, value: $draft.maxWaistGainCm, in: 0...10, step: 0.5)
-                    PhaseSheetNumberField(title: "Body-fat ceiling", text: $bodyFatCeiling, unit: "%")
                 }
             }
             .disabled(isDone)
@@ -730,11 +741,30 @@ private struct PhaseSheetGoals: View {
         } footer: {
             Text(goalsFooter)
         }
+        if draft.goal == .gain {
+            limitsSection
+        }
         Section {
             TextField("Note", text: $draft.note, axis: .vertical)
                 .lineLimit(2...6)
         } header: {
             Text("Note")
+        }
+    }
+
+    /// A gain phase's ceilings: the waist check and the body-fat ceiling (`BodyCeiling`).
+    private var limitsSection: some View {
+        Section {
+            Group {
+                Stepper(waistTitle, value: $draft.maxWaistGainCm, in: 0...10, step: 0.5)
+                PhaseSheetNumberField(title: "Body-fat ceiling", text: $bodyFatCeiling, unit: "%")
+            }
+            .disabled(isDone)
+        } header: {
+            Text("Review limits")
+                .info(PhaseSheetInfo.limits.title, PhaseSheetInfo.limits.text)
+        } footer: {
+            Text("The review also opens when your waist grows that much since the start, or once your tracked body fat reaches the ceiling (empty = off, at most 60 %).")
         }
     }
 
@@ -747,10 +777,6 @@ private struct PhaseSheetGoals: View {
         var text = "All optional."
         if draft.goal != .maintain {
             text += " When your 7-day average reaches the review weight, Nina asks you to look back and decide how to go on."
-        }
-        if draft.goal == .gain {
-            text += " The waist check opens the same review when your waist grows that much since the start."
-            text += " So does the body-fat ceiling (empty = off, at most 60 %) once your tracked body fat reaches it."
         }
         return text
     }
@@ -987,16 +1013,34 @@ struct PhaseReviewSheet: View {
             laterButton(facts)
         } header: {
             Text("Your choice")
+                .info(runningInfo(facts).title, runningInfo(facts).text)
         } footer: {
             Text("Each choice saves right away and can be undone from the message that follows.")
         }
     }
 
-    /// "1 week / 2 weeks at maintenance first" before a loss phase, after a long gain phase.
+    /// What the choices of a running phase do, and when Decide Later asks again (the review card
+    /// after 7 days, the end card tomorrow: `CoachBoard.isDismissed`).
+    private func runningInfo(_ facts: PhaseReviewFacts) -> PhaseSheetInfo.Item {
+        let later: String?
+        switch facts.mode {
+        case .review: later = facts.cardKey == nil ? nil : "in \(CoachBoard.reviewSnoozeDays) days"
+        case .end: later = facts.cardKey == nil ? nil : "tomorrow"
+        default: later = nil
+        }
+        return PhaseSheetInfo.choices(keepEndsDate: facts.mode == .end, showsKeep: facts.mode != .open,
+                                      hasNext: facts.next != nil, laterText: later)
+    }
+
+    /// "1 week / 2 weeks at maintenance first" before a loss phase, after a long gain phase; the ⓘ
+    /// sits next to the first one (not inside the choice's button).
     @ViewBuilder
     private func bridgeChoices(_ next: CoachPlan.Phase, facts: PhaseReviewFacts) -> some View {
-        PhaseReviewChoice(title: "1 week at maintenance first", detail: bridgeDetail(next, days: 7),
-                          symbol: "arrow.right.to.line") { bridge(next, days: 7, facts: facts) }
+        HStack(spacing: 8) {
+            PhaseReviewChoice(title: "1 week at maintenance first", detail: bridgeDetail(next, days: 7),
+                              symbol: "arrow.right.to.line") { bridge(next, days: 7, facts: facts) }
+            InfoButton(PhaseSheetInfo.bridge.title, PhaseSheetInfo.bridge.text)
+        }
         PhaseReviewChoice(title: "2 weeks at maintenance first", detail: bridgeDetail(next, days: 14),
                           symbol: "arrow.right.to.line") { bridge(next, days: 14, facts: facts) }
     }
@@ -1021,6 +1065,7 @@ struct PhaseReviewSheet: View {
             laterButton(facts)
         } header: {
             Text("Your choice")
+                .info(PhaseSheetInfo.start.title, PhaseSheetInfo.start.text)
         } footer: {
             Text(facts.active == nil ? "Nothing changes until you tap." : "Until you tap, the running phase keeps its targets.")
         }
