@@ -1,0 +1,3 @@
+run 22 (push) commit 7ba02f864dd8285c025f63847db3759c58e77d2b
+prune=success schema=success upload=success build=22
+details: https://github.com/Binisoft-at/nina/actions/runs/45259570152

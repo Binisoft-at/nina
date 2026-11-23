@@ -1,0 +1,1 @@
+ok: Nina.app has every entitlement from Config/macOS/Nina.entitlements
