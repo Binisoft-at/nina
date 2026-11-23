@@ -36,7 +36,7 @@ private struct WatchDayView: View {
         let eaten = NutrientValues.sum(entries.filter(\.isEaten).map(\.values))
         let remaining = targets.energy - eaten.energy
         let waterTotal = water.map(\.amount).reduce(0, +)
-        let planned = entries.filter(\.isPlanned)
+        let planned = WatchPlannedMeal.meals(entries.filter(\.isPlanned), settings: settings)
         List {
             Section {
                 summary(targets: targets, eaten: eaten, remaining: remaining)
@@ -73,21 +73,9 @@ private struct WatchDayView: View {
 
             if !planned.isEmpty {
                 Section("Planned") {
-                    ForEach(planned) { entry in
-                        Button {
-                            model.store.confirm([entry])
-                            WKHaptics.success()
-                        } label: {
-                            HStack {
-                                Image(systemName: "circle")
-                                    .foregroundStyle(Color.accentColor)
-                                VStack(alignment: .leading) {
-                                    Text(entry.displayName).lineLimit(1)
-                                    Text("\(settings.meal(entry.meal).name) · \(Fmt.time(entry.time))")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                    ForEach(planned) { meal in
+                        WatchPlannedRow(meal: meal, unit: settings.energyUnit) {
+                            model.confirm(meal.entries)
                         }
                     }
                 }
@@ -112,7 +100,7 @@ private struct WatchDayView: View {
                         }
                         .swipeActions {
                             Button(role: .destructive) {
-                                model.store.trash([entry])
+                                model.delete(entry)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -152,10 +140,16 @@ private struct WatchDayView: View {
             if let coach {
                 WatchCoachSummary(coach: coach, remaining: remaining, route: $route)
             }
+            // The Undo of the last write – food, water or coach – with or without a plan.
+            if let undo = model.undo {
+                WatchUndoBar(undo: undo)
+                    .transition(.opacity)
+            }
             ForEach(settings.focus.prefix(3), id: \.self) { nutrient in
                 WatchBar(nutrient: nutrient, value: eaten.value(nutrient), target: targets.target(for: nutrient) ?? 0)
             }
         }
+        .animation(.default, value: model.undo?.id)
     }
 
     @ViewBuilder
@@ -180,6 +174,58 @@ private struct WatchDayView: View {
             coach = WatchCoachData.load(store: model.store, day: day)
             try? await Task.sleep(for: .seconds(300))
         }
+    }
+}
+
+/// A meal's planned foods as one row, confirmed in one tap (like the phone's "Eaten" on a meal).
+struct WatchPlannedMeal: Identifiable {
+    let id: String
+    let slotName: String
+    let entries: [LogEntry]
+    let time: Date
+
+    var names: String { entries.map(\.displayName).joined(separator: ", ") }
+    var energy: Double { entries.map(\.energy).reduce(0, +) }
+
+    /// One per meal, earliest first.
+    static func meals(_ planned: [LogEntry], settings: NinaSettings) -> [WatchPlannedMeal] {
+        let byMeal = Dictionary(grouping: planned) { (entry: LogEntry) -> String in entry.meal }
+        let meals: [WatchPlannedMeal] = byMeal.map { (pair: (key: String, value: [LogEntry])) -> WatchPlannedMeal in
+            let sorted = pair.value.sorted { $0.time < $1.time }
+            return WatchPlannedMeal(id: pair.key, slotName: settings.meal(pair.key).name, entries: sorted,
+                                    time: sorted.first?.time ?? Date())
+        }
+        return meals.sorted { $0.time < $1.time }
+    }
+}
+
+/// "Chicken, Rice, Salad" over "Lunch · 650 kcal · 12:30"; a tap marks them eaten (Undo on the
+/// home screen).
+private struct WatchPlannedRow: View {
+    let meal: WatchPlannedMeal
+    let unit: EnergyUnit
+    let confirm: () -> Void
+
+    var body: some View {
+        Button(action: confirm) {
+            HStack {
+                Image(systemName: "circle")
+                    .foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading) {
+                    Text(meal.names).lineLimit(1)
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .accessibilityLabel("\(meal.slotName) planned: \(meal.names), \(Fmt.energy(meal.energy, unit: unit))")
+        .accessibilityHint("Marks it as eaten")
+    }
+
+    private var detail: String {
+        "\(meal.slotName) · \(Fmt.energy(meal.energy, unit: unit)) · \(Fmt.time(meal.time))"
     }
 }
 

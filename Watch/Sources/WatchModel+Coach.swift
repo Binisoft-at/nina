@@ -39,6 +39,12 @@ struct WatchCoachData {
     let weightReference: Double?
     /// The tape records, for each site's last reading.
     let tapeRecords: [BodyTapeRecord]
+    /// Fewer than `healthHintBelow` morning weigh-ins typed in Nina in the last 7 days: the status
+    /// line says the scale's weigh-ins from Apple Health count on the iPhone (they never reach the
+    /// watch, so its numbers can differ).
+    let showsHealthHint: Bool
+
+    static let healthHintBelow = 4
 
     @MainActor
     static func load(store: NinaStore, day: DayKey, now: Date = Date()) -> WatchCoachData? {
@@ -52,19 +58,20 @@ struct WatchCoachData {
         let board = store.coachBoard(for: day, settings: settings, signal: signal, now: now)
         let summary = signal.summary(on: today, plan: plan)
         let latest = store.weights().max { $0.time < $1.time }?.kilograms
+        let mornings = signal.morningCount(from: today.adding(days: -6, calendar: calendar), through: today)
         return WatchCoachData(
             day: day, plan: plan, chip: board.chip, pills: WatchCoach.pills(board.strip),
             status: WatchCoach.status(summary: summary, plan: plan, checkIns: store.checkIns()),
             latestWeight: latest, startWeight: WatchCoach.startWeight(latest: latest, bodyWeight: settings.bodyWeightKg),
             weightReference: signal.average(on: today).value ?? signal.trend(on: today),
-            tapeRecords: store.tapeRecords())
+            tapeRecords: store.tapeRecords(), showsHealthHint: mornings < healthHintBelow)
     }
 }
 
 extension WatchModel {
     // MARK: Undo
 
-    /// Shows a short Undo on the home screen; it goes after `seconds` or the next coach write.
+    /// Shows a short Undo on the home screen; it goes after `seconds` or the next write.
     func offerUndo(_ message: String, symbol: String, seconds: Double = 8, action: @escaping @MainActor () -> Void) {
         let offer = WatchUndo(message: message, symbol: symbol, action: action)
         undo = offer

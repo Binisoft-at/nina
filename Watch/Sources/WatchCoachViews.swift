@@ -12,13 +12,12 @@ enum WatchNumber {
     }
 }
 
-/// Under the ring: the chip, the checks row, the status line and the Undo of the last write.
+/// Under the ring: the chip, the checks row and the status line (the Undo of the last write sits
+/// under it on the home screen, with or without a plan).
 struct WatchCoachSummary: View {
     let coach: WatchCoachData
     let remaining: Double
     @Binding var route: WatchCoachRoute?
-
-    @Environment(WatchModel.self) private var model
 
     var body: some View {
         VStack(spacing: 4) {
@@ -29,14 +28,9 @@ struct WatchCoachSummary: View {
                 WatchCoachPills(coach: coach, route: $route)
             }
             if let status = coach.status {
-                WatchCoachStatusLine(status: status)
-            }
-            if let undo = model.undo {
-                WatchUndoBar(undo: undo)
-                    .transition(.opacity)
+                WatchCoachStatusLine(status: status, showsHealthHint: coach.showsHealthHint)
             }
         }
-        .animation(.default, value: model.undo?.id)
     }
 }
 
@@ -196,9 +190,12 @@ private struct WatchCoachPill: View {
 }
 
 /// The status of the active phase in the phone's words, coloured like the phone, with the 7-day
-/// average and the rate under it: "Slower than planned" / "avg 74.6 · +0.15/wk".
+/// average and the rate under it: "Slower than planned" / "avg 74.6 · +0.15/wk". With few weigh-ins
+/// typed in Nina, a note that the scale's weigh-ins from Apple Health count on the iPhone (the
+/// watch reads nothing from Health).
 private struct WatchCoachStatusLine: View {
     let status: WatchCoach.Status
+    let showsHealthHint: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -206,17 +203,50 @@ private struct WatchCoachStatusLine: View {
                 Text(word)
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            let numbers = status.numbersText(number: WatchNumber.fixed)
-            if !numbers.isEmpty {
-                Text(numbers)
-                    .font(.caption2.monospacedDigit())
+            numbers
+            if showsHealthHint {
+                Text("Weigh-ins from Apple Health count on your iPhone")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
             }
         }
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var numbers: some View {
+        let text = status.numbersText(number: WatchNumber.fixed)
+        if !text.isEmpty {
+            Text(text)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityLabel(spokenNumbers)
+        }
+    }
+
+    /// "7-day average 74.6 kilograms, gaining 0.15 kilograms a week" – not "slash w k".
+    private var spokenNumbers: String {
+        var parts: [String] = []
+        if let average = status.average {
+            parts.append("7-day average \(WatchNumber.fixed(average, 1)) kilograms")
+        }
+        if let rate = status.rate {
+            let amount = "\(WatchNumber.fixed(abs(rate), 2)) kilograms a week"
+            if abs(rate) < 0.005 {
+                parts.append("steady")
+            } else {
+                parts.append(rate > 0 ? "gaining \(amount)" : "losing \(amount)")
+            }
+        }
+        return parts.joined(separator: ", ")
     }
 
     private var color: Color {
@@ -229,8 +259,8 @@ private struct WatchCoachStatusLine: View {
     }
 }
 
-/// "Creatine done · Undo" for a few seconds after a coach write.
-private struct WatchUndoBar: View {
+/// "Creatine done · Undo" or "Added Skyr · 180 kcal · Undo" for a few seconds after a write.
+struct WatchUndoBar: View {
     let undo: WatchUndo
 
     @Environment(WatchModel.self) private var model
