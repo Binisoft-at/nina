@@ -168,6 +168,8 @@ public struct SettingsPlanDraft: Equatable, Sendable {
         public var typeOrder: [String] = []
         /// The first key written for each day type (for messages).
         var typeKeys: [String: String] = [:]
+        /// `phase.N.remove,yes`: delete the phase (also one that has started).
+        public var remove = false
 
         public init(id: String) { self.id = id }
 
@@ -365,6 +367,7 @@ extension SettingsCSV {
         ("max_waist_gain_cm", ["max_waist_gain", "waist_limit_cm"]),
         ("body_fat_ceiling_percent", ["body_fat_ceiling", "max_body_fat_percent", "max_body_fat", "body_fat_limit_percent"]),
         ("note", ["notes", "notiz"]),
+        ("remove", ["delete", "removed", "loschen", "entfernen"]),
     ] + targetFieldList)
 
     static let dayTypeFields = aliasMap([
@@ -615,6 +618,9 @@ extension SettingsCSV {
             case "body_fat_ceiling_percent":
                 guard let fat = planNumber(value, 0...60), fat == 0 || fat >= 3 else { return invalid + " (3–60 %, 0 = off)" }
                 draft.plan.withPhase(id) { $0.bodyFatCeiling = fat }
+            case "remove":
+                guard let flag = yesNo(value) else { return invalid + " (yes to delete the phase)" }
+                draft.plan.withPhase(id) { $0.remove = flag }
             default: // note
                 draft.plan.withPhase(id) { $0.note = text }
             }
@@ -1183,12 +1189,24 @@ extension SettingsCSV {
             }
         }
 
-        // Phases (the group replaces all phases; a phase that was there keeps its history).
+        // Phases (the group replaces all phases; a phase that was there keeps its history). A phase
+        // that has started and isn't in the file stays as it is, unless the file removes it
+        // (phase.N.remove,yes); a file with only removals leaves the other phases alone.
         let flatChanged = input.flatNew != input.flatOld
         var filePhases = Set<String>()
-        if let phaseRows = rows.phases {
+        if let allRows = rows.phases {
+            let removed = Set(allRows.filter(\.remove).map(\.id))
+            let phaseRows = allRows.filter { !$0.remove }
             filePhases = Set(phaseRows.map(\.id))
-            plan.phases = phases(phaseRows, draft: draft, input: input, plan: plan, typeIDs: typeIDs, state: state, notes: &notes)
+            if phaseRows.isEmpty {
+                plan.phases = plan.phases.filter { !removed.contains($0.id) }
+            } else {
+                let kept = (oldPlan?.phases ?? []).filter { $0.isStarted && !filePhases.contains($0.id) && !removed.contains($0.id) }
+                for phase in kept {
+                    notes.append("phase.\(phase.id) (\(phase.name)) isn't in the file – kept because it has history. Write phase.\(phase.id).remove,yes to delete it.")
+                }
+                plan.phases = phases(phaseRows, kept: kept, draft: draft, input: input, plan: plan, typeIDs: typeIDs, state: state, notes: &notes)
+            }
         }
 
         // Flat goal, rate, target weight and targets go to the active phase when the file doesn't
@@ -1261,9 +1279,10 @@ extension SettingsCSV {
     }
 
     /// The phases of the file, matched by id with the ones there were (start confirmation, start
-    /// weight and revisions are kept), with statuses, trimmed overlaps and their targets.
-    static func phases(_ rows: [SettingsPlanDraft.Phase], draft: SettingsDraft, input: PlanInput, plan: CoachPlan, typeIDs: Set<String>,
-                       state: SettingsState, notes: inout [String]) -> [CoachPlan.Phase] {
+    /// weight and revisions are kept), plus the started phases the file leaves out (`kept`, as they
+    /// were), with statuses, trimmed overlaps and their targets.
+    static func phases(_ rows: [SettingsPlanDraft.Phase], kept: [CoachPlan.Phase] = [], draft: SettingsDraft, input: PlanInput, plan: CoachPlan,
+                       typeIDs: Set<String>, state: SettingsState, notes: inout [String]) -> [CoachPlan.Phase] {
         let today = input.today
         let calendar = input.calendar
         let oldPlan = input.oldPlan
@@ -1291,6 +1310,9 @@ extension SettingsCSV {
             }
             return phase
         }
+        // Started phases the file leaves out come along unchanged (after the file's, so the rows
+        // below line up with `rows`).
+        built += kept
 
         // Overlapping dates are trimmed; of the running phases the one that started last is active.
         let order = built.indices.filter { built[$0].start != nil }.sorted { built[$0].start! < built[$1].start! }
@@ -1321,7 +1343,7 @@ extension SettingsCSV {
 
         // The rest of each phase: rows, then (for the active phase) the flat rows, then defaults.
         let flatChanged = input.flatNew != input.flatOld
-        for index in built.indices {
+        for index in rows.indices {
             let row = rows[index]
             let isActive = built[index].id == activeID
             let goal = row.goal ?? (isActive ? draft.goal : nil) ?? .maintain
@@ -1400,7 +1422,16 @@ extension SettingsCSV {
                   let start = built[index].start, start < today else { continue }
             keepPastTargets(of: &built[index], from: start, input: input, typeIDs: typeIDs)
         }
-        return built
+        guard !kept.isEmpty else { return built }
+        // With kept phases: in date order (phases without a start last), so lists read naturally.
+        return built.enumerated().sorted { lhs, rhs in
+            switch (lhs.element.start, rhs.element.start) {
+            case let (a?, b?) where a != b: return a < b
+            case (_?, nil): return true
+            case (nil, _?): return false
+            default: return lhs.offset < rhs.offset
+            }
+        }.map(\.element)
     }
 
     /// The reason of the revisions that keep the targets days had before an import confirmed a
@@ -1835,6 +1866,7 @@ extension SettingsCSV {
         Key(name: "phase.N.ID.calories", meaning: "Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml)", example: "2600", aliases: []),
         Key(name: "phase.N.ID.macros_g", meaning: "Protein/carbs/fat in grams on that day type", example: "160/328/72", aliases: []),
         Key(name: "phase.N.note", meaning: "A note about the phase", example: "", aliases: []),
+        Key(name: "phase.N.remove", meaning: "yes deletes the phase. A phase that has started stays (with its history) when the file leaves it out – only this row deletes it", example: "", aliases: []),
         Key(name: "check.ID.name", meaning: "A daily check my plan names (a supplement). ID like creatine", example: "Creatine monohydrate", aliases: []),
         Key(name: "check.ID.emoji", meaning: "One emoji (optional)", example: "", aliases: []),
         Key(name: "check.ID.dose", meaning: "The dose as written in my plan", example: "3-5 g", aliases: []),
@@ -1868,7 +1900,7 @@ extension SettingsCSV {
         "- Supplements my plan names → check.ID.* (only what my plan says; never add one).",
         "- Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.",
         "- Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.",
-        "- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.",
+        "- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes. A phase that has already started stays even when you leave it out; to delete one, write phase.N.remove,yes.",
     ]
 
     /// A made-up example of a coach plan (no real person's numbers).

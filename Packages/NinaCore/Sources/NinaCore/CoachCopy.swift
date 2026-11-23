@@ -112,6 +112,7 @@ public enum CoachCopy {
         if !current.isEmpty {
             lines.append("")
             lines.append("## My current settings in \(input.appName)")
+            lines.append(SettingsCSV.currentSettingsNote)
             lines.append("```csv")
             lines.append(current)
             lines.append("```")
@@ -438,7 +439,8 @@ public enum CoachCopy {
     static func answerRules() -> [String] {
         var lines = ["## How to answer"]
         lines.append("\(closingLine). The first line is exactly setting,value. Leave out every setting that stays the same. "
-                     + "A group you write (all day_type.*, phase.N.* or check.* rows) replaces that whole group, so write all its rows again.")
+                     + "A group you write (all day_type.*, phase.N.* or check.* rows) replaces that whole group, so write all its rows again. "
+                     + "A phase that has started stays even when you leave it out; phase.N.remove,yes deletes one.")
         lines.append("")
         lines.append("| setting | value |")
         lines.append("|---|---|")

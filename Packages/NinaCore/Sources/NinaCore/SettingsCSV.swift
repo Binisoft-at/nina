@@ -307,18 +307,43 @@ public enum SettingsCSV {
         return ["setting", "settings", "einstellung", "option", "key_setting"].contains(ImportColumns.normalize(first))
     }
 
+    /// Rows without a header line that are settings: at least 60 % of their first cells are
+    /// settings or plan keys ("goal,lose", "phase.1.rest.calories,2300").
+    public static func looksLikeSettings(_ lines: [String]) -> Bool {
+        let rows = lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        func isKnown(_ line: String) -> Bool {
+            guard line.contains(where: { $0 == "," || $0 == ";" || $0 == "\t" }) else { return false }
+            let cell = line.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "\t" }).first.map(String.init) ?? ""
+            let key = ImportColumns.normalize(cell)
+            if canonical[key] != nil || unitKey(key) != nil { return true }
+            if let row = planRow(key), row != .unknown { return true }
+            return false
+        }
+        guard let first = rows.first, isKnown(first) else { return false }
+        return Double(rows.filter(isKnown).count) >= Double(rows.count) * 0.6
+    }
+
     // MARK: Reading
 
+    /// Reads `setting,value` rows (the header line is optional). With more columns (a comment or
+    /// reason column), only the one named value is read.
     public static func parse(_ text: String) -> SettingsDraft {
         var draft = SettingsDraft()
         let firstLine = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
         let delimiter: Character = firstLine.contains("\t") ? "\t" : (firstLine.contains(",") ? "," : (firstLine.contains(";") ? ";" : ","))
         var rows = CSV.parse(text, delimiter: delimiter)
-        if let header = rows.first, isHeader(header) { rows.removeFirst() }
+        var valueColumn: Int?
+        if let header = rows.first, isHeader(header) {
+            rows.removeFirst()
+            if header.count > 2 {
+                valueColumn = header.firstIndex { ["value", "values", "wert", "werte"].contains(ImportColumns.normalize($0)) }
+            }
+        }
         for row in rows {
             guard let rawKey = row.first?.trimmingCharacters(in: .whitespaces), !rawKey.isEmpty else { continue }
             // A value with the delimiter in it that wasn't quoted: join the rest back together.
-            let value = row.dropFirst().joined(separator: String(delimiter)).trimmingCharacters(in: .whitespaces)
+            let value = valueColumn.map { $0 < row.count ? row[$0].trimmingCharacters(in: .whitespaces) : "" }
+                ?? row.dropFirst().joined(separator: String(delimiter)).trimmingCharacters(in: .whitespaces)
             let normalized = ImportColumns.normalize(rawKey)
             let planKey = SettingsCSV.planRow(normalized)
             if let key = canonical[normalized] ?? (planKey == nil ? unitKey(normalized) : nil) {
@@ -634,6 +659,16 @@ public enum SettingsCSV {
         let bodyGiven = draft.sex != nil || draft.birthYear != nil || draft.age != nil || draft.heightCm != nil || draft.weightKg != nil
             || draft.activity != nil || draft.goal != nil || draft.ratePerWeek != nil || draft.macroSplit != nil || draft.macroPercent != nil
         let canCalculate = state.birthYear > 0 && state.heightCm > 0 && state.weightKg > 0
+        // A whole settings file copied back with a new goal, pace or body value: the calories and
+        // grams it repeats are the old calculation, not fixed numbers – they are calculated again.
+        var draft = draft
+        let echoed = bodyGiven && canCalculate && repeatsTargets(draft, flatOld) && bodyInputsChanged(draft, state: state, current: current, today: today)
+        if echoed {
+            draft.calories = nil
+            draft.protein = nil
+            draft.carbs = nil
+            draft.fat = nil
+        }
         var targets = flatOld
         if bodyGiven {
             if canCalculate {
@@ -643,6 +678,10 @@ public enum SettingsCSV {
             } else if draft.calories == nil {
                 notes.append("Calories not calculated: Nina needs birth year (or age), height and weight for that.")
             }
+        }
+        if echoed, targets.energy != flatOld.energy {
+            let old = grouped(flatOld.energy), new = grouped(targets.energy)
+            notes.append("Calories recalculated for your new numbers (\(old) → \(new) kcal) – the file repeated your current calories and grams. To keep \(old) kcal, import calories on its own.")
         }
         let percent: (Double, Double, Double)? = draft.macroPercent.map { ($0.protein, $0.carbs, $0.fat) }
             ?? draft.macroSplit.map { ($0.protein, $0.carbs, $0.fat) }
@@ -757,6 +796,22 @@ public enum SettingsCSV {
     }
 
     static func kg(_ value: Double) -> String { NumberText.plain(value, decimals: 1) + " kg" }
+
+    /// The file's calories (and the grams it has) are the current targets, as the export writes them.
+    static func repeatsTargets(_ draft: SettingsDraft, _ targets: DailyTargets) -> Bool {
+        func same(_ value: Double?, _ target: Double) -> Bool { value.map { abs($0 - target) < 0.5 } ?? true }
+        guard let calories = draft.calories, abs(calories - targets.energy) < 0.5 else { return false }
+        return same(draft.protein, targets.protein) && same(draft.carbs, targets.carbs) && same(draft.fat, targets.fat)
+    }
+
+    /// Something the calorie calculation uses changed: goal, pace, sex, birth year, height,
+    /// activity or weight.
+    static func bodyInputsChanged(_ draft: SettingsDraft, state: SettingsState, current: SettingsState, today: DayKey) -> Bool {
+        if let goal = draft.goal, goal != current.goal { return true }
+        if let range = draft.rateRange, range != flatRate(current, today: today) { return true }
+        return state.sex != current.sex || state.birthYear != current.birthYear || abs(state.heightCm - current.heightCm) >= 0.05
+            || state.activity != current.activity || abs(state.weightKg - current.weightKg) >= 0.05
+    }
 
     /// Every setting that differs, in plain words and by group. With an active phase its goal, rate
     /// and target weight are listed under Phases; the flat targets are the active phase's baseline.
@@ -895,6 +950,7 @@ public enum SettingsCSV {
         if let current, !current.isEmpty {
             lines.append("")
             lines.append("## My current settings in \(appName) (change only what my notes say)")
+            lines.append(currentSettingsNote)
             lines.append("```csv")
             lines.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
             lines.append("```")
@@ -904,6 +960,9 @@ public enum SettingsCSV {
         lines.append("(I paste or describe them below.)")
         return lines.joined(separator: "\n")
     }
+
+    /// Above the current settings in every prompt: the numbers in them aren't fixed ones.
+    static let currentSettingsNote = "Write only the rows that change. Don't copy the calories and grams below into your answer unless I give new fixed numbers – Nina calculates them again from my body data and goal."
 
     static let settingsRules: [String] = [
         "- One row per setting. Leave out every setting my notes don't say anything about – only the rows in the file change.",
