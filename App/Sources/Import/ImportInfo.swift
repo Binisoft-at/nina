@@ -7,8 +7,9 @@ enum ImportInfo {
     // MARK: Prompts and formats
 
     static let setupTitle = "Setup prompt"
-    static let setup = "One prompt that has any AI write your goals & plan, foods, meals & recipes and (if you give them) "
-        + "past weigh-ins in one answer. Paste the whole answer under Import – a preview shows everything first."
+    static let setup = "One prompt for any AI: it writes your goals & plan, foods, meals & recipes and, if you give them, "
+        + "past weigh-ins and measurements in one answer. It carries your current settings and the names of your foods "
+        + "and recipes, so the AI changes only what you tell it."
 
     /// What to give the AI for each format, and what importing it does.
     static func format(_ kind: ImportKind) -> String {
@@ -23,8 +24,8 @@ enum ImportInfo {
             "Give the AI another app's export or notes of what you ate. Rows without calories are looked up by name; "
                 + "ones Nina can't find are skipped."
         case .recipes:
-            "Give the AI your dishes with their ingredients and amounts. One with an ingredient Nina can't find isn't "
-                + "saved, so its calories are never too low."
+            "Give the AI your dishes with their ingredients and amounts. Ingredients without calories are looked up by "
+                + "name; a dish with one Nina can't find isn't saved, so its calories are never too low."
         case .measurements:
             "Give the AI an old spreadsheet, another app's export or a DEXA, InBody or 3D-scan report – a photo works. "
                 + "Values Nina already has are skipped, so importing twice adds nothing."
@@ -46,16 +47,16 @@ enum ImportInfo {
     /// The preview of a foods, diary, meals & recipes or weight & body file.
     static func preview(_ kind: ImportKind) -> String {
         if kind == .measurements {
-            return "Each line is something Import adds: a weigh-in, a tape session or a body-fat value. Values Nina "
-                + "already has are skipped; orange lines can't be read and are left out."
+            return "Each line is a weigh-in, a tape session or a body-fat value that Import adds; values Nina already "
+                + "has are skipped. Orange text says what can't be used as written and what happens to it."
         }
         return "Each line says what Import does: new adds it, update changes only what the file changed, same leaves "
-            + "it. Orange lines can't be used as written and are left out."
+            + "it. Orange text says what can't be used as written and what happens to it."
     }
 
-    static let settingsPreview = "Each line shows old → new, grouped like your plan; only what is listed changes. Orange "
-        + "notes at the top are worth a look first: rows Nina couldn't use, or things to check, like macros that don't "
-        + "match the calories."
+    static let settingsPreview = "Each line shows old → new, grouped like your plan; only what is listed changes, and an "
+        + "orange “removed” means the file no longer has that item. Read the orange notes at the top first: rows Nina "
+        + "couldn't use, or things to check."
 
     static let bodyValuesTitle = "Body values"
     static let bodyValues = "Saved as today's measurements, so your next ones show the change since then. Switch off any "
@@ -71,13 +72,14 @@ enum ImportInfo {
 
     // MARK: Backup and export
 
-    static let backupTitle = "Back Up & Restore"
-    static let backup = "Back Up Everything saves all your Nina data in one folder you keep – a deletion synced through "
-        + "iCloud can't reach it. Restore from Backup adds only what is missing; your records stay as they are."
+    static let backupTitle = "Back up & restore"
+    static let backup = "Back Up Everything saves all your Nina data – also what the CSV exports leave out – in one folder "
+        + "you keep, where a deletion synced through iCloud can't reach it. Restore from Backup adds only what is missing."
 
     static let restoreTitle = "Restore"
-    static let restore = "Only what Nina doesn't have yet is added. Anything already here stays as it is, even if it "
-        + "changed since – so an older backup never overwrites newer data."
+    static let restore = "Only what Nina doesn't have is added; anything already here stays as it is, even if it changed "
+        + "since, so an older backup never overwrites newer data. Things in Recently Deleted count as here – bring them "
+        + "back from there."
 
     static let autoBackupTitle = "Automatic backup"
 
@@ -89,11 +91,12 @@ enum ImportInfo {
         #else
         let place = "in Files → \(ImportAutoBackup.ownFolderTitle)"
         #endif
-        return "When this is on, Nina saves a full backup once a week by itself and keeps the last 4 – \(place). "
-            + "Choose Folder… puts them in iCloud Drive or any folder you like."
+        return "When this is on, Nina saves a full backup once a week by itself and keeps the last "
+            + "\(BackupSchedule.keep) – \(place). Choose Folder… puts them in iCloud Drive or any folder you like."
     }
 
     static let exportTitle = "CSV export"
     static let export = "One file per format, to edit in Numbers or Excel and import again, or to hand to an AI. Photos, "
-        + "water, check-ins and routines aren't in them – Back Up Everything keeps everything."
+        + "water, routines, check-ins and the day types and checks of your days aren't in them – Back Up Everything "
+        + "keeps everything."
 }

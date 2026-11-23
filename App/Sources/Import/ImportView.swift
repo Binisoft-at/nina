@@ -263,13 +263,12 @@ struct ImportView: View {
         }
     }
 
-    /// Import (All), with the ⓘ about Undo next to it (not inside the button).
+    /// Import (All), with the ⓘ about Undo right beside it (not inside the button).
     private var importButtonRow: some View {
         HStack {
             Button(previews.count > 1 ? "Import All" : "Import") { apply() }
                 .primaryActionStyle()
                 .disabled(!previews.contains { $0.hasChanges(excluding: untickedBody) })
-            Spacer()
             InfoButton(ImportInfo.undoTitle, ImportInfo.undo)
         }
     }
