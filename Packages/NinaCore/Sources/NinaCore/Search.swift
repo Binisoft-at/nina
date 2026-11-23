@@ -196,11 +196,15 @@ public struct FoodUsage: Equatable, Sendable {
     public var lastUsed: Date?
     /// The amount (base unit) logged most recently.
     public var lastAmount: Double
+    /// The same per meal id ("breakfast", "meal-1a2b3c4d"): the log sheet's Recent list puts the
+    /// foods mostly logged at the meal being logged first (`RecentFoods`).
+    public var meals: [String: FoodMealUse]
 
-    public init(count: Int = 0, lastUsed: Date? = nil, lastAmount: Double = 0) {
+    public init(count: Int = 0, lastUsed: Date? = nil, lastAmount: Double = 0, meals: [String: FoodMealUse] = [:]) {
         self.count = count
         self.lastUsed = lastUsed
         self.lastAmount = lastAmount
+        self.meals = meals
     }
 }
 
