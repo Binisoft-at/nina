@@ -57,6 +57,10 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
                        row = one moment), its AI prompt, re-import adds nothing
   ProgressPhotos       photo poses, the session order, image sizes, what Compare shows (the pair of
                        days, the days between, 7-day average weight and waist on each day)
+  PhotoLockGrace       when the photos lock again on the Mac (five minutes away, at once on
+                       leaving the Mac)
+  -- Mac --
+  MenuBarSummary       what the Mac's menu bar extra shows: calories left or over, protein, water
   -- Binisoft exchange --
   ExchangeFormat       Thalia's reference file, copied unchanged: format v1 types, tolerant reader,
                        dates without fractions, FNV-1a
@@ -88,7 +92,9 @@ Shared/                compiled into the app, the Mac app and the watch app
   UI/Rings, Format     ring, nutrient colours and locale-aware formatting (also in the widgets)
 App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tree)
   Root                 AppModel (state, actions with Undo toasts, coach actions, deep links),
-                       navigation, sheets, commands
+                       navigation, sheets, commands; MainWindow (the Mac's windows: bringing the
+                       main window forward, the Settings window); MenuBar (the Mac's menu bar
+                       extra: today's numbers, water, Log Food…, Weigh In…, its Settings switch)
   Today                the diary day: week strip, summary ring, meals, entries, water, editors
   Add                  search & quick add, portion picker, quick calories, barcode lookup
   Foods                library (group/sort/filter), detail with nutrition label, editor

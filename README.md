@@ -82,6 +82,37 @@ itself stays in your training app.
   and dictation, complications and widgets with the day type, coach reminders (weigh in right in
   the notification), Siri and Shortcuts ("Log food in Nina"), Mac menus and shortcuts, Liquid
   Glass, light and dark mode.
+- **On the Mac** – the same pages as on iPhone in the sidebar (Today, Foods, Meals & Recipes, Plan,
+  Nutrition, Body), every action in the menus with a shortcut, and Nina in the menu bar: calories
+  left, protein and water today, a glass of water, Log Food… and Weigh In… without switching apps.
+  [Mac menus and shortcuts](#on-the-mac).
+
+## On the Mac
+
+The sidebar has the iPhone's pages: **Today** (the diary, ⌘1), **Foods** (⌘2), **Meals & Recipes**
+(⌘3), **Plan** (⌘4), **Nutrition** (⌘5, on iPhone Progress → Nutrition), **Body** (⌘6, on iPhone
+Progress → Body), Search and Recently Deleted. Nina opens on the page you used last.
+
+- **File**: Log Food… ⌘N, Quick Calories… ⌥⌘N, Create… ⇧⌘N, New Food…, New Meal…, New Recipe…,
+  Add a Glass of Water ⌃⌘W, Log Weight…, Log Measurements… ⇧⌘M, Log Body Fat…, Add Progress
+  Photos…, Weekly Check-in…, Import & Export… ⇧⌘I, Back Up Nina… ⇧⌘B.
+- **Day** (while Today shows): Previous Day ⌘[, Next Day ⌘], Go to Today ⌘T, Nutrients of the Day
+  ⌘I, Day Type (your plan's first four day types ⌃⌘1–⌃⌘4, Back to Schedule).
+- **Go**: Today to Body ⌘1–⌘6, Search Everything ⇧⌘F, Goals & Plan… ⇧⌘G, My Plan….
+- **Window → Nina** ⌘0 brings the main window back, also after closing it. **Help → Nina Tour**.
+- Commands that open a sheet are off while one is open, so a shortcut never replaces a half-filled
+  editor. While the tour is open, they act on its practice day.
+- **Settings** (⌘,) has two tabs: General (Goals, meals, reminders, Thalia, appearance, menu bar,
+  iCloud & data, Import & Export) and My Plan.
+- **Menu bar**: the fork-and-knife icon with the calories left today next to it. Its menu shows
+  calories left (or over), protein and water against your targets, and has **Add a Glass of
+  Water**, **Log Food…**, **Weigh In…** and **Open Nina**. Log Food and Weigh In bring Nina's window
+  forward with the sheet; a sheet that is already open stays. Settings → Menu Bar turns it off, or
+  just the number next to the icon (this Mac only).
+- **Photo lock**: with Lock Photos on, a quick look at another app doesn't ask again – the photos
+  lock after five minutes away from Nina, and at once when the screen locks or the Mac sleeps.
+- Apple Health isn't on the Mac, so weight and activity from Health show on your iPhone; nothing
+  from Health goes into Nina's iCloud.
 
 ## Project layout
 

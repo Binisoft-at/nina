@@ -8,8 +8,8 @@ import NinaCore
 ///   sheets, the tour and the toasts show there, also after ⌘W or when it is minimized.
 /// - Commands that open a sheet are off while a sheet is up, so a shortcut never replaces a
 ///   half-filled editor. Adding water and the day types stay on (they don't open one).
-/// - Previous Day, Next Day and Day Type only work while the diary shows, so ⌘[ and ⌘] are Back
-///   and Forward everywhere else.
+/// - Previous Day, Next Day and Day Type only work while Today (the diary) shows, so ⌘[ and ⌘]
+///   are Back and Forward everywhere else.
 struct NinaCommands: Commands {
     let app: AppModel
 
@@ -104,7 +104,7 @@ private struct NinaFileCommands: View {
     }
 }
 
-/// Day: the diary's day and its type.
+/// Day: the day Today shows (the diary) and its type.
 private struct NinaDayCommands: View {
     let app: AppModel
 
@@ -132,7 +132,7 @@ private struct NinaDayCommands: View {
         .disabled(!inDiary)
     }
 
-    /// The diary is on screen (the tour's practice page is one).
+    /// Today (the diary) is on screen (the tour's practice page is one).
     static func diaryShows(_ app: AppModel) -> Bool {
         guard app.tourModel == nil else { return true }
         #if os(macOS)
@@ -149,12 +149,13 @@ private struct NinaGoCommands: View {
 
     var body: some View {
         let busy = app.commandTarget.sheet != nil
-        NinaCommandButton(title: "Diary", shortcut: KeyboardShortcut("1")) { go(.today, tab: .today) }
-        NinaCommandButton(title: "Foods", shortcut: KeyboardShortcut("2")) { go(.foods, tab: .foods) }
-        NinaCommandButton(title: "Meals & Recipes", shortcut: KeyboardShortcut("3")) { go(.recipes, tab: .foods) }
-        NinaCommandButton(title: "Plan", shortcut: KeyboardShortcut("4")) { go(.plan, tab: .plan) }
-        NinaCommandButton(title: "Insights", shortcut: KeyboardShortcut("5")) { go(.insights, tab: .insights) }
-        NinaCommandButton(title: "Body", shortcut: KeyboardShortcut("6")) { go(.body, tab: .insights) }
+        // The sidebar's names (Navigation.swift: `SidebarItem.title`), in its order.
+        NinaCommandButton(title: SidebarItem.today.title, shortcut: KeyboardShortcut("1")) { go(.today, tab: .today) }
+        NinaCommandButton(title: SidebarItem.foods.title, shortcut: KeyboardShortcut("2")) { go(.foods, tab: .foods) }
+        NinaCommandButton(title: SidebarItem.recipes.title, shortcut: KeyboardShortcut("3")) { go(.recipes, tab: .foods) }
+        NinaCommandButton(title: SidebarItem.plan.title, shortcut: KeyboardShortcut("4")) { go(.plan, tab: .plan) }
+        NinaCommandButton(title: SidebarItem.insights.title, shortcut: KeyboardShortcut("5")) { go(.insights, tab: .insights) }
+        NinaCommandButton(title: SidebarItem.body.title, shortcut: KeyboardShortcut("6")) { go(.body, tab: .insights) }
         Divider()
         NinaCommandButton(title: "Search Everything", shortcut: KeyboardShortcut("f", modifiers: [.command, .shift])) {
             go(.search, tab: .search)

@@ -22,8 +22,8 @@ extension EnvironmentValues {
     }
 }
 
-/// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, help,
-/// iCloud & data, import/export, the app log, about.
+/// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, the
+/// menu bar (Mac), help, iCloud & data, import/export, the app log, about.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -37,7 +37,7 @@ struct SettingsView: View {
                     goals
                 } label: {
                     LabeledContent {
-                        Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: app.energyUnit))
+                        Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: .kcal))
                     } label: {
                         Label(windowActions == nil ? "Goals & Plan" : "Goals", systemImage: "target")
                     }
@@ -54,12 +54,6 @@ struct SettingsView: View {
                     app.updateSettings { $0.foodLanguage = value.rawValue }
                 })) {
                     ForEach(FoodLanguage.allCases) { language in Text(language.title).tag(language) }
-                }
-                Picker("Energy in", selection: Binding(get: { app.settings.energyUnit }, set: { value in
-                    app.updateSettings { $0.energyUnit = value.rawValue }
-                })) {
-                    Text("kcal").tag(EnergyUnit.kcal)
-                    Text("kJ").tag(EnergyUnit.kJ)
                 }
                 Picker("Day starts at", selection: Binding(get: { app.settings.dayStartHour }, set: { value in
                     app.updateSettings { $0.dayStartHour = value }
@@ -106,6 +100,11 @@ struct SettingsView: View {
             Section {
                 AppearancePicker()
             }
+
+            #if os(macOS)
+            // Settings → Menu Bar (MenuBar.swift): Nina's menu bar extra on this Mac.
+            NinaMenuBarSettingsSection()
+            #endif
 
             Section {
                 Button("Replay the Tour", systemImage: "graduationcap", action: replayTour)
@@ -221,14 +220,15 @@ struct SettingsView: View {
             DataFact("barcode.viewfinder", "Open Food Facts", "Scanning sends only the barcode number to Open Food Facts to look the product up. Nothing about you is sent."),
         ]), at: 2)
         sections.insert(DataSection("Thalia", [
-            DataFact("arrow.up.forward.app", "Day values, on this device", "With Send to Thalia on, \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
+            DataFact("arrow.up.forward.app", "Day values, on this device", "While Settings → Thalia is on (one switch for all your devices), \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days, and your morning weight from the weigh-ins in \(AppInfo.name), into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
         ]), at: 3)
         return sections
     }
 
+    /// The backup: by hand (Import & Export, on the Mac also File → Back Up Nina…) or every week.
     private static let backupFact = DataFact(
         "externaldrive", "Back up",
-        "Import & Export → Back Up Everything saves all your \(AppInfo.name) data (not Apple Health) in one file; the CSV exports cover goals & plan, foods, diary, meals and weight & body."
+        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – your progress photos too if you like, nothing from Apple Health – where you choose. With \u{201C}Back Up Automatically Every Week\u{201D} on, \(AppInfo.name) saves one by itself once a week and keeps the last four. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
     )
 }
 
@@ -649,7 +649,7 @@ struct GoalsView: View {
         }
         targets = calculated
         saveAll()
-        app.toasts.show("Goal set: \(Fmt.energy(calculated.energy, unit: app.energyUnit))", symbol: "target")
+        app.toasts.show("Goal set: \(Fmt.energy(calculated.energy, unit: .kcal))", symbol: "target")
     }
 
     /// Writes the page into the profile. With a running phase the goal, pace, target weight and

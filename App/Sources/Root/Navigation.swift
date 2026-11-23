@@ -74,7 +74,9 @@ enum FoodsPage: String, CaseIterable, Identifiable {
 }
 
 /// The Mac sidebar's sections (iPhone and iPad use the tabs, `AppTab`). The raw value is what
-/// RootView remembers between launches.
+/// RootView remembers between launches, so it never changes: `today` is the page titled "Today"
+/// (the diary, like the iPhone's Today tab), `insights` the one titled "Nutrition" (the iPhone's
+/// Progress → Nutrition).
 enum SidebarItem: String, Hashable, CaseIterable, Identifiable {
     case search, today, foods, recipes, plan, insights, body, trash
 
@@ -83,11 +85,11 @@ enum SidebarItem: String, Hashable, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .search: "Search"
-        case .today: "Diary"
+        case .today: "Today"
         case .foods: "Foods"
         case .recipes: "Meals & Recipes"
         case .plan: "Plan"
-        case .insights: "Insights"
+        case .insights: "Nutrition"
         case .body: "Body"
         case .trash: "Recently Deleted"
         }
