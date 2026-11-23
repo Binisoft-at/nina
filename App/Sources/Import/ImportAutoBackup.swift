@@ -439,7 +439,7 @@ struct ImportAutoBackupSection: View {
             Toggle("Back Up Automatically Every Week", isOn: isOn)
             if auto.isOn { details }
         } header: {
-            Text("Automatic Backup")
+            Text("Automatic Backup").info(ImportInfo.autoBackupTitle, ImportInfo.autoBackup)
         } footer: {
             Text(footer)
         }

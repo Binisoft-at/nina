@@ -144,7 +144,7 @@ struct ImportBackupSection: View {
                 Text(problem).foregroundStyle(.red)
             }
         } header: {
-            Text("Back Up & Restore")
+            Text("Back Up & Restore").info(ImportInfo.backupTitle, ImportInfo.backup)
         } footer: {
             Text(footer)
         }
@@ -190,7 +190,7 @@ struct ImportRestoreSection: View {
                 .disabled(!canRestore)
             Button("Cancel", role: .cancel, action: onCancel)
         } header: {
-            Text("Restore · \(restore.folder.name)")
+            Text("Restore · \(restore.folder.name)").info(ImportInfo.restoreTitle, ImportInfo.restore)
         } footer: {
             Text("Nothing Nina has is changed or deleted: only what is missing is added, with its original dates. One Undo takes it back.")
         }
