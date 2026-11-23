@@ -141,7 +141,7 @@ struct ImportView: View {
                 Label("Share the Setup Prompt", systemImage: "square.and.arrow.up")
             }
         } header: {
-            Text("Set Up Nina with Your AI")
+            Text("Set Up Nina with Your AI").info(ImportInfo.setupTitle, ImportInfo.setup)
         } footer: {
             Text("Paste the prompt into ChatGPT, Claude or any AI and add a few lines about you: age, height, weight, goal, training, meal times, the foods and meals you eat (label photos work too) and, if you like, past weigh-ins or a DEXA or body-scan report. Paste its whole answer below – everything is imported in one go, with a preview first.")
         }
@@ -153,7 +153,10 @@ struct ImportView: View {
                 ForEach(ImportKind.allCases) { kind in Text(kind.shortTitle).tag(kind) }
             }
             .pickerStyle(.segmented)
-            Text(kind.subtitle).font(.callout).foregroundStyle(.secondary)
+            Text(kind.subtitle)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .info(kind.title, ImportInfo.format(kind))
         }
     }
 
@@ -170,7 +173,7 @@ struct ImportView: View {
             pasteArea
             importButtons
         } header: {
-            Text("Import")
+            Text("Import").info(ImportInfo.importTitle, ImportInfo.importText)
         } footer: {
             Text(importFooter)
         }
@@ -239,6 +242,8 @@ struct ImportView: View {
                 ForEach(unrecognised, id: \.self) { note in
                     Text(note).font(.caption).foregroundStyle(.orange)
                 }
+            } header: {
+                Text("Not Recognised").info(ImportInfo.unrecognisedTitle, ImportInfo.unrecognised)
             }
         }
         ForEach(Array(previews.enumerated()), id: \.offset) { _, preview in
@@ -251,12 +256,21 @@ struct ImportView: View {
         }
         if !previews.isEmpty {
             Section {
-                Button(previews.count > 1 ? "Import All" : "Import") { apply() }
-                    .primaryActionStyle()
-                    .disabled(!previews.contains { $0.hasChanges(excluding: untickedBody) })
+                importButtonRow
             } footer: {
                 Text(importButtonFooter)
             }
+        }
+    }
+
+    /// Import (All), with the ⓘ about Undo next to it (not inside the button).
+    private var importButtonRow: some View {
+        HStack {
+            Button(previews.count > 1 ? "Import All" : "Import") { apply() }
+                .primaryActionStyle()
+                .disabled(!previews.contains { $0.hasChanges(excluding: untickedBody) })
+            Spacer()
+            InfoButton(ImportInfo.undoTitle, ImportInfo.undo)
         }
     }
 
@@ -279,7 +293,7 @@ struct ImportView: View {
                 ImportExportMenu(kind: kind, onSave: { export(kind) }, onCopy: { copyExport(kind) })
             }
         } header: {
-            Text("Export")
+            Text("Export").info(ImportInfo.exportTitle, ImportInfo.export)
         } footer: {
             Text("Same formats as the import, with every value Nina stores. Edit a file in Numbers (in Excel: Data → From Text/CSV, with the barcode column as Text) and import it again: rows keep their id, so they are updated – and only what you changed changes.")
         }
@@ -661,7 +675,7 @@ private struct ImportRowsPreview: View {
             if offerHealth {
                 Toggle(isOn: $writeToHealth) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("Also Write These to Apple Health")
+                        Text("Also Write These to Apple Health").info(ImportInfo.healthTitle, ImportInfo.health)
                         Text("\(preview.recentRows == 1 ? "1 row is" : "\(preview.recentRows) rows are") from the last 14 days. Leave it off when they come from another app that already wrote them to Health.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -669,7 +683,7 @@ private struct ImportRowsPreview: View {
                 }
             }
         } header: {
-            Text("Preview · \(preview.kind.title)")
+            Text("Preview · \(preview.kind.title)").info(ImportInfo.previewTitle, ImportInfo.preview(preview.kind))
         }
     }
 }
@@ -711,7 +725,7 @@ private struct ImportSettingsPreview: View {
                 Text(note).font(.caption).foregroundStyle(.orange)
             }
         } header: {
-            Text("Preview · \(ImportKind.settings.title)")
+            Text("Preview · \(ImportKind.settings.title)").info(ImportInfo.previewTitle, ImportInfo.settingsPreview)
         }
         ForEach(result.sections) { section in
             ImportSettingsGroup(section: section, unticked: $unticked)
@@ -735,14 +749,29 @@ private struct ImportSettingsGroup: View {
                 }
             }
         } header: {
-            Text(section.title)
+            groupHeader
         } footer: {
             if section.group == .notSupported {
                 Text("Nina can't store these yet – they're only listed here.")
-            } else if section.group == .body, section.changes.contains(where: { isBodyValue($0) }) {
+            } else if hasBodyValues {
                 Text("Today's body values become your starting point. Switch off any you don't want saved.")
             }
         }
+    }
+
+    /// The group's title; Body with its switches gets an ⓘ.
+    @ViewBuilder
+    private var groupHeader: some View {
+        if hasBodyValues {
+            Text(section.title).info(ImportInfo.bodyValuesTitle, ImportInfo.bodyValues)
+        } else {
+            Text(section.title)
+        }
+    }
+
+    /// The body group with today's body values, each with a switch.
+    private var hasBodyValues: Bool {
+        section.group == .body && section.changes.contains { isBodyValue($0) }
     }
 
     /// Body fat and tape values: today's baseline records, each one can be left out.
