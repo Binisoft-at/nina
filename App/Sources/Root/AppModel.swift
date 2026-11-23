@@ -87,6 +87,7 @@ final class AppModel {
         let today = settings.today()
         self.today = today
         self.selectedDay = today
+        health.dayStartHour = settings.dayStartHour
         progressPage = settings.plan.isSetUp ? .body : .nutrition
         if !isSandbox, !launch.isDemo { coachDismissals = CoachLater.load(today: today) }
         if isSandbox || launch.isDemo {
@@ -159,9 +160,21 @@ final class AppModel {
     func refresh(reason: String = "app") {
         let started = Date()
         let store = self.store
-        // The plan, the day-type marks and the real body weight (typed and Health weigh-ins).
-        let newSettings = store.coachSettings(adding: healthWeightReadings)
+        // The plan, the day-type marks and the real body weight (typed and Health weigh-ins); the
+        // weight signal built for it also plans the coach's reminders.
+        let readings = healthWeightReadings
+        let (newSettings, signal) = store.coachSettingsAndSignal(adding: readings)
         if newSettings != settings { settings = newSettings }
+        if health.dayStartHour != newSettings.dayStartHour {
+            // Today's active energy counts from the diary day start: read it again from the new one
+            // (and give the widget the new budget).
+            health.dayStartHour = newSettings.dayStartHour
+            let health = self.health
+            Task { @MainActor [weak self] in
+                await health.refreshReadings()
+                self?.scheduleRefresh()
+            }
+        }
         // A changed day start can make it another day.
         rollDay()
         library.rebuild(context: container.mainContext, language: settings.language)
@@ -171,10 +184,10 @@ final class AppModel {
         // Nothing outside the store is touched by the practice page, the demo or a store that
         // isn't saved (an empty in-memory fallback would empty the widget, reminders and Health).
         guard !isSandbox, !launch.isDemo, AppModel.keepsData(mode) else { return }
-        CoachContext.latestHealthReadings = healthWeightReadings
+        CoachContext.latestHealthReadings = readings
         WidgetBridge.publish(store.todaySnapshot())
         health.scheduleSync(container: container)
-        NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings)
+        NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings, signal: signal)
         offerCoachRemindersIfNeeded()
     }
 
@@ -209,6 +222,14 @@ final class AppModel {
     func checkDay() {
         guard rollDay() else { return }
         refresh(reason: "day")
+        // Today's active energy starts again with the new diary day: read it, so Today and the
+        // widget add the new day's (the app was open at the day start; coming back reads it anyway).
+        guard !isSandbox, !launch.isDemo, health.isAvailable else { return }
+        let health = self.health
+        Task { @MainActor [weak self] in
+            await health.refreshReadings()
+            self?.scheduleRefresh()
+        }
     }
 
     /// Moves `today` on when the diary day changed – and the shown day with it when it was the old
@@ -332,10 +353,9 @@ final class AppModel {
         if record.recordID != nil, record.ref.kind != .recipe { store.rememberAmount(amount.total, for: record) }
         let entry = store.log(record, amount: amount, day: day, meal: meal, time: time, status: status, source: source, language: language)
         let verb = status == .planned ? "Planned" : "Added"
+        let undo = undoAdding([entry])
         toasts.show("\(verb) \(entry.displayName) \(destination(day, meal, status)) · \(Fmt.energy(entry.energy, unit: energyUnit))",
-                    symbol: "checkmark.circle.fill") { [weak self] in
-            self?.store.purge([entry])
-        }
+                    symbol: "checkmark.circle.fill", undo: undo)
         return entry
     }
 
@@ -346,10 +366,9 @@ final class AppModel {
                                       source: "recipe", language: language)
         let energy = entries.map(\.energy).reduce(0, +)
         let verb = status == .planned ? "Planned" : "Added"
+        let undo = undoAdding(entries)
         toasts.show("\(verb) \(recipe.displayName) \(destination(day, meal, status)) · \(Fmt.energy(energy, unit: energyUnit))",
-                    symbol: "checkmark.circle.fill") { [weak self] in
-            self?.store.purge(entries)
-        }
+                    symbol: "checkmark.circle.fill", undo: undo)
     }
 
     /// Where something was logged, for its toast: "to Breakfast", "to yesterday's Lunch",
@@ -388,18 +407,16 @@ final class AppModel {
         let energy = created.map(\.energy).reduce(0, +)
         let label = created.count == 1 ? created[0].displayName : "\(created.count) foods"
         let verb = status == .planned ? "Planned" : "Added"
+        let undo = undoAdding(created)
         toasts.show("\(verb) \(label) \(destination(day, meal, status)) · \(Fmt.energy(energy, unit: energyUnit))",
-                    symbol: "checkmark.circle.fill") { [weak self] in
-            self?.store.purge(created)
-        }
+                    symbol: "checkmark.circle.fill", undo: undo)
     }
 
     func logQuick(name: String, nutrients: NutrientValues, day: DayKey, meal: String) {
         let entry = store.logQuick(name: name, nutrients: nutrients, day: day, meal: meal)
+        let undo = undoAdding([entry])
         toasts.show("Added \(entry.displayName) \(destination(day, meal)) · \(Fmt.energy(entry.energy, unit: energyUnit))",
-                    symbol: "checkmark.circle.fill") { [weak self] in
-            self?.store.purge([entry])
-        }
+                    symbol: "checkmark.circle.fill", undo: undo)
     }
 
     func logAgain(_ entries: [LogEntry]) {
@@ -407,9 +424,8 @@ final class AppModel {
         let meal = entries.count == 1 ? settings.suggestedMeal().id : nil
         let copies = store.copy(entries, to: today, meal: meal)
         let energy = copies.map(\.energy).reduce(0, +)
-        toasts.show("Logged again · \(Fmt.energy(energy, unit: energyUnit))", symbol: "arrow.clockwise.circle.fill") { [weak self] in
-            self?.store.purge(copies)
-        }
+        toasts.show("Logged again · \(Fmt.energy(energy, unit: energyUnit))", symbol: "arrow.clockwise.circle.fill",
+                    undo: undoAdding(copies))
     }
 
     func trash(_ entries: [LogEntry]) {
@@ -431,18 +447,17 @@ final class AppModel {
         }
     }
 
-    /// Copies entries to a day. A planned copy leaves out what a routine already plans there.
-    func copy(_ entries: [LogEntry], to day: DayKey, status: EntryStatus = .eaten) {
+    /// Copies entries to a day (into `meal` when given, else each into its own meal). A planned
+    /// copy leaves out what a routine already plans there.
+    func copy(_ entries: [LogEntry], to day: DayKey, meal: String? = nil, status: EntryStatus = .eaten) {
         guard !entries.isEmpty else { return }
-        let copies = store.copy(entries, to: day, status: status)
+        let copies = store.copy(entries, to: day, meal: meal, status: status)
         guard !copies.isEmpty else {
             toasts.show("Already planned for \(dayPhrase(day))", symbol: "calendar")
             return
         }
         let what = copies.count == 1 ? copies[0].displayName : "\(copies.count) entries"
-        toasts.show("Copied \(what) to \(dayPhrase(day))", symbol: "doc.on.doc.fill") { [weak self] in
-            self?.store.purge(copies)
-        }
+        toasts.show("Copied \(what) to \(dayPhrase(day))", symbol: "doc.on.doc.fill", undo: undoAdding(copies))
     }
 
     /// "Plan the Week Like Last Week": what was eaten 7 days earlier, planned on each of `days`
@@ -461,9 +476,7 @@ final class AppModel {
             return
         }
         let what = created.count == 1 ? "1 food" : "\(created.count) foods"
-        toasts.show("Planned \(what) like last week", symbol: "calendar.badge.plus") { [weak self] in
-            self?.store.purge(created)
-        }
+        toasts.show("Planned \(what) like last week", symbol: "calendar.badge.plus", undo: undoAdding(created))
     }
 
     func confirm(_ entries: [LogEntry]) {
@@ -486,12 +499,26 @@ final class AppModel {
         store.setStatus(entries, status)
     }
 
+    /// The Undo of entries just added: they go for good, and what the Apple Health pass wrote of
+    /// them meanwhile leaves Health at once (the ids are taken now, while the entries exist).
+    private func undoAdding(_ entries: [LogEntry]) -> () -> Void {
+        let ids = entries.map(\.uuid.uuidString)
+        let health = self.health
+        return { [weak self] in
+            self?.store.purge(entries)
+            Task { await health.removeUndone(entryIDs: ids, waterIDs: []) }
+        }
+    }
+
     // MARK: Water and weight
 
     func addWater(_ milliliters: Double, day: DayKey? = nil) {
         let log = store.addWater(milliliters, day: day ?? selectedDay, time: (day ?? selectedDay) == today ? Date() : (day ?? selectedDay).date(minutes: 12 * 60))
+        let waterID = log.uuid.uuidString
+        let health = self.health
         toasts.show("+\(Fmt.milliliters(milliliters)) water", symbol: "drop.fill") { [weak self] in
             self?.store.purge([log])
+            Task { await health.removeUndone(entryIDs: [], waterIDs: [waterID]) }
         }
     }
 
@@ -1008,6 +1035,9 @@ final class AppModel {
         }
         AppLog.info("Opened \(url.lastPathComponent)", category: "import")
         pendingImport = url
+        // Import & Export is open already: the file goes into that sheet (ImportView picks it up),
+        // instead of the sheet closing and opening again and losing its state.
+        if case .importData? = sheet { return }
         present(.importData(nil))
     }
 

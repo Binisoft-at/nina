@@ -85,11 +85,11 @@ Settings → Apple Health → turn on what to share:
   known nutrients (energy, protein, carbs, fat, fiber, sugar, saturated/mono/poly fat, cholesterol,
   sodium, potassium, calcium, iron, magnesium, zinc, vitamins A, C, D, E, B12, folate, caffeine).
   Each correlation carries a sync identifier and a version: editing an entry replaces it, deleting or
-  un-eating it removes it. Planned and skipped entries are not written. Undo right after logging,
-  ⌘Z, and an entry deleted for good on another device remove it from Health too (the next sync
-  looks for every entry it wrote that has no record left on any day). Diary rows imported from
-  another app's export are written only when "Also write these to Apple Health" was on in the
-  import – that app has usually written them to Health already.
+  un-eating it removes it. Planned and skipped entries are not written. Undo right after logging
+  takes it out of Health at once; ⌘Z and an entry deleted for good on another device remove it too
+  (the next sync looks for every entry it wrote that has no record left on any day). Diary rows
+  imported from another app's export are written only when "Also write these to Apple Health" was
+  on in the import – that app has usually written them to Health already.
 - **Water** – each water log; Undo and deleting remove it again.
 - **Weight** – weigh-ins typed in Nina are written; weigh-ins from the scale are read live for the
   trend and the coach. Weigh-ins you save on the watch, iPad or Mac are written by your iPhone on its
@@ -98,7 +98,8 @@ Settings → Apple Health → turn on what to share:
   once even when your iPhone and iPad both write it. Imported history is never written to Health –
   not when you edit it, restore it from Recently Deleted or undo either.
 - **Active energy** – read to show "budget incl. activity" when you choose to add half or all of it.
-  The widget's budget uses the value read today only (never yesterday's).
+  It counts from the start of your diary day (Settings → Day starts at), so a late night still adds
+  to the day it belongs to. The widget's budget uses the value read for today only (never yesterday's).
 
 Only the iPhone writes, so entries from the Mac or the watch reach Health once the iPhone has synced
 them (usually within seconds when Nina is open).

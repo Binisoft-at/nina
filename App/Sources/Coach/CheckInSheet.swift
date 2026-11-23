@@ -53,7 +53,7 @@ struct CheckInSheet: View {
         .onDisappear(perform: keepDraft)
         // Saving the waist and Copy for My AI keep the sheet open: their messages show in the
         // sheet's toast host (SheetContent).
-        .sheetFrame(minWidth: 520, minHeight: 680)
+        .sheetFrame(minWidth: 520, minHeight: 560)
     }
 
     // MARK: Content

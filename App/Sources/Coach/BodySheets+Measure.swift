@@ -137,7 +137,7 @@ struct MeasureSheet: View {
                 .onChange(of: time) { _, _ in setAutomaticConditions() }
         }
         .interactiveDismissDisabled(hasEntries)
-        .sheetFrame(minWidth: 480, minHeight: 680)
+        .sheetFrame(minWidth: 480, minHeight: 560)
     }
 
     @ViewBuilder

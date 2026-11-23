@@ -131,8 +131,9 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
   a personal `Food` with `catalogID` set; it keeps the catalog reference, so history and usage stay
   attached.
 - **Plans** are entries with `status = planned`. Routines (`PlanRule`) create them for the next days
-  once per rule and day (`planKey`), even when deleted (then they stay deleted). Two devices that
-  planned before syncing converge on the oldest group.
+  once per rule and day (`planKey`), even when deleted (then they stay deleted) or moved to another
+  day (a moved entry keeps its key, and the store looks the window's keys up on every day). Two
+  devices that planned before syncing converge on the oldest group.
 - **Apple Health** (iPhone only): eaten entries of the last 14 days are written as food correlations
   with `HKMetadataKeySyncIdentifier` + version; edits replace, deletions remove. What was written is
   remembered in a device-only file. Weight and active energy are read live, never stored.

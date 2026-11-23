@@ -42,7 +42,11 @@ final class HealthService {
     /// made-up activity; nothing is read from or written to Health.
     let isDemo: Bool
     private(set) var options: Set<Option> = []
+    /// Active energy of the diary day so far (from its start, Settings → Day starts at).
     private(set) var activeEnergyToday: Double = 0
+    /// The diary's day start hour (AppModel keeps it current): today's active energy counts from
+    /// it, so the hours after midnight still add to the day they belong to.
+    @ObservationIgnored var dayStartHour = 0
     private(set) var weights: [DayKey: Double] = [:]
     /// Weigh-ins from other apps and scales, with their times (not the ones Nina wrote), newest
     /// first. Read live for the weight signal (`AppModel.healthWeightReadings`), never stored.
@@ -149,9 +153,11 @@ final class HealthService {
 
     func refreshReadings() async {
         guard isAvailable else { return }
+        let now = Date()
+        let today = DayKey.today(now: now, dayStartHour: dayStartHour)
         if options.contains(.activity) {
-            let start = Calendar.current.startOfDay(for: Date())
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+            let start = today.start(dayStartHour: dayStartHour)
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: now)
             let descriptor = HKStatisticsQueryDescriptor(predicate: .quantitySample(type: HKQuantityType(.activeEnergyBurned), predicate: predicate),
                                                          options: .cumulativeSum)
             if let statistics = try? await descriptor.result(for: store) {
@@ -161,7 +167,7 @@ final class HealthService {
             activeEnergyToday = 0
         }
         // With its day, so yesterday's never raises today's widget budget (kept on this device only).
-        WidgetBridge.setActivityBonus(activeEnergyToday, day: DayKey(date: Date()))
+        WidgetBridge.setActivityBonus(activeEnergyToday, day: today)
 
         if options.contains(.weight) {
             let start = Calendar.current.date(byAdding: .day, value: -400, to: Date()) ?? Date()
@@ -188,6 +194,25 @@ final class HealthService {
             latestWeight = nil
         }
         await bodyData.refresh()
+    }
+
+    /// The Undo of something just logged deleted it for good: what a sync pass wrote of it
+    /// meanwhile leaves Health now. (The next pass would find it gone too, but not when it was the
+    /// only entry or water in the store – an emptied store is never trusted.) Waits for a pass
+    /// that is writing, so nothing it writes stays behind; ids Nina never wrote cost nothing.
+    func removeUndone(entryIDs: [String], waterIDs: [String]) async {
+        guard isAvailable, storeIsSaved, !entryIDs.isEmpty || !waterIDs.isEmpty else { return }
+        if let runningSync { await runningSync.value }
+        var ledger = HealthLedger.load()
+        let entries = entryIDs.filter { ledger.versions[$0] != nil }
+        let water = waterIDs.filter { ledger.versions["w:" + $0] != nil }
+        guard !entries.isEmpty || !water.isEmpty else { return }
+        for id in entries { ledger.versions[id] = nil }
+        for id in water { ledger.versions["w:" + id] = nil }
+        ledger.save()
+        if !entries.isEmpty { await delete(metadataValues: entries, key: "NinaEntry") }
+        if !water.isEmpty { await delete(metadataValues: water, key: "NinaWater", types: [HKQuantityType(.dietaryWater)]) }
+        AppLog.info("Health: removed \(entries.count + water.count) undone", category: "health")
     }
 
     /// Debounced: many saves in a row cause one Health sync.
@@ -559,6 +584,7 @@ final class HealthService {
     #else
     func requestAuthorization() async {}
     func refreshReadings() async {}
+    func removeUndone(entryIDs: [String], waterIDs: [String]) async {}
     func scheduleSync(container: ModelContainer) {}
     func syncNow(container: ModelContainer) async {}
     func writeWeight(_ weight: HealthWeightSync.Item) async {}

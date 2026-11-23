@@ -453,10 +453,17 @@ extension NinaStore {
     /// The settings with the day-type marks and the real body weight (`WeightSignal.bodyWeight`
     /// today over typed and `health` weigh-ins).
     func coachSettings(adding health: [WeightSignal.Reading] = [], now: Date = Date()) -> NinaSettings {
+        coachSettingsAndSignal(adding: health, now: now).settings
+    }
+
+    /// `coachSettings(adding:now:)` together with the weight signal it was worked out from, so a
+    /// caller that needs both (AppModel's refresh, for the reminders) builds the signal once.
+    func coachSettingsAndSignal(adding health: [WeightSignal.Reading] = [],
+                                now: Date = Date()) -> (settings: NinaSettings, signal: WeightSignal) {
         var settings = self.settings
         let signal = weightSignal(adding: health, settings: settings)
         settings.bodyWeightKg = signal.bodyWeight(on: settings.today(now: now, calendar: calendar))?.kilograms
-        return settings
+        return (settings, signal)
     }
 
     /// Eaten kcal of the logged days from `start` through `end` (days without a log left out).

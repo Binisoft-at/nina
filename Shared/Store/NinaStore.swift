@@ -703,7 +703,8 @@ struct NinaStore {
         guard !rules.isEmpty else { return [] }
         let settings = self.settings
         let end = today.adding(days: horizon - 1, calendar: calendar)
-        let existing = PlanSchedule.takenKeys(entriesIncludingTrash(from: today, through: end).map(\.cleanupItem))
+        let existing = takenPlanKeys(window: entriesIncludingTrash(from: today, through: end).map(\.cleanupItem), rules: rules,
+                                     from: today, horizon: horizon)
         var created: [LogEntry] = []
         for rule in rules {
             guard let recipeID = rule.recipeUUID, let recipe = recipe(recipeID), recipe.deletedAt == nil else { continue }
@@ -842,15 +843,17 @@ struct NinaStore {
 
     // MARK: Saving
 
-    /// Today's numbers for widgets and complications.
-    func todaySnapshot(activityBonus: Double = WidgetBridge.activityBonus, now: Date = Date()) -> TodaySnapshot {
+    /// Today's numbers for widgets and complications. `activityBonus`: nil = the active energy
+    /// read for today's diary day on this device (`WidgetBridge`), never another day's.
+    func todaySnapshot(activityBonus: Double? = nil, now: Date = Date()) -> TodaySnapshot {
         let settings = self.settings
         let today = settings.today(now: now, calendar: calendar)
         let entries = self.entries(on: today)
         let water = self.water(on: today).map(\.amount).reduce(0, +)
         let totals = DayTotals(day: today, entries: entries.map(\.facts), water: water)
+        let bonus = activityBonus ?? WidgetBridge.activityBonus(on: today)
         let progress = DayProgress(totals: totals, targets: settings.targets(for: today, calendar: calendar),
-                                   activityBonus: activityBonus * settings.activityBonusShare)
+                                   activityBonus: bonus * settings.activityBonusShare)
         let next = entries.filter { $0.isPlanned && $0.time >= now }.min { $0.time < $1.time }
         let nextText = next.map { "\(settings.meal($0.meal).name) · \(Fmt.time($0.time))" }
         var snapshot = TodaySnapshot(progress: progress, nextPlanned: nextText, energyUnit: settings.energyUnit, now: now)
