@@ -145,13 +145,23 @@ private struct WeightRowContent: View {
     }
 }
 
-/// Recently Deleted: entries, foods, meals, weigh-ins, body measurements and progress photos stay
-/// 30 days. App only (the watch's store has no photos).
+/// "Delete Now" in Recently Deleted always asks first: it can't be undone.
+private struct TrashPurgeRequest: Identifiable {
+    let id = UUID()
+    let title: String
+    let purge: () -> Void
+}
+
+/// Recently Deleted: entries, foods, meals, routines, water, weigh-ins, body measurements and
+/// progress photos stay 30 days. App only (the watch's store has no photos).
 struct TrashView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<LogEntry> { $0.deletedAt != nil }, sort: \LogEntry.time, order: .reverse) private var entries: [LogEntry]
     @Query(filter: #Predicate<Food> { $0.deletedAt != nil }) private var foods: [Food]
     @Query(filter: #Predicate<Recipe> { $0.deletedAt != nil }) private var recipes: [Recipe]
+    @Query(filter: #Predicate<PlanRule> { $0.deletedAt != nil }, sort: \PlanRule.minutes) private var rules: [PlanRule]
+    @Query(filter: #Predicate<WaterLog> { $0.deletedAt != nil }, sort: \WaterLog.time, order: .reverse)
+    private var water: [WaterLog]
     @Query(filter: #Predicate<WeightEntry> { $0.deletedAt != nil }, sort: \WeightEntry.time, order: .reverse)
     private var weights: [WeightEntry]
     @Query(filter: #Predicate<BodyMeasurement> { $0.deletedAt != nil }, sort: \BodyMeasurement.time, order: .reverse)
@@ -160,83 +170,28 @@ struct TrashView: View {
     private var photos: [ProgressPhoto]
     /// "Empty" asks first: it can't be undone, and weigh-ins and measurements can't be typed again.
     @State private var confirmEmpty = false
+    /// The "Delete Now" waiting for its confirmation.
+    @State private var purgeRequest: TrashPurgeRequest?
 
     private var isEmpty: Bool {
-        entries.isEmpty && foods.isEmpty && recipes.isEmpty && weights.isEmpty && measurements.isEmpty && photos.isEmpty
+        entries.isEmpty && foods.isEmpty && recipes.isEmpty && rules.isEmpty && water.isEmpty && weights.isEmpty
+            && measurements.isEmpty && photos.isEmpty
     }
 
     var body: some View {
         List {
-            if !entries.isEmpty {
-                Section("Diary") {
-                    ForEach(entries) { entry in
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(entry.displayName)
-                                Text("\(Fmt.dayTitle(entry.dayKey, today: app.today)) · \(app.settings.meal(entry.meal).name) · \(daysLeft(entry.deletedAt)) days left")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Text(Fmt.energy(entry.energy, unit: app.energyUnit)).foregroundStyle(.secondary)
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([entry]) }.tint(Brand.accent)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([entry]) }
-                        }
-                        .contextMenu {
-                            Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([entry]) }
-                            Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([entry]) }
-                        }
-                    }
-                }
-            }
-            if !foods.isEmpty {
-                Section("Foods") {
-                    ForEach(foods) { food in
-                        Text(food.name)
-                            .swipeActions(edge: .leading) {
-                                Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([food]) }.tint(Brand.accent)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([food]) }
-                            }
-                            .contextMenu {
-                                Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([food]) }
-                            }
-                    }
-                }
-            }
-            if !recipes.isEmpty {
-                Section("Meals & Recipes") {
-                    ForEach(recipes) { recipe in
-                        Text(recipe.displayName)
-                            .swipeActions(edge: .leading) {
-                                Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([recipe]) }.tint(Brand.accent)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([recipe]) }
-                            }
-                            .contextMenu {
-                                Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([recipe]) }
-                            }
-                    }
-                }
-            }
-            if !weights.isEmpty {
-                weightsSection
-            }
-            if !measurements.isEmpty {
-                measurementsSection
-            }
-            if !photos.isEmpty {
-                photosSection
-            }
+            if !entries.isEmpty { entriesSection }
+            if !foods.isEmpty { foodsSection }
+            if !recipes.isEmpty { recipesSection }
+            if !rules.isEmpty { routinesSection }
+            if !water.isEmpty { waterSection }
+            if !weights.isEmpty { weightsSection }
+            if !measurements.isEmpty { measurementsSection }
+            if !photos.isEmpty { photosSection }
         }
         .overlay {
             if isEmpty {
-                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals, weigh-ins, measurements and photos stay here for 30 days."))
+                ContentUnavailableView("Recently Deleted is empty", systemImage: "trash", description: Text("Deleted entries, foods, meals, routines, water, weigh-ins, measurements and photos stay here for 30 days."))
             }
         }
         .navigationTitle("Recently Deleted")
@@ -253,6 +208,25 @@ struct TrashView: View {
         } message: {
             Text(emptyMessage)
         }
+        .confirmationDialog(purgeRequest?.title ?? "Delete for good?", isPresented: isAskingToPurge,
+                            titleVisibility: .visible, presenting: purgeRequest) { request in
+            Button("Delete Now", role: .destructive) { request.purge() }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("This can't be undone.")
+        }
+    }
+
+    private var isAskingToPurge: Binding<Bool> {
+        Binding<Bool>(
+            get: { purgeRequest != nil },
+            set: { (isShown: Bool) in if !isShown { purgeRequest = nil } }
+        )
+    }
+
+    /// Asks before `purge` deletes something for good.
+    private func ask(_ title: String, purge: @escaping () -> Void) {
+        purgeRequest = TrashPurgeRequest(title: title, purge: purge)
     }
 
     private func emptyTrash() {
@@ -260,6 +234,8 @@ struct TrashView: View {
         store.purge(entries)
         store.purge(foods)
         store.purge(recipes)
+        store.purge(rules)
+        store.purge(water)
         store.purge(weights)
         store.purge(measurements)
         store.purge(photos)
@@ -271,6 +247,8 @@ struct TrashView: View {
             (entries.count, "diary entry", "diary entries"),
             (foods.count, "food", "foods"),
             (recipes.count, "meal or recipe", "meals and recipes"),
+            (rules.count, "routine", "routines"),
+            (water.count, "water log", "water logs"),
             (weights.count, "weigh-in", "weigh-ins"),
             (measurements.count, "measurement", "measurements"),
             (photos.count, "photo", "photos"),
@@ -282,6 +260,75 @@ struct TrashView: View {
         return first + " and " + last + " can't be brought back."
     }
 
+    private var entriesSection: some View {
+        Section("Diary") {
+            ForEach(entries) { entry in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(entry.displayName)
+                        Text("\(Fmt.dayTitle(entry.dayKey, today: app.today)) · \(app.settings.meal(entry.meal).name) · \(daysLeft(entry.deletedAt)) days left")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text(Fmt.energy(entry.energy, unit: app.energyUnit)).foregroundStyle(.secondary)
+                }
+                .trashActions(restore: { app.store.restore([entry]) },
+                              deleteNow: { ask("Delete \u{201C}\(entry.displayName)\u{201D} for good?") { app.store.purge([entry]) } })
+            }
+        }
+    }
+
+    private var foodsSection: some View {
+        Section("Foods") {
+            ForEach(foods) { food in
+                Text(food.name)
+                    .trashActions(restore: { app.store.restore([food]) },
+                                  deleteNow: { ask("Delete \u{201C}\(food.name)\u{201D} for good?") { app.store.purge([food]) } })
+            }
+        }
+    }
+
+    private var recipesSection: some View {
+        Section("Meals & Recipes") {
+            ForEach(recipes) { recipe in
+                Text(recipe.displayName)
+                    .trashActions(restore: { app.store.restore([recipe]) },
+                                  deleteNow: { ask("Delete \u{201C}\(recipe.displayName)\u{201D} for good?") { app.store.purge([recipe]) } })
+            }
+        }
+    }
+
+    /// Deleted routines: Restore brings the routine back and plans its next meals again.
+    private var routinesSection: some View {
+        Section("Routines") {
+            ForEach(rules) { rule in
+                VStack(alignment: .leading) {
+                    Text(rule.title.isEmpty ? "Routine" : rule.title)
+                    Text("\(app.settings.meal(rule.meal).name) · \(Fmt.clock(rule.minutes)) · \(rule.days.summary) · \(daysLeft(rule.deletedAt)) days left")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .trashActions(restore: { restore(rule) },
+                              deleteNow: { ask("Delete this routine for good?") { app.store.purge([rule]) } })
+            }
+        }
+    }
+
+    /// Deleted water: a glass taken back with "−" stays here too.
+    private var waterSection: some View {
+        Section("Water") {
+            ForEach(water) { log in
+                HStack {
+                    Text(Fmt.milliliters(log.amount))
+                    Spacer()
+                    Text("\(Fmt.dayTitle(log.dayKey, today: app.today)) · \(daysLeft(log.deletedAt)) days left")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .trashActions(restore: { app.store.restore([log]) },
+                              deleteNow: { ask("Delete \(Fmt.milliliters(log.amount)) of water for good?") { app.store.purge([log]) } })
+            }
+        }
+    }
+
     /// Deleted weigh-ins: Restore also puts the weight back into Apple Health (`app.restore`).
     private var weightsSection: some View {
         Section("Weigh-ins") {
@@ -291,16 +338,8 @@ struct TrashView: View {
                     Text("\(Fmt.dayTitle(weight.dayKey, today: app.today)) · \(daysLeft(weight.deletedAt)) days left")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                .swipeActions(edge: .leading) {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.restore(weight) }.tint(Brand.accent)
-                }
-                .swipeActions(edge: .trailing) {
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([weight]) }
-                }
-                .contextMenu {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.restore(weight) }
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([weight]) }
-                }
+                .trashActions(restore: { app.restore(weight) },
+                              deleteNow: { ask("Delete this weigh-in for good?") { app.store.purge([weight]) } })
             }
         }
     }
@@ -314,16 +353,8 @@ struct TrashView: View {
                     Text("\(Fmt.dayTitle(measurement.dayKey, today: app.today)) · \(daysLeft(measurement.deletedAt)) days left")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                .swipeActions(edge: .leading) {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([measurement]) }.tint(Brand.accent)
-                }
-                .swipeActions(edge: .trailing) {
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([measurement]) }
-                }
-                .contextMenu {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([measurement]) }
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([measurement]) }
-                }
+                .trashActions(restore: { app.store.restore([measurement]) },
+                              deleteNow: { ask("Delete this measurement for good?") { app.store.purge([measurement]) } })
             }
         }
     }
@@ -345,18 +376,16 @@ struct TrashView: View {
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                .swipeActions(edge: .leading) {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([photo]) }.tint(Brand.accent)
-                }
-                .swipeActions(edge: .trailing) {
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([photo]) }
-                }
-                .contextMenu {
-                    Button("Restore", systemImage: "arrow.uturn.backward") { app.store.restore([photo]) }
-                    Button("Delete Now", systemImage: "trash", role: .destructive) { app.store.purge([photo]) }
-                }
+                .trashActions(restore: { app.store.restore([photo]) },
+                              deleteNow: { ask("Delete this photo for good?") { app.store.purge([photo]) } })
             }
         }
+    }
+
+    private func restore(_ rule: PlanRule) {
+        let store = app.store
+        store.restore([rule])
+        store.materializePlans(today: app.today)
     }
 
     private func daysLeft(_ date: Date?) -> Int {
@@ -365,73 +394,180 @@ struct TrashView: View {
     }
 }
 
+private extension View {
+    /// Restore (leading swipe, context menu) and Delete Now (trailing swipe, context menu). Delete
+    /// Now never fires on a full swipe and asks first (`deleteNow` shows the question).
+    func trashActions(restore: @escaping () -> Void, deleteNow: @escaping () -> Void) -> some View {
+        self
+            .swipeActions(edge: .leading) {
+                Button("Restore", systemImage: "arrow.uturn.backward", action: restore)
+                    .tint(Brand.accent)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button("Delete Now", systemImage: "trash", role: .destructive, action: deleteNow)
+            }
+            .contextMenu {
+                Button("Restore", systemImage: "arrow.uturn.backward", action: restore)
+                Button("Delete Now", systemImage: "trash", role: .destructive, action: deleteNow)
+            }
+    }
+}
+
 /// Search everything: foods, meals and the whole diary ("when did I last have sushi?").
 struct GlobalSearchView: View {
     @Environment(AppModel.self) private var app
     @State private var query = ""
+    @State private var foods: [FoodRecord] = []
     @State private var history: [LogEntry] = []
+    @State private var historyCount = 0
+    /// The query the results above belong to: "No Results" waits until they caught up.
+    @State private var searchedQuery = ""
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         List {
             if !query.isEmpty {
-                let foods = app.library.search(query, limit: 8)
-                if !foods.isEmpty {
-                    Section("Foods & meals") {
-                        ForEach(foods) { record in
-                            Button {
-                                app.sheet = .food(record)
-                            } label: {
-                                FoodRow(record: record, language: app.language, unit: app.energyUnit, usage: app.library.usage(of: record.ref))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                if !history.isEmpty {
-                    Section("In your diary (\(history.count))") {
-                        ForEach(history.prefix(60)) { entry in
-                            Button {
-                                app.show(day: entry.dayKey)
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(entry.displayName)
-                                        Text("\(Fmt.dayTitle(entry.dayKey, today: app.today)) · \(app.settings.meal(entry.meal).name)\(entry.amountDescription.map { " · " + $0 } ?? "")")
-                                            .font(.caption).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text(Fmt.energy(entry.energy, unit: app.energyUnit)).foregroundStyle(.secondary)
-                                }
-                                .contentShape(.rect)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+                foodsSection
+                historySection
             }
         }
-        .overlay {
-            if query.isEmpty {
-                ContentUnavailableView("Search \(AppInfo.name)", systemImage: "magnifyingglass",
-                                       description: Text("Foods, meals and everything in your diary – names, notes and #tags."))
-            }
-        }
+        .overlay { emptyState }
         .searchable(text: $query, prompt: "Foods, diary, #tags")
+        .searchFocused($isSearchFocused)
         .navigationTitle("Search")
-        .task(id: query) {
-            try? await Task.sleep(for: .milliseconds(200))
-            guard !Task.isCancelled else { return }
-            history = searchDiary(query)
+        .task(id: "\(query)|\(app.dataVersion)") {
+            await search()
+        }
+        #if os(macOS)
+        .onAppear { isSearchFocused = true }
+        #endif
+    }
+
+    @ViewBuilder
+    private var foodsSection: some View {
+        if !foods.isEmpty {
+            Section("Foods & meals") {
+                ForEach(foods) { record in
+                    Button {
+                        app.sheet = .food(record)
+                    } label: {
+                        FoodRow(record: record, language: app.language, unit: app.energyUnit, usage: app.library.usage(of: record.ref))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
-    private func searchDiary(_ text: String) -> [LogEntry] {
-        let needle = SearchText.normalize(text.replacingOccurrences(of: "#", with: ""))
-        guard needle.count >= 2 else { return [] }
-        let entries = app.store.entries(from: app.today.adding(days: -730), through: app.today.adding(days: 14))
-        return entries.filter { entry in
-            SearchText.normalize(entry.name + " " + entry.note + " " + entry.tags + " " + entry.brand).contains(needle)
+    @ViewBuilder
+    private var historySection: some View {
+        if !history.isEmpty {
+            Section("In your diary (\(historyCount))") {
+                ForEach(history) { entry in
+                    Button {
+                        app.show(day: entry.dayKey)
+                    } label: {
+                        historyRow(entry)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
-        .sorted { $0.time > $1.time }
+    }
+
+    private func historyRow(_ entry: LogEntry) -> some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(entry.displayName)
+                Text("\(Fmt.dayTitle(entry.dayKey, today: app.today)) · \(app.settings.meal(entry.meal).name)\(entry.amountDescription.map { " · " + $0 } ?? "")")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(Fmt.energy(entry.energy, unit: app.energyUnit)).foregroundStyle(.secondary)
+        }
+        .contentShape(.rect)
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if query.isEmpty {
+            ContentUnavailableView("Search \(AppInfo.name)", systemImage: "magnifyingglass",
+                                   description: Text("Foods, meals and everything in your diary – names, notes and #tags."))
+        } else if searchedQuery == query, foods.isEmpty, history.isEmpty {
+            ContentUnavailableView {
+                Label("No Results for \u{201C}\(query)\u{201D}", systemImage: "magnifyingglass")
+            } description: {
+                Text("No food, meal or diary entry matches. Check the spelling, or create the food.")
+            } actions: {
+                Button("New Food") { app.sheet = .newFood(FoodDraft(name: query, nutrients: .zero)) }
+            }
+        }
+    }
+
+    /// After a short pause in typing: the foods once per query, and the diary on a background
+    /// context (two years of entries), so typing never waits for it.
+    private func search() async {
+        let text = query
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else {
+            foods = []
+            history = []
+            historyCount = 0
+            searchedQuery = text
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(200))
+        guard !Task.isCancelled else { return }
+        let found = app.library.search(text, limit: 8)
+        var ids: [UUID] = []
+        if let needle = DiaryEntryEdits.searchNeedle(text) {
+            ids = await GlobalDiarySearch.matches(needle, in: app.container,
+                                                  from: app.today.adding(days: -730), through: app.today.adding(days: 14))
+        }
+        guard !Task.isCancelled else { return }
+        foods = found
+        historyCount = ids.count
+        history = GlobalDiarySearch.entries(Array(ids.prefix(60)), in: app.container.mainContext)
+        searchedQuery = text
+    }
+}
+
+/// The diary part of Search. The scan runs on its own context off the main thread and hands back
+/// the matches' ids, newest first; the list then loads only the ones it shows.
+private enum GlobalDiarySearch {
+    static func matches(_ needle: String, in container: ModelContainer, from start: DayKey, through end: DayKey) async -> [UUID] {
+        let first = start.rawValue, last = end.rawValue
+        let scan = Task.detached(priority: .userInitiated) { () -> [UUID] in
+            let context = ModelContext(container)
+            let descriptor = FetchDescriptor<LogEntry>(
+                predicate: #Predicate<LogEntry> { $0.day >= first && $0.day <= last && $0.deletedAt == nil },
+                sortBy: [SortDescriptor(\.time, order: .reverse)]
+            )
+            let entries = (try? context.fetch(descriptor)) ?? []
+            var found: [UUID] = []
+            for entry in entries {
+                if Task.isCancelled { return [] }
+                if DiaryEntryEdits.matches(needle, name: entry.name, note: entry.note, tags: entry.tags, brand: entry.brand) {
+                    found.append(entry.uuid)
+                }
+            }
+            return found
+        }
+        return await withTaskCancellationHandler {
+            await scan.value
+        } onCancel: {
+            scan.cancel()
+        }
+    }
+
+    /// The entries behind the ids, newest first, from the main context.
+    @MainActor
+    static func entries(_ ids: [UUID], in context: ModelContext) -> [LogEntry] {
+        guard !ids.isEmpty else { return [] }
+        let wanted = ids
+        let descriptor = FetchDescriptor<LogEntry>(
+            predicate: #Predicate<LogEntry> { wanted.contains($0.uuid) },
+            sortBy: [SortDescriptor(\.time, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
     }
 }
