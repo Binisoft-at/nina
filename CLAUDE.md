@@ -34,6 +34,13 @@ click below and the occasional account step you ask for.
   with `Watch/Sources/WatchModel+Coach.swift` and `WatchCoachViews.swift`.
 - Thalia (`docs/THALIA.md`): NinaCore `ExchangeFormat` (copied unchanged from Thalia), `ThaliaFeed`,
   `ThaliaExchangeWriter`; app `App/Sources/Services/ThaliaExchange.swift` (`ThaliaDelivery`).
+- Round 3: NinaCore `SyncedSettings` (`NinaProfile.syncedSettings`, settings shared by all devices,
+  e.g. Thalia's switch), `BackupSchedule` with `App/Sources/Import/ImportAutoBackup.swift` (weekly
+  backup), `RecentFoods` (Recent per meal), `GoalSetupPrompt` with `App/Sources/Today/TodayGoalCard.swift`,
+  `CoachSnapshot` with `App/Sources/Services/CoachWidgetFeed.swift`, `Widgets/Sources/CoachWidget.swift`
+  and `NinaControls.swift` (docs/SIRI.md), `WatchSnapshotRelay` with `App/Sources/Services/WatchLink.swift`
+  and `Watch/Sources/WatchPhoneLink.swift`, the Mac menu bar in `App/Sources/Root/MenuBar.swift`. The ⓘ
+  explanations use `App/Sources/Components/InfoButton.swift`. Energy is always kcal.
 - `project.yml` (XcodeGen) generates the Xcode project; never committed. All identifiers live in
   `Config/Base.xcconfig`; entitlements use its variables.
 - `cloudkit/schema.ckdb` is generated from the models: `python3 tools/cloudkit-schema.py`
@@ -44,7 +51,7 @@ click below and the occasional account step you ask for.
   `.github/workflows`. Change them in the handbook and run its `tools/sync.sh`.
 - Owner docs: `README.md`, `docs/SETUP.md`, `docs/IMPORT.md` (CSV formats and the AI prompts),
   `docs/BODY.md` (measuring, the check-in, phases, coach reminders), `docs/HEALTH.md`,
-  `docs/TOUR.md`, `docs/ARCHITECTURE.md`.
+  `docs/TOUR.md`, `docs/ARCHITECTURE.md`, `docs/SIRI.md`, `docs/THALIA.md`.
 
 ## The loop (no Mac in the session)
 

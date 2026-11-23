@@ -48,6 +48,8 @@ itself stays in your training app.
   Nina", "Heute ist ein Tennistag in Nina"), Control Center / Lock Screen / Action button controls
   (Log Food, Weigh In, Add Water) and a Coach widget – see [docs/SIRI.md](docs/SIRI.md).
 
+- **Explained where it matters** – a small ⓘ next to numbers, cards and settings says in one or two
+  sentences what it means and what to do (Today, Body, the check-in, My Plan, import and backup).
 - **Today** – a calorie ring with what's left (swipe it for other days), your priority nutrients,
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
 - **Log in seconds** – search ~1,000 foods (USDA data, names in English and German, "Paradeiser",
