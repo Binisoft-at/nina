@@ -54,25 +54,36 @@ private struct TodayAccessoryContent: View {
             }
             .buttonStyle(.plain)
             Spacer(minLength: 4)
-            Button {
-                app.addWater(app.settings.waterGlass, day: day)
-            } label: {
-                Image(systemName: "drop.fill")
-                    .foregroundStyle(NutrientStyle.water)
+            // 44 pt to tap each, with the glyphs as small as before: a slightly missed tap on the
+            // + no longer adds water.
+            HStack(spacing: 0) {
+                Button {
+                    app.addWater(app.settings.waterGlass, day: day)
+                } label: {
+                    Image(systemName: "drop.fill")
+                        .foregroundStyle(NutrientStyle.water)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add \(Fmt.milliliters(app.settings.waterGlass)) water")
+                Button {
+                    app.sheet = .addFood(day: day, meal: nil)
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(Brand.accent)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Log Food")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Add \(Fmt.milliliters(app.settings.waterGlass)) water")
-            Button {
-                app.sheet = .addFood(day: day, meal: nil)
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title3)
-                    .foregroundStyle(Brand.accent)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Log Food")
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        .padding(.trailing, 6)
+        // The bar has a fixed height: larger text would be cut off.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 #endif

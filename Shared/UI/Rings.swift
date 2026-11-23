@@ -38,9 +38,11 @@ struct ProgressRing: View {
             Circle()
                 .stroke(tint.opacity(0.16), lineWidth: lineWidth)
             if planned > progress {
+                // The planned part as separate round dots: zero-length dashes with round caps,
+                // spaced a little more than one line width apart so they never merge.
                 Circle()
                     .trim(from: 0, to: min(planned, 1))
-                    .stroke(tint.opacity(0.35), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: [2, lineWidth / 1.6]))
+                    .stroke(tint.opacity(0.35), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: [0, lineWidth * 1.45]))
                     .rotationEffect(.degrees(-90))
             }
             Circle()
