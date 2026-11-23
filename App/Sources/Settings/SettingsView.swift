@@ -95,6 +95,10 @@ struct SettingsView: View {
             }
             #endif
 
+            #if os(macOS)
+            NinaMenuBarSettingsSection()
+            #endif
+
             ThaliaSection()
 
             Section {
