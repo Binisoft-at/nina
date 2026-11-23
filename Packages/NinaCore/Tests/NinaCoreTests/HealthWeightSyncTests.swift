@@ -86,6 +86,61 @@ struct HealthWeightSyncTests {
         #expect(HealthWeightSync.plan([kept], marks: marks) == [.forget(id: "gone"), .forget(id: "old")])
     }
 
+    @Test func anEmptiedStoreIsNotTrusted() {
+        let windowStart = morning.addingTimeInterval(-13 * 86_400)
+        var marks: [String: HealthWeightSync.Mark] = [:]
+        for day in 0..<6 {
+            marks["w\(day)"] = HealthWeightSync.Mark(kilograms: 74 + Double(day) / 10, time: morning.addingTimeInterval(-Double(day) * 86_400),
+                                                      version: day + 1)
+        }
+        // Signed out of iCloud: the window holds no weigh-in at all.
+        #expect(!HealthWeightSync.trustsStore(items: [], marks: marks, windowStart: windowStart))
+        // Half of them came back so far: more than three vanished at once.
+        let back = (0..<2).map { HealthWeightSync.Item(id: "w\($0)", kilograms: 74, time: morning, version: $0 + 1) }
+        #expect(!HealthWeightSync.trustsStore(items: back, marks: marks, windowStart: windowStart))
+        // One deleted on another device: trusted, its sample leaves Health.
+        let most = (0..<5).map { HealthWeightSync.Item(id: "w\($0)", kilograms: 74, time: morning, version: $0 + 1) }
+        #expect(HealthWeightSync.trustsStore(items: most, marks: marks, windowStart: windowStart))
+        // Nothing remembered in the window: nothing to lose.
+        let old = ["old": HealthWeightSync.Mark(kilograms: 75, time: windowStart.addingTimeInterval(-3_600), version: 1)]
+        #expect(HealthWeightSync.trustsStore(items: [], marks: old, windowStart: windowStart))
+        #expect(HealthWeightSync.trustsStore(items: [], marks: [:], windowStart: windowStart))
+    }
+
+    @Test func anUntrustedStoreOnlyForgets() {
+        let windowStart = morning.addingTimeInterval(-13 * 86_400)
+        let marks = ["a": HealthWeightSync.Mark(kilograms: 74.2, time: morning, version: 10)]
+        let trusted = HealthWeightSync.trustsStore(items: [], marks: marks, windowStart: windowStart)
+        let steps = HealthWeightSync.plan([], marks: marks, windowStart: trusted ? windowStart : nil)
+        #expect(steps == [.forget(id: "a")])
+    }
+
+    @Test func aDiaryEntryDeletedForGoodLeavesHealth() {
+        let ledger = ["e1", "e2", "e3", "moved"]
+        let missing = HealthLedgerSweep.missing(ledgerIDs: ledger, windowIDs: ["e1", "e2"])
+        #expect(missing == ["e3", "moved"])
+        // "moved" still exists on an older day; "e3" was undone right after logging.
+        let sweep = HealthLedgerSweep.plan(missing: missing, found: ["moved"], storeIsEmpty: false)
+        #expect(sweep == HealthLedgerSweep(remove: ["e3"], forget: ["moved"]))
+        #expect(HealthLedgerSweep.plan(missing: [], found: [], storeIsEmpty: false) == HealthLedgerSweep())
+        #expect(HealthLedgerSweep.plan(missing: ["moved"], found: ["moved"], storeIsEmpty: false) == HealthLedgerSweep(forget: ["moved"]))
+    }
+
+    @Test func anEmptiedDiaryOnlyForgets() {
+        // Signed out of iCloud: the store has no entries at all.
+        let emptied = HealthLedgerSweep.plan(missing: ["e1", "e2"], found: [], storeIsEmpty: true)
+        #expect(emptied == HealthLedgerSweep(forget: ["e1", "e2"], distrusted: true))
+        // An account switch half done: many vanish at once.
+        let many = (0..<25).map { "e\($0)" }.sorted()
+        let sweep = HealthLedgerSweep.plan(missing: many, found: [], storeIsEmpty: false)
+        #expect(sweep.remove.isEmpty)
+        #expect(sweep.distrusted)
+        #expect(sweep.forget.count == 25)
+        // A saved meal of five foods undone at once is fine.
+        let meal = (0..<5).map { "m\($0)" }
+        #expect(HealthLedgerSweep.plan(missing: meal, found: [], storeIsEmpty: false).remove == meal)
+    }
+
     @Test func weightSamplesHaveASyncIdentifier() throws {
         let id = try #require(UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF"))
         #expect(HealthMapping.syncIdentifier(weight: id) == "nina.weight.6F9619FF-8B86-D011-B42D-00C04FC964FF")

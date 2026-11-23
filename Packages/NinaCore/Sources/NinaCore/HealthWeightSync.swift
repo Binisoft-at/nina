@@ -98,6 +98,26 @@ public enum HealthWeightSync {
         return removals + ensures
     }
 
+    /// How many remembered weigh-ins may vanish from the store in one pass before the store looks
+    /// emptied rather than edited (`trustsStore`).
+    public static let maxVanished = 3
+
+    /// Whether the store's weigh-ins can say which ones are gone for good, so their samples may
+    /// leave Apple Health. Not when the store looks emptied – after an iCloud sign-out, a switch to
+    /// another Apple Account or a reset the store reads fine but has nothing (yet): remembered
+    /// weigh-ins of the window exist but the window holds no weigh-in at all, or more than
+    /// `maxVanished` of them vanished at once. Then plan with `windowStart` nil (forget only): the
+    /// samples stay in Health, and a weigh-in that comes back is found there again.
+    /// `items`: the window's weigh-ins, trashed ones included.
+    public static func trustsStore(items: [Item], marks: [String: Mark], windowStart: Date) -> Bool {
+        let inWindow = marks.filter { $0.value.time >= windowStart }
+        guard !inWindow.isEmpty else { return true }
+        guard !items.isEmpty else { return false }
+        let ids = Set(items.map(\.id))
+        let vanished = inWindow.keys.filter { !ids.contains($0) }.count
+        return vanished <= maxVanished
+    }
+
     /// Marks to keep after a sync: the ones whose weigh-ins are still in the window (`plan`
     /// already forgets the others; this is the safety net).
     public static func pruned(_ marks: [String: Mark], keeping ids: Set<String>) -> [String: Mark] {
@@ -148,5 +168,49 @@ public enum HealthWeightSync {
 
     static func sameSample(_ mark: Mark, kilograms: Double, time: Date) -> Bool {
         abs(mark.kilograms - kilograms) < 0.05 && abs(mark.time.timeIntervalSince(time)) < 1
+    }
+}
+
+/// The diary and water a device wrote to Apple Health (its ledger) against what the store still
+/// has. A ledger id missing from the sync window's records is looked up across all days: one that
+/// is found was only moved out of the window and is forgotten (its samples stay); one with no
+/// record anywhere was deleted for good – an Undo right after logging, ⌘Z, or a purge on another
+/// device – so its samples leave Health before it is forgotten.
+///
+/// Nothing is removed when the store looks emptied (after an iCloud sign-out or an account switch
+/// the store reads fine but is empty): no records of that kind at all, or more than `maxGone` gone
+/// in one pass. Those ids are only forgotten, as before.
+public struct HealthLedgerSweep: Equatable, Sendable {
+    /// Deleted for good: remove their samples from Health, then forget them.
+    public var remove: [String]
+    /// Forget only: moved out of the window, or the store can't be trusted right now.
+    public var forget: [String]
+    /// Ids were gone but the store looked emptied, so nothing was removed.
+    public var distrusted: Bool
+
+    public static let maxGone = 20
+
+    public init(remove: [String] = [], forget: [String] = [], distrusted: Bool = false) {
+        self.remove = remove
+        self.forget = forget
+        self.distrusted = distrusted
+    }
+
+    /// The ledger ids that aren't among the window's records (`windowIDs`, trashed ones included),
+    /// sorted: look these up across all days, then `plan`.
+    public static func missing(ledgerIDs: [String], windowIDs: Set<String>) -> [String] {
+        ledgerIDs.filter { !windowIDs.contains($0) }.sorted()
+    }
+
+    /// `missing`: from `missing(ledgerIDs:windowIDs:)`; `found`: those of them that still have a
+    /// record on some day; `storeIsEmpty`: the store holds no record of this kind at all.
+    public static func plan(missing: [String], found: Set<String>, storeIsEmpty: Bool, limit: Int = maxGone) -> HealthLedgerSweep {
+        let moved = missing.filter { found.contains($0) }
+        let gone = missing.filter { !found.contains($0) }
+        guard !gone.isEmpty else { return HealthLedgerSweep(forget: moved) }
+        if storeIsEmpty || gone.count > limit {
+            return HealthLedgerSweep(forget: moved + gone, distrusted: true)
+        }
+        return HealthLedgerSweep(remove: gone, forget: moved)
     }
 }

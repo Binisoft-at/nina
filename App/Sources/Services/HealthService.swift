@@ -29,10 +29,18 @@ final class HealthService {
         var key: String { "nina.health." + rawValue }
     }
 
+    /// The source of imported diary rows kept out of Apple Health (the import's "Also write these
+    /// to Apple Health" left off: they usually come from an app that wrote them already).
+    static let skipHealthSource = "import-skiphealth"
+
     let enabled: Bool
-    /// The store keeps what is saved (not the in-memory fallback): only then may a weigh-in that
-    /// is gone from it take its sample out of Health.
+    /// The store keeps what is saved (not the in-memory fallback): only then does anything go to
+    /// Health (what is typed into a store that is lost on quit must not stay there), and only then
+    /// may a record that is gone from the store take its samples out of Health.
     let storeIsSaved: Bool
+    /// `-Demo` (screenshots, iPhone and iPad): Health shows as connected with every option on and
+    /// made-up activity; nothing is read from or written to Health.
+    let isDemo: Bool
     private(set) var options: Set<Option> = []
     private(set) var activeEnergyToday: Double = 0
     private(set) var weights: [DayKey: Double] = [:]
@@ -46,24 +54,45 @@ final class HealthService {
     let bodyData: HealthBodyReader
     @ObservationIgnored private var syncTask: Task<Void, Never>?
 
-    init(enabled: Bool, storeIsSaved: Bool = true) {
+    init(enabled: Bool, storeIsSaved: Bool = true, isDemo: Bool = LaunchOptions.current.isDemo) {
         self.enabled = enabled
         self.storeIsSaved = storeIsSaved
         bodyData = HealthBodyReader(enabled: enabled)
+        #if os(iOS)
+        self.isDemo = isDemo
+        #else
+        self.isDemo = false
+        #endif
+        if self.isDemo {
+            options = Set(Option.allCases)
+            activeEnergyToday = 412
+            return
+        }
         for option in Option.allCases where UserDefaults.standard.bool(forKey: option.key) {
             options.insert(option)
         }
     }
 
+    /// Whether a store opened in `mode` keeps what is saved (not the in-memory fallback, not the
+    /// demo): `storeIsSaved` for a service made outside AppModel.
+    static func savesData(_ mode: StorageMode) -> Bool {
+        switch mode {
+        case .iCloud, .local: true
+        case .memory, .demo: false
+        }
+    }
+
+    /// Health can be read and written here (never in the demo).
     var isAvailable: Bool {
         #if os(iOS)
-        enabled && HKHealthStore.isHealthDataAvailable()
+        enabled && !isDemo && HKHealthStore.isHealthDataAvailable()
         #else
         false
         #endif
     }
 
-    var isConnected: Bool { isAvailable && !options.isEmpty }
+    /// Settings shows Health as connected (also in the demo, where nothing is read or written).
+    var isConnected: Bool { (isAvailable || isDemo) && !options.isEmpty }
     var readsWeight: Bool { isConnected && options.contains(.weight) }
 
     func isOn(_ option: Option) -> Bool { options.contains(option) }
@@ -71,6 +100,7 @@ final class HealthService {
     /// Turns an option on or off; asks for permission when something new is turned on.
     func set(_ option: Option, _ on: Bool, container: ModelContainer) async {
         if on { options.insert(option) } else { options.remove(option) }
+        guard !isDemo else { return }
         UserDefaults.standard.set(on, forKey: option.key)
         if on {
             await requestAuthorization()
@@ -130,7 +160,8 @@ final class HealthService {
         } else {
             activeEnergyToday = 0
         }
-        WidgetBridge.activityBonus = activeEnergyToday
+        // With its day, so yesterday's never raises today's widget budget (kept on this device only).
+        WidgetBridge.setActivityBonus(activeEnergyToday, day: DayKey(date: Date()))
 
         if options.contains(.weight) {
             let start = Calendar.current.date(byAdding: .day, value: -400, to: Date()) ?? Date()
@@ -193,18 +224,31 @@ final class HealthService {
 
     private func syncPass(container: ModelContainer) async {
         guard isAvailable, options.contains(.writeDiary) || options.contains(.writeWater) || options.contains(.weight) else { return }
+        // Nothing goes to Health from a store that is lost on quit (the in-memory fallback).
+        guard storeIsSaved else { return }
         let context = container.mainContext
         let firstDay = DayKey.today().adding(days: -14)
         let first = firstDay.rawValue
+        // A store that can't be read must not look as if everything was deleted: skip this pass.
+        let entries: [LogEntry]
+        let waters: [WaterLog]
+        do {
+            entries = try context.fetch(FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { $0.day >= first }))
+            waters = try context.fetch(FetchDescriptor<WaterLog>(predicate: #Predicate<WaterLog> { $0.day >= first }))
+        } catch {
+            lastError = error.localizedDescription
+            AppLog.warning("Health sync skipped, the diary couldn't be read: \(error.localizedDescription)", category: "health")
+            return
+        }
         var ledger = HealthLedger.load()
         var removeIDs: [String] = []
         var write: [(id: String, version: Int, entry: LogEntry)] = []
 
-        let entries = (try? context.fetch(FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { $0.day >= first }))) ?? []
         for entry in entries {
             let id = entry.uuid.uuidString
             let version = HealthMapping.syncVersion(modifiedAt: entry.modifiedAt)
             let wanted = options.contains(.writeDiary) && entry.deletedAt == nil && entry.isEaten && entry.energy > 0
+                && entry.source != Self.skipHealthSource
             if wanted {
                 if ledger.versions[id] != version {
                     if ledger.versions[id] != nil { removeIDs.append(id) }
@@ -218,7 +262,6 @@ final class HealthService {
 
         var waterWrite: [WaterLog] = []
         var waterRemove: [String] = []
-        let waters = (try? context.fetch(FetchDescriptor<WaterLog>(predicate: #Predicate<WaterLog> { $0.day >= first }))) ?? []
         for log in waters {
             let id = "w:" + log.uuid.uuidString
             let wanted = options.contains(.writeWater) && log.deletedAt == nil && log.amount > 0
@@ -229,6 +272,12 @@ final class HealthService {
                 ledger.versions[id] = nil
             }
         }
+
+        // Written before and deleted for good since (an Undo right after logging, ⌘Z, a purge on
+        // another device): their samples leave Health too, instead of being forgotten there.
+        let gone = deletedForGood(ledger: ledger, entries: entries, waters: waters, context: context)
+        removeIDs += gone.entries
+        waterRemove += gone.water
 
         if !removeIDs.isEmpty { await delete(metadataValues: removeIDs, key: "NinaEntry") }
         if !waterRemove.isEmpty { await delete(metadataValues: waterRemove, key: "NinaWater", types: [HKQuantityType(.dietaryWater)]) }
@@ -253,13 +302,59 @@ final class HealthService {
                 lastError = error.localizedDescription
             }
         }
-        ledger.prune(keeping: Set(entries.map(\.uuid.uuidString) + waters.map { "w:" + $0.uuid.uuidString }))
+        var keep = Set(entries.map(\.uuid.uuidString))
+        keep.formUnion(waters.map { (log: WaterLog) -> String in "w:" + log.uuid.uuidString })
+        keep.formUnion(gone.unchecked)
+        ledger.prune(keeping: keep)
         written += await syncWeights(context: context, from: firstDay, ledger: &ledger)
         ledger.save()
         lastSync = Date()
-        if written > 0 || !removeIDs.isEmpty {
+        if written > 0 || !removeIDs.isEmpty || !waterRemove.isEmpty {
             AppLog.info("Health: wrote \(written), removed \(removeIDs.count + waterRemove.count)", category: "health")
         }
+    }
+
+    /// The ledger's entries and water that have no record left on any day (`HealthLedgerSweep`):
+    /// entry ids and water ids (without "w:") whose samples leave Health. None when the store looks
+    /// emptied (an iCloud sign-out or account switch): then they are only forgotten. `unchecked`:
+    /// ledger ids to keep because the lookup itself failed.
+    private func deletedForGood(ledger: HealthLedger, entries: [LogEntry], waters: [WaterLog],
+                                context: ModelContext) -> (entries: [String], water: [String], unchecked: [String]) {
+        let keys = Array(ledger.versions.keys)
+        let entryMissing = HealthLedgerSweep.missing(ledgerIDs: keys.filter { !$0.hasPrefix("w:") },
+                                                     windowIDs: Set(entries.map(\.uuid.uuidString)))
+        let waterMissing = HealthLedgerSweep.missing(ledgerIDs: keys.filter { $0.hasPrefix("w:") }.map { String($0.dropFirst(2)) },
+                                                     windowIDs: Set(waters.map(\.uuid.uuidString)))
+        var result: (entries: [String], water: [String]) = ([], [])
+        do {
+            if !entryMissing.isEmpty {
+                let uuids = entryMissing.compactMap(UUID.init(uuidString:))
+                let found = try context.fetch(FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { uuids.contains($0.uuid) }))
+                let isEmpty = try context.fetchCount(FetchDescriptor<LogEntry>()) == 0
+                let sweep = HealthLedgerSweep.plan(missing: entryMissing, found: Set(found.map(\.uuid.uuidString)), storeIsEmpty: isEmpty)
+                if sweep.distrusted {
+                    AppLog.notice("Health: \(entryMissing.count) entries vanished at once – the store looks emptied, nothing removed from Health",
+                                  category: "health")
+                }
+                result.entries = sweep.remove
+            }
+            if !waterMissing.isEmpty {
+                let uuids = waterMissing.compactMap(UUID.init(uuidString:))
+                let found = try context.fetch(FetchDescriptor<WaterLog>(predicate: #Predicate<WaterLog> { uuids.contains($0.uuid) }))
+                let isEmpty = try context.fetchCount(FetchDescriptor<WaterLog>()) == 0
+                let sweep = HealthLedgerSweep.plan(missing: waterMissing, found: Set(found.map(\.uuid.uuidString)), storeIsEmpty: isEmpty)
+                if sweep.distrusted {
+                    AppLog.notice("Health: \(waterMissing.count) water logs vanished at once – the store looks emptied, nothing removed from Health",
+                                  category: "health")
+                }
+                result.water = sweep.remove
+            }
+        } catch {
+            // Checked again next time: they stay in the ledger (`unchecked`).
+            AppLog.warning("Health: deleted records not checked: \(error.localizedDescription)", category: "health")
+            return ([], [], entryMissing + waterMissing.map { "w:" + $0 })
+        }
+        return (result.entries, result.water, [])
     }
 
     /// Weigh-ins of the sync window that Health doesn't have yet – saved on the watch, another
@@ -277,10 +372,16 @@ final class HealthService {
         let items: [HealthWeightSync.Item] = weights.map(\.healthWeight)
         // From the second day of the window: a weigh-in early on its first day can count for the day
         // before (the day-start hour), so it isn't mistaken for one that is gone.
-        let windowStart: Date? = storeIsSaved ? firstDay.adding(days: 1).date(minutes: 0) : nil
+        let windowStart = firstDay.adding(days: 1).date(minutes: 0)
         var marks = ledger.weights ?? [:]
+        // A store that looks emptied (an iCloud sign-out, another Apple Account) only forgets: the
+        // weigh-ins Nina wrote stay in Health.
+        let trusted = HealthWeightSync.trustsStore(items: items, marks: marks, windowStart: windowStart)
+        if !trusted {
+            AppLog.notice("Health: weigh-ins vanished at once – the store looks emptied, nothing removed from Health", category: "health")
+        }
         var written = 0
-        for step in HealthWeightSync.plan(items, marks: marks, windowStart: windowStart) {
+        for step in HealthWeightSync.plan(items, marks: marks, windowStart: trusted ? windowStart : nil) {
             switch step {
             case .remove(let kilograms, let time):
                 await deleteWeightSamples(kilograms: kilograms, date: time)
@@ -372,8 +473,9 @@ final class HealthService {
         return removed > 0
     }
 
+    /// Weigh-ins go to Health (and leave it) only from a store that keeps them.
     private var canWriteWeight: Bool {
-        isAvailable && options.contains(.weight)
+        isAvailable && storeIsSaved && options.contains(.weight)
             && store.authorizationStatus(for: HKQuantityType(.bodyMass)) == .sharingAuthorized
     }
 
