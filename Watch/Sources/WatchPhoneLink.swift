@@ -50,15 +50,15 @@ enum WatchPhoneLink {
         set { UserDefaults.standard.set(newValue?.encoded(), forKey: coachKey) }
     }
 
-    /// Today's active energy from the iPhone's Apple Health (kcal, before "Add to my budget"), as
-    /// the iPhone last reported it; 0 once that is from another calendar day. Kept where every
-    /// snapshot this watch writes reads it (`WidgetBridge.activityBonus`, this watch only), so the
-    /// face has the same budget as the iPhone's after a save here too.
-    static func activeEnergy() -> Double {
-        WidgetBridge.activityBonus
+    /// The active energy from the iPhone's Apple Health (kcal, before "Add to my budget") that
+    /// counts on the diary day `day`, as the iPhone last reported it; 0 when it reported it for
+    /// another day. Kept where the snapshots this watch writes read it (`WidgetBridge`, this watch
+    /// only), so the face has the same budget as the iPhone's after a save here too.
+    static func activeEnergy(on day: DayKey) -> Double {
+        WidgetBridge.activityBonus(on: day)
     }
 
-    /// Keeps the iPhone's reading of active energy for the snapshots (`receive`).
+    /// Keeps the iPhone's reading of active energy, with its diary day, for the snapshots (`receive`).
     private static func keepActiveEnergy(of coach: WatchSnapshotRelay.PhoneCoach?) {
         guard let coach, let day = DayKey(coach.activeEnergyDay) else { return }
         WidgetBridge.setActivityBonus(WatchSnapshotRelay.activeEnergy(coach, on: coach.activeEnergyDay), day: day)
@@ -71,22 +71,23 @@ enum WatchPhoneLink {
     static func receive(_ payload: WatchSnapshotRelay.Payload) {
         guard WatchSnapshotRelay.isNewer(payload, than: lastPhoneMark) else { return }
         lastPhoneMark = payload.mark
+        let store = NinaStore(context: Persistence.shared.container.mainContext)
+        let today = store.settings.today()
         let previous = phoneCoach
         let kept = WatchSnapshotRelay.keptCoach(payload, previous: previous)
-        let bonusBefore = activeEnergy()
+        let bonusBefore = activeEnergy(on: today)
         if kept != previous {
             phoneCoach = kept
             keepActiveEnergy(of: kept)
         }
-        let store = NinaStore(context: Persistence.shared.container.mainContext)
-        let today = store.settings.today()
+        let bonus = activeEnergy(on: today)
         let freshness = store.watchLinkFreshness(on: today)
         if WatchSnapshotRelay.acceptsPhone(payload, watchFreshness: freshness, watchToday: today.rawValue) {
             WidgetBridge.publish(payload.snapshot)
-        } else if activeEnergy() != bonusBefore,
+        } else if bonus != bonusBefore,
                   WatchSnapshotRelay.acceptsOwn(day: today.rawValue, freshness: freshness, phone: payload.mark) {
-            // With the iPhone's new activity bonus (`todaySnapshot` reads it).
-            WidgetBridge.publish(store.todaySnapshot())
+            // This watch's own numbers with the iPhone's new activity bonus.
+            WidgetBridge.publish(store.todaySnapshot(activityBonus: bonus))
         }
         NotificationCenter.default.post(name: .ninaWatchPhoneMessage, object: nil)
     }

@@ -66,7 +66,7 @@ extension NinaStore {
 
     /// The iPhone's coach part for its Apple Watch (`WatchSnapshotRelay.PhoneCoach`): `health` the
     /// live Apple Health weigh-ins (never stored), `activeEnergy` today's active energy from Health
-    /// as last read (kcal, before "Add to my budget").
+    /// as the iPhone's own ring counts it on today's diary day (kcal, before "Add to my budget").
     func watchLinkPhoneCoach(health: [WeightSignal.Reading], activeEnergy: Double, now: Date = Date()) -> WatchSnapshotRelay.PhoneCoach {
         let settings = self.settings
         let calendar = self.calendar
@@ -74,6 +74,6 @@ extension NinaStore {
         let signal = weightSignal(adding: health, settings: settings)
         return WatchSnapshotRelay.phoneCoach(signal: signal, plan: settings.plan, checkIns: checkIns(), today: today,
                                              freshness: watchLinkCoachFreshness(), activeEnergy: activeEnergy,
-                                             activeEnergyDay: DayKey(date: now, calendar: calendar), calendar: calendar)
+                                             activeEnergyDay: today, calendar: calendar)
     }
 }

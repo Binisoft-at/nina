@@ -235,6 +235,11 @@ struct WatchPhoneCoachTests {
         #expect(view.healthMorning == nil)
         #expect(!view.hidesWeighIn)
         #expect(view.showsHealthHint)
+        // The iPhone said it has no Health weigh-ins: no note, however few mornings were typed.
+        let typedOnly = coach(day: "2030-03-13", freshness: noon, healthWeighIns: false, morning: nil)
+        let none = WatchSnapshotRelay.coachView(own: own, watchFreshness: nil, typedMornings: 1, phone: typedOnly, watchToday: today)
+        #expect(!none.isFromPhone)
+        #expect(!none.showsHealthHint)
     }
 
     @Test func withoutWordFromTheIPhoneTheNoteFollowsTheTypedMornings() {

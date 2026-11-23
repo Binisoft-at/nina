@@ -48,6 +48,15 @@ final class PhoneWatchLink {
         #endif
     }
 
+    /// The app refreshed (after a save, an iCloud import or a new read of Apple Health): hand on
+    /// what changed. Nothing off the iPhone, or before `install` hooked in.
+    static func refreshed() {
+        #if os(iOS)
+        guard !shared.observers.isEmpty else { return }
+        shared.scheduleSend()
+        #endif
+    }
+
     #if os(iOS)
     /// `WidgetBridge` wrote a new snapshot (on the main thread, from any caller).
     nonisolated private static func snapshotWritten(_ snapshot: TodaySnapshot) {
@@ -105,6 +114,17 @@ final class PhoneWatchLink {
         healthRead || !UserDefaults.standard.bool(forKey: HealthService.Option.weight.key)
     }
 
+    /// Today's active energy from Apple Health (kcal, before "Add to my budget") as the iPhone's
+    /// own ring adds it to the diary day `today`: the reading this device keeps with its day
+    /// (`WidgetBridge`), whether that day is the diary day or the calendar day (they differ
+    /// between midnight and a later day start); 0 when it is older.
+    private static func activeEnergy(today: DayKey, now: Date, calendar: Calendar) -> Double {
+        let onDiaryDay = WidgetBridge.activityBonus(on: today)
+        let calendarDay = DayKey(date: now, calendar: calendar)
+        guard calendarDay != today else { return onDiaryDay }
+        return max(onDiaryDay, WidgetBridge.activityBonus(on: calendarDay))
+    }
+
     private func send() {
         let session = WCSession.default
         guard session.activationState == .activated else {
@@ -117,10 +137,10 @@ final class PhoneWatchLink {
         let store = NinaStore(context: Persistence.shared.container.mainContext)
         let now = Date()
         let today = store.settings.today(now: now, calendar: store.calendar)
-        let activeEnergy = WidgetBridge.activityBonus(on: DayKey(date: now, calendar: store.calendar))
-        // With the activity bonus, like the iPhone's own widget: the watch adds the same bonus from
-        // the coach part to its ring and to the snapshots it writes itself.
-        let snapshot = store.todaySnapshot(activityBonus: activeEnergy, now: now)
+        let activeEnergy = Self.activeEnergy(today: today, now: now, calendar: store.calendar)
+        // With the activity bonus exactly as the iPhone's own widget has it: the watch adds the
+        // same bonus from the coach part to its ring and to the snapshots it writes itself.
+        let snapshot = store.todaySnapshot(now: now)
         let coach = healthIsCurrent
             ? store.watchLinkPhoneCoach(health: CoachContext.latestHealthReadings, activeEnergy: activeEnergy, now: now)
             : nil

@@ -146,8 +146,8 @@ public enum WatchSnapshotRelay {
         /// The status line as the iPhone works it out, typed and Health weigh-ins together; nil
         /// without a plan or without anything to show.
         public var status: WatchCoach.Status?
-        /// Active energy from Apple Health (kcal, before "Add to my budget"), as last read on the
-        /// calendar day `activeEnergyDay`.
+        /// Today's active energy from Apple Health (kcal, before "Add to my budget") as the iPhone
+        /// counts it, on its diary day `activeEnergyDay` (the day the iPhone's own ring adds it to).
         public var activeEnergy: Double
         public var activeEnergyDay: String
 
@@ -191,8 +191,8 @@ public enum WatchSnapshotRelay {
     public static let healthHintBelow = 4
 
     /// The iPhone's part on `today`: `signal` over the typed and the live Health weigh-ins,
-    /// `freshness` from its store (`NinaStore.watchLinkCoachFreshness`), `activeEnergy` as last read
-    /// from Health on the calendar day `activeEnergyDay`.
+    /// `freshness` from its store (`NinaStore.watchLinkCoachFreshness`), `activeEnergy` from Health
+    /// as the iPhone counts it on its diary day `activeEnergyDay` (normally `today`).
     public static func phoneCoach(signal: WeightSignal, plan: CoachPlan, checkIns: [CheckInSnapshot], today: DayKey,
                                   freshness: Date?, activeEnergy: Double, activeEnergyDay: DayKey,
                                   calendar: Calendar = .current) -> PhoneCoach {
@@ -269,11 +269,11 @@ public enum WatchSnapshotRelay {
                          healthMorning: current?.healthMorning, showsHealthHint: hint)
     }
 
-    /// The active energy (kcal) the watch counts on the calendar day `calendarDay` – times "Add to
-    /// my budget", as on the iPhone: the iPhone's latest reading of that day, else 0 (yesterday's
+    /// The active energy (kcal) the watch counts on its diary day `day` – times "Add to my
+    /// budget", as on the iPhone: the iPhone's latest reading for that day, else 0 (yesterday's
     /// must never raise today's budget).
-    public static func activeEnergy(_ phone: PhoneCoach?, on calendarDay: String) -> Double {
-        guard let phone, phone.activeEnergyDay == calendarDay, phone.activeEnergy.isFinite else { return 0 }
+    public static func activeEnergy(_ phone: PhoneCoach?, on day: String) -> Double {
+        guard let phone, phone.activeEnergyDay == day, phone.activeEnergy.isFinite else { return 0 }
         return max(0, phone.activeEnergy)
     }
 
