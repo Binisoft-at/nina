@@ -38,6 +38,8 @@ print(phones[0]['udid'] if phones else '')")
   [ -n "$udid" ] || { echo "no iPhone simulator"; return 0; }
   xcrun simctl boot "$udid" 2>/dev/null || true
   xcrun simctl bootstatus "$udid" -b
+  # The keyboard's "slide to type" intro would cover the lower half of a screen with a text field.
+  xcrun simctl spawn "$udid" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
   xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
   xcrun simctl install "$udid" "$app"
   for appearance in light dark; do

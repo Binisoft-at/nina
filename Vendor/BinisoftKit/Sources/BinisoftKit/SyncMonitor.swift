@@ -31,10 +31,11 @@ public final class SyncMonitor {
             let finished = event.endDate
             let succeeded = event.succeeded
             let isSetup = event.type == .setup
+            let kind = SyncMonitor.kind(of: event.type)
             let error = event.error.map(SyncMonitor.texts)
             MainActor.assumeIsolated {
                 self?.recordSync(finished: finished, succeeded: succeeded, countsAsSync: !isSetup,
-                                 short: error?.short, full: error?.full)
+                                 short: error?.short, full: error?.full, kind: kind)
             }
         })
 
@@ -72,23 +73,37 @@ public final class SyncMonitor {
         }
     }
 
-    /// Start (`finished == nil`) or end of a sync event.
+    /// Start (`finished == nil`) or end of a sync event. `kind`: what the event did (CloudKit
+    /// mirroring passes its event type, so a failing export isn't cleared by a working import);
+    /// nil clears every error on success, as before. `countsAsSync` false (set-up) never moves
+    /// `lastSync`.
     public func recordSync(finished: Date?, succeeded: Bool, countsAsSync: Bool = true,
-                           short: String? = nil, full: String? = nil) {
+                           short: String? = nil, full: String? = nil, kind: SyncEventKind? = nil) {
         guard let finished else {
             state.isSyncing = true
             return
         }
-        state.isSyncing = false
-        if succeeded {
-            if countsAsSync { state.lastSync = finished }
-            if state.lastError != nil { AppLog.info("Sync works again", category: "sync") }
-            state.lastError = nil
-        } else if let short {
+        let before = state.lastError
+        var text: String?
+        if !succeeded, let short {
             let raw = full ?? short
             let friendly = SyncErrorText.describe(raw, appName: appName)
-            state.lastError = friendly == raw ? short : friendly
-            AppLog.warning("Sync failed: \(raw)", category: "sync")
+            text = friendly == raw ? short : friendly
+            AppLog.warning("Sync failed (\(kind?.rawValue ?? "sync")): \(raw)", category: "sync")
+        }
+        let lastSync = state.lastSync
+        state.record(kind ?? (countsAsSync ? nil : .setup), finished: finished, succeeded: succeeded, error: text)
+        if !countsAsSync { state.lastSync = lastSync }
+        if before != nil, state.lastError == nil { AppLog.info("Sync works again", category: "sync") }
+    }
+
+    /// The kit's name for a CloudKit mirroring event type.
+    nonisolated private static func kind(of type: NSPersistentCloudKitContainer.EventType) -> SyncEventKind? {
+        switch type {
+        case .setup: .setup
+        case .import: .import
+        case .export: .export
+        @unknown default: nil
         }
     }
 

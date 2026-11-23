@@ -6,11 +6,44 @@ import Foundation
 
 /// Small RFC 4180 CSV reader/writer with delimiter detection and the usual encodings.
 public enum CSV {
+    /// UTF-8 first; UTF-16 only with a byte-order mark or when about a third of the bytes are zero
+    /// (plain 8-bit text decodes "successfully" as UTF-16 and turns into Chinese-looking
+    /// characters); else Excel's 8-bit "CSV": Mac Roman when its accented letters (0x80–0x9F) show
+    /// up and none of Windows-1252's umlauts do, otherwise Windows-1252.
     public static func decode(_ data: Data) -> String {
         if let text = String(data: data, encoding: .utf8) { return text.withoutBOM }
-        if let text = String(data: data, encoding: .utf16) { return text.withoutBOM }
+        let bytes = [UInt8](data)
+        if let encoding = utf16Encoding(bytes), let text = String(data: data, encoding: encoding) { return text.withoutBOM }
+        if looksLikeMacRoman(bytes), let text = String(data: data, encoding: .macOSRoman) { return text }
         if let text = String(data: data, encoding: .windowsCP1252) { return text }
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// UTF-16 with a byte-order mark, or text with many zero bytes (little-endian when the zeros
+    /// sit at odd positions); nil for 8-bit text.
+    static func utf16Encoding(_ bytes: [UInt8]) -> String.Encoding? {
+        if bytes.starts(with: [0xFF, 0xFE]) { return .utf16LittleEndian }
+        if bytes.starts(with: [0xFE, 0xFF]) { return .utf16BigEndian }
+        guard bytes.count >= 2 else { return nil }
+        var even = 0
+        var odd = 0
+        for (index, byte) in bytes.enumerated() where byte == 0 {
+            if index.isMultiple(of: 2) { even += 1 } else { odd += 1 }
+        }
+        guard Double(even + odd) >= Double(bytes.count) * 0.3 else { return nil }
+        return odd >= even ? .utf16LittleEndian : .utf16BigEndian
+    }
+
+    /// Mac Roman's accented letters (0x80–0x9F: Ä Ö Ü ä ö ü é …) without any of Windows-1252's
+    /// ä ö ü Ä Ö Ü ß (0xE4 0xF6 0xFC 0xC4 0xD6 0xDC 0xDF).
+    static func looksLikeMacRoman(_ bytes: [UInt8]) -> Bool {
+        let windowsLetters: Set<UInt8> = [0xE4, 0xF6, 0xFC, 0xC4, 0xD6, 0xDC, 0xDF]
+        var macLetters = false
+        for byte in bytes {
+            if windowsLetters.contains(byte) { return false }
+            if (0x80...0x9F).contains(byte) { macLetters = true }
+        }
+        return macLetters
     }
 
     /// Picks the delimiter (`,` `;` tab or `|`) that splits the first lines most consistently.

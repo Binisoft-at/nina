@@ -57,9 +57,44 @@ jobs:
           path: ci-logs/
           if-no-files-found: ignore
 
+  # A build whose data fields aren't in CloudKit Production yet can't upload anything from the
+  # devices it runs on: stop before archiving and say where to click. Passes (with a warning) when
+  # Production can't be read or the token is missing, so a tool hiccup never blocks a release.
+  schema-check:
+    name: 1b. CloudKit Production has the schema
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v') || contains(github.event.head_commit.message, '[testflight]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDKIT_MANAGEMENT_TOKEN: ${{ secrets.CLOUDKIT_MANAGEMENT_TOKEN }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      OUT_DIR: ci-logs/cloudkit
+    steps:
+      - uses: actions/checkout@v5
+      - name: Container from Config/Base.xcconfig
+        run: |
+          mkdir -p "$OUT_DIR"
+          echo "CONTAINER_ID=$(python3 scripts/ci/xcconfig.py APP_CLOUDKIT_CONTAINER)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        if: env.CLOUDKIT_MANAGEMENT_TOKEN != '' && hashFiles('cloudkit/schema.ckdb') != ''
+        with:
+          node-version: 22
+      - name: Compare cloudkit/schema.ckdb with Production
+        if: env.CLOUDKIT_MANAGEMENT_TOKEN != '' && hashFiles('cloudkit/schema.ckdb') != ''
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts @apple/cktool.database@1.3.2 @apple/cktool.target.nodejs@1.3.2 \
+            || { echo "WARNING: CKTool not installed – schema not checked."; exit 0; }
+          CHECK_PRODUCTION=1 node scripts/ci/cloudkit-schema.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: schema-check
+          path: ci-logs/
+          if-no-files-found: ignore
+
   upload:
     name: 2–5. Archive, check, upload
-    needs: prune-certificates
+    needs: [prune-certificates, schema-check]
     runs-on: macos-26
     timeout-minutes: 90
     concurrency:
@@ -128,7 +163,7 @@ jobs:
 
   report:
     name: Publish to ci-testflight
-    needs: [prune-certificates, upload]
+    needs: [prune-certificates, schema-check, upload]
     if: ${{ !cancelled() && needs.prune-certificates.result != 'skipped' }}
     permissions:
       contents: write
@@ -142,7 +177,7 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
-          RESULTS: prune=${{ needs.prune-certificates.result }} upload=${{ needs.upload.result }} build=${{ github.run_number }}
+          RESULTS: prune=${{ needs.prune-certificates.result }} schema=${{ needs.schema-check.result }} upload=${{ needs.upload.result }} build=${{ github.run_number }}${{ needs.schema-check.result == 'failure' && ' – Deploy the CloudKit schema first https://icloud.developer.apple.com/dashboard → CloudKit Database → the container → Development → Deploy Schema Changes… → Deploy (missing fields in errors.txt)' || '' }}
           BRANCH: ci-testflight
           SUBDIR: "."
         run: scripts/ci/ci-report.sh artifacts

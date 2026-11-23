@@ -51,12 +51,25 @@ public enum ICloudAccount: String, Equatable, Sendable {
     }
 }
 
+/// What a sync event did. CloudKit mirroring imports and exports separately: imports can keep
+/// working while every export fails (iCloud full, a field missing in Production).
+public enum SyncEventKind: String, Equatable, Sendable {
+    case setup, `import`, export
+}
+
 public struct SyncState: Equatable, Sendable {
     public var mode: StorageMode
     public var account: ICloudAccount
     public var isSyncing: Bool
+    /// The last time a sync finished with nothing failing.
     public var lastSync: Date?
+    /// The error Settings shows: the export's first (nothing this device writes reaches the
+    /// others), then set-up, then import. Kept in step by `record`.
     public var lastError: String?
+    /// The errors of each kind, each cleared only by a successful event of the same kind.
+    public var setupError: String?
+    public var importError: String?
+    public var exportError: String?
 
     public init(mode: StorageMode, account: ICloudAccount = .unknown, isSyncing: Bool = false,
                 lastSync: Date? = nil, lastError: String? = nil) {
@@ -67,9 +80,32 @@ public struct SyncState: Equatable, Sendable {
         self.lastError = lastError
     }
 
+    /// The end of a sync event. `kind` nil (apps on CKSyncEngine that don't tell): a success
+    /// clears every error. A failure without an error text changes nothing.
+    public mutating func record(_ kind: SyncEventKind?, finished: Date, succeeded: Bool, error: String? = nil) {
+        isSyncing = false
+        if succeeded {
+            switch kind {
+            case .setup?: setupError = nil
+            case .import?: importError = nil
+            case .export?: exportError = nil
+            case nil: setupError = nil; importError = nil; exportError = nil
+            }
+        } else if let error {
+            switch kind {
+            case .import?: importError = error
+            case .export?: exportError = error
+            case .setup?, nil: setupError = error
+            }
+        }
+        lastError = exportError ?? setupError ?? importError
+        if succeeded, kind != .setup, lastError == nil { lastSync = finished }
+    }
+
     /// Green dot in Settings.
     public var isHealthy: Bool {
         mode.isSynced && lastError == nil && account != .noAccount && account != .restricted
+            && account != .temporarilyUnavailable
     }
 
     /// One line for Settings, e.g. "On · synced 5 minutes ago".
@@ -82,6 +118,10 @@ public struct SyncState: Equatable, Sendable {
         case .iCloud:
             if account == .noAccount { return "Off – sign in to iCloud" }
             if account == .restricted { return "Off – iCloud is restricted" }
+            if account == .temporarilyUnavailable { return "iCloud needs attention – open Settings → your name" }
+            if let exportError {
+                return SyncErrorText.isStorageFull(exportError) ? "Not uploading – iCloud storage full" : "Not uploading"
+            }
             if lastError != nil { return "Not syncing" }
             if isSyncing { return "Syncing…" }
             if let lastSync { return "On · synced \(relative(lastSync))" }
@@ -92,6 +132,12 @@ public struct SyncState: Equatable, Sendable {
 
 /// Turns CloudKit / Core Data errors into sentences people understand, with the fix.
 public enum SyncErrorText {
+    /// The error (raw or from `describe`) says the iCloud storage is full.
+    public static func isStorageFull(_ text: String) -> Bool {
+        let lowered = text.lowercased()
+        return lowered.contains("quota") || lowered.contains("storage is full")
+    }
+
     public static func describe(_ raw: String, appName: String) -> String {
         let lowered = raw.lowercased()
         if lowered.contains("schema") || lowered.contains("cannot create or modify field")

@@ -66,6 +66,47 @@ function shape(schema) {
     .sort();
 }
 
+// "RecordType.field" for every record type and field (system fields left out), so the check
+// doesn't depend on how a file is formatted.
+function fields(schema) {
+  const keys = new Set();
+  let type = null;
+  for (const raw of schema.split("\n")) {
+    const line = raw.trim().replace(/,$/, "");
+    const record = line.match(/^RECORD TYPE\s+"?([A-Za-z_][A-Za-z0-9_.]*)"?/);
+    if (record) { type = record[1]; keys.add(type); continue; }
+    if (line.startsWith(")")) { type = null; continue; }
+    const field = line.match(/^"?([A-Za-z_][A-Za-z0-9_.]*)"?\s+(STRING|INT64|DOUBLE|TIMESTAMP|REFERENCE|BYTES|ENCRYPTED|ASSET|LOCATION|LIST)/);
+    if (type && field && !field[1].startsWith("___")) keys.add(`${type}.${field[1]}`);
+  }
+  return keys;
+}
+
+// CHECK_PRODUCTION=1 (the TestFlight workflow, before archiving): every record type and field of
+// the schema file must already be in Production – a build that writes a field Production doesn't
+// have can't upload anything. Production may have more (fields no longer used stay there). Fails
+// only when something is clearly missing; when Production can't be read it warns and passes, so a
+// tool hiccup never blocks a release.
+if (process.env.CHECK_PRODUCTION === "1") {
+  let production;
+  try {
+    production = await exportSchema(CKEnvironment.PRODUCTION, "production.ckdb");
+  } catch (error) {
+    log(`WARNING: the Production schema couldn't be read (${error.message}) – not checked.`);
+    finish(0);
+  }
+  const have = fields(production);
+  const missing = [...fields(text)].filter((key) => !have.has(key)).sort();
+  if (missing.length === 0) {
+    log(`Production of ${containerId} has every record type and field of ${schemaPath}.`);
+    finish(0);
+  }
+  log(`Deploy the CloudKit schema first: https://icloud.developer.apple.com/dashboard → CloudKit Database → ${containerId} → Development → Deploy Schema Changes… → Deploy`);
+  log(`Missing in Production: ${missing.join(", ")}`);
+  fs.writeFileSync(path.join(outDir, "schema-check.errors.txt"), report.join("\n") + "\n");
+  finish(1);
+}
+
 try {
   log(`Validating ${schemaPath} against ${containerId} (Development)…`);
   const validation = await api.validateSchema({ ...scope(CKEnvironment.DEVELOPMENT), file: schemaFile() });
