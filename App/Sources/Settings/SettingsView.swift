@@ -219,14 +219,15 @@ struct SettingsView: View {
             DataFact("barcode.viewfinder", "Open Food Facts", "Scanning sends only the barcode number to Open Food Facts to look the product up. Nothing about you is sent."),
         ]), at: 2)
         sections.insert(DataSection("Thalia", [
-            DataFact("arrow.up.forward.app", "Day values, on this device", "With Send to Thalia on, \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
+            DataFact("arrow.up.forward.app", "Day values, on this device", "While Settings → Thalia is on (one switch for all your devices), \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days, and your morning weight from the weigh-ins in \(AppInfo.name), into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
         ]), at: 3)
         return sections
     }
 
+    /// The backup: by hand (Import & Export, on the Mac also File → Back Up Nina…) or every week.
     private static let backupFact = DataFact(
         "externaldrive", "Back up",
-        "Import & Export → Back Up Everything saves all your \(AppInfo.name) data (not Apple Health) in one file; the CSV exports cover goals & plan, foods, diary, meals and weight & body."
+        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – photos included, nothing from Apple Health – where you choose. With \u{201C}Back up automatically every week\u{201D} on, \(AppInfo.name) does that by itself once a week and keeps the last four. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
     )
 }
 
