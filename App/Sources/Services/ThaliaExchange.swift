@@ -10,9 +10,10 @@ import Security
 #endif
 
 // Nina → Thalia (Binisoft exchange, format v1; docs/THALIA.md). On each iPhone, iPad and Mac, Nina
-// writes the day's calories, protein, carbs, fat and water from its synced store into the shared App
-// Group: `<group>/Nina/exchange/source.json` and `days/<YYYY-MM-DD>.json` (NinaCore: `ThaliaFeed`,
-// `ThaliaExchangeWriter`). Thalia reads them when it opens on the same device. Never on the watch,
+// writes the day's calories, protein, carbs, fat, water and morning weight from its synced store into
+// the shared App Group: `<group>/Nina/exchange/source.json` and `days/<YYYY-MM-DD>.json` (NinaCore:
+// `ThaliaFeed`, `ThaliaExchangeWriter`). Thalia reads them when it opens on the same device. The
+// switch "An Thalia liefern" syncs to every device (`SyncedSettings`). Never on the watch,
 // never from the demo, the tour's practice store, previews, tests or an in-memory store; on the Mac
 // only when the signed app really has the App Group. Never an error on screen – the app log only.
 
@@ -102,18 +103,23 @@ private final class GroupCheck: @unchecked Sendable {
 /// into plain values and does everything else off the main thread: the day values, the changed day
 /// files, `source.json`, the Darwin notification. Triggers: every own save (`.ninaDataChanged`,
 /// after 2 s of quiet), the end of the own CloudKit import, coming to the foreground
-/// (`becameActive`), the day change, and the switch. The switch "Send to Thalia" and the time of the
-/// last write are per device (UserDefaults). Off: one pass without values empties the day files of
-/// the window, then nothing is written until it is on again – only day files older than 62 days
-/// are still deleted, once a day.
+/// (`becameActive`), the day change, and the switch.
+///
+/// The switch "An Thalia liefern" is one setting for all devices (`SyncedSettings.thaliaDeliver` in
+/// the synced profile): off on one device is off on every device. Each device follows it at its
+/// next trigger – off: one pass without values empties its day files, then nothing is written
+/// until it is on again (only day files older than 62 days are still deleted, once a day);
+/// `source.json` stays. The time of the last write and "emptied" are per device (UserDefaults).
+/// The old device-only switch (`nina.thalia.deliver`) is moved into the synced setting once.
 @MainActor
 @Observable
 final class ThaliaDelivery {
-    /// "Send to Thalia" on this device (default on).
-    static let deliverKey = "nina.thalia.deliver"
+    /// The device-only switch of the first version: an "off" there is moved into the synced
+    /// setting once (`SyncedSettings.thaliaSwitch`), then the key is removed.
+    static let deviceSwitchKey = "nina.thalia.deliver"
     /// When a pass last wrote a file on this device.
     static let lastWrittenKey = "nina.thalia.lastWritten"
-    /// Off and the day files emptied: nothing to do until it is on again.
+    /// Off and this device's day files emptied: nothing to do until it is on again.
     static let clearedKey = "nina.thalia.cleared"
     /// Quiet time after a trigger (saves come in bursts).
     nonisolated static let debounce: Duration = .seconds(2)
@@ -129,7 +135,7 @@ final class ThaliaDelivery {
 
     /// Whether this model may write at all: the real store, not the demo, the tour, a preview or a test.
     let canWrite: Bool
-    /// "Send to Thalia" on this device.
+    /// "An Thalia liefern" – the synced switch as this device follows it.
     private(set) var isOn: Bool
     /// When a pass last wrote a day file or `source.json` on this device.
     private(set) var lastWritten: Date?
@@ -146,21 +152,22 @@ final class ThaliaDelivery {
     @ObservationIgnored private var cleanedDay: String?
 
     /// `canWrite` false (demo, tour, previews): the switch works on screen only and nothing is
-    /// read from or written to the device.
+    /// read from or written to the device or the store.
     init(container: ModelContainer, canWrite: Bool, defaults: UserDefaults = .standard) {
         self.container = container
         self.defaults = defaults
         self.canWrite = canWrite && !ThaliaDelivery.isPreviewOrTest
             && !container.configurations.contains { $0.isStoredInMemoryOnly }
-        isOn = self.canWrite ? (defaults.object(forKey: ThaliaDelivery.deliverKey) as? Bool ?? true) : true
+        isOn = true
         lastWritten = self.canWrite ? defaults.object(forKey: ThaliaDelivery.lastWrittenKey) as? Date : nil
+        // Where the switch stands now (the profile is read anyway at launch); nothing is written yet.
+        if self.canWrite { isOn = currentSwitch().isOn }
     }
 
-    /// The line under the switch.
+    /// The line under the switch (German, like the section): "Zuletzt geschrieben: …",
+    /// "Noch nichts geschrieben" or "Aus".
     var statusText: String {
-        guard isOn else { return "Off on this device" }
-        guard let lastWritten else { return "Not written yet" }
-        return "Last written: \(lastWritten.formatted(date: .abbreviated, time: .shortened))"
+        ThaliaFeed.statusLine(isOn: isOn, lastWritten: lastWritten)
     }
 
     /// Starts listening (own saves, the CloudKit import, the day change); the first pass follows a
@@ -175,7 +182,7 @@ final class ThaliaDelivery {
         observers.append(center.addObserver(forName: .NSCalendarDayChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.passSoon() }
         })
-        // Changes from the other devices: right after the own CloudKit import ends.
+        // Changes from the other devices (the switch among them): right after the own CloudKit import ends.
         observers.append(center.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification, object: nil,
                                             queue: .main) { [weak self] note in
             guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
@@ -190,30 +197,76 @@ final class ThaliaDelivery {
         passSoon()
     }
 
-    /// The switch: on writes everything at once, off empties the day files once.
+    /// The switch, for all devices: on writes everything here at once, off empties this device's
+    /// day files once (the other devices follow at their next pass).
     func setDeliver(_ on: Bool) {
         guard on != isOn else { return }
-        isOn = on
-        guard canWrite else { return }
-        defaults.set(on, forKey: ThaliaDelivery.deliverKey)
-        defaults.set(false, forKey: ThaliaDelivery.clearedKey)
-        AppLog.info(on ? "Thalia: sending on" : "Thalia: sending off, emptying the day files", category: "thalia")
+        guard canWrite else {
+            isOn = on
+            return
+        }
+        NinaStore(context: container.mainContext).updateSyncedSettings { $0.thaliaDeliver = on }
+        defaults.removeObject(forKey: ThaliaDelivery.deviceSwitchKey)
+        follow(on)
         pending?.cancel()
         runPass()
     }
 
-    /// A pass after `after` of quiet (a newer trigger starts the wait again). Off with the day files
-    /// emptied: only the daily clean-up of expired files.
+    /// Settings → Thalia appeared: a switch changed on another device shows (and acts) right away.
+    func checkSwitch() {
+        if refreshSwitch() { passSoon() }
+    }
+
+    /// A pass after `after` of quiet (a newer trigger starts the wait again). It first follows the
+    /// synced switch; off with the day files emptied, only the daily clean-up of expired files.
     func passSoon(after delay: Duration = ThaliaDelivery.debounce) {
-        guard canWrite, hasWork || needsCleanUp else { return }
+        guard canWrite else { return }
         let wait = hasRun ? delay : max(delay, ThaliaDelivery.firstDelay)
         pending?.cancel()
         pending = Task { @MainActor [weak self] in
             try? await Task.sleep(for: wait)
             guard !Task.isCancelled, let self else { return }
+            self.refreshSwitch()
             if self.hasWork { self.runPass() } else { self.cleanUp() }
         }
     }
+
+    // MARK: The switch
+
+    /// The switch as the synced profile and this device say now (reads only).
+    private func currentSwitch() -> SyncedSettings.ThaliaSwitch {
+        let synced = NinaStore(context: container.mainContext).syncedSettings()
+        return SyncedSettings.thaliaSwitch(synced: synced,
+                                           deviceValue: defaults.object(forKey: ThaliaDelivery.deviceSwitchKey) as? Bool)
+    }
+
+    /// Follows the synced switch: moves the old device-only "off" into it once, then drops the old
+    /// key. Returns whether the switch changed on this device.
+    @discardableResult
+    private func refreshSwitch() -> Bool {
+        guard canWrite else { return false }
+        let resolved = currentSwitch()
+        if let value = resolved.migrate {
+            NinaStore(context: container.mainContext).updateSyncedSettings { $0.thaliaDeliver = value }
+            AppLog.info("Thalia: this device's switch (\(value ? "on" : "off")) now counts for all devices", category: "thalia")
+        }
+        if resolved.dropsDeviceValue {
+            defaults.removeObject(forKey: ThaliaDelivery.deviceSwitchKey)
+        }
+        return follow(resolved.isOn)
+    }
+
+    /// The switch changed on this device: off needs one emptying pass here.
+    @discardableResult
+    private func follow(_ on: Bool) -> Bool {
+        guard on != isOn else { return false }
+        isOn = on
+        defaults.set(false, forKey: ThaliaDelivery.clearedKey)
+        AppLog.info(on ? "Thalia: delivering on" : "Thalia: delivering off, emptying the day files", category: "thalia")
+        return true
+    }
+
+    // MARK: Passes
 
     /// On, or off with the day files not emptied yet.
     private var hasWork: Bool {
@@ -256,11 +309,11 @@ final class ThaliaDelivery {
         let now = Date()
         let timeZone = TimeZone.current
         let today = ExchangeDate.day(now, timeZone: timeZone)
-        let records = deliver ? self.records(today: today) : ([], [])
+        let records = deliver ? self.records(today: today) : ThaliaPassRecords()
         let appVersion = AppVersion.main.marketing
         Task.detached(priority: .utility) { [weak self] in
-            let result = ThaliaDelivery.write(food: records.0, water: records.1, deliver: deliver, appVersion: appVersion,
-                                              today: today, now: now, timeZone: timeZone)
+            let result = ThaliaDelivery.write(records, deliver: deliver, appVersion: appVersion, today: today, now: now,
+                                              timeZone: timeZone)
             await self?.finish(result, deliver: deliver, now: now)
         }
     }
@@ -283,24 +336,41 @@ final class ThaliaDelivery {
         }
     }
 
-    /// The last 62 days of diary entries and water logs as plain values (Nina's synced store).
-    private func records(today: String) -> ([ThaliaFeed.FoodRecord], [ThaliaFeed.WaterRecord]) {
+    /// The last 62 days of diary entries, water logs and weigh-ins as plain values (Nina's synced
+    /// store), and the morning rule of the profile.
+    private func records(today: String) -> ThaliaPassRecords {
         guard let last = DayKey(today), let start = BinisoftExchange.day(today, adding: -BinisoftExchange.keepDays),
-              let first = DayKey(start) else { return ([], []) }
+              let first = DayKey(start) else { return ThaliaPassRecords() }
         let store = NinaStore(context: container.mainContext)
+        // A nutrient an entry has no value for stays nil (not 0), so a day where no entry has one
+        // leaves that metric out.
         let food = store.entries(from: first, through: last).map { entry in
             let values = entry.values
             return ThaliaFeed.FoodRecord(id: entry.uuid.uuidString, day: entry.dayKey.rawValue, time: entry.time,
-                                         energy: values.energy, protein: values.protein, carbs: values.carbs, fat: values.fat,
-                                         isEaten: entry.entryStatus == .eaten, isDeleted: entry.deletedAt != nil,
-                                         isFromHealth: ThaliaFeed.isHealthSource(entry.source))
+                                         energy: values[.energy], protein: values[.protein], carbs: values[.carbs],
+                                         fat: values[.fat], isEaten: entry.entryStatus == .eaten,
+                                         isDeleted: entry.deletedAt != nil, isFromHealth: ThaliaFeed.isHealthSource(entry.source))
         }
         // Today's water card: the sum of the day's water logs.
         let water = store.water(from: first, through: last).map { log in
             ThaliaFeed.WaterRecord(id: log.uuid.uuidString, day: log.dayKey.rawValue, time: log.time, milliliters: log.amount,
                                    isDeleted: log.deletedAt != nil)
         }
-        return (food, water)
+        // Weigh-ins in Nina (typed, from the watch or imported). Weights read from Apple Health
+        // are never stored in Nina, so none of them is here.
+        let firstKey = first.rawValue, lastKey = last.rawValue
+        let descriptor = FetchDescriptor<WeightEntry>(
+            predicate: #Predicate<WeightEntry> { $0.day >= firstKey && $0.day <= lastKey && $0.deletedAt == nil }
+        )
+        let weights = ((try? container.mainContext.fetch(descriptor)) ?? []).map { entry in
+            ThaliaFeed.WeightRecord(id: entry.uuid.uuidString, day: entry.dayKey.rawValue, time: entry.time,
+                                    kilograms: entry.kilograms, isDeleted: entry.deletedAt != nil,
+                                    isImported: HealthWeightSync.isImported(note: entry.note))
+        }
+        let settings = NinaSettings(store.profile())
+        let rule = ThaliaFeed.WeighInRule(cutoffMinutes: settings.plan.routine.morningCutoffMinutes,
+                                          dayStartHour: settings.dayStartHour)
+        return ThaliaPassRecords(food: food, water: water, weights: weights, rule: rule)
     }
 
     enum WriteResult: Equatable, Sendable {
@@ -309,11 +379,15 @@ final class ThaliaDelivery {
     }
 
     /// One pass's file work (off the main thread): the day files (empty ones when `deliver` is off),
-    /// `source.json` while it is on, then the Darwin notification once if anything was written.
-    nonisolated static func write(food: [ThaliaFeed.FoodRecord], water: [ThaliaFeed.WaterRecord], deliver: Bool,
-                                  appVersion: String, today: String, now: Date, timeZone: TimeZone) -> WriteResult {
+    /// `source.json` while it is on (it stays when off), then the Darwin notification once if
+    /// anything was written.
+    nonisolated static func write(_ records: ThaliaPassRecords, deliver: Bool, appVersion: String, today: String, now: Date,
+                                  timeZone: TimeZone) -> WriteResult {
         guard let folder = ThaliaExchange.appFolder() else { return .noFolder }
-        let facts = deliver ? ThaliaFeed.facts(food: food, water: water, today: today, timeZone: timeZone) : [:]
+        let facts = deliver
+            ? ThaliaFeed.facts(food: records.food, water: records.water, weights: records.weights, rule: records.rule,
+                               today: today, timeZone: timeZone)
+            : [:]
         var changed = false
         var failed = false
         do {
@@ -327,6 +401,7 @@ final class ThaliaDelivery {
         }
         if deliver {
             do {
+                // Written at once when the refs changed (six metrics since the body weight), else once a day.
                 let info = ThaliaFeed.sourceInfo(appVersion: appVersion, now: now, timeZone: timeZone)
                 if try ThaliaExchangeWriter.syncSource(info, appFolder: folder, today: today, timeZone: timeZone) { changed = true }
             } catch {
@@ -339,5 +414,13 @@ final class ThaliaDelivery {
         AppLog.debug(deliver ? "Thalia: day values updated" : "Thalia: day values emptied", category: "thalia")
         return failed ? .partly : .written
     }
+}
+
+/// One pass's records as plain values: read on the main actor, written off it.
+struct ThaliaPassRecords: Sendable {
+    var food: [ThaliaFeed.FoodRecord] = []
+    var water: [ThaliaFeed.WaterRecord] = []
+    var weights: [ThaliaFeed.WeightRecord] = []
+    var rule = ThaliaFeed.WeighInRule()
 }
 #endif

@@ -101,7 +101,7 @@ struct SettingsView: View {
             }
             #endif
 
-            ThaliaSection()
+            ThaliaSettingsSection()
 
             Section {
                 AppearancePicker()
@@ -710,28 +710,6 @@ private struct GoalsPlanLink: View {
         }
         .padding(.vertical, 4)
         .contentShape(.rect)
-    }
-}
-
-/// Settings → Thalia: "Send to Thalia" on this device, when Nina last wrote the day values
-/// (docs/THALIA.md). Off empties the values once; on writes them all again at once.
-private struct ThaliaSection: View {
-    @Environment(AppModel.self) private var app
-
-    var body: some View {
-        let thalia = app.thalia
-        Section {
-            Toggle(isOn: Binding(get: { thalia.isOn }, set: { thalia.setDeliver($0) })) {
-                Label("Send to Thalia", systemImage: "arrow.up.forward.app")
-            }
-            Text(thalia.statusText)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        } header: {
-            Text("Thalia")
-        } footer: {
-            Text("Thalia picks up the values as soon as you open Thalia on this device.")
-        }
     }
 }
 

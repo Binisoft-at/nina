@@ -74,6 +74,12 @@ struct NinaStore {
                 first.modifiedAt = Date()
                 AppLog.notice("Kept the coach plan of a newer duplicate profile", category: "store")
             }
+            // Synced settings set on a device before its first sync (Thalia off) aren't lost either.
+            if first.syncedSettings.isEmpty,
+               let donor = duplicates.filter({ !$0.syncedSettings.isEmpty }).max(by: { $0.modifiedAt < $1.modifiedAt }) {
+                first.syncedSettings = donor.syncedSettings
+                first.modifiedAt = Date()
+            }
             for duplicate in duplicates { context.delete(duplicate) }
             AppLog.notice("Removed \(all.count - 1) duplicate profile(s)", category: "store")
             try? context.save()
@@ -142,6 +148,24 @@ struct NinaStore {
         change(profile)
         profile.modifiedAt = Date()
         save()
+    }
+
+    /// The settings that follow the person to every device (`NinaProfile.syncedSettings`); nil
+    /// while this device has no profile yet (the synced one may still be on its way).
+    func syncedSettings() -> SyncedSettings? {
+        profile().map { SyncedSettings(encoded: $0.syncedSettings) }
+    }
+
+    /// Changes the synced settings, keeping every key a newer Nina wrote. Saves (and creates the
+    /// profile, like every settings change) only when a value really changed, so an unchanged
+    /// write never reaches iCloud.
+    func updateSyncedSettings(_ change: (inout SyncedSettings) -> Void) {
+        let before = SyncedSettings(encoded: profile()?.syncedSettings ?? "")
+        var settings = before
+        change(&settings)
+        guard !settings.sameValues(as: before) else { return }
+        let text = settings.encoded
+        updateProfile { $0.syncedSettings = text }
     }
 
     // MARK: Reading

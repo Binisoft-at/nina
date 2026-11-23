@@ -218,7 +218,9 @@ struct NinaSettings: Equatable {
     var trainingDays = Weekdays([])
     var meals: [MealSlot] = MealSlot.defaults.sorted { $0.minutes < $1.minutes }
     var language: FoodLanguage = FoodLanguage.preferred(languageCodes: Locale.preferredLanguages)
-    var energyUnit: EnergyUnit = .kcal
+    /// Always kcal: Nina shows and edits energy in kcal only. The profile's old `energyUnit` field
+    /// stays in the store (so older data and devices still read) but is ignored.
+    var energyUnit: EnergyUnit { .kcal }
     var dayStartHour = 0
     var activityBonusShare = 0.0
     var focus: [Nutrient] = [.protein, .carbs, .fat]
@@ -229,6 +231,9 @@ struct NinaSettings: Equatable {
     var targetWeight = 0.0
     /// The coach plan (`NinaProfile.coachPlan`); empty without one.
     var plan = CoachPlan()
+    /// The settings that follow the person to every device (`NinaProfile.syncedSettings`): Thalia's
+    /// switch. Change them with `NinaStore.updateSyncedSettings`.
+    var synced = SyncedSettings()
     /// Live day-type marks: DayKey raw value → day type id (newest mark per day, `DayMarks.dayTypes`).
     var dayTypeMarks: [String: String] = [:]
     /// The real body weight (`WeightSignal.bodyWeight`: 7-day average, else trend, else latest), set
@@ -249,7 +254,6 @@ struct NinaSettings: Equatable {
         trainingDays = Weekdays(encoded: profile.trainingDays)
         meals = MealSlot.decode(profile.meals)
         if let language = FoodLanguage(rawValue: profile.foodLanguage) { self.language = language }
-        energyUnit = EnergyUnit(rawValue: profile.energyUnit) ?? .kcal
         dayStartHour = profile.dayStartHour
         activityBonusShare = profile.activityBonusShare
         let focus = profile.focusNutrients.split(separator: ",").compactMap { Nutrient(rawValue: String($0)) }
@@ -268,6 +272,7 @@ struct NinaSettings: Equatable {
         macroSplit = MacroSplit.presets.first { $0.id == profile.macroSplit } ?? .balanced
         targetWeight = profile.targetWeight
         plan = CoachPlan(encoded: profile.coachPlan)
+        synced = SyncedSettings(encoded: profile.syncedSettings)
     }
 
     /// The targets that apply on a day: with a set-up plan its day type's targets in the active
@@ -349,7 +354,8 @@ extension NinaProfile {
         trainingDays = state.trainingDays.encoded
         meals = MealSlot.encode(state.meals)
         if state.language != previous.language { foodLanguage = state.language.rawValue }
-        energyUnit = state.energyUnit.rawValue
+        // Nina is kcal only: an imported "kJ" never switches it (the field stays for older data).
+        energyUnit = EnergyUnit.kcal.rawValue
         dayStartHour = state.dayStartHour
         waterGlass = state.waterGlass
         activityBonusShare = state.activityBonusShare

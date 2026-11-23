@@ -132,7 +132,8 @@ struct ThaliaExchangeTests {
                                             appFolder: folder.app, today: Self.today, timeZone: Self.vienna)
         let source = try String(decoding: Data(contentsOf: BinisoftExchange.exchangeFolder(appFolder: folder.app)
             .appendingPathComponent("source.json")), as: UTF8.self)
-        let refs = [("kcal", "Kalorien"), ("protein_g", "Protein"), ("carbs_g", "Kohlenhydrate"), ("fat_g", "Fett"), ("water_ml", "Wasser")]
+        let refs = [("kcal", "Kalorien"), ("protein_g", "Protein"), ("carbs_g", "Kohlenhydrate"), ("fat_g", "Fett"), ("water_ml", "Wasser"),
+                    ("body_weight_kg", "Gewicht")]
             .map { #"{"id":"\#($0.0)","kind":"metric","title":"\#($0.1)"}"# }
         #expect(source == #"{"app":"Nina","appVersion":"1.1.0","generatedAt":"2026-11-22T21:15:00+01:00","refs":["#
             + refs.joined(separator: ",") + #"],"source":"nina","v":1}"#)
@@ -203,12 +204,13 @@ struct ThaliaExchangeTests {
         #expect(source.refs == ThaliaFeed.refs)
     }
 
-    @Test func sourceRefsAreTheFiveMetrics() {
+    @Test func sourceRefsAreTheSixMetrics() {
         #expect(ThaliaFeed.source == "nina")
-        #expect(ThaliaFeed.refs.map(\.id) == ["kcal", "protein_g", "carbs_g", "fat_g", "water_ml"])
-        #expect(ThaliaFeed.refs.map(\.title) == ["Kalorien", "Protein", "Kohlenhydrate", "Fett", "Wasser"])
+        #expect(ThaliaFeed.refs.count == 6)
+        #expect(ThaliaFeed.refs.map(\.id) == ["kcal", "protein_g", "carbs_g", "fat_g", "water_ml", "body_weight_kg"])
+        #expect(ThaliaFeed.refs.map(\.title) == ["Kalorien", "Protein", "Kohlenhydrate", "Fett", "Wasser", "Gewicht"])
         #expect(ThaliaFeed.refs.allSatisfy { $0.kind == "metric" })
-        #expect(!ThaliaFeed.metricIDs.contains("body_weight_kg"))
+        #expect(ThaliaFeed.refs.last == ExchangeRef(id: "body_weight_kg", title: "Gewicht", kind: "metric"))
     }
 
     // MARK: 4. Syncing the day files
@@ -415,7 +417,7 @@ struct ThaliaExchangeTests {
 
     @Test func threeMealsGiveOneSumPerMetric() throws {
         let day = try #require(Self.facts()[Self.today])
-        for metric in ThaliaFeed.metricIDs {
+        for metric in ThaliaFeed.metricIDs where metric != "body_weight_kg" {
             #expect(day.filter { $0.metric == metric }.count == 1, "\(metric)")
         }
         #expect(Self.value(day, "kcal") == 1786)
@@ -502,8 +504,249 @@ struct ThaliaExchangeTests {
             #expect(ThaliaFeed.metricIDs.contains(fact.metric ?? ""))
         }
         #expect(!all.contains { $0.metric == "fiber_g" })
-        #expect(ThaliaFeed.metrics.count == 5)
-        #expect(ThaliaFeed.metrics.allSatisfy { $0.agg == .sum })
+        #expect(ThaliaFeed.metrics.count == 6)
+        #expect(ThaliaFeed.metrics.dropLast().allSatisfy { $0.agg == .sum })
+        #expect(ThaliaFeed.metrics.last?.agg == .last)
+        #expect(ThaliaFeed.metrics.last?.unit == "kg")
+    }
+
+    // MARK: Metrics without a value (owner decision B)
+
+    @Test func aMetricNoEntryHasIsLeftOut() throws {
+        // A quick entry with calories only and a coffee with a known 0 g fat.
+        let quick = ThaliaFeed.FoodRecord(id: "quick", day: Self.today, time: Self.time("2026-11-22T10:00:00+01:00"),
+                                          energy: 350, protein: nil, carbs: nil, fat: nil)
+        let coffee = ThaliaFeed.FoodRecord(id: "coffee", day: Self.today, time: Self.time("2026-11-22T09:00:00+01:00"),
+                                           energy: 5, protein: nil, carbs: 0.4, fat: 0)
+        let day = try #require(Self.facts([quick, coffee], [])[Self.today])
+        #expect(day.compactMap(\.metric).sorted() == ["carbs_g", "fat_g", "kcal"])
+        #expect(Self.value(day, "kcal") == 355)
+        #expect(Self.value(day, "carbs_g") == 0.4)
+        // An entered 0 stays 0.
+        #expect(Self.value(day, "fat_g") == 0)
+        // `at` is the latest record with a value for the metric: the quick entry has no fat.
+        #expect(day.first { $0.metric == "kcal" }?.at == "2026-11-22T10:00:00+01:00")
+        #expect(day.first { $0.metric == "fat_g" }?.at == "2026-11-22T09:00:00+01:00")
+
+        // Calories only: no protein, carbs or fat fact that day.
+        let onlyQuick = try #require(Self.facts([quick], [])[Self.today])
+        #expect(onlyQuick.compactMap(\.metric) == ["kcal"])
+        // No value at all: no fact, no day.
+        let empty = ThaliaFeed.FoodRecord(id: "empty", day: Self.today, time: Self.time("2026-11-22T11:00:00+01:00"),
+                                          energy: nil, protein: nil, carbs: nil, fat: nil)
+        #expect(Self.facts([empty], []).isEmpty)
+    }
+
+    @Test func entriesWithAValueAreSummed() throws {
+        // Protein on two of the three meals only: their sum, not a gap counted as anything.
+        var meals = Self.meals
+        meals[1].protein = nil
+        let day = try #require(Self.facts(meals, [])[Self.today])
+        #expect(Self.value(day, "protein_g") == 66.3)
+        // Its `at` is the dinner, the latest with protein.
+        #expect(day.first { $0.metric == "protein_g" }?.at == "2026-11-22T19:00:30+01:00")
+        // A non-finite value is no value.
+        var broken = Self.meals[0]
+        broken.id = "broken"
+        broken.protein = .nan
+        broken.energy = .infinity
+        broken.carbs = nil
+        broken.fat = nil
+        #expect(Self.facts([broken], []).isEmpty)
+    }
+
+    // MARK: Body weight (owner decision A)
+
+    static func weighIn(_ id: String, _ time: String, _ kilograms: Double, day: String = today,
+                        isDeleted: Bool = false, isImported: Bool = false, isFromHealth: Bool = false) -> ThaliaFeed.WeightRecord {
+        ThaliaFeed.WeightRecord(id: id, day: day, time: Self.time(time), kilograms: kilograms, isDeleted: isDeleted,
+                                isImported: isImported, isFromHealth: isFromHealth)
+    }
+
+    static func weights(_ weights: [ThaliaFeed.WeightRecord], rule: ThaliaFeed.WeighInRule = ThaliaFeed.WeighInRule(),
+                        today: String = today) -> [String: [ExchangeFact]] {
+        ThaliaFeed.facts(food: [], water: [], weights: weights, rule: rule, today: today, timeZone: vienna)
+    }
+
+    @Test func bodyWeightIsTheMorningWeighIn() throws {
+        let day = try #require(Self.weights([
+            Self.weighIn("w-late", "2026-11-22T19:30:00+01:00", 76.9),
+            Self.weighIn("w-second", "2026-11-22T07:40:00+01:00", 75.1),
+            Self.weighIn("w-first", "2026-11-22T06:45:12.400+01:00", 74.83),
+        ])[Self.today])
+        #expect(day.count == 1)
+        let fact = try #require(day.first)
+        #expect(fact.id == "body_weight_kg-2026-11-22")
+        #expect(fact.kind == "value")
+        #expect(fact.metric == "body_weight_kg")
+        #expect(fact.ref == "body_weight_kg")
+        #expect(fact.refTitle == "Gewicht")
+        #expect(fact.unit == "kg")
+        #expect(fact.origin == "app")
+        #expect(fact.knownMetric?.agg == .last)
+        // The earliest before 11:00, to 0.1 kg, at its own time without the fraction.
+        #expect(fact.value == 74.8)
+        #expect(fact.at == "2026-11-22T06:45:12+01:00")
+    }
+
+    @Test func withoutAMorningWeighInTheDaysEarliestCounts() throws {
+        let day = try #require(Self.weights([
+            Self.weighIn("w-evening", "2026-11-22T20:15:00+01:00", 76.4),
+            Self.weighIn("w-noon", "2026-11-22T13:05:00+01:00", 75.96),
+        ])[Self.today])
+        #expect(Self.value(day, "body_weight_kg") == 76.0)
+        #expect(day.first?.at == "2026-11-22T13:05:00+01:00")
+
+        // The plan's own cutoff (08:00): 09:00 isn't a morning weigh-in any more, but still the
+        // earliest; a 07:30 one would win.
+        let rule = ThaliaFeed.WeighInRule(cutoffMinutes: 8 * 60, dayStartHour: 0)
+        let late = Self.weighIn("w-nine", "2026-11-22T09:00:00+01:00", 75.2)
+        #expect(Self.value(Self.weights([late, Self.weighIn("w-ten", "2026-11-22T10:00:00+01:00", 75.0)], rule: rule)[Self.today],
+                           "body_weight_kg") == 75.2)
+        let early = Self.weighIn("w-seven", "2026-11-22T07:30:00+01:00", 74.6)
+        #expect(Self.value(Self.weights([late, early], rule: rule)[Self.today], "body_weight_kg") == 74.6)
+    }
+
+    @Test func theMorningRuleWinsOverTheEarliestTime() throws {
+        // Typed in later for the 22nd: last night's 22:30 reading is earlier in time but no
+        // morning weigh-in; the 22nd's 07:05 one is the day's weight.
+        let day = try #require(Self.weights([
+            Self.weighIn("w-typed-later", "2026-11-21T22:30:00+01:00", 76.2),
+            Self.weighIn("w-morning", "2026-11-22T07:05:00+01:00", 75.4),
+        ])[Self.today])
+        #expect(Self.value(day, "body_weight_kg") == 75.4)
+        #expect(day.first?.at == "2026-11-22T07:05:00+01:00")
+    }
+
+    @Test func aNightWeighInBelongsToTheEveningBefore() throws {
+        // "Day starts at 3:00": 01:30 on the 23rd is still the 22nd, as its last weigh-in – the
+        // 23rd's weight is its own morning one.
+        let rule = ThaliaFeed.WeighInRule(cutoffMinutes: 660, dayStartHour: 3)
+        let evening = Self.weighIn("w-evening", "2026-11-22T21:00:00+01:00", 76.4, day: "2026-11-22")
+        let night = Self.weighIn("w-night", "2026-11-23T01:30:00+01:00", 76.0, day: "2026-11-22")
+        let morning = Self.weighIn("w-morning", "2026-11-23T07:10:00+01:00", 75.5, day: "2026-11-23")
+        let facts = Self.weights([night, morning, evening], rule: rule, today: "2026-11-23")
+        #expect(Self.value(facts["2026-11-22"], "body_weight_kg") == 76.4)
+        #expect(Self.value(facts["2026-11-23"], "body_weight_kg") == 75.5)
+    }
+
+    @Test func bodyWeightIsRoundedToATenth() {
+        #expect(ThaliaFeed.rounded(74.83, unit: "kg") == 74.8)
+        #expect(ThaliaFeed.rounded(74.86, unit: "kg") == 74.9)
+        #expect(ThaliaFeed.rounded(80, unit: "kg") == 80)
+        let fact = Self.weights([Self.weighIn("w", "2026-11-22T07:00:00+01:00", 79.96)])[Self.today]
+        #expect(Self.value(fact, "body_weight_kg") == 80)
+    }
+
+    @Test func bodyWeightNeverFromHealthAndImportedCounts() throws {
+        // A Health weight (never stored in Nina – should one ever be marked) never counts, even
+        // as the earlier morning weigh-in.
+        let health = Self.weighIn("w-health", "2026-11-22T06:00:00+01:00", 74.0, isFromHealth: true)
+        let typed = Self.weighIn("w-typed", "2026-11-22T07:00:00+01:00", 75.0)
+        #expect(Self.value(Self.weights([health, typed])[Self.today], "body_weight_kg") == 75.0)
+        #expect(Self.weights([health]).isEmpty)
+        // Imported history is the person's own weigh-in: it counts (unlike for Apple Health).
+        let imported = Self.weighIn("w-imported", "2026-11-20T08:00:00+01:00", 76.3, day: "2026-11-20", isImported: true)
+        #expect(Self.value(Self.weights([imported])["2026-11-20"], "body_weight_kg") == 76.3)
+        // Deleted, implausible and broken weigh-ins don't count.
+        let deleted = Self.weighIn("w-deleted", "2026-11-22T06:30:00+01:00", 74.5, isDeleted: true)
+        let typo = Self.weighIn("w-typo", "2026-11-22T06:40:00+01:00", 7.5)
+        let broken = Self.weighIn("w-nan", "2026-11-22T06:50:00+01:00", .nan)
+        #expect(Self.value(Self.weights([deleted, typo, broken, typed])[Self.today], "body_weight_kg") == 75.0)
+        #expect(Self.weights([deleted, typo, broken]).isEmpty)
+    }
+
+    @Test func bodyWeightIsStableAndSortedWithTheRest() throws {
+        let weights = [
+            Self.weighIn("w-b", "2026-11-22T07:00:00.300+01:00", 75.0),
+            Self.weighIn("w-a", "2026-11-22T07:00:00.900+01:00", 75.2),
+            Self.weighIn("w-old", "2026-09-20T07:00:00+02:00", 77.0, day: "2026-09-20"),
+            Self.weighIn("w-future", "2026-11-23T07:00:00+01:00", 74.0, day: "2026-11-23"),
+        ]
+        let facts = ThaliaFeed.facts(food: Self.meals, water: Self.drinks, weights: weights, today: Self.today, timeZone: Self.vienna)
+        let reversed = ThaliaFeed.facts(food: Self.meals.reversed(), water: Self.drinks.reversed(), weights: weights.reversed(),
+                                        today: Self.today, timeZone: Self.vienna)
+        #expect(facts == reversed)
+        // Only the window: not before it, not after today.
+        #expect(Array(facts.keys) == [Self.today])
+        let day = try #require(facts[Self.today])
+        #expect(day.count == 6)
+        // Two in the same second: the id decides, the same on every device.
+        #expect(Self.value(day, "body_weight_kg") == 75.2)
+        // Sorted by at, then id: the 07:00 weigh-in comes first.
+        #expect(day.map(\.metric) == ["body_weight_kg", "carbs_g", "fat_g", "kcal", "protein_g", "water_ml"])
+        // The day file reads back in Thalia's reader with nothing skipped.
+        let folder = TemporaryFolder()
+        try ThaliaExchangeWriter.sync(facts, source: ThaliaFeed.source, appFolder: folder.app, today: Self.today,
+                                      now: Self.time("2026-11-22T21:00:00+01:00"), timeZone: Self.vienna)
+        let data = try Data(contentsOf: BinisoftExchange.dayFileURL(appFolder: folder.app, day: Self.today))
+        let read = try ExchangeReader.dayFile(data, folder: "Nina", fileName: "2026-11-22.json").get()
+        #expect(read.skipped.isEmpty)
+        #expect(read.file.facts == day)
+        #expect(String(decoding: data, as: UTF8.self).contains(#""unit":"kg","value":75.2}"#))
+    }
+
+    @Test func aWeighInWithoutADiaryDayCountsOnTheDayOfItsTime() throws {
+        // 23:30 UTC on the 22nd is 00:30 on the 23rd in Vienna.
+        let weighIn = Self.weighIn("w-no-day", "2026-11-22T23:30:00Z", 75.34, day: "")
+        let vienna = Self.weights([weighIn], today: "2026-11-23")
+        #expect(Array(vienna.keys) == ["2026-11-23"])
+        #expect(vienna["2026-11-23"]?.first?.at == "2026-11-23T00:30:00+01:00")
+        #expect(Self.value(vienna["2026-11-23"], "body_weight_kg") == 75.3)
+        // In UTC it is still the 22nd, and `at` ends in Z.
+        let utc = ThaliaFeed.facts(food: [], water: [], weights: [weighIn], today: "2026-11-23", timeZone: Self.utc)
+        #expect(Array(utc.keys) == ["2026-11-22"])
+        #expect(utc["2026-11-22"]?.first?.at == "2026-11-22T23:30:00Z")
+    }
+
+    @Test func aDeletedWeighInLeavesItsDayFile() throws {
+        let folder = TemporaryFolder()
+        let url = BinisoftExchange.dayFileURL(appFolder: folder.app, day: Self.today)
+        let weighIn = Self.weighIn("w-only", "2026-11-22T07:00:00+01:00", 75.0)
+        #expect(try ThaliaExchangeWriter.sync(Self.weights([weighIn]), source: ThaliaFeed.source, appFolder: folder.app,
+                                              today: Self.today, now: Self.time("2026-11-22T08:00:00+01:00"),
+                                              timeZone: Self.vienna))
+        let written = try ExchangeReader.dayFile(Data(contentsOf: url), folder: "Nina", fileName: "2026-11-22.json").get()
+        #expect(written.file.facts.map(\.id) == ["body_weight_kg-2026-11-22"])
+        // Deleted (here or on another device): the day had a file, so it is rewritten empty and
+        // Thalia removes the weight.
+        var deleted = weighIn
+        deleted.isDeleted = true
+        #expect(try ThaliaExchangeWriter.sync(Self.weights([deleted]), source: ThaliaFeed.source, appFolder: folder.app,
+                                              today: Self.today, now: Self.time("2026-11-22T09:00:00+01:00"),
+                                              timeZone: Self.vienna))
+        let emptied = try ExchangeReader.dayFile(Data(contentsOf: url), folder: "Nina", fileName: "2026-11-22.json").get()
+        #expect(emptied.file.facts.isEmpty)
+        #expect(emptied.skipped.isEmpty)
+    }
+
+    @Test func aMetricIsLeftOutPerDay() throws {
+        // The 21st has a quick entry with calories only, the 22nd the full meals.
+        let quick = ThaliaFeed.FoodRecord(id: "quick-21", day: "2026-11-21", time: Self.time("2026-11-21T12:00:00+01:00"),
+                                          energy: 600, protein: nil, carbs: nil, fat: nil)
+        let facts = Self.facts(Self.meals + [quick], [])
+        #expect(facts["2026-11-21"]?.compactMap(\.metric) == ["kcal"])
+        #expect(facts["2026-11-22"]?.compactMap(\.metric).sorted() == ["carbs_g", "fat_g", "kcal", "protein_g"])
+        // A planned entry's protein that day doesn't bring the protein back.
+        var planned = Self.meals[0]
+        planned.id = "planned-21"
+        planned.day = "2026-11-21"
+        planned.time = Self.time("2026-11-21T18:00:00+01:00")
+        planned.isEaten = false
+        #expect(Self.facts([quick, planned], [])["2026-11-21"]?.compactMap(\.metric) == ["kcal"])
+    }
+
+    // MARK: Settings → Thalia (German)
+
+    @Test func theStatusLineIsGerman() {
+        #expect(ThaliaFeed.statusLine(isOn: false, lastWritten: Self.time("2026-11-22T21:15:00+01:00")) == "Aus")
+        #expect(ThaliaFeed.statusLine(isOn: true, lastWritten: nil) == "Noch nichts geschrieben")
+        let line = ThaliaFeed.statusLine(isOn: true, lastWritten: Self.time("2026-11-22T21:15:00+01:00"), timeZone: Self.vienna)
+        #expect(line.hasPrefix("Zuletzt geschrieben: "), "\(line)")
+        #expect(line.contains("22."), "\(line)")
+        #expect(line.contains("2026"), "\(line)")
+        #expect(line.contains("21:15"), "\(line)")
+        #expect(!line.contains("PM") && !line.contains("Nov 22"), "\(line)")
     }
 
     // MARK: source.json heartbeat
@@ -531,6 +774,27 @@ struct ThaliaExchangeTests {
         #expect(try !ThaliaExchangeWriter.syncSource(later, appFolder: folder.app, today: Self.today, timeZone: Self.vienna))
         let tomorrow = ThaliaFeed.sourceInfo(appVersion: "1.1.0", now: Self.time("2026-11-23T08:00:00+01:00"), timeZone: Self.vienna)
         #expect(try ThaliaExchangeWriter.syncSource(tomorrow, appFolder: folder.app, today: "2026-11-23", timeZone: Self.vienna))
+    }
+
+    @Test func sourceIsRewrittenAtOnceWhenTheRefsChange() throws {
+        // The source.json of the version before: five refs, written this morning.
+        let folder = TemporaryFolder()
+        let url = BinisoftExchange.exchangeFolder(appFolder: folder.app).appendingPathComponent("source.json")
+        var before = ThaliaFeed.sourceInfo(appVersion: "1.1.0", now: Self.time("2026-11-22T08:00:00+01:00"), timeZone: Self.vienna)
+        before.refs = Array(ThaliaFeed.refs.prefix(5))
+        try BinisoftExchange.write(try BinisoftExchange.encode(before), to: url)
+
+        // The same day and version: rewritten all the same, because the refs changed.
+        let now = ThaliaFeed.sourceInfo(appVersion: "1.1.0", now: Self.time("2026-11-22T09:00:00+01:00"), timeZone: Self.vienna)
+        #expect(ThaliaExchangeWriter.needsSourceWrite(now, existing: try Data(contentsOf: url), today: Self.today, timeZone: Self.vienna))
+        #expect(try ThaliaExchangeWriter.syncSource(now, appFolder: folder.app, today: Self.today, timeZone: Self.vienna))
+        let written = try ExchangeReader.source(try Data(contentsOf: url), folder: "Nina").get()
+        #expect(written.refs.count == 6)
+        #expect(written.refs.map(\.id).contains("body_weight_kg"))
+        #expect(written.generatedAt == "2026-11-22T09:00:00+01:00")
+        // Then the heartbeat rule again: nothing more that day.
+        let later = ThaliaFeed.sourceInfo(appVersion: "1.1.0", now: Self.time("2026-11-22T20:00:00+01:00"), timeZone: Self.vienna)
+        #expect(try !ThaliaExchangeWriter.syncSource(later, appFolder: folder.app, today: Self.today, timeZone: Self.vienna))
     }
 }
 

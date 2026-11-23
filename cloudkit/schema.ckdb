@@ -157,6 +157,7 @@ DEFINE SCHEMA
         CD_modifiedAt         TIMESTAMP,
         CD_ratePerWeek        DOUBLE,
         CD_sex                STRING,
+        CD_syncedSettings     STRING,
         CD_targetWeight       DOUBLE,
         CD_targets            STRING,
         CD_trainingDays       STRING,
