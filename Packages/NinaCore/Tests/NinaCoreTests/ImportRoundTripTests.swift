@@ -192,6 +192,16 @@ struct DiaryRoundTripTests {
         #expect(DiaryCSV.plan(first, existing: Self.existing(stored, importKeys: keys)).unchanged == 1)
     }
 
+    @Test func twoIdenticalRowsAreTwoEntries() {
+        let file = "date,meal,food,amount,unit,kcal\n2030-03-04,snack,Coffee,1,cup,2\n2030-03-04,snack,Coffee,1,cup,2\n"
+        let parsed = DiaryCSV.parse(file)
+        #expect(Set(parsed.rows.map(\.key)).count == 2)
+        #expect(DiaryCSV.plan(file, existing: [:]).creates == 2)
+        // Importing the same file again: both are there already.
+        let stored = parsed.rows.map { (UUID(), $0.draft) }
+        #expect(DiaryCSV.plan(file, existing: Self.existing(stored, importKeys: parsed.rows.map(\.key))).unchanged == 2)
+    }
+
     @Test func ownMealIDsMatch() {
         #expect(MealSlot.matching("meal-jause", in: Self.meals)?.id == "meal-jause")
         #expect(MealSlot.matching("meal-3f2a1b9c", in: Self.meals + [MealSlot(id: "meal-3f2a1b9c", name: "Pre-workout", emoji: "💪", minutes: 1020)])?.name == "Pre-workout")

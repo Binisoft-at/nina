@@ -115,6 +115,9 @@ public enum DiaryCSV {
             return Parsed(rows: [], skipped: ["The first line needs a \u{201C}date\u{201D} column (expected: \(Self.header.joined(separator: ",")))."])
         }
         var parsed = Parsed(rows: [], skipped: [], columns: Set(header))
+        // Two identical rows without an id (two coffees as snacks on one day) are two entries:
+        // the second gets "#2" on its content key, the same each time the file is imported.
+        var repeats: [String: Int] = [:]
         for (offset, record) in records.enumerated() {
             let line = offset + 2
             let name = (record["food"].flatMap { $0.isEmpty ? nil : $0 } ?? record["name"] ?? "").trimmingCharacters(in: .whitespaces)
@@ -149,8 +152,13 @@ public enum DiaryCSV {
                 note: record["note"] ?? record["notes"] ?? "",
                 status: EntryStatus(text: record["status"] ?? "")
             )
-            let key = ImportColumns.rowKey(id: record["id"] ?? "",
+            var key = ImportColumns.rowKey(id: record["id"] ?? "",
                                            content: [day.rawValue, draft.meal, draft.name, NumberText.plain(draft.quantity), draft.unitLabel])
+            if !key.hasPrefix("id:") {
+                let count = (repeats[key] ?? 0) + 1
+                repeats[key] = count
+                if count > 1 { key += "#\(count)" }
+            }
             parsed.rows.append((key, draft))
             parsed.given.append(Set(nutrients.known))
         }

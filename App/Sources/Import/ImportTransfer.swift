@@ -82,7 +82,8 @@ struct ImportShareFile: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .commaSeparatedText) { (file: ImportShareFile) in
-            SentTransferredFile(try await file.write())
+            let url = try await file.write()
+            return SentTransferredFile(url)
         }
     }
 
