@@ -141,6 +141,29 @@ struct HealthWeightSyncTests {
         #expect(HealthLedgerSweep.plan(missing: meal, found: [], storeIsEmpty: false).remove == meal)
     }
 
+    @Test func theLimitsAreInclusive() {
+        // Exactly 20 entries gone in one pass are still removed; 21 look like an emptied store.
+        let twenty = (0..<20).map { String(format: "e%02d", $0) }
+        #expect(HealthLedgerSweep.plan(missing: twenty, found: [], storeIsEmpty: false).remove == twenty)
+        let more = twenty + ["e20"]
+        #expect(HealthLedgerSweep.plan(missing: more, found: [], storeIsEmpty: false).distrusted)
+        // Entries that only moved out of the window never count towards the limit.
+        let moved = (0..<30).map { "m\($0)" }
+        let sweep = HealthLedgerSweep.plan(missing: moved + ["gone"], found: Set(moved), storeIsEmpty: false)
+        #expect(sweep.remove == ["gone"])
+        #expect(!sweep.distrusted)
+        // Weigh-ins: three vanished at once are trusted, four are not.
+        let windowStart = morning.addingTimeInterval(-13 * 86_400)
+        var marks: [String: HealthWeightSync.Mark] = [:]
+        for day in 0..<5 {
+            marks["w\(day)"] = HealthWeightSync.Mark(kilograms: 74, time: morning.addingTimeInterval(-Double(day) * 86_400), version: 1)
+        }
+        let two = (0..<2).map { HealthWeightSync.Item(id: "w\($0)", kilograms: 74, time: morning, version: 1) }
+        #expect(HealthWeightSync.trustsStore(items: two, marks: marks, windowStart: windowStart))
+        let one = [HealthWeightSync.Item(id: "w0", kilograms: 74, time: morning, version: 1)]
+        #expect(!HealthWeightSync.trustsStore(items: one, marks: marks, windowStart: windowStart))
+    }
+
     @Test func weightSamplesHaveASyncIdentifier() throws {
         let id = try #require(UUID(uuidString: "6F9619FF-8B86-D011-B42D-00C04FC964FF"))
         #expect(HealthMapping.syncIdentifier(weight: id) == "nina.weight.6F9619FF-8B86-D011-B42D-00C04FC964FF")

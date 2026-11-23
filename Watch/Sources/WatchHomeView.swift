@@ -9,8 +9,8 @@ struct WatchHomeView: View {
     @Environment(WatchModel.self) private var model
 
     var body: some View {
-        WatchDayView(day: model.today)
-            .id(model.today)
+        WatchDayView(day: model.homeDay)
+            .id(model.homeDay)
     }
 }
 

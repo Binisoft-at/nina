@@ -50,6 +50,9 @@ final class WatchModel {
     /// launch – the home screen doesn't need it.
     private(set) var library: FoodLibrary? = nil
     private(set) var settings: NinaSettings
+    /// The day the home screen shows: set on every refresh, so it moves on to a new day when the
+    /// app comes back after midnight (settings alone don't change then).
+    private(set) var homeDay: DayKey
     /// Bumped on every refresh: the coach on the home screen reloads on it.
     private(set) var dataVersion = 0
     /// The last write the home screen offers to undo for a few seconds (`WatchModel+Coach`).
@@ -65,7 +68,9 @@ final class WatchModel {
 
     init(container: ModelContainer) {
         self.container = container
-        settings = NinaStore(context: container.mainContext).settings
+        let settings = NinaStore(context: container.mainContext).settings
+        self.settings = settings
+        homeDay = settings.today()
         // A save on the watch: its snapshot is already written (NinaStore.save); the rest follows
         // after the tap.
         observers.append(NotificationCenter.default.addObserver(forName: .ninaDataChanged, object: nil, queue: .main) { [weak self] _ in
@@ -112,6 +117,8 @@ final class WatchModel {
         let store = self.store
         let newSettings = store.settings
         if newSettings != settings { settings = newSettings }
+        let day = newSettings.today()
+        if day != homeDay { homeDay = day }
         dataVersion += 1
         if library != nil {
             if logIsVisible { rebuildLibrary() } else { libraryIsStale = true }
