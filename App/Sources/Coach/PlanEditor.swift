@@ -250,6 +250,7 @@ struct PlanEditorView: View {
                 .disabled(plan.dayTypes.count >= PlanEdits.maxDayTypes)
         } header: {
             Text("Day Types")
+                .info(PlanEditorInfo.dayTypes.title, PlanEditorInfo.dayTypes.text)
         } footer: {
             PlanEditorWeekFooter(plan: plan, day: today, unit: app.energyUnit,
                                  note: "Up to 4 kinds of day with their own calories, like Gym, Tennis and Rest. Target changes start today.")
@@ -278,6 +279,7 @@ struct PlanEditorView: View {
             Button("Add a Daily Check…", systemImage: "plus") { startNaming(.check) }
         } header: {
             Text("Daily Checks")
+                .info(PlanEditorInfo.checks.title, PlanEditorInfo.checks.text)
         } footer: {
             Text("What your plan names, like a supplement: a pill on Today to tick off. Nina never suggests one.")
         }
@@ -298,6 +300,7 @@ struct PlanEditorView: View {
             }
         } header: {
             Text("Measuring & Check-in")
+                .info(PlanEditorInfo.measuring.title, PlanEditorInfo.measuring.text)
         } footer: {
             Text("Weigh-in time, tape sites, body fat and the weekly check-in, and how calories are adjusted after it.")
         }
@@ -350,6 +353,7 @@ struct PlanEditorView: View {
             #endif
         } header: {
             Text("Your AI")
+                .info(PlanEditorInfo.ai.title, PlanEditorInfo.ai.text)
         } footer: {
             Text(aiFooter)
         }

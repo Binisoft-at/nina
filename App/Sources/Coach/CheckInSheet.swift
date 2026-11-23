@@ -294,12 +294,14 @@ struct CheckInSheet: View {
 
 // MARK: - Steps
 
-/// "Step 2 of 4 · Waist" with a bar of four segments (and a note on a skipped step).
+/// "Step 2 of 4 · Waist" with a bar of four segments (and a note on a skipped step); the ⓘ
+/// after the title says what the step is about.
 private struct CheckInStepHeader: View {
     let page: Int
     let note: String?
 
     private var titles: [String] { CheckInSheetFacts.pageTitles }
+    private var info: CheckInSheetInfo.Item { CheckInSheetInfo.step(page) }
 
     var body: some View {
         Section {
@@ -309,6 +311,8 @@ private struct CheckInStepHeader: View {
                     .foregroundStyle(.secondary)
                 Text(titles[min(max(0, page), titles.count - 1)])
                     .font(.title3.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                    .info(info.title, info.text)
                 HStack(spacing: 4) {
                     ForEach(0..<titles.count, id: \.self) { (index: Int) in
                         Capsule()
@@ -316,6 +320,7 @@ private struct CheckInStepHeader: View {
                             .frame(height: 4)
                     }
                 }
+                .accessibilityHidden(true)
                 if let note {
                     Label(note, systemImage: "checkmark.circle.fill")
                         .font(.caption)
@@ -323,7 +328,8 @@ private struct CheckInStepHeader: View {
                 }
             }
             .padding(.vertical, 2)
-            .accessibilityElement(children: .combine)
+            // Not combined: the ⓘ stays a button of its own for VoiceOver.
+            .accessibilityElement(children: .contain)
         }
     }
 }
@@ -622,12 +628,17 @@ private struct CheckInWeightSection: View {
                 Text(line)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .info(gatheringInfo.title, gatheringInfo.text)
             }
         } header: {
             Text("Weight")
         } footer: {
             Text(footer)
         }
+    }
+
+    private var gatheringInfo: CheckInSheetInfo.Item {
+        CheckInSheetInfo.gathering(minimumDays: rate.minimumDays, minimumWeighIns: rate.minimumWeighIns)
     }
 
     private var footer: String {
@@ -844,6 +855,7 @@ private struct CheckInFeelings: View {
                 .lineLimit(2...5)
         } header: {
             Text("How you felt")
+                .info(CheckInSheetInfo.ratings.title, CheckInSheetInfo.ratings.text)
         } footer: {
             Text(footer)
         }
@@ -923,7 +935,7 @@ private struct CheckInNextWeek: View {
     var body: some View {
         Section {
             verdictRow
-            Text(reasonText)
+            reasonRow
             ForEach(result.notes, id: \.self) { line in
                 Text(line)
                     .font(.footnote)
@@ -989,6 +1001,26 @@ private struct CheckInNextWeek: View {
         result.rule == .gathering ? "No change yet – keep weighing in each morning." : result.reason
     }
 
+    /// The reason, with an ⓘ when a rule holds a change back (gathering, the lock after a
+    /// change, waiting for a second week outside the range, the logging and intake gate).
+    @ViewBuilder
+    private var reasonRow: some View {
+        if let info = reasonInfo {
+            Text(reasonText)
+                .info(info.title, info.text)
+        } else {
+            Text(reasonText)
+        }
+    }
+
+    private var reasonInfo: CheckInSheetInfo.Item? {
+        let rate = facts.summary.rate
+        return CheckInSheetInfo.reason(result.rule, adjust: facts.plan.adjust, minimumDays: rate.minimumDays,
+                                       minimumWeighIns: rate.minimumWeighIns)
+    }
+
+    private var proposalInfo: CheckInSheetInfo.Item { CheckInSheetInfo.proposal(adjust: facts.plan.adjust) }
+
     private var proposalSection: some View {
         Section {
             LabeledContent("Change", value: "\(CheckInSheetText.signedEnergy(delta, unit: unit)) a day")
@@ -1006,6 +1038,7 @@ private struct CheckInNextWeek: View {
             }
         } header: {
             Text("Proposal")
+                .info(proposalInfo.title, proposalInfo.text)
         } footer: {
             Text(proposalFooter)
         }

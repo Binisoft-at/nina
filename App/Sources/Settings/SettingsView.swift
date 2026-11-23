@@ -49,24 +49,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Diary") {
-                Picker("Food names", selection: Binding(get: { app.settings.language }, set: { value in
-                    app.updateSettings { $0.foodLanguage = value.rawValue }
-                })) {
-                    ForEach(FoodLanguage.allCases) { language in Text(language.title).tag(language) }
-                }
-                Picker("Day starts at", selection: Binding(get: { app.settings.dayStartHour }, set: { value in
-                    app.updateSettings { $0.dayStartHour = value }
-                })) {
-                    Text("Midnight").tag(0)
-                    ForEach(1...5, id: \.self) { hour in Text("\(hour):00").tag(hour) }
-                }
-                Picker("Water glass", selection: Binding(get: { app.settings.waterGlass }, set: { value in
-                    app.updateSettings { $0.waterGlass = value }
-                })) {
-                    ForEach([150.0, 200, 250, 300, 330, 500], id: \.self) { amount in Text(Fmt.milliliters(amount)).tag(amount) }
-                }
-            }
+            diarySection
 
             #if os(iOS)
             Section {
@@ -176,6 +159,34 @@ struct SettingsView: View {
             }
         }
         #endif
+    }
+
+    /// Food names, the day start and the water glass, each with its ⓘ.
+    private var diarySection: some View {
+        Section("Diary") {
+            SettingsInfoRow("Food names", info: SettingsInfo.foodNames) {
+                Picker("Food names", selection: Binding(get: { app.settings.language }, set: { value in
+                    app.updateSettings { $0.foodLanguage = value.rawValue }
+                })) {
+                    ForEach(FoodLanguage.allCases) { language in Text(language.title).tag(language) }
+                }
+            }
+            SettingsInfoRow("Day starts at", info: SettingsInfo.dayStart) {
+                Picker("Day starts at", selection: Binding(get: { app.settings.dayStartHour }, set: { value in
+                    app.updateSettings { $0.dayStartHour = value }
+                })) {
+                    Text("Midnight").tag(0)
+                    ForEach(1...5, id: \.self) { hour in Text("\(hour):00").tag(hour) }
+                }
+            }
+            SettingsInfoRow("Water glass", info: SettingsInfo.waterGlass) {
+                Picker("Water glass", selection: Binding(get: { app.settings.waterGlass }, set: { value in
+                    app.updateSettings { $0.waterGlass = value }
+                })) {
+                    ForEach([150.0, 200, 250, 300, 330, 500], id: \.self) { amount in Text(Fmt.milliliters(amount)).tag(amount) }
+                }
+            }
+        }
     }
 
     /// Goals & Plan; in the Mac Settings window just the goals (My Plan is a tab there).
@@ -379,9 +390,11 @@ struct GoalsView: View {
                 }
             }
             goalRows
-            Picker("Macro split", selection: $split) {
-                ForEach(MacroSplit.presets) { preset in
-                    Text("\(preset.name) · \(Int(preset.protein * 100))/\(Int(preset.carbs * 100))/\(Int(preset.fat * 100))").tag(preset)
+            SettingsInfoRow("Macro split", info: SettingsInfo.macroSplit) {
+                Picker("Macro split", selection: $split) {
+                    ForEach(MacroSplit.presets) { preset in
+                        Text(Self.splitTitle(preset)).tag(preset)
+                    }
                 }
             }
         } header: {
@@ -540,6 +553,11 @@ struct GoalsView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// "Balanced · 25/45/30" (% of calories from protein / carbs / fat).
+    private static func splitTitle(_ preset: MacroSplit) -> String {
+        "\(preset.name) · \(Int(preset.protein * 100))/\(Int(preset.carbs * 100))/\(Int(preset.fat * 100))"
     }
 
     // MARK: Body data and pace

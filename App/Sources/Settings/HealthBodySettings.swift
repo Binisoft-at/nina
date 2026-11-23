@@ -12,10 +12,11 @@ struct HealthBodySettingsSection: View {
     var body: some View {
         Section {
             ForEach(HealthBodyReader.Option.allCases) { option in
-                Toggle(option.title, isOn: binding(option))
+                optionToggle(option)
             }
         } header: {
             Text("Body")
+                .info(SettingsInfo.bodyData.title, SettingsInfo.bodyData.text)
         } footer: {
             Text("Read live from Apple Health and never stored in Nina or its iCloud. Body fat and waist show as series of their own in Progress → Body, next to what you measure in Nina, and your height from Health as a hint in Goals & Plan. A workout only suggests the day type on Today – nothing changes until you tap.")
         }
@@ -24,6 +25,19 @@ struct HealthBodySettingsSection: View {
         }
         if app.health.bodyData.isOn(.workouts) {
             HealthBodyWorkoutTypesSection()
+        }
+    }
+
+    /// A switch; "Workouts suggest the day type" carries its own ⓘ (the header's covers the body data).
+    @ViewBuilder
+    private func optionToggle(_ option: HealthBodyReader.Option) -> some View {
+        if option == .workouts {
+            Toggle(isOn: binding(option)) {
+                Text(option.title)
+                    .info(SettingsInfo.workouts.title, SettingsInfo.workouts.text)
+            }
+        } else {
+            Toggle(option.title, isOn: binding(option))
         }
     }
 
