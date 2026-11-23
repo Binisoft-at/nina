@@ -196,6 +196,15 @@ struct WatchCoachPillTests {
         #expect(pills.map(\.id) == ["weighIn", "body.weekly", "check.creatine"])
         #expect(pills.compactMap(WatchCoach.act(for:)) == [.weighIn, .measure([.waist]), .check("creatine")])
     }
+
+    @Test func theWeighInGoesWhenTheIPhoneSawAHealthWeighIn() {
+        let strip = [weighIn(), body(.weekly, sites: [.waist]), check(.open)]
+        #expect(WatchCoach.pills(strip, weighedInOnPhone: false).map(\.id) == ["weighIn", "body.weekly", "check.creatine"])
+        #expect(WatchCoach.pills(strip, weighedInOnPhone: true).map(\.id) == ["body.weekly", "check.creatine"])
+        // Only the weigh-in was open: the row goes with it.
+        #expect(WatchCoach.pills([weighIn(), check(.done)], weighedInOnPhone: true).isEmpty)
+        #expect(WatchCoach.pills([weighIn(), check(.done)], weighedInOnPhone: false).map(\.id) == ["weighIn", "check.creatine"])
+    }
 }
 
 struct WatchCoachTapeFlowTests {
@@ -317,5 +326,19 @@ struct WatchCoachStatusTests {
         #expect(WatchCoach.signed(0.001, 2) == "0.00")
         #expect(WatchCoach.signed(-0.004, 2) == "0.00")
         #expect(WatchCoach.fixed(-0.04, 1) == "0.0")
+    }
+
+    @Test func theIPhonesStatusTravelsAsJSON() throws {
+        let status = WatchCoach.Status(average: 74.62, rate: -0.153, word: "Faster than planned", tone: .watch)
+        let back = try JSONDecoder().decode(WatchCoach.Status.self, from: JSONEncoder().encode(status))
+        #expect(back == status)
+        let bare = WatchCoach.Status(average: 74.62, rate: nil, word: nil, tone: .neutral)
+        #expect(try JSONDecoder().decode(WatchCoach.Status.self, from: JSONEncoder().encode(bare)) == bare)
+    }
+
+    @Test func theMorningWeighInFromHealth() {
+        #expect(WatchCoach.morningText(74.63) == "This morning 74.6 kg")
+        let comma: (Double, Int) -> String = { WatchCoach.fixed($0, $1).replacingOccurrences(of: ".", with: ",") }
+        #expect(WatchCoach.morningText(74.63, number: comma) == "This morning 74,6 kg")
     }
 }

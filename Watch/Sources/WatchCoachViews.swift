@@ -27,8 +27,9 @@ struct WatchCoachSummary: View {
             if !coach.pills.isEmpty {
                 WatchCoachPills(coach: coach, route: $route)
             }
-            if let status = coach.status {
-                WatchCoachStatusLine(status: status, showsHealthHint: coach.showsHealthHint)
+            if coach.status != nil || coach.healthMorning != nil {
+                WatchCoachStatusLine(status: coach.status, isFromPhone: coach.statusIsFromPhone,
+                                     healthMorning: coach.healthMorning, showsHealthHint: coach.showsHealthHint)
             }
         }
     }
@@ -190,24 +191,30 @@ private struct WatchCoachPill: View {
 }
 
 /// The status of the active phase in the phone's words, coloured like the phone, with the 7-day
-/// average and the rate under it: "Slower than planned" / "avg 74.6 · +0.15/wk". With few weigh-ins
-/// typed in Nina, a note that the scale's weigh-ins from Apple Health count on the iPhone (the
-/// watch reads nothing from Health).
+/// average and the rate under it: "Slower than planned" / "avg 74.6 · +0.15/wk" – the iPhone's
+/// numbers (Apple Health weigh-ins included) while they are at least as fresh as the watch's own.
+/// Under it this morning's weigh-in from Apple Health when the iPhone reported one, and, under the
+/// watch's own numbers, a note that weigh-ins from Apple Health count on the iPhone.
 private struct WatchCoachStatusLine: View {
-    let status: WatchCoach.Status
+    let status: WatchCoach.Status?
+    let isFromPhone: Bool
+    let healthMorning: WatchSnapshotRelay.Morning?
     let showsHealthHint: Bool
+
+    /// VoiceOver: where the numbers come from.
+    private var source: String {
+        isFromPhone ? "Worked out on your iPhone" : ""
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            if let word = status.word {
-                Text(word)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+            if let status {
+                WatchCoachStatusNumbers(status: status)
             }
-            numbers
-            if showsHealthHint {
+            if let healthMorning {
+                WatchHealthMorningLine(morning: healthMorning)
+            }
+            if showsHealthHint, status != nil {
                 Text("Weigh-ins from Apple Health count on your iPhone")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -217,6 +224,44 @@ private struct WatchCoachStatusLine: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .accessibilityHint(source)
+    }
+}
+
+/// "♥ This morning 74.6 kg": the morning weigh-in the iPhone read from Apple Health (shown only,
+/// never saved on the watch).
+private struct WatchHealthMorningLine: View {
+    let morning: WatchSnapshotRelay.Morning
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "heart.fill")
+                .foregroundStyle(Color.pink)
+                .imageScale(.small)
+            Text(WatchCoach.morningText(morning.kilograms, number: WatchNumber.fixed))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .font(.caption2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("This morning's weigh-in from Apple Health, \(WatchNumber.fixed(morning.kilograms, 1)) kilograms")
+    }
+}
+
+/// "In range" over "avg 74.6 · +0.15/wk".
+private struct WatchCoachStatusNumbers: View {
+    let status: WatchCoach.Status
+
+    var body: some View {
+        if let word = status.word {
+            Text(word)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        numbers
     }
 
     @ViewBuilder

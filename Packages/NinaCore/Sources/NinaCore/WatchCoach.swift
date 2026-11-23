@@ -135,6 +135,13 @@ public enum WatchCoach {
         return usable.contains { $0.state == .open } ? usable : []
     }
 
+    /// The same without the weigh-in when the iPhone saw this morning's weigh-in in Apple Health
+    /// (`weighedInOnPhone`, `WatchSnapshotRelay.CoachView.hidesWeighIn`): the watch's own board
+    /// only knows the weigh-ins typed in Nina.
+    public static func pills(_ strip: [CoachBoard.StripItem], weighedInOnPhone: Bool) -> [CoachBoard.StripItem] {
+        pills(weighedInOnPhone ? strip.filter { $0.action != .weighIn } : strip)
+    }
+
     /// What tapping a pill does on the watch; nil for what only the phone does.
     public static func act(for item: CoachBoard.StripItem) -> Act? {
         switch item.action {
@@ -218,13 +225,14 @@ public enum WatchCoach {
     // MARK: Status line
 
     /// How the status reads (the phone's colours): in range, slower or faster, off track, or neither.
-    public enum Tone: String, Equatable, Sendable {
+    public enum Tone: String, Codable, Equatable, Sendable {
         case good, watch, alert, neutral
     }
 
     /// "avg 74.6 · +0.15/wk · In range": the 7-day average, the decision rate and the status
-    /// words of the active phase.
-    public struct Status: Equatable, Sendable {
+    /// words of the active phase. Codable: the iPhone sends its own (Health weigh-ins included)
+    /// to the watch (`WatchSnapshotRelay.PhoneCoach`).
+    public struct Status: Codable, Equatable, Sendable {
         /// The valid 7-day average (kg).
         public var average: Double?
         /// The valid decision rate (kg/week).
@@ -254,6 +262,12 @@ public enum WatchCoach {
         public func text(number: (Double, Int) -> String = WatchCoach.fixed) -> String {
             [numbersText(number: number), word ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
         }
+    }
+
+    /// "This morning 74.6 kg": today's morning weigh-in from Apple Health, as the iPhone reported
+    /// it, under the status line. `number` formats with fixed decimals.
+    public static func morningText(_ kilograms: Double, number: (Double, Int) -> String = WatchCoach.fixed) -> String {
+        "This morning \(number(kilograms, 1)) kg"
     }
 
     /// The status line of the active phase on the summary's day, in the phone's words

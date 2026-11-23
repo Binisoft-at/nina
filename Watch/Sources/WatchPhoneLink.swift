@@ -4,15 +4,23 @@ import WatchConnectivity
 import BinisoftKit
 import NinaCore
 
+extension Notification.Name {
+    /// A newer message from the iPhone was taken (`WatchPhoneLink.receive`): the coach reloads.
+    static let ninaWatchPhoneMessage = Notification.Name("nina.watch.phoneMessage")
+}
+
 /// iPhone → Apple Watch, the watch side: the iPhone sends today's snapshot device to device
 /// (`PhoneWatchLink` there, rules in NinaCore `WatchSnapshotRelay`), and the watch writes it for
 /// its face unless it has fresher numbers of its own. Also while the app isn't running: the
 /// system wakes it in the background for the face's transfers (`finishPendingTransfers`). Nothing
-/// goes through iCloud, and nothing from Apple Health is in it.
+/// goes through iCloud. With the snapshot comes what only the iPhone knows from Apple Health (the
+/// coach part: this morning's Health weigh-in, its status line, today's active energy): it is
+/// kept in this watch's UserDefaults only – never in its SwiftData store, which syncs.
 @MainActor
 enum WatchPhoneLink {
     private static let delegate = WatchPhoneSessionDelegate()
     private static let markKey = "nina.watchlink.phone"
+    private static let coachKey = "nina.watchlink.phoneCoach"
     private static var isActivated = false
 
     /// Called at launch.
@@ -36,16 +44,52 @@ enum WatchPhoneLink {
         }
     }
 
-    /// A snapshot from the iPhone: written for the face unless this watch has fresher numbers
-    /// (a change made here the iPhone hasn't seen yet) or it is older than one already taken.
+    /// The last coach part from the iPhone (device-only: it holds values read from Apple Health).
+    static var phoneCoach: WatchSnapshotRelay.PhoneCoach? {
+        get { UserDefaults.standard.data(forKey: coachKey).flatMap(WatchSnapshotRelay.PhoneCoach.init(encoded:)) }
+        set { UserDefaults.standard.set(newValue?.encoded(), forKey: coachKey) }
+    }
+
+    /// The active energy from the iPhone's Apple Health (kcal, before "Add to my budget") that
+    /// counts on the diary day `day`, as the iPhone last reported it; 0 when it reported it for
+    /// another day. Kept where the snapshots this watch writes read it (`WidgetBridge`, this watch
+    /// only), so the face has the same budget as the iPhone's after a save here too.
+    static func activeEnergy(on day: DayKey) -> Double {
+        WidgetBridge.activityBonus(on: day)
+    }
+
+    /// Keeps the iPhone's reading of active energy, with its diary day, for the snapshots (`receive`).
+    private static func keepActiveEnergy(of coach: WatchSnapshotRelay.PhoneCoach?) {
+        guard let coach, let day = DayKey(coach.activeEnergyDay) else { return }
+        WidgetBridge.setActivityBonus(WatchSnapshotRelay.activeEnergy(coach, on: coach.activeEnergyDay), day: day)
+    }
+
+    /// A message from the iPhone: its coach part is kept, and its snapshot is written for the face
+    /// unless this watch has fresher numbers (a change made here the iPhone hasn't seen yet) – then
+    /// the watch's own snapshot is written again when the iPhone's activity bonus changed. Messages
+    /// older than one already taken are ignored.
     static func receive(_ payload: WatchSnapshotRelay.Payload) {
         guard WatchSnapshotRelay.isNewer(payload, than: lastPhoneMark) else { return }
         lastPhoneMark = payload.mark
         let store = NinaStore(context: Persistence.shared.container.mainContext)
         let today = store.settings.today()
+        let previous = phoneCoach
+        let kept = WatchSnapshotRelay.keptCoach(payload, previous: previous)
+        let bonusBefore = activeEnergy(on: today)
+        if kept != previous {
+            phoneCoach = kept
+            keepActiveEnergy(of: kept)
+        }
+        let bonus = activeEnergy(on: today)
         let freshness = store.watchLinkFreshness(on: today)
-        guard WatchSnapshotRelay.acceptsPhone(payload, watchFreshness: freshness, watchToday: today.rawValue) else { return }
-        WidgetBridge.publish(payload.snapshot)
+        if WatchSnapshotRelay.acceptsPhone(payload, watchFreshness: freshness, watchToday: today.rawValue) {
+            WidgetBridge.publish(payload.snapshot)
+        } else if bonus != bonusBefore,
+                  WatchSnapshotRelay.acceptsOwn(day: today.rawValue, freshness: freshness, phone: payload.mark) {
+            // This watch's own numbers with the iPhone's new activity bonus.
+            WidgetBridge.publish(store.todaySnapshot(activityBonus: bonus))
+        }
+        NotificationCenter.default.post(name: .ninaWatchPhoneMessage, object: nil)
     }
 
     /// The background task for WatchConnectivity: waits until what the iPhone sent has arrived and

@@ -5,7 +5,9 @@ import NinaCore
 // The coach on the wrist (F20): what the home screen shows for today with a set-up plan, and
 // the writes it makes – day type, daily checks, weigh-ins and the weekly tape – through the
 // same store as the phone, each with a short Undo. Logic lives in NinaCore `WatchCoach`; the
-// watch reads no Apple Health data, so its weight signal has the weigh-ins typed in Nina.
+// watch reads no Apple Health data, so its own weight signal has the weigh-ins typed in Nina.
+// What only the iPhone knows from Health comes over the watch link (`WatchPhoneLink.phoneCoach`):
+// the iPhone's status line while it is at least as fresh, and this morning's Health weigh-in.
 
 /// A short Undo after a coach write on the watch.
 struct WatchUndo: Identifiable {
@@ -28,26 +30,34 @@ struct WatchCoachData {
     let day: DayKey
     let plan: CoachPlan
     let chip: CoachBoard.Chip?
-    /// The watch's part of the checks strip (`WatchCoach.pills`); empty = no row.
+    /// The watch's part of the checks strip (`WatchCoach.pills`); empty = no row. Without the
+    /// weigh-in once the iPhone saw this morning's weigh-in in Apple Health.
     let pills: [CoachBoard.StripItem]
+    /// The status line: the iPhone's (Health weigh-ins included) while it is at least as fresh as
+    /// the watch's own numbers, else the watch's own (`WatchSnapshotRelay.coachView`).
     let status: WatchCoach.Status?
+    /// The status line came from the iPhone.
+    let statusIsFromPhone: Bool
+    /// This morning's weigh-in from Apple Health, as the iPhone reported it ("This morning 74.6 kg").
+    let healthMorning: WatchSnapshotRelay.Morning?
     /// The newest weigh-in typed in Nina ("Last 74.2 kg").
     let latestWeight: Double?
-    /// Where the weigh-in Crown starts.
+    /// Where the weigh-in Crown starts (never a weight from Apple Health: saved with one tap it
+    /// would copy Health data into iCloud).
     let startWeight: Double
-    /// The 7-day average (else the trend) a new weight is checked against.
+    /// The 7-day average (else the trend) a new weight is checked against: the iPhone's while its
+    /// status line is shown.
     let weightReference: Double?
     /// The tape records, for each site's last reading.
     let tapeRecords: [BodyTapeRecord]
-    /// Fewer than `healthHintBelow` morning weigh-ins typed in Nina in the last 7 days: the status
-    /// line says the scale's weigh-ins from Apple Health count on the iPhone (they never reach the
-    /// watch, so its numbers can differ).
+    /// The status line says weigh-ins from Apple Health count on the iPhone: the watch shows its
+    /// own numbers and the iPhone said it has Health weigh-ins – or, without word from the iPhone,
+    /// fewer than 4 morning weigh-ins were typed in Nina in the last 7 days.
     let showsHealthHint: Bool
 
-    static let healthHintBelow = 4
-
+    /// `phone`: the iPhone's last coach part (`WatchPhoneLink.phoneCoach`).
     @MainActor
-    static func load(store: NinaStore, day: DayKey, now: Date = Date()) -> WatchCoachData? {
+    static func load(store: NinaStore, day: DayKey, phone: WatchSnapshotRelay.PhoneCoach?, now: Date = Date()) -> WatchCoachData? {
         var settings = store.settings
         let plan = settings.plan
         guard plan.isSetUp else { return nil }
@@ -59,12 +69,18 @@ struct WatchCoachData {
         let summary = signal.summary(on: today, plan: plan)
         let latest = store.weights().max { $0.time < $1.time }?.kilograms
         let mornings = signal.morningCount(from: today.adding(days: -6, calendar: calendar), through: today)
+        let own = WatchCoach.status(summary: summary, plan: plan, checkIns: store.checkIns())
+        let view = WatchSnapshotRelay.coachView(own: own, watchFreshness: store.watchLinkCoachFreshness(), typedMornings: mornings,
+                                                phone: phone, watchToday: today.rawValue)
+        let ownReference = signal.average(on: today).value ?? signal.trend(on: today)
+        let phoneReference = view.isFromPhone ? view.status?.average : nil
         return WatchCoachData(
-            day: day, plan: plan, chip: board.chip, pills: WatchCoach.pills(board.strip),
-            status: WatchCoach.status(summary: summary, plan: plan, checkIns: store.checkIns()),
+            day: day, plan: plan, chip: board.chip,
+            pills: WatchCoach.pills(board.strip, weighedInOnPhone: day == today && view.hidesWeighIn),
+            status: view.status, statusIsFromPhone: view.isFromPhone, healthMorning: day == today ? view.healthMorning : nil,
             latestWeight: latest, startWeight: WatchCoach.startWeight(latest: latest, bodyWeight: settings.bodyWeightKg),
-            weightReference: signal.average(on: today).value ?? signal.trend(on: today),
-            tapeRecords: store.tapeRecords(), showsHealthHint: mornings < healthHintBelow)
+            weightReference: phoneReference ?? ownReference,
+            tapeRecords: store.tapeRecords(), showsHealthHint: view.showsHealthHint)
     }
 }
 
