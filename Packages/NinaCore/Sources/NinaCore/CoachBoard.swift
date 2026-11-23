@@ -12,6 +12,10 @@ public struct CoachBoard: Equatable, Sendable {
     public static let reviewSnoozeDays = 7
     /// "Welcome back" shows on this many days after a pause ended (F19).
     public static let welcomeBackDays = 3
+    /// "Still on a break?" shows once a pause without an end is this many days old …
+    public static let pauseCheckDays = 14
+    /// … and "Later" on it asks again after this many days.
+    public static let pauseCheckSnoozeDays = 7
 
     // MARK: Input
 
@@ -208,9 +212,11 @@ public struct CoachBoard: Equatable, Sendable {
 
     /// The one coach card above the meals.
     public struct Card: Equatable, Sendable, Identifiable {
-        /// In priority order.
+        /// In priority order (a phase end that has passed waits behind the check-in).
         public enum Kind: String, Codable, Sendable, CaseIterable {
             case phaseStart, phaseEnd, review, checkIn, baseline, welcomeBack
+            /// "Still on a break?" while a pause without an end runs for two weeks or more.
+            case pauseCheck
         }
 
         /// A button on the card.
@@ -225,7 +231,8 @@ public struct CoachBoard: Equatable, Sendable {
         }
 
         /// Stable: "phaseStart.<phase id>", "phaseEnd.<phase id>", "review.<phase id>",
-        /// "checkIn.week-<Monday>", "baseline.<due day>", "welcomeBack.<pause end>".
+        /// "checkIn.week-<Monday>", "baseline.<due day>", "welcomeBack.<pause end>",
+        /// "pauseCheck.<pause start>".
         public var key: String
         public var kind: Kind
         public var title: String
@@ -281,6 +288,9 @@ public struct CoachBoard: Equatable, Sendable {
     /// The coach card, or nil.
     public var card: Card?
     public var weekAverage: WeekAverage?
+    /// The review and the weekly check-in while they are due (and not put off), whichever card
+    /// Today shows: the Body page lists them.
+    public var dueCards: [Card] = []
 
     /// "Week avg 2,400 kcal" (nil without at least two day types or targets for the week).
     public var weekAverageLine: String? { weekAverage?.text }
@@ -290,6 +300,7 @@ public struct CoachBoard: Equatable, Sendable {
         strip = CoachBoard.strip(input)
         card = CoachBoard.card(input)
         weekAverage = CoachBoard.weekAverage(input)
+        dueCards = CoachBoard.dueCards(input)
     }
 
     public init(chip: Chip?, strip: [StripItem], card: Card?, weekAverage: WeekAverage?) {
@@ -432,24 +443,40 @@ extension CoachBoard {
 // MARK: - Coach card
 
 extension CoachBoard {
-    /// The first card by priority that wasn't put off: phase start/end decision > review
-    /// checkpoint > weekly check-in > baseline measurement > "Welcome back". Only on today, never
-    /// while coaching is paused.
+    /// The first card by priority that wasn't put off: phase start decision > the phase's end
+    /// day > review checkpoint > weekly check-in > a phase end that has passed (an end date is
+    /// soft: the check-in goes on while the phase runs on) > baseline measurement > "Welcome
+    /// back". Only on today. While coaching is paused only "Still on a break?" (two weeks into a
+    /// pause without an end).
     static func card(_ input: Input) -> Card? {
         let plan = input.plan
-        guard plan.isSetUp, input.day == input.today, !plan.isPaused(on: input.today) else { return nil }
-        let candidates: [Card?] = [phaseCard(input), reviewCard(input), checkInCard(input), baselineCard(input),
-                                   welcomeBackCard(input)]
+        guard plan.isSetUp, input.day == input.today else { return nil }
+        if plan.isPaused(on: input.today) {
+            return pauseCheckCard(input).flatMap { isDismissed($0, input) ? nil : $0 }
+        }
+        let end = phaseEndCard(input)
+        let endsToday = plan.activePhase(on: input.today)?.end == input.today
+        let candidates: [Card?] = [phaseStartCard(input), endsToday ? end : nil, reviewCard(input), checkInCard(input),
+                                   endsToday ? nil : end, baselineCard(input), welcomeBackCard(input)]
         return candidates.compactMap { $0 }.first { !isDismissed($0, input) }
     }
 
-    /// "Later" hides a card until tomorrow, the review for 7 days, "Welcome back" for good.
+    /// The review and the weekly check-in while they are due and not put off (today, not paused).
+    static func dueCards(_ input: Input) -> [Card] {
+        let plan = input.plan
+        guard plan.isSetUp, input.day == input.today, !plan.isPaused(on: input.today) else { return [] }
+        return [reviewCard(input), checkInCard(input)].compactMap { $0 }.filter { !isDismissed($0, input) }
+    }
+
+    /// "Later" hides a card until tomorrow, the review and "Still on a break?" for 7 days,
+    /// "Welcome back" for good.
     static func isDismissed(_ card: Card, _ input: Input) -> Bool {
         guard let day = input.dismissed[card.key] else { return false }
         switch card.kind {
-        case .review:
+        case .review, .pauseCheck:
+            let snooze = card.kind == .review ? reviewSnoozeDays : pauseCheckSnoozeDays
             let days = day.days(to: input.today, calendar: input.calendar)
-            return days >= 0 && days < reviewSnoozeDays
+            return days >= 0 && days < snooze
         case .welcomeBack:
             return true
         default:
@@ -462,8 +489,8 @@ extension CoachBoard {
         return trimmed.isEmpty ? CoachPlan.Phase.defaultName(for: phase.goal) : trimmed
     }
 
-    /// A planned phase whose start has come, else the running phase's end date reached.
-    static func phaseCard(_ input: Input) -> Card? {
+    /// A planned phase whose start has come.
+    static func phaseStartCard(_ input: Input) -> Card? {
         let plan = input.plan, today = input.today
         if let phase = plan.duePhase(on: today) {
             let title = phase.start == today ? "\(name(of: phase)) starts today" : "\(name(of: phase)) is ready to start"
@@ -478,7 +505,14 @@ extension CoachBoard {
                         secondary: Card.Choice(title: "In a week", action: .postponePhase(phase.id)),
                         more: [Card.Choice(title: "Edit", action: .editPhase(phase.id))], phaseID: phase.id)
         }
-        guard let active = plan.activePhase(on: today), active.status != .done, let end = active.end, end <= today else { return nil }
+        return nil
+    }
+
+    /// The running phase's end date reached (while no planned phase is due to start).
+    static func phaseEndCard(_ input: Input) -> Card? {
+        let plan = input.plan, today = input.today
+        guard plan.duePhase(on: today) == nil, let active = plan.activePhase(on: today), active.status != .done,
+              let end = active.end, end <= today else { return nil }
         let title = end == today ? "\(name(of: active)) ends today" : "\(name(of: active)) has reached its end date"
         let next = plan.phases.filter { !$0.isStarted && $0.status != .done && $0.id != active.id }
             .min { ($0.start ?? DayKey(year: 9999, month: 12, day: 31)) < ($1.start ?? DayKey(year: 9999, month: 12, day: 31)) }
@@ -495,8 +529,8 @@ extension CoachBoard {
     }
 
     /// The review checkpoint (or a ceiling) of the active phase, until a review decision answers
-    /// it: the checkpoint needs one on or after the day it was reached, a ceiling any decision in
-    /// the phase (`PhaseReviews`).
+    /// it: the checkpoint needs one on or after the day it was reached, a ceiling a decision made
+    /// while it was reached (`PhaseReviews`).
     static func reviewCard(_ input: Input) -> Card? {
         guard let phase = input.plan.activePhase(on: input.today) else { return nil }
         let crossing = input.checkpoint.flatMap { $0 <= input.today ? $0 : nil }
@@ -506,7 +540,7 @@ extension CoachBoard {
             title = "Review weight reached"
             message = "Your 7-day average reached \(NumberText.plain(weight, decimals: 1)) kg – time to look back at "
                 + "\(name(of: phase)) and decide how to go on."
-        } else if input.reviews.ceilingIsOpen(phase.id, ceilings: input.ceilings), let ceiling = input.ceilings.first {
+        } else if let ceiling = input.reviews.openCeilings(phase.id, ceilings: input.ceilings).first {
             title = "Time for a phase review"
             message = "\(ceiling.message)."
         } else {
@@ -551,6 +585,17 @@ extension CoachBoard {
             : "Measure your starting point today so your progress shows later."
         return Card(key: key, kind: .baseline, title: "Baseline measurement", message: message,
                     primary: Card.Choice(title: "Measure", action: .measure(item)), secondary: nil, more: [], phaseID: nil)
+    }
+
+    /// "Still on a break?": a pause without an end that started two weeks ago or more.
+    static func pauseCheckCard(_ input: Input) -> Card? {
+        let today = input.today
+        guard let pause = input.plan.pause(on: today), pause.end == nil,
+              pause.start.days(to: today, calendar: input.calendar) >= pauseCheckDays else { return nil }
+        let since = WeightSignal.StatusLine.shortDate(pause.start)
+        return Card(key: "pauseCheck.\(pause.start.rawValue)", kind: .pauseCheck, title: "Still on a break?",
+                    message: "Coaching is paused since \(since). Resume when you're ready – your plan picks up from today.",
+                    primary: Card.Choice(title: "Resume coaching", action: .editPlan), secondary: nil, more: [], phaseID: nil)
     }
 
     /// "Welcome back" on the first days after a pause ended.

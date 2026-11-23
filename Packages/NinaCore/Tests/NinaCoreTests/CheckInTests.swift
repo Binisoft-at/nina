@@ -581,6 +581,79 @@ struct CheckInEngineTests {
         #expect(!edit.covers(checkInOn: f.checkInDay) && edit.covers(checkInOn: checkInDay("2030-02-05")))
     }
 
+    /// Today, the Body page and the watch say what the check-in would: only check-ins since the
+    /// last calorie change count, as many as the check-in asks, and only on the live side.
+    @Test func statusLineAgreesWithTheCheckIn() {
+        let f = CheckInFixture.self
+        func rate(_ value: Double?, from start: String, to end: String, weighIns: Int = 14) -> WeightSignal.Rate {
+            let window = WeightSignal.Window(start: checkInDay(start), end: checkInDay(end))
+            return WeightSignal.Rate(window: window, kilogramsPerWeek: value, weighIns: weighIns, tagged: 0,
+                                     spanDays: window.days(calendar: checkInUTC))
+        }
+        let monday = checkInDay("2030-02-11")
+        let twoBelow = [f.previous(.below, on: "2030-01-21"), f.previous(.below, on: "2030-01-28")]
+
+        // Without a change: two check-ins below and still below – off track, as the check-in says.
+        let plain = WeightSignal.statusLine(on: monday, plan: f.plan(), rate: rate(0.05, from: "2030-01-22", to: "2030-02-11"),
+                                            checkIns: twoBelow, calendar: checkInUTC)
+        #expect(plain?.state == .offTrack)
+        #expect(plain?.tone == .alert)
+        #expect(CheckInEngine.evaluate(f.input(rate: 0.05, history: twoBelow, day: monday), calendar: checkInUTC).verdict == .offTarget)
+        // The other side now: faster, not off track.
+        let flipped = WeightSignal.statusLine(on: monday, plan: f.plan(), rate: rate(0.35, from: "2030-01-22", to: "2030-02-11"),
+                                              checkIns: twoBelow, calendar: checkInUTC)
+        #expect(flipped?.text() == "Faster than planned")
+        #expect(flipped?.tone == .watch)
+
+        // Applied +100 from Tue 29 Jan, the next week skipped, still slower: the check-in waits for
+        // one more week, and so do Today, the Body page and the watch.
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-01-29"), weightKg: 80, fallback: f.profile)
+        let engine = CheckInEngine.evaluate(f.input(rate: 0.05, plan: applied, history: twoBelow, day: monday), calendar: checkInUTC)
+        #expect(engine.verdict == .slower)
+        #expect(engine.rule == .confirming)
+        let line = WeightSignal.statusLine(on: monday, plan: applied, rate: rate(0.05, from: "2030-01-29", to: "2030-02-11"),
+                                           checkIns: twoBelow, calendar: checkInUTC)
+        #expect(line?.text() == engine.verdict.title)
+        // Three in a row asked for: two saved and the live one aren't enough between check-ins.
+        var three = f.plan()
+        three.adjust.confirmChecks = 3
+        #expect(WeightSignal.statusLine(on: monday, plan: three, rate: rate(0.05, from: "2030-01-22", to: "2030-02-11"),
+                                        checkIns: twoBelow, calendar: checkInUTC)?.state == .status(.slower))
+    }
+
+    /// After a calorie change the rate starts again: the status says why instead of "Gathering data".
+    @Test func statusLineNamesNewTargetsAndPauses() {
+        let f = CheckInFixture.self
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-01-29"), weightKg: 80, fallback: f.profile)
+        let day = checkInDay("2030-02-04")
+        let short = WeightSignal.Rate(window: .init(start: checkInDay("2030-01-29"), end: day), kilogramsPerWeek: 0.3, weighIns: 6,
+                                      tagged: 0, spanDays: 7)
+        let line = WeightSignal.statusLine(on: day, plan: applied, rate: short, checkIns: [], calendar: checkInUTC)
+        #expect(line?.state == .newTargets(since: checkInDay("2030-01-29"), firstLook: checkInDay("2030-02-11")))
+        #expect(line?.text(calendar: checkInUTC) == "New targets since Tue · first look Mon 11 Feb")
+        #expect(line?.tone == .neutral)
+        // A week later the change is named with its date.
+        let later = WeightSignal.StatusLine(state: .newTargets(since: checkInDay("2030-01-29"), firstLook: checkInDay("2030-02-11")),
+                                            day: checkInDay("2030-02-05"))
+        #expect(later.text(calendar: checkInUTC) == "New targets since Tue 29 Jan · first look Mon 11 Feb")
+        // At the phase start the rate is just gathering.
+        let start = WeightSignal.Rate(window: .init(start: checkInDay("2030-01-07"), end: checkInDay("2030-01-10")), kilogramsPerWeek: nil,
+                                      weighIns: 4, tagged: 0, spanDays: 4)
+        #expect(WeightSignal.statusLine(on: checkInDay("2030-01-10"), plan: f.plan(), rate: start, checkIns: [],
+                                        calendar: checkInUTC)?.text() == "Gathering data")
+
+        // Paused: neutral, with its end, or since when for an open pause.
+        let holiday = f.plan(pauses: [.init(start: checkInDay("2030-02-01"), end: checkInDay("2030-02-12"), reason: .holiday)])
+        let paused = WeightSignal.statusLine(on: day, plan: holiday, rate: short, checkIns: [], calendar: checkInUTC)
+        #expect(paused?.text() == "Paused · until 12 Feb")
+        #expect(paused?.tone == .neutral)
+        #expect(paused?.isPaused == true)
+        let open = f.plan(pauses: [.init(start: checkInDay("2030-02-01"), end: nil, reason: .sick)])
+        #expect(WeightSignal.statusLine(on: day, plan: open, rate: short, checkIns: [], calendar: checkInUTC)?.text() == "Paused · since 1 Feb")
+        // No active phase: nothing.
+        #expect(WeightSignal.statusLine(on: checkInDay("2029-12-31"), plan: f.plan(), rate: short, checkIns: []) == nil)
+    }
+
     @Test func redoAfterApplyingSaysTheTargetsAlreadyChanged() throws {
         let f = CheckInFixture.self
         let history = [f.previous(.below, on: "2030-01-28")]

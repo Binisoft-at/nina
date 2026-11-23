@@ -298,6 +298,98 @@ struct CoachBoardTests {
         #expect(literal == reviews)
     }
 
+    /// "Keep going" at the review weight answers no ceiling: one reached weeks later still opens
+    /// the review. A decision answers the ceilings reached when it was made.
+    @Test func aDecisionAnswersOnlyTheCeilingsReachedThen() throws {
+        let keep = PhaseReviews(decisions: [(phaseID: "1", event: .reviewKeep, day: boardDay("2030-03-04"), ceilings: [])])
+        #expect(!keep.checkpointIsOpen("1", crossing: boardDay("2030-03-04")))
+        #expect(keep.ceilingIsOpen("1", ceilings: [.bodyFat]))
+        let waistDecision = (phaseID: "1", event: PhaseEvent.reviewKeep, day: boardDay("2030-03-11"),
+                             ceilings: Optional([BodyCeiling.waistGain]))
+        let waist = PhaseReviews(decisions: [waistDecision])
+        #expect(!waist.ceilingIsOpen("1", ceilings: [.waistGain]))
+        #expect(waist.ceilingIsOpen("1", ceilings: [.waistGain, .bodyFat]))
+        #expect(waist.openCeilings("1", ceilings: [.waistGain, .bodyFat]) == [.bodyFat])
+        // Two decisions answer what each answered.
+        let both = PhaseReviews(decisions: [waistDecision,
+                                            (phaseID: "1", event: .reviewHold, day: boardDay("2030-03-20"), ceilings: [.bodyFat]),
+                                            (phaseID: "1", event: .started, day: boardDay("2030-03-25"), ceilings: [])])
+        #expect(!both.ceilingIsOpen("1", ceilings: [.waistGain, .bodyFat]))
+        #expect(both.lastReview(of: "1") == boardDay("2030-03-20"))
+        // A decision saved before the ceilings were recorded answers every one of them.
+        let old = PhaseReviews(decisions: [(phaseID: "1", event: .reviewCut, day: boardDay("2030-03-04"), ceilings: nil)])
+        #expect(!old.ceilingIsOpen("1", ceilings: BodyCeiling.allCases))
+        #expect(old == ["1": boardDay("2030-03-04")])
+        // The mark's meta.
+        #expect(PhaseReviews.metaValue([.waistGain, .bodyFat]) == "waistGain,bodyFat")
+        #expect(PhaseReviews.metaValue([]) == "none")
+        #expect(PhaseReviews.ceilings(fromMeta: "waistGain,bodyFat") == [.waistGain, .bodyFat])
+        #expect(PhaseReviews.ceilings(fromMeta: "none") == [])
+        #expect(PhaseReviews.ceilings(fromMeta: nil) == nil)
+        // Today: after "Keep going" on the waist, the body-fat ceiling opens the card in its words.
+        let card = try #require(CoachBoard(boardInput(day: "2030-03-21") { input in
+            input.ceilings = [.waistGain, .bodyFat]
+            input.reviews = waist
+        }).card)
+        #expect(card.kind == .review)
+        #expect(card.message == BodyCeiling.bodyFat.message + ".")
+        #expect(CoachBoard(boardInput(day: "2030-03-21") { input in
+            input.ceilings = [.waistGain]
+            input.reviews = waist
+        }).card?.kind != .review)
+    }
+
+    /// An end date is soft: on a check-in day after it the check-in comes first (Today and the
+    /// Body page); on the end day itself the end card does.
+    @Test func aPassedEndWaitsBehindTheCheckIn() throws {
+        let plan = boardPlan(cut: false)
+        func board(_ day: String, saved: Set<String> = [], checkpoint: String? = nil, in plan: CoachPlan) -> CoachBoard {
+            CoachBoard(boardInput(plan, day: day) { input in
+                input.hasMorningWeighIn = true
+                input.checkInKeys = saved
+                input.checkpoint = checkpoint.map { boardDay($0) }
+            })
+        }
+        // Mon 1 Apr, the gain ran on past ~28 Mar.
+        let monday = board("2030-04-01", in: plan)
+        #expect(monday.card?.kind == .checkIn)
+        #expect(monday.dueCards.map(\.kind) == [.checkIn])
+        let saved = board("2030-04-01", saved: ["week-2030-04-01"], in: plan)
+        #expect(saved.card?.kind == .phaseEnd)
+        #expect(saved.dueCards.isEmpty)
+        // The review and the check-in are both listed, whichever card Today shows.
+        #expect(board("2030-04-01", checkpoint: "2030-03-20", in: plan).dueCards.map(\.kind) == [.review, .checkIn])
+        // A phase ending on a Monday: that day the end card comes first.
+        var mondayEnd = plan
+        mondayEnd.phases[0].end = boardDay("2030-03-25")
+        let endDay = board("2030-03-25", in: mondayEnd)
+        #expect(endDay.card?.kind == .phaseEnd)
+        #expect(endDay.card?.title == "Lean gain ends today")
+        #expect(endDay.dueCards.map(\.kind) == [.checkIn])
+    }
+
+    /// Two weeks into a pause without an end: "Still on a break?", "Later" for a week.
+    @Test func stillOnABreak() throws {
+        let plan = boardPlan(pauses: [CoachPlan.Pause(start: boardDay("2030-02-04"), end: nil, reason: .other)])
+        func card(_ day: String, dismissed: [String: DayKey] = [:]) -> CoachBoard.Card? {
+            CoachBoard(boardInput(plan, day: day) { $0.dismissed = dismissed }).card
+        }
+        #expect(card("2030-02-17") == nil)
+        let check = try #require(card("2030-02-18"))
+        #expect(check.kind == .pauseCheck)
+        #expect(check.key == "pauseCheck.2030-02-04")
+        #expect(check.title == "Still on a break?")
+        #expect(check.message == "Coaching is paused since 4 Feb. Resume when you're ready – your plan picks up from today.")
+        #expect(check.primary.title == "Resume coaching")
+        let later = ["pauseCheck.2030-02-04": boardDay("2030-02-18")]
+        #expect(card("2030-02-24", dismissed: later) == nil)
+        #expect(card("2030-02-25", dismissed: later)?.kind == .pauseCheck)
+        // Nothing else shows while paused, and a pause with an end never asks.
+        #expect(CoachBoard(boardInput(plan, day: "2030-02-18")).dueCards.isEmpty)
+        let holiday = boardPlan(pauses: [CoachPlan.Pause(start: boardDay("2030-02-04"), end: boardDay("2030-03-10"), reason: .holiday)])
+        #expect(CoachBoard(boardInput(holiday, day: "2030-02-25")).card == nil)
+    }
+
     @Test func aCeilingReviewDoesNotUseUpTheCheckpoint() throws {
         func card(_ reviews: PhaseReviews, checkpoint: String?, ceilings: [BodyCeiling] = []) -> CoachBoard.Card? {
             CoachBoard(boardInput(day: "2030-03-25") { input in

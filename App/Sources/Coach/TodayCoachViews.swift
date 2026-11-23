@@ -523,10 +523,17 @@ struct TodayCoachCard: View {
         case .checkIn: "checklist"
         case .baseline: "ruler"
         case .welcomeBack: "hand.wave.fill"
+        case .pauseCheck: "pause.circle"
         }
     }
 
     private func act(_ choice: CoachBoard.Card.Choice) {
+        // "Resume coaching" on "Still on a break?" resumes right here (its action opens My Plan
+        // wherever else it is offered).
+        if card.kind == .pauseCheck, choice == card.primary {
+            PlanEditorData.resume(app: app)
+            return
+        }
         app.perform(choice.action, on: day, card: card)
     }
 }

@@ -960,20 +960,21 @@ public enum BodyCeiling: String, Codable, Sendable, CaseIterable {
     }
 
     /// The ceilings reached in a gain phase from its standard waist readings (any order;
-    /// `waists`: day and cm). The base is the last reading on or before the phase start, else the
-    /// first after it (the baseline tape of a phase imported with an earlier start, or taken the
-    /// morning after); the change since the start compares the latest reading with it. The
-    /// waist-to-height ceiling (`heightCm` 0 = unknown) fires only once the ratio rose to 0.5 or
-    /// more during the phase: a later reading at 0.5 or more while the base was below it. The base
-    /// reading alone never opens it (a person who starts at 0.5 or more isn't asked to review as
-    /// soon as the baseline tape is saved), nor does a later one when the base was already there.
+    /// `waists`: day and cm). The base is the one the Body tiles and the review compare with
+    /// (`GirthTrend.base`): the last reading on or up to 7 days before the phase start, else the
+    /// first after it (the baseline tape taken the morning after, never one from months before);
+    /// the change since the start compares the latest reading with it. The waist-to-height
+    /// ceiling (`heightCm` 0 = unknown) fires only once the ratio rose to 0.5 or more during the
+    /// phase: a later reading at 0.5 or more while the base was below it. The base reading alone
+    /// never opens it (a person who starts at 0.5 or more isn't asked to review as soon as the
+    /// baseline tape is saved), nor does a later one when the base was already there.
     public static func reached(phase: CoachPlan.Phase, waists: [(day: DayKey, cm: Double)], heightCm: Double,
-                               bodyFat: Double? = nil, bodyFatCeiling: Double = 0) -> [BodyCeiling] {
+                               bodyFat: Double? = nil, bodyFatCeiling: Double = 0, calendar: Calendar = .current) -> [BodyCeiling] {
         guard phase.goal == .gain, let start = phase.start else { return [] }
         let sorted = waists.filter { $0.cm > 0 }.sorted { $0.day < $1.day }
         var change: Double?
         var ratio: Double?
-        if let latest = sorted.last, let base = sorted.last(where: { $0.day <= start }) ?? sorted.first(where: { $0.day >= start }),
+        if let latest = sorted.last, let base = GirthTrend.base(sorted, day: { $0.day }, since: start, calendar: calendar),
            latest.day > base.day {
             change = latest.cm - base.cm
             if heightCm > 0, let now = BodyComposition.waistToHeight(waistCm: latest.cm, heightCm: heightCm) {
@@ -983,6 +984,44 @@ public enum BodyCeiling: String, Codable, Sendable, CaseIterable {
         }
         return reached(phase: phase, waistChangeSinceStart: change, waistToHeight: ratio, bodyFat: bodyFat,
                        bodyFatCeiling: bodyFatCeiling)
+    }
+
+    /// Every ceiling reached on `day` in the gain phase active then, from the records as they
+    /// are: the standard waist readings (`BodyComposition.waist(in:sex:)`) and the latest body
+    /// fat of the tracking series (`latestBodyFat`). Empty outside a gain phase. What Today's
+    /// review card, the review sheet and a review decision (which records the ones it answered)
+    /// all compare.
+    /// - Parameters:
+    ///   - fatReadings: assessments and the body fat typed with weigh-ins.
+    ///   - formula: the tape-estimate formula (nil = no tape estimate).
+    public static func reached(in plan: CoachPlan, on day: DayKey, tape: [BodyTapeRecord], fatReadings: [BodyFatReading],
+                               sex: Sex, heightCm: Double, formula: NavyBodyFat.Formula?,
+                               calendar: Calendar = .current) -> [BodyCeiling] {
+        guard let phase = plan.activePhase(on: day), phase.goal == .gain else { return [] }
+        var waists: [(day: DayKey, cm: Double)] = []
+        for record in tape where record.isStandard && record.day <= day {
+            if let cm = BodyComposition.waist(in: record.values, sex: sex) { waists.append((day: record.day, cm: cm)) }
+        }
+        let bodyFat = phase.bodyFatCeiling > 0
+            ? latestBodyFat(fatReadings, tape: tape, formula: formula, heightCm: heightCm, method: plan.routine.bodyFatMethod,
+                            on: day, calendar: calendar)
+            : nil
+        return reached(phase: phase, waists: waists, heightCm: heightCm, bodyFat: bodyFat, bodyFatCeiling: phase.bodyFatCeiling,
+                       calendar: calendar)
+    }
+
+    /// The latest body fat (%) of the tracking series (`BodyFatSeries.tracking`) on or before
+    /// `day`: the stored values plus the tape estimate (`formula`, nil = none; `heightCm` 0 =
+    /// none). What a gain phase's body-fat ceiling is compared with; nil without one.
+    public static func latestBodyFat(_ stored: [BodyFatReading], tape: [BodyTapeRecord], formula: NavyBodyFat.Formula?,
+                                     heightCm: Double, method: BodyMethod?, on day: DayKey,
+                                     calendar: Calendar = .current) -> Double? {
+        let tapeUpTo = tape.filter { $0.day <= day }
+        let navy = NavyBodyFat.series(formula: formula, heightCm: heightCm, records: tapeUpTo, calendar: calendar)
+            .map { BodyFatReading(navy: $0) }
+        let all = stored.filter { $0.day <= day } + navy
+        guard let series = BodyFatSeries.tracking(BodyFatSeries.group(all), method: method) else { return nil }
+        return series.readings.last { $0.day <= day }?.bodyFat
     }
 }
 
@@ -1079,12 +1118,22 @@ public enum GirthTrend {
         let sorted = readings.sorted { $0.day < $1.day }
         guard let last = sorted.last else { return nil }
         var start = sorted.first
-        if let since {
-            let graceStart = since.adding(days: -7, calendar: calendar)
-            start = sorted.last { $0.day <= since && $0.day >= graceStart } ?? sorted.first { $0.day > since }
-        }
+        if let since { start = base(sorted, day: { $0.day }, since: since, calendar: calendar) }
         guard let start, start.day <= last.day else { return nil }
         return GirthChange(site: site, from: start, to: last)
+    }
+
+    /// Days a value before a phase start may be old and still count as its base.
+    public static let baseGraceDays = 7
+
+    /// What a change "since" a day starts from (`sorted` oldest first): the latest value on or up
+    /// to `graceDays` days before `since`, else the first one after it; nil without either. One
+    /// rule for the tape tiles, the review, the waist ceiling and the body composition since a
+    /// phase start, so a value from months before never becomes the base.
+    public static func base<Value>(_ sorted: [Value], day: (Value) -> DayKey, since: DayKey, graceDays: Int = baseGraceDays,
+                                   calendar: Calendar = .current) -> Value? {
+        let graceStart = since.adding(days: -max(0, graceDays), calendar: calendar)
+        return sorted.last { day($0) <= since && day($0) >= graceStart } ?? sorted.first { day($0) > since }
     }
 
     public static func change(_ site: BodySite, in records: [BodyTapeRecord], since: DayKey? = nil, includeNonStandard: Bool = false,

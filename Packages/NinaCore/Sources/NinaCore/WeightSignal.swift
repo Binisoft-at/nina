@@ -899,3 +899,123 @@ public struct WeightSignal: Equatable, Sendable {
         return low > 0 ? low - 1 : nil
     }
 }
+
+// MARK: - Status line
+
+extension WeightSignal {
+    /// What the Today phase line, the Body page and the watch say about the active phase, in the
+    /// check-in's words and by its rules: the weight signal's status; "Off track" only once the
+    /// check-ins since the last calorie change were outside on the same side as often as the
+    /// check-in asks (`adjust.confirmChecks`, at least 1) and the live rate is still on that side;
+    /// "New targets since Tue · first look Mon 21 Jan" while the rate restarts after a calorie
+    /// change; "Paused · until 12 Feb" while coaching is paused.
+    public struct StatusLine: Equatable, Sendable {
+        public enum State: Equatable, Sendable {
+            /// The weight signal's status (in range, slower, faster, gathering data).
+            case status(Status)
+            case offTrack
+            /// The rate restarted at a calorie change on `since` and can be judged at the
+            /// check-in on `firstLook`.
+            case newTargets(since: DayKey, firstLook: DayKey)
+            /// Coaching paused since `since`, until `until` (nil = until resumed).
+            case paused(since: DayKey, until: DayKey?)
+        }
+
+        public enum Tone: String, Sendable {
+            case good, watch, alert, neutral
+        }
+
+        public var state: State
+        /// The day it was worked out for.
+        public var day: DayKey
+
+        public init(state: State, day: DayKey) {
+            self.state = state
+            self.day = day
+        }
+
+        public var tone: Tone {
+            switch state {
+            case .status(.inRange): .good
+            case .status(.slower), .status(.faster): .watch
+            case .offTrack: .alert
+            case .status(.gathering), .newTargets, .paused: .neutral
+            }
+        }
+
+        public var isPaused: Bool {
+            if case .paused = state { return true }
+            return false
+        }
+
+        /// "In range", "Off track", "New targets since Tue · first look Mon 21 Jan", "Paused ·
+        /// until 12 Feb". `date` writes a day without its weekday ("21 Jan"; the app passes its
+        /// locale's format).
+        public func text(date: (DayKey) -> String = StatusLine.shortDate, calendar: Calendar = .current) -> String {
+            switch state {
+            case .status(let status):
+                return status.title
+            case .offTrack:
+                return CheckInVerdict.offTarget.title
+            case .newTargets(let since, let firstLook):
+                let ago = since.days(to: day, calendar: calendar)
+                var sinceText = StatusLine.weekday(since, calendar: calendar)
+                if ago < 0 || ago >= 7 { sinceText += " " + date(since) }
+                return "New targets since \(sinceText) · first look \(StatusLine.weekday(firstLook, calendar: calendar)) \(date(firstLook))"
+            case .paused(let since, let until):
+                if let until { return "Paused · until \(date(until))" }
+                return "Paused · since \(date(since))"
+            }
+        }
+
+        /// "21 Jan".
+        public static func shortDate(_ day: DayKey) -> String {
+            let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            return "\(day.day) \(months[max(1, min(12, day.month)) - 1])"
+        }
+
+        /// "Mon".
+        static func weekday(_ day: DayKey, calendar: Calendar) -> String {
+            Weekdays.shortNames[max(1, min(7, day.weekday(calendar: calendar))) - 1]
+        }
+    }
+
+    /// The status line of the phase active on `day`; nil without an active phase, or when it has
+    /// no rate range and coaching isn't paused (the app says "No rate set").
+    /// - Parameters:
+    ///   - rate: the decision rate on `day` (`rate(on:plan:)`, or `Summary.rate`).
+    ///   - checkIns: the saved check-ins (any order; other phases are left out).
+    public static func statusLine(on day: DayKey, plan: CoachPlan, rate: Rate, checkIns: [CheckInSnapshot],
+                                  calendar: Calendar = .current) -> StatusLine? {
+        guard let phase = plan.activePhase(on: day) else { return nil }
+        if let pause = plan.pause(on: day) {
+            return StatusLine(state: .paused(since: pause.start, until: pause.end), day: day)
+        }
+        guard let status = WeightSignal.status(rate: rate.value, phase: phase, tolerance: plan.adjust.tolerance) else { return nil }
+        let change = plan.lastCalorieChange(on: day, inForce: true)
+        guard let value = rate.value, status != .gathering else {
+            // The window starts at a calorie change: say so instead of "Gathering data".
+            if let change, change.from == rate.window.start {
+                let first = CheckInEngine.firstAdjustmentCheck(plan: plan, on: day, windowStart: rate.window.start, calendar: calendar)
+                return StatusLine(state: .newTargets(since: change.from, firstLook: first), day: day)
+            }
+            return StatusLine(state: .status(status), day: day)
+        }
+        guard status.isOutside, let side = CheckInEngine.deviation(rate: value, phase: phase, tolerance: plan.adjust.tolerance) else {
+            return StatusLine(state: .status(status), day: day)
+        }
+        // The saved check-ins that judged the targets in force, newest first, on the live side.
+        let counted = checkIns
+            .filter { snapshot in
+                snapshot.phaseID == phase.id && snapshot.day <= day && (change.map { $0.covers(checkInOn: snapshot.day) } ?? true)
+            }
+            .sorted { $0.day > $1.day }
+        var inARow = 0
+        for snapshot in counted {
+            guard snapshot.deviation == side else { break }
+            inARow += 1
+        }
+        let confirm = max(1, plan.adjust.confirmChecks)
+        return StatusLine(state: inARow >= confirm ? .offTrack : .status(status), day: day)
+    }
+}
