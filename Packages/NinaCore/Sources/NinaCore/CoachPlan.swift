@@ -1234,6 +1234,85 @@ extension CoachPlan {
     }
 }
 
+// MARK: - Calorie changes
+
+extension CoachPlan {
+    /// The first day of new calorie targets in a phase: the pace, the check-in's window, its lock
+    /// and its "in a row" count all restart there, however the targets changed (Apply in a
+    /// check-in, My Plan, Calculate in the phase sheet, an import).
+    public struct CalorieChange: Equatable, Sendable {
+        public var from: DayKey
+        /// Applied in a check-in ("adjust…" revision, from the day after it). Other changes start
+        /// on the day they were made.
+        public var isAdjustment: Bool
+
+        public init(from: DayKey, isAdjustment: Bool) {
+            self.from = from
+            self.isAdjustment = isAdjustment
+        }
+
+        /// A check-in saved on `day` judged these targets: on or after an adjustment's first day;
+        /// after any other change (an edit or import made on a check-in day comes after that
+        /// day's check-in, which judged the targets before it).
+        public func covers(checkInOn day: DayKey) -> Bool {
+            isAdjustment ? day >= from : day > from
+        }
+    }
+
+    /// kcal a day the planned week average has to move for an edit, a calculation or an import
+    /// to count as a calorie change (protein-only edits and an import of the same targets don't).
+    public static let calorieChangeMinimum = 50.0
+
+    /// The calorie changes of a phase, oldest first: every applied adjustment ("adjust…", even
+    /// without targets of its own), and every other revision (an edit, a calculation, an import –
+    /// not the "kept" history an import writes) whose planned week average moved by 50 kcal or
+    /// more from the revision in force the day before. A phase's first targets count only when
+    /// they start after the phase did (the days before ran on other targets).
+    public func calorieChanges(of phase: Phase) -> [CalorieChange] {
+        var changes: [CalorieChange] = []
+        var previous: Revision?
+        for from in Set(phase.revisions.map(\.from)).sorted() {
+            guard let revision = phase.revision(on: from) else { continue }
+            defer { previous = revision }
+            if revision.reason.hasPrefix("adjust") {
+                changes.append(CalorieChange(from: from, isAdjustment: true))
+                continue
+            }
+            guard revision.reason != SettingsCSV.keptRevisionReason else { continue }
+            if let previous {
+                if movesCalories(from: previous, to: revision) { changes.append(CalorieChange(from: from, isAdjustment: false)) }
+            } else if let start = phase.start, from > start {
+                changes.append(CalorieChange(from: from, isAdjustment: false))
+            }
+        }
+        return changes
+    }
+
+    /// The newest calorie change of the phase active on `day`; with `inForce` only one that has
+    /// started by `day`, else also one that starts later (applied at this check-in, from tomorrow).
+    public func lastCalorieChange(on day: DayKey, inForce: Bool) -> CalorieChange? {
+        guard let phase = activePhase(on: day) else { return nil }
+        return calorieChanges(of: phase).last { !inForce || $0.from <= day }
+    }
+
+    /// The planned kcal a day of a revision: its planned week average, else its baseline, else
+    /// the mean of its day types; nil without any targets.
+    func plannedEnergy(_ revision: Revision) -> Double? {
+        if let average = plannedWeekAverage(revision) { return average }
+        if let baseline = revision.baseline { return baseline.energy }
+        let energies = revision.byType.values.map(\.energy)
+        return energies.isEmpty ? nil : energies.reduce(0, +) / Double(energies.count)
+    }
+
+    func movesCalories(from old: Revision, to new: Revision) -> Bool {
+        switch (plannedEnergy(old), plannedEnergy(new)) {
+        case let (before?, after?): return abs(after - before) >= CoachPlan.calorieChangeMinimum - 1e-9
+        case (nil, nil): return false
+        default: return true
+        }
+    }
+}
+
 // MARK: - Day marks
 
 /// What a `DayMark` record holds (its `kind`).

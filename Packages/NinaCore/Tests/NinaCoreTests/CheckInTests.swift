@@ -496,6 +496,91 @@ struct CheckInEngineTests {
         #expect(derived.reason == "Targets changed 13 days ago – give them until Mon 11 Feb before the next change.")
     }
 
+    /// Changing the calories in My Plan, with Calculate or with an import restarts the pace, the
+    /// window, the lock and the "in a row" count like Apply does; protein-only edits and an
+    /// import of the same targets don't.
+    @Test func everyCalorieChangeRestartsTheCheckIn() {
+        let f = CheckInFixture.self
+        let history = [f.previous(.below, on: "2030-01-28")]
+        typealias Targets = (baseline: DailyTargets, byType: [String: DailyTargets])
+        func shifted(_ kcal: Double, protein: Double = 0) -> Targets {
+            func move(_ targets: DailyTargets) -> DailyTargets {
+                var copy = targets
+                copy.energy += kcal
+                copy.protein += protein
+                copy.carbs += (kcal - protein * 4) / 4
+                return copy
+            }
+            return (move(f.gym), ["gym": move(f.gym), "tennis": move(f.tennis), "rest": move(f.rest)])
+        }
+        func plan(_ targets: Targets, reason: String, from raw: String = "2030-01-22") -> CoachPlan {
+            f.plan(extraRevisions: [.init(from: checkInDay(raw), baseline: targets.baseline, byType: targets.byType, reason: reason)])
+        }
+
+        // My Plan +200 kcal on Tue 22 Jan: locked like an applied change, and the pace restarts.
+        let edited = plan(shifted(200), reason: "edit")
+        #expect(edited.lastCalorieChange(on: f.checkInDay, inForce: true) == .init(from: checkInDay("2030-01-22"), isAdjustment: false))
+        #expect(CheckInEngine.lastAdjustment(in: edited, on: f.checkInDay) == checkInDay("2030-01-22"))
+        let locked = CheckInEngine.evaluate(f.input(rate: 0.05, plan: edited, history: history), calendar: checkInUTC)
+        #expect(locked.rule == .locked)
+        #expect(locked.reason == "Targets changed 13 days ago – give them until Mon 11 Feb before the next change.")
+        #expect(WeightSignal.rateWindow(on: f.checkInDay, plan: edited, calendar: checkInUTC).start == checkInDay("2030-01-22"))
+        #expect(CheckInEngine.windowStart(plan: edited, on: f.checkInDay, calendar: checkInUTC) == checkInDay("2030-01-22"))
+        // Calculate in the phase sheet ("transition"), −150 kcal: also a change.
+        #expect(plan(shifted(-150), reason: "transition").lastCalorieChange(on: f.checkInDay, inForce: true)?.from == checkInDay("2030-01-22"))
+
+        // Protein only (+20 g, the calories stay): no change, the proposal goes ahead.
+        let protein = plan(shifted(0, protein: 20), reason: "edit")
+        #expect(protein.lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(CheckInEngine.evaluate(f.input(rate: 0.05, plan: protein, history: history), calendar: checkInUTC).rule == .proposal)
+        // An import of the same targets, or one that moves the week by less than 50 kcal: none either.
+        #expect(plan(shifted(0), reason: "import").lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(plan(shifted(40), reason: "import").lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        // The "kept" history an import writes is never a change.
+        #expect(plan(shifted(300), reason: SettingsCSV.keptRevisionReason).lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        // Not in force yet: only without `inForce`.
+        let later = plan(shifted(200), reason: "edit", from: "2030-02-10")
+        #expect(later.lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(later.lastCalorieChange(on: f.checkInDay, inForce: false)?.from == checkInDay("2030-02-10"))
+    }
+
+    /// Apply from tomorrow, then an import (or Calculate) on the check-in day with other targets:
+    /// the import replaces the planned adjustment, and the lock now counts from the import day
+    /// instead of disappearing. The check-in saved that day judged the old targets.
+    @Test func anImportOnTheCheckInDayAfterApplyKeepsTheLock() {
+        let f = CheckInFixture.self
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-02-05"), weightKg: 80, fallback: f.profile)
+        func plus(_ targets: DailyTargets) -> DailyTargets {
+            var copy = targets
+            copy.energy += 150
+            copy.carbs += 37.5
+            return copy
+        }
+        var notes: [String] = []
+        let imported = SettingsCSV.addingImportRevision(to: applied, phase: "1", from: f.checkInDay, baseline: plus(f.gym),
+                                                        byType: ["gym": plus(f.gym), "tennis": plus(f.tennis), "rest": plus(f.rest)],
+                                                        notes: &notes)
+        #expect(imported.phases[0].revisions.map(\.from) == [checkInDay("2030-01-07"), f.checkInDay])
+        #expect(CheckInEngine.lastAdjustment(in: imported, on: f.checkInDay, inForce: true) == f.checkInDay)
+
+        let monday = checkInDay("2030-02-11")
+        let history = [f.previous(.below, on: "2030-02-04"), f.previous(.below, on: "2030-01-28")]
+        let next = CheckInEngine.evaluate(f.input(rate: 0.05, plan: imported, history: history, day: monday), calendar: checkInUTC)
+        #expect(next.rule == .confirming)
+        #expect(next.outsideInARow == 1)
+        // With one check-in to confirm, the lock holds from the import day.
+        var once = imported
+        once.adjust.confirmChecks = 1
+        let lock = CheckInEngine.evaluate(f.input(rate: 0.05, plan: once, history: history, day: monday), calendar: checkInUTC)
+        #expect(lock.rule == .locked)
+        #expect(lock.reason == "Targets changed 7 days ago – give them until Mon 18 Feb before the next change.")
+        // An applied adjustment's check-in day isn't covered, its first day is; an edit's first day isn't.
+        let adjustment = CoachPlan.CalorieChange(from: checkInDay("2030-02-05"), isAdjustment: true)
+        #expect(!adjustment.covers(checkInOn: f.checkInDay) && adjustment.covers(checkInOn: checkInDay("2030-02-05")))
+        let edit = CoachPlan.CalorieChange(from: f.checkInDay, isAdjustment: false)
+        #expect(!edit.covers(checkInOn: f.checkInDay) && edit.covers(checkInOn: checkInDay("2030-02-05")))
+    }
+
     @Test func redoAfterApplyingSaysTheTargetsAlreadyChanged() throws {
         let f = CheckInFixture.self
         let history = [f.previous(.below, on: "2030-01-28")]

@@ -434,12 +434,14 @@ public struct WeightSignal: Equatable, Sendable {
     }
 
     /// The rate window from the plan: the last `adjust.windowMaxDays` days, not before the active
-    /// phase's start, its last applied adjustment or the day after the latest finished pause.
+    /// phase's start, its last calorie change in force (`CoachPlan.lastCalorieChange`: Apply in a
+    /// check-in, or an edit, calculation or import that moved the calories) or the day after the
+    /// latest finished pause.
     public static func rateWindow(on day: DayKey, plan: CoachPlan, calendar: Calendar = .current) -> Window {
         var limits: [DayKey?] = []
         if let phase = plan.activePhase(on: day) {
             limits.append(phase.start)
-            limits.append(lastAdjustment(in: phase, on: day))
+            limits.append(plan.lastCalorieChange(on: day, inForce: true)?.from)
         }
         limits.append(plan.pauses.compactMap { pause in
             pause.end.flatMap { $0 < day ? $0.adding(days: 1, calendar: calendar) : nil }
@@ -459,10 +461,10 @@ public struct WeightSignal: Equatable, Sendable {
         weight > 0 ? kilograms / weight * 100 : nil
     }
 
-    /// The first day of the newest applied adjustment (a revision whose reason starts with
-    /// "adjust", e.g. "adjust:+100") in force on `day`.
+    /// The first day of the newest calorie change of a phase in force on `day`, judged without
+    /// day types (`CoachPlan.calorieChanges`; with a plan use `CoachPlan.lastCalorieChange`).
     public static func lastAdjustment(in phase: CoachPlan.Phase, on day: DayKey) -> DayKey? {
-        phase.revisions.filter { $0.reason.hasPrefix("adjust") && $0.from <= day }.map(\.from).max()
+        CoachPlan().calorieChanges(of: phase).last { $0.from <= day }?.from
     }
 
     /// The decision rate: least-squares slope of the untagged morning weights × 7.
