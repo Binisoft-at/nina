@@ -11,6 +11,8 @@ import NinaCore
 /// the phase corridor, the target and review lines, tagged readings and paused spans.
 struct BodyPageWeightCard: View {
     let weight: BodyPageWeight
+    /// The newest weigh-in for the header ("Today 67.3 kg"); the 7-day average is the tile below.
+    var latest: String?
     @Environment(AppModel.self) private var app
     @AppStorage("nina.body.weightRange") private var range: BodyPageRange = .month
     @AppStorage("nina.body.tip.highCarb") private var tipSeen = false
@@ -47,9 +49,9 @@ struct BodyPageWeightCard: View {
         }
     }
 
+    /// The newest weigh-in when it is from today or yesterday (the average is in the tile).
     private var trailing: String? {
-        if let average = weight.average { return Fmt.kilograms(average) }
-        return weight.estimate.map { "~" + Fmt.kilograms($0) }
+        weight.hasWeighIns ? latest : nil
     }
 
     @ViewBuilder
@@ -87,18 +89,22 @@ struct BodyPageWeightCard: View {
         if weight.usesHealth {
             lines.append("Includes weigh-ins from Apple Health, read on this device and never stored by Nina.")
         }
+        #if os(macOS)
+        // Apple Health isn't on the Mac, and its weigh-ins never go to iCloud.
+        lines.append("Weigh-ins from Apple Health count on iPhone and iPad only.")
+        #endif
         return lines
     }
 }
 
-/// 7-day average · this week · rate.
+/// 7-day average · change against last week · rate.
 struct BodyPageWeightStats: View {
     let weight: BodyPageWeight
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
             StatTile(title: "7-day average", value: averageText, detail: averageDetail, tint: Brand.accent)
-            StatTile(title: "This week", value: weekText, detail: weekDetail)
+            StatTile(title: "vs last week", value: weekText, detail: weekDetail)
             StatTile(title: "Rate", value: rateText, detail: weight.rate == nil ? nil : "a week")
         }
         .lineLimit(1)
@@ -119,8 +125,9 @@ struct BodyPageWeightStats: View {
         return BodyPageText.signed(change.kilograms, decimals: 2) + " kg"
     }
 
+    /// "+0.4 %"; left out while it would read "0.0 %" under a change in kg.
     private var weekDetail: String? {
-        guard let change = weight.weeklyChange else { return nil }
+        guard let change = weight.weeklyChange, abs(change.percent) >= 0.05 else { return nil }
         return BodyPageText.signed(change.percent, decimals: 1) + " %"
     }
 

@@ -59,7 +59,8 @@ struct BodyPhotoViewer: View {
         .task {
             if lock.isLocked { await lock.unlock() }
         }
-        .sheetFrame(minWidth: 640, minHeight: 780)
+        // Fits a laptop screen on the Mac (the photo scales to fit).
+        .sheetFrame(minWidth: 640, minHeight: 560)
     }
 
     // MARK: Parts
@@ -111,12 +112,14 @@ struct BodyPhotoViewer: View {
         HStack(spacing: 18) {
             Button("Older", systemImage: "chevron.left") { show(offset: -1) }
                 .disabled(!canShow(-1))
+                .keyboardShortcut(.leftArrow, modifiers: [])
             Text(positionText)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.white.opacity(0.8))
                 .frame(minWidth: 60)
             Button("Newer", systemImage: "chevron.right") { show(offset: 1) }
                 .disabled(!canShow(1))
+                .keyboardShortcut(.rightArrow, modifiers: [])
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.glass)

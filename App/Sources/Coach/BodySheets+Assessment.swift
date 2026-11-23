@@ -24,22 +24,42 @@ struct AssessmentSheet: View {
     @State private var conditionsEdited: Bool
     @State private var note: String
     @State private var context: BodySheetAssessmentContext?
+    @State private var confirmsDiscard = false
     @FocusState private var focused: Bool
+    /// What the sheet opened with, for "Discard changes?".
+    private let initialTyped: [String]
+    private let initialMethod: BodyMethod
+    private let initialTime: Date
 
     init(record: BodyMeasurement?) {
         self.record = record
         let values = record?.bodyValues ?? BodyValues()
         let method: BodyMethod = record.map { $0.bodyMethod ?? .estimate } ?? .scale
-        _method = State(initialValue: BodySheetAssessment.methods.contains(method) ? method : .estimate)
+        let shownMethod = BodySheetAssessment.methods.contains(method) ? method : .estimate
+        let typed = [values.bodyFat, values.leanKg, values.fatKg, values.boneKg].map { $0.map { BodySheetNumber.text($0) } ?? "" }
+        let start = record?.time ?? Date()
+        _method = State(initialValue: shownMethod)
         _device = State(initialValue: record?.device ?? "")
-        _bodyFat = State(initialValue: values.bodyFat.map { BodySheetNumber.text($0) } ?? "")
-        _leanKg = State(initialValue: values.leanKg.map { BodySheetNumber.text($0) } ?? "")
-        _fatKg = State(initialValue: values.fatKg.map { BodySheetNumber.text($0) } ?? "")
-        _boneKg = State(initialValue: values.boneKg.map { BodySheetNumber.text($0) } ?? "")
-        _time = State(initialValue: record?.time ?? Date())
+        _bodyFat = State(initialValue: typed[0])
+        _leanKg = State(initialValue: typed[1])
+        _fatKg = State(initialValue: typed[2])
+        _boneKg = State(initialValue: typed[3])
+        _time = State(initialValue: start)
         _conditions = State(initialValue: record.map { BodySheetConditions.parse($0.conditions) } ?? [.morning, .fasted])
         _conditionsEdited = State(initialValue: record != nil)
         _note = State(initialValue: record?.note ?? "")
+        initialTyped = typed + [record?.note ?? ""]
+        initialMethod = shownMethod
+        initialTime = start
+    }
+
+    /// Something typed or changed that Cancel or a swipe down would lose. (A new sheet's
+    /// automatic method, device and conditions don't count.)
+    private var isDirty: Bool {
+        if [bodyFat, leanKg, fatKg, boneKg, note] != initialTyped { return true }
+        guard let record else { return false }
+        return method != initialMethod || deviceName != (BodySheetAssessment.usesDevice(initialMethod) ? record.device : "")
+            || time != initialTime || conditions != BodySheetConditions.parse(record.conditions)
     }
 
     // MARK: Derived
@@ -100,14 +120,21 @@ struct AssessmentSheet: View {
             .onAppear(perform: load)
             .onChange(of: time) { _, _ in setAutomaticConditions() }
             .onChange(of: method) { _, _ in methodChanged() }
+            .confirmationDialog("Discard changes?", isPresented: $confirmsDiscard, titleVisibility: .visible) {
+                Button("Discard Changes", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            }
         }
+        .interactiveDismissDisabled(isDirty)
         .sheetFrame(minWidth: 460, minHeight: 600)
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button("Cancel") {
+                if isDirty { confirmsDiscard = true } else { dismiss() }
+            }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Save", action: save)
@@ -118,7 +145,7 @@ struct AssessmentSheet: View {
     private var valueSection: some View {
         Section {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                TextField("Body fat", text: $bodyFat, prompt: Text("0.0"))
+                TextField("Body fat", text: $bodyFat, prompt: Text(BodySheetNumber.text(0)))
                     .labelsHidden()
                     .textFieldStyle(.plain)
                     .font(.system(size: 48, weight: .semibold, design: .rounded).monospacedDigit())

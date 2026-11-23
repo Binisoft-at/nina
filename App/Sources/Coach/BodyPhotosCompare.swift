@@ -51,7 +51,9 @@ struct BodyPhotoCompareSheet: View {
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
+                    // Read-only: Esc closes it on the Mac.
                     Button("Done") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
                 }
             }
         }
@@ -65,7 +67,8 @@ struct BodyPhotoCompareSheet: View {
         .onChange(of: pose) { _, newPose in poseChanged(newPose) }
         .onChange(of: photos.count) { _, _ in revalidate() }
         .bodyPhotoViewer(item: $viewing)
-        .sheetFrame(minWidth: 720, minHeight: 780)
+        // Fits a laptop screen on the Mac (the content scrolls).
+        .sheetFrame(minWidth: 720, minHeight: 560)
     }
 
     @ViewBuilder
@@ -318,12 +321,26 @@ private struct BodyPhotoCompareFacts: View {
         }
     }
 
+    /// "66.8 kg (15 Oct) → 67.1 kg": the 7-day average nearest each photo day, with its day when
+    /// it isn't the photo day; "No weigh-ins yet" without any.
     private var weightText: String {
-        "\(kilograms(comparison.before.weight)) → \(kilograms(comparison.after.weight))"
+        let before = comparison.before, after = comparison.after
+        guard before.weight != nil || after.weight != nil else { return "No weigh-ins yet" }
+        return "\(weight(before)) → \(weight(after))"
     }
 
+    private func weight(_ side: PhotoComparison.Side) -> String {
+        guard let value = side.weight else { return "–" }
+        guard let day = side.weightDay, day != side.day else { return Fmt.kilograms(value) }
+        return "\(Fmt.kilograms(value)) (\(Fmt.shortDay(day)))"
+    }
+
+    /// The change, else which photo day has no average near it.
     private var weightChange: String? {
-        comparison.weightChange.map { BodyPhotoCompareFacts.signed($0, unit: "kg") }
+        if let change = comparison.weightChange { return BodyPhotoCompareFacts.signed(change, unit: "kg") }
+        let missing = [comparison.before, comparison.after].filter { $0.weight == nil }
+        guard missing.count == 1, let side = missing.first else { return nil }
+        return "No weigh-ins around \(Fmt.shortDay(side.day))"
     }
 
     private var waistText: String {
@@ -332,10 +349,6 @@ private struct BodyPhotoCompareFacts: View {
 
     private var waistChange: String? {
         comparison.waistChange.map { BodyPhotoCompareFacts.signed($0, unit: "cm") }
-    }
-
-    private func kilograms(_ value: Double?) -> String {
-        value.map { Fmt.kilograms($0) } ?? "–"
     }
 
     private func centimeters(_ value: Double?) -> String {
