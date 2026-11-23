@@ -27,6 +27,8 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
                        groups and the export; SetupPrompt is the combined prompt for an AI
   OpenFoodFacts        barcode product JSON → food draft
   Snapshot             today's numbers (with the day type) for widgets/complications; Health mapping
+  CoachSnapshot        the coach widget's summary (day type, checks, weigh-in, weight status, next
+                       measurement) and what it shows at a moment; Siri's spoken names (CoachSiriNames)
   NinaTour             the interactive tour catalog
   -- coach & body --
   CoachPlan            the plan: day types, dated phases with target revisions, long-term goal,
@@ -92,7 +94,8 @@ Shared/                compiled into the app, the Mac app and the watch app
   Store/FoodLibrary    catalog + own foods + recipes merged, search index, usage ranking, quick add
   Store/Persistence    opens the store via BinisoftKit ModelStore (+ the tour's practice store)
   Store/DemoData       sample data for -Demo launches and the tour (in memory, never synced)
-  Store/WidgetBridge   today's snapshot in the shared App Group (also compiled into the widgets)
+  Store/WidgetBridge   today's and the coach snapshot in the shared App Group, the controls' intents
+                       (also compiled into the widgets; the app runs them, NinaIntentRoute)
   UI/Rings, Format     ring, nutrient colours and locale-aware formatting (also in the widgets)
 App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tree)
   Root                 AppModel (state, actions with Undo toasts, coach actions, deep links),
@@ -127,7 +130,8 @@ App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tre
 Watch/Sources          watch app: today, water, planned meals, dictation, Digital Crown amounts;
                        the coach (WatchModel+Coach: one load for the day and the writes with Undo;
                        WatchCoachViews: chip, checks, Crown screens, status line)
-Widgets/Sources        widgets (iPhone) and complications (watch) from one source, day-type emoji
+Widgets/Sources        widgets (iPhone) and complications (watch) from one source, day-type emoji;
+                       the coach widget and the controls (iPhone only); docs/SIRI.md
 ```
 
 ## Data flow

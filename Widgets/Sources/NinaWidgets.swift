@@ -3,12 +3,21 @@ import SwiftUI
 import NinaCore
 
 /// Today's numbers on the Home Screen, Lock Screen and watch face. Widgets only read the small
-/// snapshot the app writes to the shared App Group (WidgetBridge) – never the diary itself.
-/// The same source builds the iPhone widget extension and the watch complications.
+/// snapshots the app writes to the shared App Group (WidgetBridge) – never the diary itself.
+/// The same source builds the iPhone widget extension and the watch complications; the coach
+/// widget and the controls (Control Center, Lock Screen, Action button) are iPhone only.
 @main
 struct NinaWidgets: WidgetBundle {
     var body: some Widget {
+        #if os(iOS)
         TodayWidget()
+        CoachWidget()
+        NinaLogFoodControl()
+        NinaWeighInControl()
+        NinaAddWaterControl()
+        #else
+        TodayWidget()
+        #endif
     }
 }
 
@@ -70,11 +79,12 @@ struct TodayWidgetView: View {
     let entry: TodayEntry
 
     private var snapshot: TodaySnapshot { entry.snapshot }
-    private var unit: EnergyUnit { snapshot.unit }
+    /// Nina always shows kcal.
+    private var unitSymbol: String { "kcal" }
     private var remaining: Double { snapshot.remaining }
     /// "1,240" left or "120" over – the word next to it says which.
     private var amountText: String {
-        Fmt.energy(abs(remaining), unit: unit, showUnit: false)
+        Fmt.number(abs(remaining).rounded(), decimals: 0)
     }
     /// For faces without a word: "+120" when over.
     private var signedText: String {
@@ -84,7 +94,7 @@ struct TodayWidgetView: View {
     private var dayPrefix: String { snapshot.dayTypePrefix }
     /// "🏋️ 1,240 kcal left" / "🏋️ 120 kcal over".
     private var leftLine: String {
-        remaining >= 0 ? "\(dayPrefix)\(amountText) \(unit.symbol) left" : "\(dayPrefix)\(amountText) \(unit.symbol) over"
+        remaining >= 0 ? "\(dayPrefix)\(amountText) \(unitSymbol) left" : "\(dayPrefix)\(amountText) \(unitSymbol) over"
     }
 
     var body: some View {
@@ -93,7 +103,7 @@ struct TodayWidgetView: View {
             Text(dayPrefix + signedText)
                 .widgetCurvesContent()
                 .widgetLabel {
-                    Gauge(value: min(snapshot.fraction, 1)) { Text(unit.symbol) }
+                    Gauge(value: min(snapshot.fraction, 1)) { Text(unitSymbol) }
                         .tint(Color.accentColor)
                 }
         } else {
@@ -201,7 +211,7 @@ struct TodayWidgetView: View {
                 Text(amountText)
                     .font(.system(.title3, design: .rounded, weight: .bold).monospacedDigit())
                     .minimumScaleFactor(0.5)
-                Text(remaining >= 0 ? "\(unit.symbol) left" : "\(unit.symbol) over")
+                Text(remaining >= 0 ? "\(unitSymbol) left" : "\(unitSymbol) over")
                     .font(.caption2)
                     .foregroundStyle(remaining >= 0 ? Color.secondary : Color.orange)
             }

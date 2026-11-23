@@ -186,6 +186,7 @@ final class AppModel {
         guard !isSandbox, !launch.isDemo, AppModel.keepsData(mode) else { return }
         CoachContext.latestHealthReadings = readings
         WidgetBridge.publish(store.todaySnapshot())
+        CoachWidgetFeed.publish(app: self)
         health.scheduleSync(container: container)
         NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings, signal: signal)
         offerCoachRemindersIfNeeded()
