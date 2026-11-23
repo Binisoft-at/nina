@@ -14,7 +14,8 @@ struct BodyPageBaselineView: View {
 
     var body: some View {
         ScrollView {
-            CardSection(title: "Baseline", symbol: "tablecells", trailing: sinceText) {
+            BodyPageInfoSection(title: "Baseline", symbol: "tablecells", trailing: sinceText,
+                                about: BodyPageInfo.baseline(sincePhase: since != nil)) {
                 BodyPageBaselineGrid(rows: rows)
                 if let gainLine {
                     Text("This phase: " + gainLine)

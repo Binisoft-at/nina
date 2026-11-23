@@ -50,22 +50,28 @@ struct BodyPageDueCard: View {
 
 // MARK: - Phase header
 
-/// "Lean gain · week 3 of 16", the status pill, a progress capsule and a few lines; a tap
-/// opens the phase. While coaching is paused, a Resume button under it.
+/// "Lean gain · week 3 of 16", the status pill with an ⓘ on what it means, a progress capsule and
+/// a few lines; a tap opens the phase. The review weight line (with its ⓘ) sits under the button.
+/// While coaching is paused, a Resume button under it.
 struct BodyPagePhaseCard: View {
     let header: BodyPagePhaseHeader
     @Environment(AppModel.self) private var app
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Button {
-                app.present(.phase(header.phaseID))
-            } label: {
-                content
+            HStack(alignment: .top, spacing: 6) {
+                phaseButton
+                if let about = header.statusInfo {
+                    InfoButton(about)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Opens the phase")
+            if let checkpoint = header.checkpointLine {
+                Text(checkpoint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .info(BodyPageInfo.reviewWeight)
+            }
             if isPaused {
                 Button("Resume Coaching", systemImage: "play.fill") {
                     PlanEditorData.resume(app: app)
@@ -79,6 +85,17 @@ struct BodyPagePhaseCard: View {
     }
 
     private var isPaused: Bool { app.settings.plan.isPaused(on: app.today) }
+
+    private var phaseButton: some View {
+        Button {
+            app.present(.phase(header.phaseID))
+        } label: {
+            content
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the phase")
+    }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -130,7 +147,6 @@ struct BodyPagePhaseCard: View {
         var lines: [String] = []
         if let rate = header.rate { lines.append("Goal " + rate) }
         if let end = header.projectedEnd { lines.append("Projected end weight " + Fmt.kilograms(end)) }
-        if let checkpoint = header.checkpointLine { lines.append(checkpoint) }
         return lines
     }
 }
@@ -143,7 +159,7 @@ struct BodyPageGoalCard: View {
     let goal: BodyPageGoal
 
     var body: some View {
-        CardSection(title: "Body goal", symbol: "target", trailing: goal.goalText) {
+        BodyPageInfoSection(title: "Body goal", symbol: "target", trailing: goal.goalText, about: BodyPageInfo.bodyGoal) {
             if goal.card.isEmpty {
                 Text(BodyGoalCard.emptyText)
                     .font(.subheadline.weight(.medium))
@@ -267,7 +283,8 @@ struct BodyPageTilesCard: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        CardSection(title: "Measurements", symbol: "ruler", trailing: since.map { "since " + Fmt.shortDay($0) }) {
+        BodyPageInfoSection(title: "Measurements", symbol: "ruler", trailing: since.map { "since " + Fmt.shortDay($0) },
+                            about: about) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 10)], spacing: 10) {
                 ForEach(tiles) { tile in
                     NavigationLink {
@@ -296,6 +313,11 @@ struct BodyPageTilesCard: View {
                 app.measureNow()
             }
         }
+    }
+
+    /// Latest value, change and "no clear change" (and Health's waist when the tile shows it).
+    private var about: BodyPageInfo {
+        BodyPageInfo.tiles(sincePhase: since != nil, hasHealth: tiles.contains { $0.health != nil })
     }
 }
 
@@ -356,7 +378,7 @@ struct BodyPageTimelineCard: View {
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        CardSection(title: "Phases", symbol: "flag.2.crossed") {
+        BodyPageInfoSection(title: "Phases", symbol: "flag.2.crossed", about: BodyPageInfo.phases) {
             if !timeline.segments.isEmpty {
                 BodyPageTimelineBar(timeline: timeline) { id in
                     app.present(.phase(id))
@@ -500,7 +522,8 @@ struct BodyPageCheckInsCard: View {
     private static let shown = 5
 
     var body: some View {
-        CardSection(title: "Check-ins", symbol: "checkmark.seal") {
+        BodyPageInfoSection(title: "Check-ins", symbol: "checkmark.seal",
+                            about: BodyPageInfo.checkIns(confirmChecks: app.settings.plan.adjust.confirmChecks)) {
             if checkIns.isEmpty {
                 Text("Your weekly check-ins show up here: how the week went, your rate and any change to your calories.")
                     .font(.subheadline)

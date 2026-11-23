@@ -184,6 +184,7 @@ struct AssessmentSheet: View {
             }
         } header: {
             Text("How it was measured")
+                .info(BodyPageInfo.methods)
         } footer: {
             methodFooter
         }

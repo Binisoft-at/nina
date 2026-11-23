@@ -108,15 +108,22 @@ struct BodyPhotoCompareSheet: View {
                 dayPicker("Before", selection: binding(asBefore: true), days: days(pose), excluding: pair.after)
                 dayPicker("After", selection: binding(asBefore: false), days: days(pose), excluding: pair.before)
             }
-            Picker("Show", selection: $style) {
-                ForEach(BodyPhotoCompareStyle.allCases) { item in
-                    Text(item.title).tag(item)
-                }
+            HStack(spacing: 8) {
+                stylePicker
+                InfoButton(BodyPageInfo.compare)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
         }
         .card()
+    }
+
+    private var stylePicker: some View {
+        Picker("Show", selection: $style) {
+            ForEach(BodyPhotoCompareStyle.allCases) { item in
+                Text(item.title).tag(item)
+            }
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
     }
 
     private func dayPicker(_ title: String, selection: Binding<DayKey>, days: [DayKey], excluding: DayKey) -> some View {

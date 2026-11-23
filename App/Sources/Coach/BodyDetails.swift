@@ -62,7 +62,12 @@ struct BodyDetailsSiteView: View {
                 LabeledContent("Since \(Fmt.shortDay(change.from.day))", value: changeText(change.change))
             }
             if let fourWeek = detail.fourWeek {
-                LabeledContent("4-week change", value: changeText(fourWeek))
+                LabeledContent {
+                    Text(changeText(fourWeek))
+                } label: {
+                    Text("4-week change")
+                        .info(BodyPageInfo.fourWeekChange)
+                }
             }
             Toggle("Include readings that aren't standard", isOn: $includeAll)
             measureButton

@@ -239,6 +239,7 @@ struct WeighInSheet: View {
             Text("Anything special?")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .info(BodyPageInfo.unusualReading)
             BodySheetFlow(spacing: 8) {
                 ForEach(WeightSignal.Tag.options(for: context?.sex ?? app.settings.body.sex)) { tag in
                     BodySheetToggleChip(title: tag.title, isOn: tags.contains(tag)) { toggle(tag) }
@@ -391,6 +392,7 @@ struct BodySheetConditionsSection: View {
             .padding(.vertical, 4)
         } header: {
             Text("Conditions")
+                .info(BodyPageInfo.conditions)
         } footer: {
             Text(BodySheetConditions.summary(conditions))
         }

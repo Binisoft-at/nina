@@ -34,7 +34,7 @@ struct BodyPageWeightCard: View {
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel("Weight chart")
                         .accessibilityValue(weight.summaryText)
-                    BodyPageWeightLegend(chart: chart)
+                    legend(chart)
                 }
                 notes
             } else {
@@ -69,6 +69,15 @@ struct BodyPageWeightCard: View {
     /// The newest weigh-in when it is from today or yesterday (the average is in the tile).
     private var trailing: String? {
         weight.hasWeighIns ? latest : nil
+    }
+
+    /// What the marks mean, with an ⓘ on the corridor (or the marks without a phase).
+    private func legend(_ chart: BodyPageWeightChart) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            BodyPageWeightLegend(chart: chart)
+            Spacer(minLength: 4)
+            InfoButton(BodyPageInfo.chart(hasCorridor: !chart.corridor.isEmpty))
+        }
     }
 
     @ViewBuilder
@@ -117,9 +126,10 @@ struct BodyPageWeightStats: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            StatTile(title: "7-day average", value: averageText, detail: averageDetail, tint: Brand.accent)
+            BodyPageInfoStat(title: "7-day average", value: averageText, detail: averageDetail, tint: Brand.accent,
+                             about: BodyPageInfo.average)
             StatTile(title: "vs last week", value: weekText, detail: weekDetail)
-            StatTile(title: "Rate", value: rateText, detail: weight.rate == nil ? nil : "a week")
+            BodyPageInfoStat(title: "Rate", value: rateText, detail: weight.rate == nil ? nil : "a week", about: weight.rateInfo)
         }
         .lineLimit(1)
         .minimumScaleFactor(0.7)
@@ -334,7 +344,8 @@ struct BodyPageCompositionCard: View {
     @AppStorage(BodyPageKeys.navyFormula) private var navyFormula = ""
 
     var body: some View {
-        CardSection(title: "Body composition", symbol: "percent", trailing: composition.latestTitle) {
+        BodyPageInfoSection(title: "Body composition", symbol: "percent", trailing: composition.latestTitle,
+                            about: BodyPageInfo.composition) {
             if composition.hasBodyFat {
                 BodyPageFatChart(points: composition.points)
                     .frame(height: 180)
@@ -380,14 +391,15 @@ struct BodyPageCompositionCard: View {
         if composition.waistToHeight != nil || composition.ffmi != nil || composition.waistToHip != nil {
             HStack(alignment: .top, spacing: 20) {
                 if let ratio = composition.waistToHeight {
-                    StatTile(title: "Waist-to-height", value: ratio.formatted(.number.precision(.fractionLength(2))),
-                             detail: BodyComposition.waistToHeightNote)
+                    BodyPageInfoStat(title: "Waist-to-height", value: ratio.formatted(.number.precision(.fractionLength(2))),
+                                     detail: BodyComposition.waistToHeightNote, about: BodyPageInfo.waistToHeight)
                 }
                 if let ratio = composition.waistToHip {
                     StatTile(title: "Waist-to-hip", value: ratio.formatted(.number.precision(.fractionLength(2))))
                 }
                 if let ffmi = composition.ffmi {
-                    StatTile(title: "FFMI", value: ffmi.formatted(.number.precision(.fractionLength(1))), detail: ffmiDetail)
+                    BodyPageInfoStat(title: "FFMI", value: ffmi.formatted(.number.precision(.fractionLength(1))), detail: ffmiDetail,
+                                     about: BodyPageInfo.ffmi)
                 }
             }
         }

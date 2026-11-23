@@ -321,8 +321,8 @@ struct InsightsView: View {
     }
 
     private func consistencyCard(_ data: InsightData) -> some View {
-        CardSection(title: "Consistency", symbol: "flame.circle",
-                    trailing: "\(data.loggedDays) of \(InsightsView.days(data.points.count))") {
+        BodyPageInfoSection(title: "Consistency", symbol: "flame.circle",
+                            trailing: "\(data.loggedDays) of \(InsightsView.days(data.points.count))", about: BodyPageInfo.consistency) {
             HStack(spacing: 24) {
                 StatTile(title: "Streak", value: InsightsView.days(data.streak.current), tint: Brand.accent)
                 StatTile(title: "Best streak", value: InsightsView.days(data.streak.best))
@@ -550,6 +550,7 @@ struct MaintenanceView: View {
             HStack {
                 Label("Measured maintenance", systemImage: "gauge.with.dots.needle.50percent")
                     .font(.subheadline.weight(.semibold))
+                    .info(BodyPageInfo.maintenance)
                 Spacer()
                 Text(Fmt.energy(maintenance.kilocalories, unit: app.energyUnit))
                     .font(.title3.weight(.bold).monospacedDigit())

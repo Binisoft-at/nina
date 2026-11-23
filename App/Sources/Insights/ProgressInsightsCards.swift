@@ -5,11 +5,19 @@ import NinaCore
 // The coach cards of Insights (Progress → Nutrition): protein meals in the Macros card, the
 // average by day type and the compact body goal. Data in ProgressInsights.swift.
 
-/// "Protein meals  21 of 28" with what counts as one.
+/// "Protein meals  21 of 28" with what counts as one, and an ⓘ (outside the row's one VoiceOver
+/// element, so it stays reachable).
 struct ProgressProteinMealsRow: View {
     let protein: ProgressProteinMeals
 
     var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            row
+            InfoButton(BodyPageInfo.proteinMeals(minimum: Fmt.grams(protein.minimum)))
+        }
+    }
+
+    private var row: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Protein meals")
@@ -37,7 +45,7 @@ struct ProgressTypeAveragesCard: View {
     let unit: EnergyUnit
 
     var body: some View {
-        CardSection(title: "By day type", symbol: "calendar", trailing: "eaten / target") {
+        BodyPageInfoSection(title: "By day type", symbol: "calendar", trailing: "eaten / target", about: BodyPageInfo.byDayType) {
             ForEach(rows) { row in
                 ProgressTypeAverageRow(row: row, unit: unit)
             }

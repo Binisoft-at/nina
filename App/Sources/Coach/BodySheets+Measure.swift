@@ -403,6 +403,7 @@ struct MeasureSheet: View {
 
     // MARK: Guide
 
+    /// The checklist, folded after the first real measurement; the ⓘ in the header says why it matters.
     private var guideSection: some View {
         Section {
             DisclosureGroup("Same conditions every time", isExpanded: $showsGuide) {
@@ -411,6 +412,9 @@ struct MeasureSheet: View {
                         .font(.subheadline)
                 }
             }
+        } header: {
+            Text("How to measure")
+                .info(BodyPageInfo.sameConditions)
         } footer: {
             Text(lastTimeText)
         }
@@ -457,6 +461,7 @@ struct MeasureSheet: View {
                 estimateContent(line)
             } header: {
                 Text("Tape estimate")
+                    .info(BodyPageInfo.tapeEstimate)
             } footer: {
                 Text(line.footer)
             }

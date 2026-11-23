@@ -51,6 +51,8 @@ struct BodyPagePhaseHeader {
     /// Coaching is paused: the status reads "Paused · until 12 Feb" and a Resume button belongs
     /// next to it (`PlanEditorData.resume`).
     var isPaused: Bool = false
+    /// What the status words mean (the ⓘ next to them).
+    var statusInfo: BodyPageInfo? = nil
 }
 
 /// One weigh-in on the chart.
@@ -148,6 +150,8 @@ struct BodyPageWeight {
     /// The chart's accessibility summary.
     let summaryText: String
     let hasWeighIns: Bool
+    /// How the rate is worked out, with the plan's numbers (the ⓘ on the Rate tile).
+    let rateInfo: BodyPageInfo
 
     @MainActor
     func chart(_ range: BodyPageRange) -> BodyPageWeightChart? { charts.chart(range) }
@@ -469,7 +473,7 @@ extension BodyPageData {
                 phaseID: next.id, title: "Next: \(BodyPageText.name(of: next))",
                 dates: "from " + BodyPageText.day(start, approx: next.startApprox, today: today), rate: rateText(next),
                 status: isDue ? "Ready to start" : "Planned", tone: .neutral, progress: nil, projectedEnd: nil,
-                checkpointLine: nil, isActive: false)
+                checkpointLine: nil, isActive: false, statusInfo: BodyPageInfo.plannedPhase(isDue: isDue))
         }
         var title = BodyPageText.name(of: phase)
         if let week = phase.week(on: today, calendar: calendar) {
@@ -504,7 +508,8 @@ extension BodyPageData {
         return BodyPagePhaseHeader(
             phaseID: phase.id, title: title, dates: phaseDates(phase, today: today), rate: rateText(phase), status: status, tone: tone,
             progress: progress, projectedEnd: line?.isPaused == true ? nil : summary.projectedEnd, checkpointLine: checkpointLine,
-            isActive: true, isPaused: line?.isPaused ?? false)
+            isActive: true, isPaused: line?.isPaused ?? false,
+            statusInfo: BodyPageInfo.status(line, plan: plan, rate: summary.rate, range: rateText(phase)))
     }
 
     /// The status line of the active phase on the context's day, by the check-in's rules
@@ -600,7 +605,8 @@ extension BodyPageData {
             goalText: goalText,
             charts: charts,
             summaryText: weightSummary(context, events: events),
-            hasWeighIns: hasWeighIns)
+            hasWeighIns: hasWeighIns,
+            rateInfo: BodyPageInfo.rate(summary.rate, maxDays: context.plan.adjust.windowMaxDays, hasPlan: context.plan.isSetUp))
     }
 
     /// "This week +0.20 kg, inside your goal of +0.15 to +0.25 kg a week. 7-day average 76.4 kg.
