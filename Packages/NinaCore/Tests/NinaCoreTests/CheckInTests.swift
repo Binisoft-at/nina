@@ -351,7 +351,7 @@ struct CheckInEngineTests {
         #expect(first.delta == 0)
         #expect(first.step == 100)
         #expect(first.outsideInARow == 1)
-        #expect(first.reason == "Slower than planned (+0.05 kg/week) – if next week is the same, Nina suggests a change.")
+        #expect(first.reason == "Slower than planned (+0.05 kg a week) – if next week is the same, Nina suggests a change.")
         // Previous in range, on the other side, of another phase, or before the last applied change.
         #expect(evaluate([f.previous(nil, on: "2030-01-28")]).rule == .confirming)
         #expect(evaluate([f.previous(.above, on: "2030-01-28")]).rule == .confirming)
@@ -863,7 +863,7 @@ struct CheckInEngineTests {
         #expect(close.notes.isEmpty)
         input.rate = 0.35
         let far = CheckInEngine.evaluate(input, calendar: checkInUTC)
-        #expect(far.notes == ["Your logged intake points to +0.16 kg/week, the scale shows +0.35 – logging may be incomplete."])
+        #expect(far.notes == ["Your logged intake points to +0.16 kg a week, the scale shows +0.35 – logging may be incomplete."])
         input.maintenance = f.maintenance(2400, .low)
         #expect(CheckInEngine.evaluate(input, calendar: checkInUTC).expectedRate == nil)
     }

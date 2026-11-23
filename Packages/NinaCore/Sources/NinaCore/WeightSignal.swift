@@ -225,6 +225,11 @@ public struct WeightSignal: Equatable, Sendable {
     public let others: [Reading]
     /// The EMA trend on each day with a morning weight.
     private let trendByDay: [DayKey: Double]
+    /// Every day from the first morning weight through the last one + 6 days, oldest first, and
+    /// its 7-day average: worked out once here, so the chart, the checkpoint crossing and the
+    /// summaries look them up. Outside this span no 7-day average has a morning weight.
+    private let averageDays: [DayKey]
+    private let averageByDay: [DayKey: Average]
 
     /// - Parameters:
     ///   - readings: typed and Health weigh-ins in any order. Readings outside 25–300 kg are
@@ -268,6 +273,29 @@ public struct WeightSignal: Equatable, Sendable {
             }
         }
         trendByDay = trend
+        let averaged = WeightSignal.slidingAverages(days: days, mornings: mornings, calendar: calendar)
+        averageDays = averaged.days
+        averageByDay = averaged.byDay
+    }
+
+    /// The 7-day average of every day from the first morning weight through the last one + 6
+    /// days in one pass over the sorted days: each window's morning weights in day order, their
+    /// mean as `average(on:)` takes it.
+    private static func slidingAverages(days: [DayKey], mornings: [DayKey: Reading],
+                                        calendar: Calendar) -> (days: [DayKey], byDay: [DayKey: Average]) {
+        guard let first = days.first, let last = days.last else { return ([], [:]) }
+        let span = DayKey.range(first, through: last.adding(days: averageDays - 1, calendar: calendar), calendar: calendar)
+        var byDay: [DayKey: Average] = [:]
+        byDay.reserveCapacity(span.count)
+        var low = 0, high = 0
+        for (index, day) in span.enumerated() {
+            let windowStart = span[max(0, index - (averageDays - 1))]
+            while high < days.count, days[high] <= day { high += 1 }
+            while low < high, days[low] < windowStart { low += 1 }
+            let values = days[low..<high].compactMap { mornings[$0]?.kilograms }
+            byDay[day] = Average(day: day, mean: WeightSignal.mean(values), count: values.count)
+        }
+        return (span, byDay)
     }
 
     /// The morning weight of a day.
@@ -331,15 +359,28 @@ public struct WeightSignal: Equatable, Sendable {
 
     /// The mean of the morning weights in the 7 days ending on `day`.
     public func average(on day: DayKey) -> Average {
+        if let known = averageByDay[day] { return known }
         let values = mornings(from: day.adding(days: -(WeightSignal.averageDays - 1), calendar: calendar), through: day).map(\.kilograms)
         return Average(day: day, mean: WeightSignal.mean(values), count: values.count)
     }
 
     /// The valid 7-day averages of every day from `start` through `end` (the bold chart line).
+    /// Only days within the worked-out span can have one.
     public func averages(from start: DayKey, through end: DayKey) -> [Point] {
-        DayKey.range(start, through: end, calendar: calendar).compactMap { day in
-            average(on: day).value.map { Point(day: day, kilograms: $0) }
+        guard start <= end else { return [] }
+        var low = 0, high = averageDays.count
+        while low < high {
+            let middle = (low + high) / 2
+            if averageDays[middle] < start { low = middle + 1 } else { high = middle }
         }
+        var points: [Point] = []
+        var index = low
+        while index < averageDays.count, averageDays[index] <= end {
+            let day = averageDays[index]
+            if let value = averageByDay[day]?.value { points.append(Point(day: day, kilograms: value)) }
+            index += 1
+        }
+        return points
     }
 
     /// The weight that body math uses on a day.
@@ -782,8 +823,20 @@ public struct WeightSignal: Equatable, Sendable {
 
     /// The first day from the phase start through `day` whose valid 7-day average reached the checkpoint.
     public func checkpointCrossing(of phase: CoachPlan.Phase, through day: DayKey) -> DayKey? {
-        guard let start = phase.start, start <= day, WeightSignal.checkpoint(of: phase) != nil else { return nil }
-        return WeightSignal.checkpointCrossing(averages(from: start, through: day), phase: phase)
+        guard let start = phase.start, start <= day, let checkpoint = WeightSignal.checkpoint(of: phase) else { return nil }
+        // `averages` comes oldest first.
+        return averages(from: start, through: day).first {
+            WeightSignal.hasReached($0.kilograms, checkpoint: checkpoint, goal: phase.goal)
+        }?.day
+    }
+
+    /// The review checkpoint comes after the phase's planned end at the current pace: `weeks`
+    /// (`Summary.weeksToCheckpoint`) from `day` land after `phase.end`. False without an end or
+    /// without weeks.
+    public static func reachesCheckpointAfterEnd(weeks: Double?, from day: DayKey, phase: CoachPlan.Phase,
+                                                 calendar: Calendar = .current) -> Bool {
+        guard let weeks, weeks > 0, weeks.isFinite, let end = phase.end, end >= day else { return false }
+        return Int((weeks * 7).rounded()) > day.days(to: end, calendar: calendar)
     }
 
     // MARK: Noise band

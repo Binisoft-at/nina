@@ -331,7 +331,7 @@ public enum CheckInEngine {
             let expected = (input.averageIntake - maintenance.kilocalories) * 7 / GoalCalculator.kilocaloriesPerKilogram
             expectedRate = expected
             if abs(expected - rate) > crossCheckLimit + 1e-9 {
-                notes.append("Your logged intake points to \(CheckInFormat.rate(expected)) kg/week, the scale shows \(CheckInFormat.rate(rate)) – logging may be incomplete.")
+                notes.append("Your logged intake points to \(CheckInFormat.rate(expected)) kg a week, the scale shows \(CheckInFormat.rate(rate)) – logging may be incomplete.")
             }
         }
 
@@ -398,7 +398,7 @@ public enum CheckInEngine {
         // 4. Outside: only when confirmed by the check-in(s) before.
         let sideText = sideVerdict.title
         if inARow < confirm {
-            return result(.confirming, "\(sideText) (\(CheckInFormat.rate(rate)) kg/week) – if next week is the same, Nina suggests a change.")
+            return result(.confirming, "\(sideText) (\(CheckInFormat.rate(rate)) kg a week) – if next week is the same, Nina suggests a change.")
         }
 
         // 7. Guardrails: the lock after an applied change, then the hold.
@@ -1009,8 +1009,8 @@ public struct CheckInSnapshot: Equatable, Sendable, Identifiable {
 
 // MARK: - Text
 
-/// English display pieces for the reason sentences (the app formats numbers with the locale
-/// everywhere else).
+/// English display pieces for the reason sentences; numbers follow the person's locale
+/// (`DisplayNumber`), the dates stay short English ones.
 private enum CheckInFormat {
     static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -1021,14 +1021,8 @@ private enum CheckInFormat {
 
     /// "1,500"
     static func kcal(_ value: Double) -> String {
-        let number = Int(value.rounded())
-        let digits = String(abs(number))
-        var grouped = ""
-        for (index, character) in digits.enumerated() {
-            if index > 0, (digits.count - index) % 3 == 0 { grouped += "," }
-            grouped.append(character)
-        }
-        return (number < 0 ? "−" : "") + grouped
+        let number = value.rounded()
+        return (number < 0 ? "−" : "") + DisplayNumber.grouped(abs(number))
     }
 
     /// "+100", "−150"
@@ -1038,11 +1032,7 @@ private enum CheckInFormat {
 
     /// "+0.05", "−0.30", "0.00"
     static func rate(_ value: Double) -> String {
-        let rounded = (value * 100).rounded() / 100
-        let text = String(format: "%.2f", abs(rounded))
-        if rounded > 0 { return "+" + text }
-        if rounded < 0 { return "−" + text }
-        return text
+        DisplayNumber.signed((value * 100).rounded() / 100, decimals: 2)
     }
 
     /// "today", "1 day ago", "9 days ago"

@@ -68,7 +68,7 @@ public struct CoachPlan: Codable, Equatable, Sendable {
         self = plan
     }
 
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
         case v, dayTypes, phases, longTerm, protein, checks, routine, adjust, pauses, notes
     }
 
@@ -158,7 +158,7 @@ extension CoachPlan {
             return table.first { entry in entry.words.contains { text.contains($0) } }?.emoji ?? ""
         }
 
-        enum CodingKeys: String, CodingKey { case id, name, emoji, schedule, weekdays, perWeek, workouts }
+        enum CodingKeys: String, CodingKey, CaseIterable { case id, name, emoji, schedule, weekdays, perWeek, workouts }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -218,7 +218,7 @@ extension CoachPlan {
             return baseline
         }
 
-        enum CodingKeys: String, CodingKey { case from, baseline, byType, reason }
+        enum CodingKeys: String, CodingKey, CaseIterable { case from, baseline, byType, reason }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -423,7 +423,7 @@ extension CoachPlan {
             return best
         }
 
-        enum CodingKeys: String, CodingKey {
+        enum CodingKeys: String, CodingKey, CaseIterable {
             case id, name, goal, start, startApprox, end, endApprox, rateMin, rateMax, reviewMin, reviewMax, targetWeight,
                  targetBodyFat, maxWaistGainCm, bodyFatCeiling, startWeight, startedAt, status, note, revisions
         }
@@ -525,7 +525,7 @@ extension CoachPlan {
             return copy
         }
 
-        enum CodingKeys: String, CodingKey { case weightKg, bodyFat, waistCm, date, note, since }
+        enum CodingKeys: String, CodingKey, CaseIterable { case weightKg, bodyFat, waistCm, date, note, since }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -582,7 +582,7 @@ extension CoachPlan {
             return meals.isEmpty ? mealSlots : meals.count
         }
 
-        enum CodingKeys: String, CodingKey { case mealMin, mealMax, count, meals }
+        enum CodingKeys: String, CodingKey, CaseIterable { case mealMin, mealMax, count, meals }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -720,7 +720,7 @@ extension CoachPlan {
             }
         }
 
-        enum CodingKeys: String, CodingKey {
+        enum CodingKeys: String, CodingKey, CaseIterable {
             case id, name, emoji, dose, timing, days
             case isOptional = "optional"
             case remind, affectsWeight
@@ -801,7 +801,7 @@ extension CoachPlan {
             return Routine(weeklySites: swap(defaultWeeklySites), fullSites: swap(defaultFullSites))
         }
 
-        enum CodingKeys: String, CodingKey {
+        enum CodingKeys: String, CodingKey, CaseIterable {
             case weighInMinutes, morningCutoffMinutes, weeklySites, fullSites, fullEveryWeeks, bodyFatEveryWeeks, bodyFatMethod,
                  side, thighMark, twoReadings, checkInWeekday
         }
@@ -872,7 +872,7 @@ extension CoachPlan {
             self.gainCapOverMaintenance = gainCapOverMaintenance
         }
 
-        enum CodingKeys: String, CodingKey {
+        enum CodingKeys: String, CodingKey, CaseIterable {
             case windowMinDays, windowMaxDays, stepMin, stepMax, intakeTolerance, lockDays, confirmChecks, tolerance, gainCapOverMaintenance
         }
 
@@ -929,7 +929,7 @@ extension CoachPlan {
             return day <= end
         }
 
-        enum CodingKeys: String, CodingKey { case start, end, reason }
+        enum CodingKeys: String, CodingKey, CaseIterable { case start, end, reason }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -1056,8 +1056,8 @@ extension CoachPlan {
               let average = plannedWeekAverage(revision) else { return nil }
         let difference = average - planned
         guard abs(difference) > CoachPlan.weekAverageTolerance + 1e-9 else { return nil }
-        return "Your week averages \(SettingsCSV.grouped(average)) kcal a day, \(SettingsCSV.grouped(abs(difference))) "
-            + "\(difference > 0 ? "more" : "less") than the phase's \(SettingsCSV.grouped(planned))."
+        return "Your week averages \(DisplayNumber.grouped(average)) kcal a day, \(DisplayNumber.grouped(abs(difference))) "
+            + "\(difference > 0 ? "more" : "less") than the phase's \(DisplayNumber.grouped(planned))."
     }
 
     /// Plan editor warning for one set of targets: the macros add up to more than 5 % off the
@@ -1234,6 +1234,129 @@ extension CoachPlan {
     }
 }
 
+// MARK: - Keeping what newer builds wrote
+
+extension CoachPlan {
+    /// `encoded`, with the keys this build doesn't know kept from `stored` (the plan text saved
+    /// now): at the top level, in the long-term goal, protein, routine and adjustment rules, in
+    /// the day types, phases and checks matched by id, and in each phase's revisions matched by
+    /// their first day. A newer Nina on another device may have added fields; a save on this
+    /// device must not drop them for everyone. Keys this build knows follow this plan, so a field
+    /// it cleared stays cleared, and a deleted item takes its unknown keys with it.
+    public func encoded(keepingUnknownFrom stored: String) -> String {
+        let text = encoded
+        guard !text.isEmpty, case .object(let old)? = PlanJSON(text: stored), case .object(var new)? = PlanJSON(text: text) else {
+            return text
+        }
+        var kept = false
+        PlanJSON.keep(from: old, into: &new, known: CoachPlan.CodingKeys.allCases.map(\.rawValue), kept: &kept)
+        let objects: [(String, [String])] = [
+            ("longTerm", LongTerm.CodingKeys.allCases.map(\.rawValue)), ("protein", Protein.CodingKeys.allCases.map(\.rawValue)),
+            ("routine", Routine.CodingKeys.allCases.map(\.rawValue)), ("adjust", Adjust.CodingKeys.allCases.map(\.rawValue)),
+        ]
+        for (key, known) in objects {
+            guard case .object(let before)? = old[key], case .object(var after)? = new[key] else { continue }
+            PlanJSON.keep(from: before, into: &after, known: known, kept: &kept)
+            new[key] = .object(after)
+        }
+        let phaseKeys = Phase.CodingKeys.allCases.map(\.rawValue)
+        let revisionKeys = Revision.CodingKeys.allCases.map(\.rawValue)
+        PlanJSON.keepInList("dayTypes", match: "id", from: old, into: &new, known: DayType.CodingKeys.allCases.map(\.rawValue),
+                            kept: &kept)
+        PlanJSON.keepInList("checks", match: "id", from: old, into: &new, known: Check.CodingKeys.allCases.map(\.rawValue),
+                            kept: &kept)
+        PlanJSON.keepInList("phases", match: "id", from: old, into: &new, known: phaseKeys, kept: &kept) { before, after, kept in
+            PlanJSON.keepInList("revisions", match: "from", from: before, into: &after, known: revisionKeys, kept: &kept)
+        }
+        guard kept else { return text }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        guard let data = try? encoder.encode(PlanJSON.object(new)) else { return text }
+        return String(decoding: data, as: UTF8.self)
+    }
+}
+
+/// Any JSON value, kept as it was read (for the keys a plan from a newer build has).
+enum PlanJSON: Codable, Equatable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case number(Double)
+    case string(String)
+    case array([PlanJSON])
+    case object([String: PlanJSON])
+
+    init?(text: String) {
+        guard let data = text.trimmingCharacters(in: .whitespacesAndNewlines).data(using: .utf8), !data.isEmpty,
+              let value = try? JSONDecoder().decode(PlanJSON.self, from: data) else { return nil }
+        self = value
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Bool.self) {
+            self = .bool(value)
+        } else if let value = try? container.decode(Int.self) {
+            self = .int(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .number(value)
+        } else if let value = try? container.decode(String.self) {
+            self = .string(value)
+        } else if let value = try? container.decode([PlanJSON].self) {
+            self = .array(value)
+        } else {
+            self = .object(try container.decode([String: PlanJSON].self))
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .null: try container.encodeNil()
+        case .bool(let value): try container.encode(value)
+        case .int(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .object(let value): try container.encode(value)
+        }
+    }
+
+    /// The keys of `old` this build doesn't know (`known`) that `new` lacks, copied into `new`.
+    static func keep(from old: [String: PlanJSON], into new: inout [String: PlanJSON], known: [String], kept: inout Bool) {
+        let knownKeys = Set(known)
+        for (key, value) in old where !knownKeys.contains(key) && new[key] == nil {
+            new[key] = value
+            kept = true
+        }
+    }
+
+    /// The same for the items of the list `key`, matched by their `match` value (id, first day);
+    /// `nested` then handles lists inside a matched item.
+    static func keepInList(_ key: String, match: String, from old: [String: PlanJSON], into new: inout [String: PlanJSON],
+                           known: [String], kept: inout Bool,
+                           nested: (([String: PlanJSON], inout [String: PlanJSON], inout Bool) -> Void)? = nil) {
+        guard case .array(let before)? = old[key], case .array(var after)? = new[key] else { return }
+        var oldItems: [PlanJSON: [String: PlanJSON]] = [:]
+        for item in before {
+            guard case .object(let fields) = item, let id = fields[match], oldItems[id] == nil else { continue }
+            oldItems[id] = fields
+        }
+        guard !oldItems.isEmpty else { return }
+        for index in after.indices {
+            guard case .object(var fields) = after[index], let id = fields[match], let previous = oldItems[id] else { continue }
+            keep(from: previous, into: &fields, known: known, kept: &kept)
+            nested?(previous, &fields, &kept)
+            after[index] = .object(fields)
+        }
+        new[key] = .array(after)
+    }
+}
+
+extension PlanJSON: Hashable {}
+
 // MARK: - Calorie changes
 
 extension CoachPlan {
@@ -1353,6 +1476,43 @@ public enum DayMarks {
             newest[mark.day] = (mark.key, mark.modifiedAt)
         }
         return newest.mapValues(\.key)
+    }
+
+    /// Days a cleared mark (in the trash) still counts as the newest decision.
+    public static let clearedDays = 30
+
+    /// Newest wins, a clear included. Of the live marks and the ones moved to the trash in the
+    /// last 30 days that share a `group` (a day for day types; a day and key for checks and
+    /// events), the one changed last decides; on a tie the live one. When that is a trashed mark
+    /// the value was cleared ("Back to schedule", a check opened again, "log complete") and the
+    /// group has no winner, even if an older mark from a device that was offline arrives later.
+    /// Returns the winning live marks, in the order their groups first appear.
+    public static func newest<Mark>(_ marks: [Mark], group: (Mark) -> String, modifiedAt: (Mark) -> Date,
+                                    isTrashed: (Mark) -> Bool) -> [Mark] {
+        var order: [String] = []
+        var best: [String: Mark] = [:]
+        for mark in marks {
+            let key = group(mark)
+            guard let current = best[key] else {
+                order.append(key)
+                best[key] = mark
+                continue
+            }
+            let time = modifiedAt(mark), currentTime = modifiedAt(current)
+            if time > currentTime || (time == currentTime && isTrashed(current) && !isTrashed(mark)) { best[key] = mark }
+        }
+        return order.compactMap { best[$0] }.filter { !isTrashed($0) }
+    }
+
+    /// The day-type marks by the newest-wins rule (`newest`): DayKey raw value → type id. Pass the
+    /// live marks and the ones trashed in the last 30 days.
+    public static func dayTypes(_ marks: [(day: String, key: String, modifiedAt: Date, isTrashed: Bool)]) -> [String: String] {
+        let usable = marks.filter { !$0.day.isEmpty && ($0.isTrashed || !$0.key.isEmpty) }
+        var types: [String: String] = [:]
+        for mark in newest(usable, group: { $0.day }, modifiedAt: { $0.modifiedAt }, isTrashed: { $0.isTrashed }) {
+            types[mark.day] = mark.key
+        }
+        return types
     }
 
     /// "week-2030-01-07": the check-in key of the ISO week a day falls in (its Monday).

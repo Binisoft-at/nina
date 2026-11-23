@@ -288,7 +288,7 @@ public enum BodyMethod: String, CaseIterable, Codable, Sendable, Identifiable {
         case .scan3D: "±3–4"
         case .scale: "±4–5"
         case .estimate: "unknown"
-        default: "±" + NumberText.plain(errorBand ?? 0, decimals: 1)
+        default: "±" + DisplayNumber.plain(errorBand ?? 0, decimals: 1)
         }
     }
 

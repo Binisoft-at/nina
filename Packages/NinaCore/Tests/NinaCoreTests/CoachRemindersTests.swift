@@ -206,6 +206,37 @@ struct CoachRemindersTests {
         #expect(!several.category.actions.contains { $0.id.hasPrefix("tape:") })
     }
 
+    /// Weighed in before the reminder (scale, watch, the app at 06:45): the weekly waist is still
+    /// announced, and a tap opens the measurement. Once it is saved the notification goes.
+    @Test func aDueMeasurementOutlastsTheWeighIn() throws {
+        var input = reminderInput()
+        let monday = reminderDay("2030-01-14")
+        input.weighedIn = [monday]
+        input.checkStates[monday] = ["creatine": .done]
+        input.bodyDue[monday] = [BodyDueItem(kind: .weekly, dueDay: monday, sites: [.waist])]
+        input.lastTape = [.waist: 84.5]
+        let morning = try #require(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14"))
+        #expect(morning.body == "Waist today. Today 2,500 kcal · 150 g protein.")
+        #expect(morning.category.actions.map(\.id) == ["tape:waist"])
+        #expect(morning.url == "nina://measure")
+        // Measured: nothing left that morning.
+        input.bodyDue[monday] = []
+        #expect(CoachReminders.plan(input).request("nina.coach.morning.2030-01-14") == nil)
+
+        // The morning reminder off, the measurement one on: a body-fat day still gets its banner.
+        var bodyFat = reminderInput(kinds: [.measure])
+        bodyFat.bodyDue[monday] = [BodyDueItem(kind: .assessment, dueDay: monday)]
+        let scan = try #require(CoachReminders.plan(bodyFat).request("nina.coach.morning.2030-01-14"))
+        #expect(scan.body.contains("Body fat today."))
+        #expect(!scan.body.contains("Weigh in"))
+        #expect(scan.category.actions.map(\.title) == ["Body Fat"])
+        #expect(scan.url == "nina://measure?mode=assessment")
+        // Both off: no announcement.
+        var none = reminderInput(kinds: [.checkIn])
+        none.bodyDue[monday] = [BodyDueItem(kind: .assessment, dueDay: monday)]
+        #expect(CoachReminders.plan(none).request("nina.coach.morning.2030-01-14") == nil)
+    }
+
     /// No weekly sites and body fat more often than the full set: some mornings only body fat is
     /// due. The banner's button opens the body-fat sheet, not the (empty) tape pager.
     @Test func onlyBodyFatDueOpensTheBodyFatSheet() throws {

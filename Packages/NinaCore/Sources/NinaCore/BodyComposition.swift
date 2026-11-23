@@ -653,8 +653,8 @@ public struct BodyGoalGap: Equatable, Sendable, Codable {
     public var honestLine: String? {
         guard dependsOnLeanGain, let lean = leanToGo else { return nil }
         let rounded = max(0.5, (lean * 2).rounded() / 2)
-        return "Reaching \(NumberText.plain(goalWeight, decimals: 1)) kg at \(NumberText.plain(goalBodyFat, decimals: 1)) % "
-            + "depends on gaining about \(NumberText.plain(rounded, decimals: 1)) kg of lean mass."
+        return "Reaching \(DisplayNumber.plain(goalWeight, decimals: 1)) kg at \(DisplayNumber.plain(goalBodyFat, decimals: 1)) % "
+            + "depends on gaining about \(DisplayNumber.plain(rounded, decimals: 1)) kg of lean mass."
     }
 }
 
@@ -1108,7 +1108,7 @@ public enum GirthTrend {
     /// "no clear change", "up 1.2 cm", "down 0.6 cm".
     public static func label(_ change: Double, site: BodySite) -> String {
         guard isClear(change, site: site) else { return noClearChange }
-        return "\(change > 0 ? "up" : "down") \(String(format: "%.1f", abs(change))) cm"
+        return "\(change > 0 ? "up" : "down") \(DisplayNumber.fixed(abs(change), decimals: 1)) cm"
     }
 
     /// The change of a site from its value at `since` (the latest reading on or up to 7 days before
@@ -1220,16 +1220,14 @@ public enum GirthTrend {
 
 // MARK: - Text
 
-/// The few strings Core builds here (UI text is English; numbers with "." like the rest of Core).
+/// The few strings Core builds here (UI text is English; numbers in the person's format,
+/// `DisplayNumber`; short English dates).
 private enum BodyCompositionText {
     private static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     /// "+1.2", "−0.3" (a real minus sign), "0.0".
     static func signed(_ value: Double, decimals: Int = 1) -> String {
-        let text = String(format: "%.\(decimals)f", abs(value))
-        let zero = String(format: "%.\(decimals)f", 0.0)
-        if text == zero { return zero }
-        return (value < 0 ? "−" : "+") + text
+        DisplayNumber.signed(value, decimals: decimals)
     }
 
     /// "7 Jan".

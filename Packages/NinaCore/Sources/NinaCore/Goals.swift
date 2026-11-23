@@ -276,23 +276,23 @@ public enum GoalCalculator {
         case .female: sexTerm = "− 161"
         case .unspecified: sexTerm = "− 78"
         }
-        let w = NumberText.plain(profile.weightKg, decimals: 1)
-        let h = NumberText.plain(profile.heightCm, decimals: 0)
+        let w = DisplayNumber.plain(profile.weightKg, decimals: 1)
+        let h = DisplayNumber.plain(profile.heightCm, decimals: 0)
         var steps = [
             GoalStep(title: "Basal metabolic rate", formula: "10 × \(w) kg + 6.25 × \(h) cm − 5 × \(profile.age) years \(sexTerm)", value: basal.rounded(), unit: "kcal"),
-            GoalStep(title: "Maintenance", formula: "BMR × \(NumberText.plain(profile.activity.factor)) (\(profile.activity.title.lowercased()))", value: maintenance.rounded(), unit: "kcal"),
+            GoalStep(title: "Maintenance", formula: "BMR × \(DisplayNumber.plain(profile.activity.factor, decimals: 4)) (\(profile.activity.title.lowercased()))", value: maintenance.rounded(), unit: "kcal"),
         ]
         if profile.goal != .maintain {
             let sign = profile.goal == .lose ? "−" : "+"
             steps.append(GoalStep(title: profile.goal == .lose ? "Deficit" : "Surplus",
-                                  formula: "\(sign) \(NumberText.plain(profile.ratePerWeek)) kg/week × 7,700 kcal ÷ 7 days",
+                                  formula: "\(sign) \(DisplayNumber.plain(profile.ratePerWeek, decimals: 4)) kg/week × \(DisplayNumber.grouped(7700)) kcal ÷ 7 days",
                                   value: adjustment.rounded(), unit: "kcal"))
         }
         steps.append(GoalStep(title: "Daily calories", formula: hitFloor ? "raised to the safe minimum" : "rounded to 10 kcal", value: energy, unit: "kcal"))
-        steps.append(GoalStep(title: "Protein", formula: "\(Int(split.protein * 100)) % of calories ÷ 4 kcal/g (\(NumberText.plain(protein / max(profile.weightKg, 1), decimals: 1)) g per kg)", value: protein, unit: "g"))
+        steps.append(GoalStep(title: "Protein", formula: "\(Int(split.protein * 100)) % of calories ÷ 4 kcal/g (\(DisplayNumber.plain(protein / max(profile.weightKg, 1), decimals: 1)) g per kg)", value: protein, unit: "g"))
         steps.append(GoalStep(title: "Carbohydrates", formula: "\(Int(split.carbs * 100)) % of calories ÷ 4 kcal/g", value: carbs, unit: "g"))
         steps.append(GoalStep(title: "Fat", formula: "\(Int(split.fat * 100)) % of calories ÷ 9 kcal/g", value: fat, unit: "g"))
-        steps.append(GoalStep(title: "Fiber", formula: "14 g per 1,000 kcal, at least 25 g", value: fiber, unit: "g"))
+        steps.append(GoalStep(title: "Fiber", formula: "14 g per \(DisplayNumber.grouped(1000)) kcal, at least 25 g", value: fiber, unit: "g"))
         steps.append(GoalStep(title: "Water", formula: "30 ml × \(w) kg", value: water, unit: "ml"))
         return GoalPlan(bmr: basal, maintenance: maintenance, adjustment: adjustment, targets: targets, steps: steps, hitFloor: hitFloor)
     }

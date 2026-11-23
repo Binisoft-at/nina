@@ -538,7 +538,7 @@ extension CoachBoard {
         let message: String
         if input.reviews.checkpointIsOpen(phase.id, crossing: crossing), let weight = WeightSignal.checkpoint(of: phase) {
             title = "Review weight reached"
-            message = "Your 7-day average reached \(NumberText.plain(weight, decimals: 1)) kg – time to look back at "
+            message = "Your 7-day average reached \(DisplayNumber.plain(weight, decimals: 1)) kg – time to look back at "
                 + "\(name(of: phase)) and decide how to go on."
         } else if let ceiling = input.reviews.openCeilings(phase.id, ceilings: input.ceilings).first {
             title = "Time for a phase review"
@@ -641,14 +641,14 @@ extension CoachBoard {
         }
         guard logged.count >= 2 else {
             return WeekAverage(planned: planned, eaten: nil, target: nil, loggedDays: logged.count,
-                               text: "Week avg \(SettingsCSV.grouped(planned)) kcal")
+                               text: "Week avg \(DisplayNumber.grouped(planned)) kcal")
         }
         let eaten = logged.compactMap { input.eaten[$0] }.reduce(0, +) / Double(logged.count)
         let target = logged.map {
             plan.targets(on: $0, marks: input.dayTypeMarks, fallback: input.fallback, calendar: calendar).energy
         }.reduce(0, +) / Double(logged.count)
         return WeekAverage(planned: planned, eaten: eaten, target: target, loggedDays: logged.count,
-                           text: "Week avg \(SettingsCSV.grouped(eaten)) of \(SettingsCSV.grouped(target)) kcal")
+                           text: "Week avg \(DisplayNumber.grouped(eaten)) of \(DisplayNumber.grouped(target)) kcal")
     }
 }
 

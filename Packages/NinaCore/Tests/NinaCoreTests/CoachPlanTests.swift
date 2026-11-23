@@ -557,4 +557,81 @@ struct CoachPlanTests {
         #expect(meta["state"] == nil)
         #expect(meta.number("verdict") == nil)
     }
+
+    /// "Back to schedule" (a clear) on one device after another device set a type offline: the
+    /// clear is newer, so it wins when the older mark arrives. A tie keeps the live mark.
+    @Test func aNewerClearBeatsAnOlderOfflineMark() {
+        let nine = Date(timeIntervalSince1970: 1_000), ten = Date(timeIntervalSince1970: 2_000)
+        // The watch set Tennis at 9:00 offline; the phone cleared the day at 10:00.
+        #expect(DayMarks.dayTypes([(day: "2030-01-08", key: "tennis", modifiedAt: nine, isTrashed: false),
+                                   (day: "2030-01-08", key: "gym", modifiedAt: ten, isTrashed: true)]) == [:])
+        // A set after an older clear wins.
+        #expect(DayMarks.dayTypes([(day: "2030-01-08", key: "gym", modifiedAt: nine, isTrashed: true),
+                                   (day: "2030-01-08", key: "tennis", modifiedAt: ten, isTrashed: false)]) == ["2030-01-08": "tennis"])
+        // Picking another type trashes the copies at the same moment: the kept one wins the tie.
+        #expect(DayMarks.dayTypes([(day: "2030-01-08", key: "gym", modifiedAt: ten, isTrashed: true),
+                                   (day: "2030-01-08", key: "tennis", modifiedAt: ten, isTrashed: false)]) == ["2030-01-08": "tennis"])
+        // Undo of a new mark moves it to the trash later than it was made: cleared.
+        #expect(DayMarks.dayTypes([(day: "2030-01-09", key: "rest", modifiedAt: nine, isTrashed: false),
+                                   (day: "2030-01-09", key: "rest", modifiedAt: ten, isTrashed: true)]).isEmpty)
+
+        // Checks and events, per day and key: a check opened again at 10:00 beats an offline tick at 9:00.
+        struct Mark { var day: String; var key: String; var time: Date; var trashed: Bool; var state: String }
+        let marks = [Mark(day: "2030-01-08", key: "creatine", time: nine, trashed: false, state: "done"),
+                     Mark(day: "2030-01-08", key: "creatine", time: ten, trashed: true, state: "done"),
+                     Mark(day: "2030-01-08", key: "vitd", time: nine, trashed: false, state: "skipped"),
+                     Mark(day: "2030-01-09", key: "creatine", time: nine, trashed: false, state: "done")]
+        let live = DayMarks.newest(marks, group: { "\($0.day)|\($0.key)" }, modifiedAt: { $0.time }, isTrashed: { $0.trashed })
+        #expect(live.map { "\($0.day) \($0.key) \($0.state)" } == ["2030-01-08 vitd skipped", "2030-01-09 creatine done"])
+    }
+
+    /// A Nina one build behind saves the plan: the fields a newer build added stay in it.
+    @Test func savingKeepsWhatANewerBuildAdded() throws {
+        var newer = Self.plan
+        newer.phases[0].bodyFatCeiling = 20
+        // What a newer build wrote: unknown keys at the top, in the routine, a day type, a check,
+        // a phase and one of its revisions.
+        let stored = try #require(newer.encoded.data(using: .utf8))
+        var json = try #require(try JSONSerialization.jsonObject(with: stored) as? [String: Any])
+        json["futureField"] = 42
+        var routine = try #require(json["routine"] as? [String: Any])
+        routine["tapeBrand"] = "Soft tape"
+        json["routine"] = routine
+        var types = try #require(json["dayTypes"] as? [[String: Any]])
+        types[0]["colour"] = "teal"
+        json["dayTypes"] = types
+        var phases = try #require(json["phases"] as? [[String: Any]])
+        phases[0]["mood"] = ["calm", "steady"]
+        var revisions = try #require(phases[0]["revisions"] as? [[String: Any]])
+        revisions[0]["source"] = "coach"
+        phases[0]["revisions"] = revisions
+        json["phases"] = phases
+        let text = String(decoding: try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys]), as: UTF8.self)
+
+        // This build reads it (the unknown keys are ignored), changes it and saves.
+        var plan = CoachPlan(encoded: text)
+        plan.phases[0].name = "Lean gain, slower"
+        plan.phases[0].bodyFatCeiling = 0
+        plan.routine.checkInWeekday = 7
+        let saved = plan.encoded(keepingUnknownFrom: text)
+        let savedData = try #require(saved.data(using: .utf8))
+        let back = try #require(try JSONSerialization.jsonObject(with: savedData) as? [String: Any])
+        #expect(back["futureField"] as? Int == 42)
+        #expect((back["routine"] as? [String: Any])?["tapeBrand"] as? String == "Soft tape")
+        #expect((back["dayTypes"] as? [[String: Any]])?.first?["colour"] as? String == "teal")
+        let phase = try #require((back["phases"] as? [[String: Any]])?.first)
+        #expect(phase["mood"] as? [String] == ["calm", "steady"])
+        #expect((phase["revisions"] as? [[String: Any]])?.first?["source"] as? String == "coach")
+        // What this build knows follows this plan: the change is in, the cleared ceiling stays cleared.
+        #expect(phase["bodyFatCeiling"] == nil)
+        #expect(CoachPlan(encoded: saved) == plan)
+        // Without unknown keys the text is exactly this build's.
+        #expect(plan.encoded(keepingUnknownFrom: plan.encoded) == plan.encoded)
+        #expect(plan.encoded(keepingUnknownFrom: "") == plan.encoded)
+        #expect(plan.encoded(keepingUnknownFrom: "not json") == plan.encoded)
+        // A deleted phase takes its unknown keys with it.
+        var fewer = plan
+        fewer.phases.removeFirst()
+        #expect(!fewer.encoded(keepingUnknownFrom: text).contains("calm"))
+    }
 }

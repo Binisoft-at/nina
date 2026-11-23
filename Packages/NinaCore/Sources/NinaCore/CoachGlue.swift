@@ -96,3 +96,33 @@ extension CheckInSnapshot {
         usesHealthWeights = rate.usesHealth || averages
     }
 }
+
+// MARK: - Measured maintenance for the coach
+
+/// Measured maintenance as the coach uses it (a phase's starting calories, Calculate, "Hold my
+/// weight", the gain cap, the check-in's cross-check): `Insights.maintenance` over the 28 days
+/// ending on a finished day – never today, which is still being eaten – without the days marked
+/// "Log is incomplete" and the paused days. Those count as eaten too little and would pull the
+/// number down, so a cut would start deeper than planned.
+public enum CoachMaintenance {
+    /// The last day the window may include: `day`, at most yesterday.
+    public static func windowEnd(_ day: DayKey, today: DayKey, calendar: Calendar = .current) -> DayKey {
+        min(day, today.adding(days: -1, calendar: calendar))
+    }
+
+    /// The days `measured` leaves out of `totals`: incomplete logs and paused days.
+    public static func counted(_ totals: [DayTotals], incomplete: Set<DayKey>, plan: CoachPlan) -> [DayTotals] {
+        totals.filter { !incomplete.contains($0.day) && !plan.isPaused(on: $0.day) }.sorted { $0.day < $1.day }
+    }
+
+    /// Measured maintenance over the 28 days ending on `windowEnd(day, today:)`.
+    /// - Parameters:
+    ///   - totals: the diary totals of the days (any order; others are ignored).
+    ///   - weights: the morning weights by day (`WeightSignal.morningWeights`).
+    ///   - incomplete: days marked "Log is incomplete".
+    public static func measured(totals: [DayTotals], weights: [DayKey: Double], through day: DayKey, today: DayKey,
+                                incomplete: Set<DayKey>, plan: CoachPlan, calendar: Calendar = .current) -> Insights.Maintenance? {
+        Insights.maintenance(totals: counted(totals, incomplete: incomplete, plan: plan), weights: weights,
+                             today: windowEnd(day, today: today, calendar: calendar), calendar: calendar)
+    }
+}
