@@ -34,7 +34,7 @@ private struct PlanWeekView: View {
 
     var body: some View {
         List {
-            if app.settings.plan.isSetUp { myPlanSection }
+            myPlanSection
             daysSection
             routinesSection
             quickSection
@@ -53,7 +53,8 @@ private struct PlanWeekView: View {
 
     // MARK: My Plan
 
-    /// The coach plan (phases, day types, checks) from the tab named Plan.
+    /// The coach plan (phases, day types, checks) from the tab named Plan – also before it is set
+    /// up, so it can be found here.
     private var myPlanSection: some View {
         Section {
             Button {
@@ -68,6 +69,7 @@ private struct PlanWeekView: View {
     /// "Lean gain · week 4 of 15" – the running phase, else what the plan holds.
     private var planLine: String {
         let plan = app.settings.plan
+        guard plan.isSetUp else { return "Set up phases, day types and daily checks" }
         if let running = plan.activePhase(on: today) {
             // "Running · week 4 of 15" → "week 4 of 15"; without weeks just "running".
             let status: String = PlanEditorData.phaseStatus(running, plan: plan, today: today)
@@ -92,28 +94,51 @@ private struct PlanWeekView: View {
         }
     }
 
+    /// A day: tap to open it; with plan day types its type's emoji on the right sets the type.
     private func dayRow(_ day: DayKey) -> some View {
         let entries = planned.filter { $0.day == day.rawValue }
-        return Button {
-            app.show(day: day)
-        } label: {
-            DayPlanRow(day: day, today: today, entries: entries)
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            if !entries.isEmpty {
-                Button("Confirm All as Eaten", systemImage: "checkmark.circle") { app.confirm(entries) }
-                Button("Remove Plan", systemImage: "trash", role: .destructive) { app.trash(entries) }
+        let chip: CoachBoard.Chip? = app.settings.todayCoachChip(for: day, today: today)
+        return HStack(spacing: 6) {
+            Button {
+                app.show(day: day)
+            } label: {
+                DayPlanRow(day: day, today: today, entries: entries)
             }
+            .buttonStyle(.plain)
+            if let chip {
+                PlanDayTypeButton(chip: chip, day: day, today: today)
+            }
+        }
+        .contextMenu {
+            dayMenu(day, entries: entries, chip: chip)
+        }
+    }
+
+    /// Touch and hold (right-click on the Mac): the day type, then the planned food.
+    @ViewBuilder
+    private func dayMenu(_ day: DayKey, entries: [LogEntry], chip: CoachBoard.Chip?) -> some View {
+        if let chip {
+            Menu {
+                TodayCoachDayTypeMenu(chip: chip, day: day)
+            } label: {
+                Label("Day Type", systemImage: "calendar.day.timeline.left")
+            }
+        }
+        if !entries.isEmpty {
+            Button("Confirm All as Eaten", systemImage: "checkmark.circle") { app.confirm(entries) }
+            Button("Remove Plan", systemImage: "trash", role: .destructive) { app.trash(entries) }
         }
     }
 
     private var daysFooter: String {
         #if os(macOS)
-        return "Click a day to open it. Planned foods count once you click ✓ next to them – or answer the reminder."
+        let open = "Click a day to open it. Planned foods count once you click ✓ next to them – or answer the reminder."
+        let types = " Click a day's symbol on the right to change its day type."
         #else
-        return "Tap a day to open it. Planned foods count once you tap ✓ next to them – or answer the reminder."
+        let open = "Tap a day to open it. Planned foods count once you tap ✓ next to them – or answer the reminder."
+        let types = " Tap a day's symbol on the right to change its day type."
         #endif
+        return app.settings.todayCoachHasDayTypes ? open + types : open
     }
 
     // MARK: Routines
@@ -194,6 +219,63 @@ private struct PlanMyPlanRow: View {
         }
         .padding(.vertical, 4)
         .contentShape(.rect)
+    }
+}
+
+/// A Plan day's type as its emoji (or first letter) in a small circle: filled when picked by hand,
+/// plain when it comes from the schedule. A tap opens the week strip's day-type menu (every type
+/// with the day's kcal, "Back to Schedule"); picking one shows a toast with Undo.
+private struct PlanDayTypeButton: View {
+    let chip: CoachBoard.Chip
+    let day: DayKey
+    let today: DayKey
+
+    var body: some View {
+        Menu {
+            Section(Fmt.dayTitle(day, today: today)) {
+                TodayCoachDayTypeMenu(chip: chip, day: day)
+            }
+        } label: {
+            face
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint("Choose the day type")
+        #if os(macOS)
+        .help("Day type: \(chip.name) – click to change")
+        #endif
+    }
+
+    /// The type's emoji, else the first letter of its name.
+    private var mark: String {
+        if !chip.emoji.isEmpty { return chip.emoji }
+        return String(chip.name.prefix(1)).uppercased()
+    }
+
+    private var accessibilityText: String {
+        let source = chip.isManual ? "picked by hand" : "from your schedule"
+        return "Day type: \(chip.quotaText ?? chip.name), \(source)"
+    }
+
+    private var face: some View {
+        Text(mark)
+            .font(chip.emoji.isEmpty ? Font.subheadline.weight(.semibold) : Font.title3)
+            .foregroundStyle(Brand.accent)
+            .frame(width: 36, height: 36)
+            .background(circleFill, in: .circle)
+            .overlay {
+                Circle().strokeBorder(Brand.accent.opacity(chip.isManual ? 0.9 : 0), lineWidth: 1.5)
+            }
+            .frame(width: 44, height: 44)
+            .contentShape(.circle)
+    }
+
+    /// Accent-tinted when picked by hand, a quiet grey from the schedule.
+    private var circleFill: Color {
+        chip.isManual ? Brand.accent.opacity(0.18) : Color.secondary.opacity(0.1)
     }
 }
 
