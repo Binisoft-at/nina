@@ -55,19 +55,33 @@ extension DayMark {
 }
 
 extension Sequence where Element == DayMark {
-    /// Day-type marks as the plan resolvers want them: DayKey raw value → type id, the newest
-    /// live mark per day.
-    var dayTypeMap: [String: String] {
-        DayMarks.dayTypes(filter { $0.deletedAt == nil && $0.kind == DayMarkKind.dayType.rawValue }
-            .map { (day: $0.day, key: $0.key, modifiedAt: $0.modifiedAt) })
+    /// The marks of `kind` that win by the newest-wins rule (`DayMarks.newest`): of the live marks
+    /// and the ones cleared in the last 30 days in the same group, the one changed last; a newer
+    /// clear means none. Without cleared marks among them it is simply the newest live one per group.
+    func winning(_ kind: DayMarkKind, groupedBy group: (DayMark) -> String, now: Date = Date()) -> [DayMark] {
+        let cutoff = now.addingTimeInterval(-Double(DayMarks.clearedDays) * 86_400)
+        let marks = filter { mark in
+            mark.kind == kind.rawValue && (mark.deletedAt.map { $0 >= cutoff } ?? true)
+        }
+        return DayMarks.newest(marks, group: group, modifiedAt: { $0.modifiedAt }, isTrashed: { $0.deletedAt != nil })
     }
 
-    /// The check states of a day: check id → done (any live done mark) or skipped.
+    /// Day-type marks as the plan resolvers want them: DayKey raw value → type id, the newest
+    /// mark per day ("Back to schedule" newer than a mark from another device wins).
+    var dayTypeMap: [String: String] {
+        var types: [String: String] = [:]
+        for mark in winning(.dayType, groupedBy: { $0.day }) where !mark.key.isEmpty {
+            types[mark.day] = mark.key
+        }
+        return types
+    }
+
+    /// The check states of a day: check id → done or skipped, the newest mark per check.
     func checkStates(on day: DayKey) -> [String: CheckState] {
         var states: [String: CheckState] = [:]
-        for mark in self where mark.deletedAt == nil && mark.kind == DayMarkKind.check.rawValue && mark.day == day.rawValue {
-            guard let state = mark.checkState else { continue }
-            if states[mark.key] != .done { states[mark.key] = state }
+        let raw = day.rawValue
+        for mark in winning(.check, groupedBy: { "\($0.day)|\($0.key)" }) where mark.day == raw {
+            if let state = mark.checkState { states[mark.key] = state }
         }
         return states
     }
@@ -75,7 +89,7 @@ extension Sequence where Element == DayMark {
     /// The checks ticked done, by day (for `DayAdherence(doneChecks:)`).
     var doneChecks: [DayKey: Set<String>] {
         var done: [DayKey: Set<String>] = [:]
-        for mark in self where mark.deletedAt == nil && mark.kind == DayMarkKind.check.rawValue && mark.checkState == .done {
+        for mark in winning(.check, groupedBy: { "\($0.day)|\($0.key)" }) where mark.checkState == .done {
             done[mark.dayKey, default: []].insert(mark.key)
         }
         return done
@@ -83,8 +97,13 @@ extension Sequence where Element == DayMark {
 
     /// (day, check id) of every done tick, for `CheckInEngine.weightCheck(in:ticks:)`.
     var checkTicks: [(day: DayKey, checkID: String)] {
-        filter { $0.deletedAt == nil && $0.kind == DayMarkKind.check.rawValue && $0.checkState == .done }
+        winning(.check, groupedBy: { "\($0.day)|\($0.key)" }).filter { $0.checkState == .done }
             .map { (day: $0.dayKey, checkID: $0.key) }
+    }
+
+    /// The days with an event mark of `key` ("incompleteLog"), the newest mark per day.
+    func eventDays(_ key: String) -> Set<DayKey> {
+        Set(winning(.event, groupedBy: { "\($0.day)|\($0.key)" }).filter { $0.key == key }.map(\.dayKey))
     }
 }
 
@@ -285,24 +304,37 @@ extension NinaStore {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    /// Every live day-type mark as DayKey raw value → type id (what `NinaSettings.dayTypeMarks` holds).
+    /// Day marks of a kind, live and in the trash (the newest-wins readers drop the trashed ones
+    /// older than 30 days), oldest day first.
+    func dayMarksIncludingCleared(_ kind: DayMarkKind, from start: DayKey? = nil, through end: DayKey? = nil) -> [DayMark] {
+        let raw = kind.rawValue
+        let first = start?.rawValue ?? "", last = end?.rawValue ?? "9999-12-31"
+        let descriptor = FetchDescriptor<DayMark>(
+            predicate: #Predicate<DayMark> { $0.kind == raw && $0.day >= first && $0.day <= last },
+            sortBy: [SortDescriptor(\.day), SortDescriptor(\.modifiedAt)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Every day-type mark as DayKey raw value → type id (what `NinaSettings.dayTypeMarks` holds):
+    /// the newest per day, a newer "Back to schedule" included.
     func dayTypeMarks() -> [String: String] {
-        dayMarks(.dayType).dayTypeMap
+        dayMarksIncludingCleared(.dayType).dayTypeMap
     }
 
     /// The check states of a day: check id → done or skipped (missing = open).
     func checkStates(on day: DayKey) -> [String: CheckState] {
-        dayMarks(.check, on: day).checkStates(on: day)
+        dayMarksIncludingCleared(.check, from: day, through: day).checkStates(on: day)
     }
 
     /// The checks ticked done, by day.
     func doneChecks(from start: DayKey, through end: DayKey) -> [DayKey: Set<String>] {
-        dayMarks(.check, from: start, through: end).doneChecks
+        dayMarksIncludingCleared(.check, from: start, through: end).doneChecks
     }
 
     /// Every done tick (day, check id), for the creatine hold (`CheckInEngine.weightCheck`).
     func checkTicks() -> [(day: DayKey, checkID: String)] {
-        dayMarks(.check).checkTicks
+        dayMarksIncludingCleared(.check).checkTicks
     }
 
     /// The check-in mark of the ISO week `day` falls in (the newest, if two devices saved one).
@@ -331,22 +363,24 @@ extension NinaStore {
         return dayMarks(.phase, key: phaseID)
     }
 
-    /// The review decisions (keep, hold or cut) as the day of the newest one per phase. The
-    /// checkpoint needs a decision on or after the day it was reached, a ceiling any decision
-    /// (`PhaseReviews`), so a ceiling review doesn't use up the checkpoint.
+    /// The review decisions (keep, hold or cut): the day of the newest one per phase and the
+    /// ceilings they answered (meta "ceilings=…"; older decisions answered every ceiling). The
+    /// checkpoint needs a decision on or after the day it was reached, a ceiling a decision made
+    /// while it was reached (`PhaseReviews`).
     func phaseReviews() -> PhaseReviews {
-        let events = dayMarks(.phase).compactMap { mark -> (phaseID: String, event: PhaseEvent, day: DayKey)? in
+        let decisions = dayMarks(.phase).compactMap { mark -> (phaseID: String, event: PhaseEvent, day: DayKey, ceilings: [BodyCeiling]?)? in
             guard let event = mark.phaseEvent else { return nil }
-            return (phaseID: mark.key, event: event, day: mark.dayKey)
+            return (phaseID: mark.key, event: event, day: mark.dayKey,
+                    ceilings: PhaseReviews.ceilings(fromMeta: mark.metaText[PhaseReviews.ceilingsKey]))
         }
-        return PhaseReviews(events: events)
+        return PhaseReviews(decisions: decisions)
     }
 
     /// Days from `start` through `end` marked "Log Is Incomplete" on Today: left out of logged
-    /// days (week average, check-in, Insights).
+    /// days (week average, check-in, Insights). The newest mark per day decides.
     func incompleteDays(from start: DayKey, through end: DayKey) -> Set<DayKey> {
         guard start <= end else { return [] }
-        return Set(dayMarks(.event, from: start, through: end).filter { $0.key == "incompleteLog" }.map(\.dayKey))
+        return dayMarksIncludingCleared(.event, from: start, through: end).eventDays("incompleteLog")
     }
 
     /// Tape records for trends, the tape estimate and the measuring schedule.
@@ -381,10 +415,39 @@ extension NinaStore {
     }
 
     /// The measuring schedule of the plan: tape and assessment days, and the review checkpoint
-    /// once the 7-day average reached it (through `today`).
+    /// once the 7-day average reached it (through `today`). Nothing is due before the plan was set
+    /// up, or before a planned first phase starts (`BodySchedule.measuringStart`).
     func bodySchedule(plan: CoachPlan, signal: WeightSignal, today: DayKey) -> BodySchedule {
-        BodySchedule(plan: plan, start: BodySchedule.setUpDay(of: plan, calendar: calendar), tape: tapeRecords(),
-                     assessmentDays: assessmentDays(), checkpoint: signal.checkpointCrossing(in: plan, through: today))
+        bodySchedule(plan: plan, checkpoint: signal.checkpointCrossing(in: plan, through: today))
+    }
+
+    /// The same with the checkpoint crossing already worked out.
+    func bodySchedule(plan: CoachPlan, checkpoint: DayKey?) -> BodySchedule {
+        BodySchedule(plan: plan, start: BodySchedule.measuringStart(of: plan, calendar: calendar), tape: tapeRecords(),
+                     assessmentDays: assessmentDays(), checkpoint: checkpoint)
+    }
+
+    /// The tape-estimate formula people with sex "Prefer not to say" picked (device-only).
+    nonisolated static let navyFormulaKey = "nina.coach.navyFormula"
+
+    /// The tape-estimate formula: from the sex, else the one picked on this device; nil = none yet.
+    nonisolated static func navyFormula(sex: Sex) -> NavyBodyFat.Formula? {
+        if let formula = NavyBodyFat.Formula(sex: sex) { return formula }
+        return NavyBodyFat.Formula(rawValue: UserDefaults.standard.string(forKey: navyFormulaKey) ?? "")
+    }
+
+    /// The gain-phase ceilings reached on `day` in phase `phaseID` (the active one when nil), from
+    /// the stored records (`BodyCeiling.reached`): what Today's review card and the review sheet
+    /// compare, and what a review decision records as answered.
+    func reachedCeilings(phaseID: String? = nil, on day: DayKey) -> [BodyCeiling] {
+        let settings = self.settings
+        let plan = settings.plan
+        let phase = phaseID.flatMap { plan.phase(id: $0) } ?? plan.activePhase(on: day)
+        guard let phase, phase.goal == .gain else { return [] }
+        let sex = settings.body.sex
+        return BodyCeiling.reached(phase: phase, bodyFatMethod: plan.routine.bodyFatMethod, on: day, tape: tapeRecords(),
+                                   fatReadings: bodyFatReadings(), sex: sex, heightCm: profile()?.heightCm ?? 0,
+                                   formula: NinaStore.navyFormula(sex: sex), calendar: calendar)
     }
 
     /// The settings with the day-type marks and the real body weight (`WeightSignal.bodyWeight`
@@ -411,14 +474,17 @@ extension NinaStore {
     /// Everything Today's coach parts show for `day` (`CoachBoard`): day-type chip, checks strip,
     /// coach card and week average. `signal`: `weightSignal(adding:)` with the live Health
     /// weigh-ins. `dismissed`: the device's "Later" taps (card key → day). `ceilings`: reached
-    /// gain-phase ceilings, if the caller checks them.
+    /// gain-phase ceilings, if the caller checks them. `prepared`: the schedule and checkpoint
+    /// crossing the caller already worked out for today (else they are worked out here).
     func coachBoard(for day: DayKey, settings: NinaSettings, signal: WeightSignal, now: Date = Date(),
-                    dismissed: [String: DayKey] = [:], ceilings: [BodyCeiling] = []) -> CoachBoard {
+                    dismissed: [String: DayKey] = [:], ceilings: [BodyCeiling] = [],
+                    prepared: (schedule: BodySchedule, checkpoint: DayKey?)? = nil) -> CoachBoard {
         let plan = settings.plan
         guard plan.isSetUp else { return .empty }
         let today = settings.today(now: now, calendar: calendar)
         let hasMorningWeighIn = signal.morning(on: today) != nil
-        let schedule = bodySchedule(plan: plan, signal: signal, today: today)
+        let checkpoint = prepared.map(\.checkpoint) ?? signal.checkpointCrossing(in: plan, through: today)
+        let schedule = prepared?.schedule ?? bodySchedule(plan: plan, checkpoint: checkpoint)
         let monday = day.startOfWeek(calendar: calendar)
         let weekEnd = min(today, monday.adding(days: 6, calendar: calendar))
         let input = CoachBoard.Input(
@@ -427,10 +493,36 @@ extension NinaStore {
             checkStates: checkStates(on: day), hasMorningWeighIn: hasMorningWeighIn,
             bodyItems: CoachBoard.bodyItems(schedule, on: day, today: today, now: now, hasMorningWeighIn: hasMorningWeighIn,
                                             calendar: calendar),
-            checkInKeys: checkInKeys(), checkpoint: signal.checkpointCrossing(in: plan, through: today), ceilings: ceilings,
+            checkInKeys: checkInKeys(), checkpoint: checkpoint, ceilings: ceilings,
             reviews: phaseReviews(), dismissed: dismissed, eaten: loggedEnergy(from: monday, through: weekEnd),
             incompleteDays: incompleteDays(from: monday, through: weekEnd), calendar: calendar)
         return CoachBoard(input)
+    }
+}
+
+/// An earlier version of the plan (`DayMark` kind `planVersion`).
+struct CoachPlanVersion: Identifiable {
+    let mark: DayMark
+    /// When it was replaced.
+    let replacedAt: Date
+    /// "edit", "checkIn", "import" …
+    let reason: String
+    /// The plan's JSON as it was.
+    let text: String
+
+    var id: UUID { mark.uuid }
+    var plan: CoachPlan { CoachPlan(encoded: text) }
+}
+
+extension NinaStore {
+    /// The earlier versions of the plan, newest first (put one back with `updatePlan(version.plan,
+    /// reason: "restore")`, which keeps the current plan as a version in turn).
+    func planVersions() -> [CoachPlanVersion] {
+        dayMarks(.planVersion).compactMap { mark -> CoachPlanVersion? in
+            guard !mark.note.isEmpty else { return nil }
+            return CoachPlanVersion(mark: mark, replacedAt: PlanHistory.date(fromKey: mark.key) ?? mark.time,
+                                    reason: mark.metaText["reason"] ?? "", text: mark.note)
+        }.sorted { $0.replacedAt > $1.replacedAt }
     }
 }
 
@@ -515,12 +607,17 @@ extension NinaStore {
         return undo
     }
 
-    /// Records a phase decision (started, postponed, review-keep, -hold, -cut, ended).
+    /// Records a phase decision (started, postponed, review-keep, -hold, -cut, ended). A review
+    /// decision also records the ceilings reached in that phase right now (`reachedCeilings`):
+    /// those are answered, one reached later opens the review again.
     @discardableResult
     func recordPhaseEvent(phaseID: String, event: PhaseEvent, day: DayKey) -> CoachUndo {
         let mark = DayMark(day: day, kind: .phase, key: phaseID)
         var meta = KeyValueText()
         meta["event"] = event.rawValue
+        if PhaseReviews.events.contains(event) {
+            meta[PhaseReviews.ceilingsKey] = PhaseReviews.metaValue(reachedCeilings(phaseID: phaseID, on: day))
+        }
         mark.meta = meta.encoded
         context.insert(mark)
         save()
@@ -530,9 +627,10 @@ extension NinaStore {
     /// Saves the plan and mirrors it into the profile's own targets, goal, rate and target weight
     /// (`CoachPlan.mirror(on:)`), so older builds show near-correct numbers. Undo:
     /// `undo(result)` puts the previous plan and profile values back.
+    /// `reason`: kept with the earlier version ("edit", "import", "restore" …).
     @discardableResult
-    func updatePlan(_ plan: CoachPlan, on day: DayKey? = nil) -> CoachUndo {
-        let undo = CoachUndo(profile: writePlan(plan, on: day ?? settings.today(calendar: calendar)))
+    func updatePlan(_ plan: CoachPlan, on day: DayKey? = nil, reason: String = "edit") -> CoachUndo {
+        let undo = writePlan(plan, on: day ?? settings.today(calendar: calendar), reason: reason)
         save()
         return undo
     }
@@ -547,7 +645,7 @@ extension NinaStore {
         let plan = CheckInEngine.applying(delta, to: settings.plan, from: day, weightKg: weightKg, fallback: settings.targets)
         // The mirror follows the revision just added (it starts tomorrow): nothing re-mirrors on
         // the day it takes effect, and older builds would stay one step behind.
-        var undo = CoachUndo(profile: writePlan(plan, on: max(day, settings.today(calendar: calendar))))
+        var undo = writePlan(plan, on: max(day, settings.today(calendar: calendar)), reason: "checkIn")
         var decided = snapshot
         decided.decision = decision
         decided.deltaKcal = delta
@@ -578,16 +676,23 @@ extension NinaStore {
 
     // MARK: Helpers (no save)
 
-    /// Writes the plan and its mirror into the profile (creating it on first use); returns the
-    /// fields as they were.
-    private func writePlan(_ plan: CoachPlan, on day: DayKey) -> CoachProfileFields {
+    /// Writes the plan and its mirror into the profile (creating it on first use). The fields a
+    /// newer Nina added to the stored plan are kept (`CoachPlan.encoded(keepingUnknownFrom:)`),
+    /// and the plan it replaces becomes an earlier version (`PlanHistory`). Returns what Undo
+    /// needs: the fields as they were and the version mark.
+    private func writePlan(_ plan: CoachPlan, on day: DayKey, reason: String) -> CoachUndo {
         let profile = profile() ?? {
             let created = NinaProfile()
             context.insert(created)
             return created
         }()
         let before = CoachProfileFields(profile)
-        profile.coachPlan = plan.encoded
+        var undo = CoachUndo(profile: before)
+        let text = plan.encoded(keepingUnknownFrom: profile.coachPlan)
+        if text != profile.coachPlan, !profile.coachPlan.isEmpty {
+            undo.merge(keepVersion(profile.coachPlan, reason: reason, on: day))
+        }
+        profile.coachPlan = text
         if let mirror = plan.mirror(on: day) {
             let state = mirror.applied(to: SettingsState(profile: profile, weight: 0))
             profile.targets = state.targets.encoded
@@ -598,7 +703,29 @@ extension NinaStore {
             profile.targetWeight = state.targetWeight
         }
         profile.modifiedAt = Date()
-        return before
+        return undo
+    }
+
+    /// Keeps `text` (the plan being replaced) as an earlier version, at most one every 10
+    /// minutes; versions beyond the newest 30 go to the trash.
+    private func keepVersion(_ text: String, reason: String, on day: DayKey) -> CoachUndo {
+        let now = Date()
+        var undo = CoachUndo()
+        let versions = dayMarks(.planVersion)
+        guard PlanHistory.records(newest: versions.map(\.time).max(), now: now) else { return undo }
+        let mark = DayMark(day: day, kind: .planVersion, key: PlanHistory.key(now), time: now)
+        mark.note = text
+        var meta = KeyValueText()
+        meta["reason"] = reason
+        mark.meta = meta.encoded
+        context.insert(mark)
+        undo.inserted.append(mark)
+        for old in PlanHistory.dropped(versions + [mark], time: { $0.time }) where old !== mark {
+            old.deletedAt = now
+            old.modifiedAt = now
+            undo.trashed.append(old)
+        }
+        return undo
     }
 
     /// One live mark per day, kind and key: the newest is edited (`change`), other copies go to

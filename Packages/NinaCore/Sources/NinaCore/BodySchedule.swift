@@ -126,6 +126,16 @@ public struct BodySchedule: Equatable, Sendable {
         }.min()
     }
 
+    /// When the measuring schedule starts (the `start` of `init(plan:start:…)`): the day the plan
+    /// was set up (`setUpDay(of:)`), else – while no phase has been started yet, e.g. right after
+    /// an import whose first phase starts next week – the earliest planned phase start. Nothing is
+    /// due (or overdue) before it: the baseline is due that day, the weekly waist from the first
+    /// check-in day on or after it. nil without either.
+    public static func measuringStart(of plan: CoachPlan, calendar: Calendar = .current) -> DayKey? {
+        setUpDay(of: plan, calendar: calendar)
+            ?? plan.phases.filter { !$0.isStarted && $0.status != .done }.compactMap(\.start).min()
+    }
+
     /// The check-in weekday, 1 (Monday) … 7.
     public var checkInWeekday: Int { min(7, max(1, routine.checkInWeekday)) }
 

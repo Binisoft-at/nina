@@ -351,7 +351,7 @@ struct CheckInEngineTests {
         #expect(first.delta == 0)
         #expect(first.step == 100)
         #expect(first.outsideInARow == 1)
-        #expect(first.reason == "Slower than planned (+0.05 kg/week) – if next week is the same, Nina suggests a change.")
+        #expect(first.reason == "Slower than planned (+0.05 kg a week) – if next week is the same, Nina suggests a change.")
         // Previous in range, on the other side, of another phase, or before the last applied change.
         #expect(evaluate([f.previous(nil, on: "2030-01-28")]).rule == .confirming)
         #expect(evaluate([f.previous(.above, on: "2030-01-28")]).rule == .confirming)
@@ -494,6 +494,164 @@ struct CheckInEngineTests {
         let derived = CheckInEngine.evaluate(f.input(rate: 0.05, plan: adjusted, history: [f.previous(.below, on: "2030-01-28")]), calendar: checkInUTC)
         #expect(derived.rule == .locked)
         #expect(derived.reason == "Targets changed 13 days ago – give them until Mon 11 Feb before the next change.")
+    }
+
+    /// Changing the calories in My Plan, with Calculate or with an import restarts the pace, the
+    /// window, the lock and the "in a row" count like Apply does; protein-only edits and an
+    /// import of the same targets don't.
+    @Test func everyCalorieChangeRestartsTheCheckIn() {
+        let f = CheckInFixture.self
+        let history = [f.previous(.below, on: "2030-01-28")]
+        typealias Targets = (baseline: DailyTargets, byType: [String: DailyTargets])
+        func shifted(_ kcal: Double, protein: Double = 0) -> Targets {
+            func move(_ targets: DailyTargets) -> DailyTargets {
+                var copy = targets
+                copy.energy += kcal
+                copy.protein += protein
+                copy.carbs += (kcal - protein * 4) / 4
+                return copy
+            }
+            return (move(f.gym), ["gym": move(f.gym), "tennis": move(f.tennis), "rest": move(f.rest)])
+        }
+        func plan(_ targets: Targets, reason: String, from raw: String = "2030-01-22") -> CoachPlan {
+            f.plan(extraRevisions: [.init(from: checkInDay(raw), baseline: targets.baseline, byType: targets.byType, reason: reason)])
+        }
+
+        // My Plan +200 kcal on Tue 22 Jan: locked like an applied change, and the pace restarts.
+        let edited = plan(shifted(200), reason: "edit")
+        #expect(edited.lastCalorieChange(on: f.checkInDay, inForce: true) == .init(from: checkInDay("2030-01-22"), isAdjustment: false))
+        #expect(CheckInEngine.lastAdjustment(in: edited, on: f.checkInDay) == checkInDay("2030-01-22"))
+        let locked = CheckInEngine.evaluate(f.input(rate: 0.05, plan: edited, history: history), calendar: checkInUTC)
+        #expect(locked.rule == .locked)
+        #expect(locked.reason == "Targets changed 13 days ago – give them until Mon 11 Feb before the next change.")
+        #expect(WeightSignal.rateWindow(on: f.checkInDay, plan: edited, calendar: checkInUTC).start == checkInDay("2030-01-22"))
+        #expect(CheckInEngine.windowStart(plan: edited, on: f.checkInDay, calendar: checkInUTC) == checkInDay("2030-01-22"))
+        // Calculate in the phase sheet ("transition"), −150 kcal: also a change.
+        #expect(plan(shifted(-150), reason: "transition").lastCalorieChange(on: f.checkInDay, inForce: true)?.from == checkInDay("2030-01-22"))
+
+        // Protein only (+20 g, the calories stay): no change, the proposal goes ahead.
+        let protein = plan(shifted(0, protein: 20), reason: "edit")
+        #expect(protein.lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(CheckInEngine.evaluate(f.input(rate: 0.05, plan: protein, history: history), calendar: checkInUTC).rule == .proposal)
+        // An import of the same targets, or one that moves the week by less than 50 kcal: none either.
+        #expect(plan(shifted(0), reason: "import").lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(plan(shifted(40), reason: "import").lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        // The "kept" history an import writes is never a change.
+        #expect(plan(shifted(300), reason: SettingsCSV.keptRevisionReason).lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        // Not in force yet: only without `inForce`.
+        let later = plan(shifted(200), reason: "edit", from: "2030-02-10")
+        #expect(later.lastCalorieChange(on: f.checkInDay, inForce: true) == nil)
+        #expect(later.lastCalorieChange(on: f.checkInDay, inForce: false)?.from == checkInDay("2030-02-10"))
+    }
+
+    /// Apply from tomorrow, then an import (or Calculate) on the check-in day with other targets:
+    /// the import replaces the planned adjustment, and the lock now counts from the import day
+    /// instead of disappearing. The check-in saved that day judged the old targets.
+    @Test func anImportOnTheCheckInDayAfterApplyKeepsTheLock() {
+        let f = CheckInFixture.self
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-02-05"), weightKg: 80, fallback: f.profile)
+        func plus(_ targets: DailyTargets) -> DailyTargets {
+            var copy = targets
+            copy.energy += 150
+            copy.carbs += 37.5
+            return copy
+        }
+        var notes: [String] = []
+        let imported = SettingsCSV.addingImportRevision(to: applied, phase: "1", from: f.checkInDay, baseline: plus(f.gym),
+                                                        byType: ["gym": plus(f.gym), "tennis": plus(f.tennis), "rest": plus(f.rest)],
+                                                        notes: &notes)
+        #expect(imported.phases[0].revisions.map(\.from) == [checkInDay("2030-01-07"), f.checkInDay])
+        #expect(CheckInEngine.lastAdjustment(in: imported, on: f.checkInDay, inForce: true) == f.checkInDay)
+
+        let monday = checkInDay("2030-02-11")
+        let history = [f.previous(.below, on: "2030-02-04"), f.previous(.below, on: "2030-01-28")]
+        let next = CheckInEngine.evaluate(f.input(rate: 0.05, plan: imported, history: history, day: monday), calendar: checkInUTC)
+        #expect(next.rule == .confirming)
+        #expect(next.outsideInARow == 1)
+        // With one check-in to confirm, the lock holds from the import day.
+        var once = imported
+        once.adjust.confirmChecks = 1
+        let lock = CheckInEngine.evaluate(f.input(rate: 0.05, plan: once, history: history, day: monday), calendar: checkInUTC)
+        #expect(lock.rule == .locked)
+        #expect(lock.reason == "Targets changed 7 days ago – give them until Mon 18 Feb before the next change.")
+        // An applied adjustment's check-in day isn't covered, its first day is; an edit's first day isn't.
+        let adjustment = CoachPlan.CalorieChange(from: checkInDay("2030-02-05"), isAdjustment: true)
+        #expect(!adjustment.covers(checkInOn: f.checkInDay) && adjustment.covers(checkInOn: checkInDay("2030-02-05")))
+        let edit = CoachPlan.CalorieChange(from: f.checkInDay, isAdjustment: false)
+        #expect(!edit.covers(checkInOn: f.checkInDay) && edit.covers(checkInOn: checkInDay("2030-02-05")))
+    }
+
+    /// Today, the Body page and the watch say what the check-in would: only check-ins since the
+    /// last calorie change count, as many as the check-in asks, and only on the live side.
+    @Test func statusLineAgreesWithTheCheckIn() {
+        let f = CheckInFixture.self
+        func rate(_ value: Double?, from start: String, to end: String, weighIns: Int = 14) -> WeightSignal.Rate {
+            let window = WeightSignal.Window(start: checkInDay(start), end: checkInDay(end))
+            return WeightSignal.Rate(window: window, kilogramsPerWeek: value, weighIns: weighIns, tagged: 0,
+                                     spanDays: window.days(calendar: checkInUTC))
+        }
+        let monday = checkInDay("2030-02-11")
+        let twoBelow = [f.previous(.below, on: "2030-01-21"), f.previous(.below, on: "2030-01-28")]
+
+        // Without a change: two check-ins below and still below – off track, as the check-in says.
+        let plain = WeightSignal.statusLine(on: monday, plan: f.plan(), rate: rate(0.05, from: "2030-01-22", to: "2030-02-11"),
+                                            checkIns: twoBelow, calendar: checkInUTC)
+        #expect(plain?.state == .offTrack)
+        #expect(plain?.tone == .alert)
+        #expect(CheckInEngine.evaluate(f.input(rate: 0.05, history: twoBelow, day: monday), calendar: checkInUTC).verdict == .offTarget)
+        // The other side now: faster, not off track.
+        let flipped = WeightSignal.statusLine(on: monday, plan: f.plan(), rate: rate(0.35, from: "2030-01-22", to: "2030-02-11"),
+                                              checkIns: twoBelow, calendar: checkInUTC)
+        #expect(flipped?.text() == "Faster than planned")
+        #expect(flipped?.tone == .watch)
+
+        // Applied +100 from Tue 29 Jan, the next week skipped, still slower: the check-in waits for
+        // one more week, and so do Today, the Body page and the watch.
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-01-29"), weightKg: 80, fallback: f.profile)
+        let engine = CheckInEngine.evaluate(f.input(rate: 0.05, plan: applied, history: twoBelow, day: monday), calendar: checkInUTC)
+        #expect(engine.verdict == .slower)
+        #expect(engine.rule == .confirming)
+        let line = WeightSignal.statusLine(on: monday, plan: applied, rate: rate(0.05, from: "2030-01-29", to: "2030-02-11"),
+                                           checkIns: twoBelow, calendar: checkInUTC)
+        #expect(line?.text() == engine.verdict.title)
+        // Three in a row asked for: two saved and the live one aren't enough between check-ins.
+        var three = f.plan()
+        three.adjust.confirmChecks = 3
+        #expect(WeightSignal.statusLine(on: monday, plan: three, rate: rate(0.05, from: "2030-01-22", to: "2030-02-11"),
+                                        checkIns: twoBelow, calendar: checkInUTC)?.state == .status(.slower))
+    }
+
+    /// After a calorie change the rate starts again: the status says why instead of "Gathering data".
+    @Test func statusLineNamesNewTargetsAndPauses() {
+        let f = CheckInFixture.self
+        let applied = f.plan().applyingDelta(100, from: checkInDay("2030-01-29"), weightKg: 80, fallback: f.profile)
+        let day = checkInDay("2030-02-04")
+        let short = WeightSignal.Rate(window: .init(start: checkInDay("2030-01-29"), end: day), kilogramsPerWeek: 0.3, weighIns: 6,
+                                      tagged: 0, spanDays: 7)
+        let line = WeightSignal.statusLine(on: day, plan: applied, rate: short, checkIns: [], calendar: checkInUTC)
+        #expect(line?.state == .newTargets(since: checkInDay("2030-01-29"), firstLook: checkInDay("2030-02-11")))
+        #expect(line?.text(calendar: checkInUTC) == "New targets since Tue · first look Mon 11 Feb")
+        #expect(line?.tone == .neutral)
+        // A week later the change is named with its date.
+        let later = WeightSignal.StatusLine(state: .newTargets(since: checkInDay("2030-01-29"), firstLook: checkInDay("2030-02-11")),
+                                            day: checkInDay("2030-02-05"))
+        #expect(later.text(calendar: checkInUTC) == "New targets since Tue 29 Jan · first look Mon 11 Feb")
+        // At the phase start the rate is just gathering.
+        let start = WeightSignal.Rate(window: .init(start: checkInDay("2030-01-07"), end: checkInDay("2030-01-10")), kilogramsPerWeek: nil,
+                                      weighIns: 4, tagged: 0, spanDays: 4)
+        #expect(WeightSignal.statusLine(on: checkInDay("2030-01-10"), plan: f.plan(), rate: start, checkIns: [],
+                                        calendar: checkInUTC)?.text() == "Gathering data")
+
+        // Paused: neutral, with its end, or since when for an open pause.
+        let holiday = f.plan(pauses: [.init(start: checkInDay("2030-02-01"), end: checkInDay("2030-02-12"), reason: .holiday)])
+        let paused = WeightSignal.statusLine(on: day, plan: holiday, rate: short, checkIns: [], calendar: checkInUTC)
+        #expect(paused?.text() == "Paused · until 12 Feb")
+        #expect(paused?.tone == .neutral)
+        #expect(paused?.isPaused == true)
+        let open = f.plan(pauses: [.init(start: checkInDay("2030-02-01"), end: nil, reason: .sick)])
+        #expect(WeightSignal.statusLine(on: day, plan: open, rate: short, checkIns: [], calendar: checkInUTC)?.text() == "Paused · since 1 Feb")
+        // No active phase: nothing.
+        #expect(WeightSignal.statusLine(on: checkInDay("2029-12-31"), plan: f.plan(), rate: short, checkIns: []) == nil)
     }
 
     @Test func redoAfterApplyingSaysTheTargetsAlreadyChanged() throws {
@@ -705,7 +863,7 @@ struct CheckInEngineTests {
         #expect(close.notes.isEmpty)
         input.rate = 0.35
         let far = CheckInEngine.evaluate(input, calendar: checkInUTC)
-        #expect(far.notes == ["Your logged intake points to +0.16 kg/week, the scale shows +0.35 – logging may be incomplete."])
+        #expect(far.notes == ["Your logged intake points to +0.16 kg a week, the scale shows +0.35 – logging may be incomplete."])
         input.maintenance = f.maintenance(2400, .low)
         #expect(CheckInEngine.evaluate(input, calendar: checkInUTC).expectedRate == nil)
     }

@@ -221,12 +221,16 @@ public enum CoachReminders {
     /// The morning notification: the weigh-in (until done), the checks folded into it, today's
     /// targets, a measurement due today ("Waist…" right in the banner for a one-site weekly
     /// measurement, a Body Fat button when only body fat is due, else a Measure button), and
-    /// "Tennis today" on a default day with a flexible type still open this week.
+    /// "Tennis today" on a default day with a flexible type still open this week. A measurement
+    /// due today keeps it (with the morning or the measurement reminder on) after the weigh-in,
+    /// until it is saved: then a tap opens the measurement.
     static func morning(on day: DayKey, _ input: Input) -> Request? {
         let plan = input.plan
         let weighIn = input.kinds.contains(.morning) && !input.weighedIn.contains(day)
         let folded = dueChecks(on: day, input).filter { isFolded($0, input) }
-        guard weighIn || !folded.isEmpty else { return nil }
+        let announcesMeasure = input.kinds.contains(.morning) || input.kinds.contains(.measure)
+        let measure = announcesMeasure ? (input.bodyDue[day] ?? []).first { $0.dueDay == day && $0.kind != .weighIn } : nil
+        guard weighIn || !folded.isEmpty || measure != nil else { return nil }
         let type = plan.dayType(on: day, marks: input.dayTypeMarks, calendar: input.calendar)
 
         var title = "Good morning"
@@ -234,22 +238,21 @@ public enum CoachReminders {
         var lines: [String] = []
         if weighIn { lines.append("Weigh in before breakfast.") }
         for check in folded { lines.append("\(checkTitle(check)) \(timingText(check, input)).") }
-        let measure = (input.bodyDue[day] ?? []).first { $0.dueDay == day && $0.kind != .weighIn }
         if let measure { lines.append("\(measure.title) today.") }
         if let targets = input.targets[day], targets.energy > 0 {
-            let energy = SettingsCSV.grouped(input.energyUnit.value(fromKilocalories: targets.energy))
+            let energy = DisplayNumber.grouped(input.energyUnit.value(fromKilocalories: targets.energy))
             var line = "Today \(energy) \(input.energyUnit.symbol)"
-            if targets.protein > 0 { line += " · \(SettingsCSV.grouped(targets.protein)) g protein" }
+            if targets.protein > 0 { line += " · \(DisplayNumber.grouped(targets.protein)) g protein" }
             lines.append(line + ".")
         }
 
         var actions: [Action] = []
         if weighIn {
-            let placeholder = input.lastWeight.map { NumberText.plain($0, decimals: 1) + " kg" } ?? "kg"
+            let placeholder = input.lastWeight.map { DisplayNumber.plain($0, decimals: 1) + " kg" } ?? "kg"
             actions.append(Action(id: weightActionID, title: "Weight…", style: .textInput(button: "Save", placeholder: placeholder)))
         }
         if let site = measure.flatMap({ bannerSite(of: $0) }) {
-            let placeholder = input.lastTape[site].map { NumberText.plain($0, decimals: 1) + " cm" } ?? "cm"
+            let placeholder = input.lastTape[site].map { DisplayNumber.plain($0, decimals: 1) + " cm" } ?? "cm"
             actions.append(Action(id: tapePrefix + site.rawValue, title: "\(site.title)…",
                                   style: .textInput(button: "Save", placeholder: placeholder)))
         } else if measure?.kind == .assessment {
@@ -272,7 +275,15 @@ public enum CoachReminders {
         let category = Category(id: idPrefix + "morning.\(day.rawValue)", actions: Array(actions.prefix(maxActions)))
         return Request(id: idPrefix + "morning.\(day.rawValue)", kind: .morning, day: day,
                        date: day.date(minutes: minutes, calendar: input.calendar), minutes: minutes, title: title,
-                       body: lines.joined(separator: " "), category: category, url: weighIn ? "nina://weigh" : "nina://today")
+                       body: lines.joined(separator: " "), category: category, url: morningURL(weighIn: weighIn, measure: measure))
+    }
+
+    /// What a tap on the morning notification opens: the weigh-in while it is open, else the
+    /// measurement due (the body-fat sheet when only body fat is due), else Today.
+    static func morningURL(weighIn: Bool, measure: BodyDueItem?) -> String {
+        if weighIn { return "nina://weigh" }
+        guard let measure else { return "nina://today" }
+        return measure.kind == .assessment ? "nina://measure?mode=assessment" : "nina://measure"
     }
 
     /// One notification per check that has a reminder, at its time or meal time (the early ones
@@ -362,7 +373,7 @@ public enum CoachReminders {
         ])
         return Request(id: idPrefix + "phase.review.\(phase.id)", kind: .phase, day: day, date: date,
                        minutes: ClockTime.minutes(of: date, calendar: calendar), title: "Time for a phase review",
-                       body: "\(name(of: phase)): \(NumberText.plain(weight, decimals: 1)) kg reached – time to review.",
+                       body: "\(name(of: phase)): \(DisplayNumber.plain(weight, decimals: 1)) kg reached – time to review.",
                        category: category, url: "nina://review/\(phase.id)")
     }
 

@@ -158,6 +158,27 @@ struct BodyScheduleTests {
         #expect(BodySchedule.setUpDay(of: CoachPlan(), calendar: cal) == nil)
     }
 
+    /// A plan whose first phase starts next week (an import, a fresh setup): nothing is due or
+    /// overdue before it; the baseline is due on its start, the weekly waist from its check-in on.
+    @Test func nothingIsDueBeforeThePlannedFirstPhase() {
+        let cal = scheduleUTC
+        var plan = schedPlan()
+        plan.phases[0].startedAt = nil
+        plan.phases[0].status = .planned
+        plan.phases[0].start = schedDay("2030-01-14")
+        #expect(BodySchedule.setUpDay(of: plan, calendar: cal) == nil)
+        let start = BodySchedule.measuringStart(of: plan, calendar: cal)
+        #expect(start == schedDay("2030-01-14"))
+        let schedule = BodySchedule(plan: plan, start: start, tape: [], assessmentDays: [])
+        #expect(schedule.dueItems(on: schedDay("2030-01-10"), calendar: cal).isEmpty)
+        let first = schedule.dueItems(on: schedDay("2030-01-14"), calendar: cal)
+        #expect(first.map(\.kind) == [.full])
+        #expect(first.first?.reason == .baseline)
+        // Started: the set-up day wins; nothing planned: none.
+        #expect(BodySchedule.measuringStart(of: schedPlan(), calendar: cal) == schedDay("2030-01-03"))
+        #expect(BodySchedule.measuringStart(of: CoachPlan(), calendar: cal) == nil)
+    }
+
     @Test func aFullSetCountsForItsWholeWeek() {
         let cal = scheduleUTC
         // Sunday check-ins; the plan is set up on Thu 10 Jan with the full baseline that day.

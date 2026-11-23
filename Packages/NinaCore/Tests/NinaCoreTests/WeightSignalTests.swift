@@ -481,6 +481,47 @@ struct WeightSignalTests {
         #expect(WeightSignal.checkpoint(of: maintain) == nil)
     }
 
+    /// The 7-day averages worked out once in `init` are exactly the ones counted day by day: gaps,
+    /// several weigh-ins a day, the days before the first and long after the last weight.
+    @Test func precomputedAveragesMatchTheDayByDayOnes() {
+        var readings = weightSeries(from: "2030-01-07", days: 60, skip: [3, 4, 5, 9, 20, 21, 22, 23, 24, 25, 26, 40]) {
+            80 + Double($0) * 0.03 + ($0 % 3 == 0 ? 0.4 : -0.2)
+        }
+        readings.append(weightReading("2030-01-08", 81.7, hour: 19))
+        readings.append(weightReading("2030-01-10", 79.9, hour: 6, minute: 30, source: .health))
+        let signal = Self.signal(readings)
+        func counted(_ day: DayKey) -> WeightSignal.Average {
+            let values = signal.mornings(from: day.adding(days: -6, calendar: weightUTC), through: day).map(\.kilograms)
+            return WeightSignal.Average(day: day, mean: WeightSignal.mean(values), count: values.count)
+        }
+        let from = weightDay("2029-12-25"), through = weightDay("2030-03-31")
+        for day in DayKey.range(from, through: through, calendar: weightUTC) {
+            #expect(signal.average(on: day) == counted(day))
+        }
+        let expected = DayKey.range(from, through: through, calendar: weightUTC).compactMap { day in
+            counted(day).value.map { WeightSignal.Point(day: day, kilograms: $0) }
+        }
+        #expect(signal.averages(from: from, through: through) == expected)
+        #expect(signal.averages(from: weightDay("2030-02-01"), through: weightDay("2030-02-10")) ==
+                expected.filter { $0.day >= weightDay("2030-02-01") && $0.day <= weightDay("2030-02-10") })
+        #expect(signal.averages(from: through, through: from).isEmpty)
+        #expect(Self.signal([]).averages(from: from, through: through).isEmpty)
+        #expect(Self.signal([]).average(on: from).count == 0)
+    }
+
+    /// The review weight at this pace comes after the planned end: the Body page says so instead
+    /// of "in about 14 weeks".
+    @Test func checkpointAfterThePlannedEnd() {
+        let gain = Self.gain // ends ~26 May
+        let day = weightDay("2030-03-04") // 12 weeks before the end
+        #expect(WeightSignal.reachesCheckpointAfterEnd(weeks: 14, from: day, phase: gain, calendar: weightUTC))
+        #expect(!WeightSignal.reachesCheckpointAfterEnd(weeks: 11.5, from: day, phase: gain, calendar: weightUTC))
+        #expect(!WeightSignal.reachesCheckpointAfterEnd(weeks: nil, from: day, phase: gain, calendar: weightUTC))
+        var open = gain
+        open.end = nil
+        #expect(!WeightSignal.reachesCheckpointAfterEnd(weeks: 30, from: day, phase: open, calendar: weightUTC))
+    }
+
     @Test func checkpointCrossingUsesTheSevenDayAverage() {
         let gain = Self.gain
         // Rises 0.1 kg a day from 81.0 on the 1st of March, with one 83.5 spike on the 3rd.

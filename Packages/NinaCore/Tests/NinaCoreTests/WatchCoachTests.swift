@@ -105,11 +105,14 @@ struct WatchCoachChipTests {
                         quotaText: "Tennis · 1 of 2 this week", energy: 2400, options: [])
     }
 
-    @Test func chipSaysWhatIsLeft() {
-        #expect(WatchCoach.chipText(chip(), remaining: 1240) == "🎾 Tennis · 1240 left")
-        #expect(WatchCoach.chipText(chip(), remaining: 1240, energy: grouped) == "🎾 Tennis · 1,240 left")
-        #expect(WatchCoach.chipText(chip(), remaining: -120.4) == "🎾 Tennis · 120 over")
-        #expect(WatchCoach.chipText(chip(emoji: ""), remaining: 0) == "Tennis · 0 left")
+    /// The ring above already says what is left: the chip names the day's target instead.
+    @Test func chipSaysTheDaysTarget() {
+        #expect(WatchCoach.chipText(chip()) == "🎾 Tennis · 2400 kcal")
+        #expect(WatchCoach.chipText(chip(), energy: { grouped($0) + " kcal" }) == "🎾 Tennis · 2,400 kcal")
+        #expect(WatchCoach.chipText(chip(emoji: "")) == "Tennis · 2400 kcal")
+        // The older call with what is left (and a number without its unit) shows the target too.
+        #expect(WatchCoach.chipText(chip(), remaining: 1240, energy: grouped) == "🎾 Tennis · 2,400")
+        #expect(WatchCoach.chipText(chip(), remaining: -120.4) == "🎾 Tennis · 2400")
     }
 
     @Test func dayTypeChoicesShowKcalAndTheFlexibleCount() {
@@ -130,7 +133,8 @@ struct WatchCoachChipTests {
         #expect(chip.id == "gym")
         #expect(chip.isManual == false)
         #expect(chip.options.first { $0.id == "tennis" }?.quotaText == "1 of 2 this week")
-        #expect(WatchCoach.chipText(chip, remaining: 800) == "🏋️ Gym · 800 left")
+        // Without targets in the plan the day falls back to the profile's 2,000 kcal.
+        #expect(WatchCoach.chipText(chip) == "🏋️ Gym · 2000 kcal")
     }
 }
 

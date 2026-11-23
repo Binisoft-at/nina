@@ -236,4 +236,36 @@ struct CoachGlueTests {
                                      proteinMealIDs: ["breakfast", "lunch"])
         #expect(adherence.proteinMeals == 1)
     }
+
+    /// A stable weight on 2,500 kcal a day: today's half-logged day, a day marked "Log is
+    /// incomplete" and paused days don't pull measured maintenance down.
+    @Test func measuredMaintenanceCountsOnlyFinishedCompleteDays() throws {
+        let today = glueDay("2030-03-04")
+        var totals: [DayTotals] = []
+        var weights: [DayKey: Double] = [:]
+        func eaten(_ day: DayKey, _ kcal: Double) -> DayTotals {
+            DayTotals(day: day, entries: [EntryFacts(day: day, meal: "lunch", nutrients: NutrientValues([.energy: kcal]), name: "Made-up meal",
+                                                     time: day.date(minutes: 12 * 60, calendar: glueUTC))])
+        }
+        for offset in 0..<42 {
+            let day = today.adding(days: -offset, calendar: glueUTC)
+            weights[day] = 76
+            guard offset < 29 else { continue }
+            totals.append(eaten(day, offset == 0 ? 600 : (offset == 5 ? 900 : 2500)))
+        }
+        let incomplete: Set<DayKey> = [today.adding(days: -5, calendar: glueUTC)]
+        let measured = try #require(CoachMaintenance.measured(totals: totals, weights: weights, through: today, today: today,
+                                                              incomplete: incomplete, plan: GlueFixture.plan(), calendar: glueUTC))
+        #expect(measured.kilocalories == 2500)
+        // Counting today and the incomplete day, as before, gives less.
+        let raw = try #require(Insights.maintenance(totals: totals, weights: weights, today: today, calendar: glueUTC))
+        #expect(raw.kilocalories < 2400)
+        // Paused days stay out too; a past day ends the window there.
+        var plan = GlueFixture.plan()
+        plan.pauses = [.init(start: today.adding(days: -12, calendar: glueUTC), end: today.adding(days: -10, calendar: glueUTC),
+                             reason: .holiday)]
+        #expect(CoachMaintenance.counted(totals, incomplete: incomplete, plan: plan).count == 29 - 1 - 3)
+        #expect(CoachMaintenance.windowEnd(today, today: today, calendar: glueUTC) == glueDay("2030-03-03"))
+        #expect(CoachMaintenance.windowEnd(glueDay("2030-02-20"), today: today, calendar: glueUTC) == glueDay("2030-02-20"))
+    }
 }

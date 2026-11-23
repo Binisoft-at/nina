@@ -103,7 +103,8 @@ public struct CheckInInput: Equatable, Sendable {
 
     /// Earlier check-ins (any order; later ones and other phases are ignored).
     public var history: [CheckInSnapshot]
-    /// First day of the last applied change; nil = the newest "adjust" revision of the active phase.
+    /// First day of the last applied change; nil = the newest calorie change of the active phase
+    /// (`CoachPlan.lastCalorieChange`).
     public var lastApplied: DayKey?
     /// The first tick of a check that affects weight (creatine), if any.
     public var weightCheck: CheckInEngine.WeightCheck?
@@ -301,13 +302,16 @@ public enum CheckInEngine {
         // A change that starts after the check-in day was applied at this very check-in ("Apply
         // from tomorrow", then Redo): the targets already changed, the next check-in judges them.
         // Never judged again here – the same step would be proposed and applied twice.
-        let newest = input.lastApplied ?? lastAdjustment(in: plan, on: day)
-        let pendingChange = newest.flatMap { $0 > day ? $0 : nil }
+        // Any calorie change counts (Apply, My Plan, Calculate, an import: `CoachPlan.calorieChanges`).
+        let newest = input.lastApplied.map { CoachPlan.CalorieChange(from: $0, isAdjustment: true) }
+            ?? plan.lastCalorieChange(on: day, inForce: false)
+        let pendingChange = newest.flatMap { $0.from > day ? $0.from : nil }
         let pendingReason = pendingChange.map {
             "Targets change from \(CheckInFormat.day($0, calendar: calendar)) – the next check-in judges them."
         }
         // The change in force on the check-in day: the history and the lock count from it.
-        let lastApplied = pendingChange == nil ? newest : lastAdjustment(in: plan, on: day, inForce: true)
+        let inForce = pendingChange == nil ? newest : plan.lastCalorieChange(on: day, inForce: true)
+        let lastApplied = inForce?.from
 
         // 1. Window.
         guard windowValid, let rate = input.rate else {
@@ -327,17 +331,19 @@ public enum CheckInEngine {
             let expected = (input.averageIntake - maintenance.kilocalories) * 7 / GoalCalculator.kilocaloriesPerKilogram
             expectedRate = expected
             if abs(expected - rate) > crossCheckLimit + 1e-9 {
-                notes.append("Your logged intake points to \(CheckInFormat.rate(expected)) kg/week, the scale shows \(CheckInFormat.rate(rate)) – logging may be incomplete.")
+                notes.append("Your logged intake points to \(CheckInFormat.rate(expected)) kg a week, the scale shows \(CheckInFormat.rate(rate)) – logging may be incomplete.")
             }
         }
 
         // 4. How many check-ins in a row (this one included) were outside on the same side. Only
-        // check-ins of this phase since the last applied change count.
+        // check-ins of this phase that judged the targets in force count (`CalorieChange.covers`).
         var inARow = 0
         if let deviation {
             inARow = 1
             let earlier = input.history
-                .filter { snapshot in snapshot.day < day && snapshot.phaseID == phase.id && (lastApplied.map { snapshot.day >= $0 } ?? true) }
+                .filter { snapshot in
+                    snapshot.day < day && snapshot.phaseID == phase.id && (inForce.map { $0.covers(checkInOn: snapshot.day) } ?? true)
+                }
                 .sorted { $0.day > $1.day }
             for snapshot in earlier {
                 guard snapshot.deviation == deviation else { break }
@@ -392,7 +398,7 @@ public enum CheckInEngine {
         // 4. Outside: only when confirmed by the check-in(s) before.
         let sideText = sideVerdict.title
         if inARow < confirm {
-            return result(.confirming, "\(sideText) (\(CheckInFormat.rate(rate)) kg/week) – if next week is the same, Nina suggests a change.")
+            return result(.confirming, "\(sideText) (\(CheckInFormat.rate(rate)) kg a week) – if next week is the same, Nina suggests a change.")
         }
 
         // 7. Guardrails: the lock after an applied change, then the hold.
@@ -471,7 +477,7 @@ public enum CheckInEngine {
     }
 
     /// The first day of the decision window ending on `day`: the last `windowMaxDays` days, never
-    /// before the active phase's start, the last applied change or the day after a pause.
+    /// before the active phase's start, the last calorie change or the day after a pause.
     public static func windowStart(plan: CoachPlan, on day: DayKey, lastApplied: DayKey? = nil, calendar: Calendar = .current) -> DayKey {
         var start = day.adding(days: -(max(1, plan.adjust.windowMaxDays) - 1), calendar: calendar)
         if let phaseStart = plan.activePhase(on: day)?.start { start = max(start, phaseStart) }
@@ -486,17 +492,17 @@ public enum CheckInEngine {
         return start
     }
 
-    /// The first day of the newest applied adjustment ("adjust:…" revision) of the active phase,
+    /// The first day of the newest calorie change of the active phase (`CoachPlan.calorieChanges`:
+    /// an applied adjustment, or an edit, calculation or import that moved the calories),
     /// including one that starts after `day` (applied at this check-in, from tomorrow).
     public static func lastAdjustment(in plan: CoachPlan, on day: DayKey) -> DayKey? {
         lastAdjustment(in: plan, on: day, inForce: false)
     }
 
-    /// The first day of the newest applied adjustment of the active phase; with `inForce` only
-    /// one that has started by `day`.
+    /// The first day of the newest calorie change of the active phase; with `inForce` only one
+    /// that has started by `day`.
     public static func lastAdjustment(in plan: CoachPlan, on day: DayKey, inForce: Bool) -> DayKey? {
-        plan.activePhase(on: day)?.revisions
-            .filter { $0.reason.hasPrefix("adjust") && (!inForce || $0.from <= day) }.map(\.from).max()
+        plan.lastCalorieChange(on: day, inForce: inForce)?.from
     }
 
     /// The first tick of a check that affects weight: `ticks` are (day, check id) of the done marks.
@@ -1003,8 +1009,8 @@ public struct CheckInSnapshot: Equatable, Sendable, Identifiable {
 
 // MARK: - Text
 
-/// English display pieces for the reason sentences (the app formats numbers with the locale
-/// everywhere else).
+/// English display pieces for the reason sentences; numbers follow the person's locale
+/// (`DisplayNumber`), the dates stay short English ones.
 private enum CheckInFormat {
     static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -1015,14 +1021,8 @@ private enum CheckInFormat {
 
     /// "1,500"
     static func kcal(_ value: Double) -> String {
-        let number = Int(value.rounded())
-        let digits = String(abs(number))
-        var grouped = ""
-        for (index, character) in digits.enumerated() {
-            if index > 0, (digits.count - index) % 3 == 0 { grouped += "," }
-            grouped.append(character)
-        }
-        return (number < 0 ? "−" : "") + grouped
+        let number = value.rounded()
+        return (number < 0 ? "−" : "") + DisplayNumber.grouped(abs(number))
     }
 
     /// "+100", "−150"
@@ -1032,11 +1032,7 @@ private enum CheckInFormat {
 
     /// "+0.05", "−0.30", "0.00"
     static func rate(_ value: Double) -> String {
-        let rounded = (value * 100).rounded() / 100
-        let text = String(format: "%.2f", abs(rounded))
-        if rounded > 0 { return "+" + text }
-        if rounded < 0 { return "−" + text }
-        return text
+        DisplayNumber.signed((value * 100).rounded() / 100, decimals: 2)
     }
 
     /// "today", "1 day ago", "9 days ago"

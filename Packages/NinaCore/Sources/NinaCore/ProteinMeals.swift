@@ -233,6 +233,6 @@ public enum ProteinMeals {
     }
 
     static func oneDecimal(_ value: Double) -> String {
-        String(format: "%.1f", (value * 10).rounded() / 10)
+        DisplayNumber.fixed((value * 10).rounded() / 10, decimals: 1)
     }
 }

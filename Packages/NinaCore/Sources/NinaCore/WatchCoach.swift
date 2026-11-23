@@ -1,7 +1,7 @@
 import Foundation
 
 /// The coach on Apple Watch (F20): what the wrist shows and acts on, from the same `CoachBoard`
-/// and `WeightSignal` the phone uses. The day-type chip ("🎾 Tennis · 1,240 left"), the checks
+/// and `WeightSignal` the phone uses. The day-type chip ("🎾 Tennis · 2,600 kcal"), the checks
 /// row (weigh-in, the weekly tape sites, daily checks; full sets and body-fat assessments stay on
 /// the phone), the Digital Crown values (0.1 kg or 0.1 cm per detent), the order of the weekly
 /// sites, and the status line ("avg 74.6 · +0.15/wk · In range") in the phone's words. Pure: the
@@ -92,12 +92,20 @@ public enum WatchCoach {
 
     // MARK: Day-type chip
 
-    /// "🎾 Tennis · 1,240 left", "🏋️ Gym · 120 over". `energy` formats the kcal (or kJ) without a unit.
+    /// "🛋️ Rest · 2,150 kcal": the day type and its target (the ring above already says what is
+    /// left). `energy` formats the kcal with its unit.
+    public static func chipText(_ chip: CoachBoard.Chip,
+                                energy: (Double) -> String = { WatchCoach.fixed($0.rounded(), 0) + " kcal" }) -> String {
+        let name = [chip.emoji, chip.name].filter { !$0.isEmpty }.joined(separator: " ")
+        let target = chip.energy.isFinite ? max(0, chip.energy) : 0
+        return "\(name) · \(energy(target))"
+    }
+
+    /// "🛋️ Rest · 2,150": the day type and its target, for callers that format the number without
+    /// its unit. `remaining` isn't shown any more (the ring shows it).
     public static func chipText(_ chip: CoachBoard.Chip, remaining: Double,
                                 energy: (Double) -> String = { WatchCoach.fixed($0.rounded(), 0) }) -> String {
-        let name = [chip.emoji, chip.name].filter { !$0.isEmpty }.joined(separator: " ")
-        let amount = remaining.isFinite ? remaining : 0
-        return "\(name) · \(energy(abs(amount))) \(amount >= 0 ? "left" : "over")"
+        chipText(chip, energy: energy)
     }
 
     /// The flexible count and the day's kcal of a choice in the day-type list:
@@ -248,24 +256,38 @@ public enum WatchCoach {
         }
     }
 
-    /// The status line of the active phase on the summary's day, with the phone's words: the
-    /// weight signal's status, and "Off track" only after the phase's check-ins in a row outside
-    /// the range on the same side (`plan.adjust.confirmChecks`, at least 2). "Gathering data"
-    /// while there is no valid rate. nil when there is nothing to show (no average and no phase
-    /// with a range).
-    public static func status(summary: WeightSignal.Summary, plan: CoachPlan, checkIns: [CheckInSnapshot]) -> Status? {
-        status(average: summary.average.value, rate: summary.rate.value, status: summary.status, phaseID: summary.phaseID,
-               plan: plan, checkIns: checkIns)
+    /// The status line of the active phase on the summary's day, in the phone's words
+    /// (`WeightSignal.statusLine`): the weight signal's status, "Off track" only after the
+    /// check-ins since the last calorie change were outside on the live side as often as the
+    /// check-in asks, "New targets since Tue · first look Mon 21 Jan" while the rate restarts
+    /// after a calorie change, "Paused · until 12 Feb" while paused. nil when there is nothing to
+    /// show (no average and no phase with a range).
+    public static func status(summary: WeightSignal.Summary, plan: CoachPlan, checkIns: [CheckInSnapshot],
+                              calendar: Calendar = .current) -> Status? {
+        let line = WeightSignal.statusLine(on: summary.day, plan: plan, rate: summary.rate, checkIns: checkIns, calendar: calendar)
+        let word = line?.text(calendar: calendar)
+        let average = summary.average.value
+        guard average != nil || word != nil else { return nil }
+        // While paused or before a new rate there is no rate to show.
+        let rate = line?.isPaused == true ? nil : summary.rate.value
+        return Status(average: average, rate: rate, word: word, tone: line.map { Tone(rawValue: $0.tone.rawValue) ?? .neutral } ?? .neutral)
     }
 
-    /// The same from plain values (`checkIns` oldest first).
+    /// The same from plain values (`checkIns` in any order): "Off track" once the phase's latest
+    /// check-ins were outside on the live rate's side as often as the check-in asks
+    /// (`plan.adjust.confirmChecks`, at least 1).
     public static func status(average: Double?, rate: Double?, status: WeightSignal.Status?, phaseID: String?,
                               plan: CoachPlan, checkIns: [CheckInSnapshot]) -> Status? {
         var word = status?.title
         var tone = status.map(self.tone(of:)) ?? .neutral
-        if let status, status.isOutside, let phaseID {
-            let deviations = checkIns.filter { $0.phaseID == phaseID }.map(\.deviation)
-            if WeightSignal.Status.isOffTrack(deviations: deviations, inARow: max(2, plan.adjust.confirmChecks)) {
+        if let status, status.isOutside, let phaseID, let phase = plan.phase(id: phaseID), let rate,
+           let side = CheckInEngine.deviation(rate: rate, phase: phase, tolerance: plan.adjust.tolerance) {
+            var inARow = 0
+            for snapshot in checkIns.filter({ $0.phaseID == phaseID }).sorted(by: { $0.day > $1.day }) {
+                guard snapshot.deviation == side else { break }
+                inARow += 1
+            }
+            if inARow >= max(1, plan.adjust.confirmChecks) {
                 word = CheckInVerdict.offTarget.title
                 tone = .alert
             }

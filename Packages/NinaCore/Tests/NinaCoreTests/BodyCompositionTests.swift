@@ -501,10 +501,51 @@ struct BodyCompositionTests {
         // The waist gain since the start (against the last reading on or before it), any order.
         #expect(reached([("2030-02-25", 84.1), ("2029-12-30", 79.5), ("2030-01-06", 80)], height: 0) == [.waistGain])
         #expect(reached([("2030-01-06", 80), ("2030-02-25", 83.9)], height: 0).isEmpty)
+        // A reading from months before the start is never the base: the baseline the morning
+        // after is, as on the Body tiles and in the review (+0.5 cm, ratio already at 0.5).
+        let old = [("2029-07-01", 80.0), ("2030-01-08", 84.0), ("2030-02-05", 84.5)]
+        #expect(BodyCeiling.reached(phase: gain, waists: old.map { (day: compDay($0.0), cm: $0.1) }, heightCm: 168,
+                                    calendar: compositionUTC).isEmpty)
+        let tiles = GirthTrend.change(.waist, readings: old.map { GirthReading(day: compDay($0.0), value: $0.1) }, since: start,
+                                      calendar: compositionUTC)
+        #expect(tiles?.from.day == compDay("2030-01-08"))
+        // One rule for both: up to 7 days before the start, else the first after it.
+        let days = ["2029-12-30", "2030-01-08"].map(compDay)
+        #expect(GirthTrend.base(days, day: { $0 }, since: start, calendar: compositionUTC) == compDay("2030-01-08"))
+        #expect(GirthTrend.base(days + [compDay("2029-12-31")], day: { $0 }, since: start, calendar: compositionUTC) == compDay("2029-12-31"))
+        #expect(GirthTrend.base(days, day: { $0 }, since: start, graceDays: 8, calendar: compositionUTC) == compDay("2029-12-30"))
+        #expect(GirthTrend.base([DayKey](), day: { $0 }, since: start, calendar: compositionUTC) == nil)
         // Without a height only the waist gain; outside a gain phase nothing.
         #expect(reached([("2030-01-14", 95)], height: 0).isEmpty)
         let loss = CoachPlan.Phase(id: "2", goal: .lose, start: start)
         #expect(BodyCeiling.reached(phase: loss, waists: [(day: start, cm: 80), (day: compDay("2030-03-04"), cm: 95)], heightCm: 180).isEmpty)
+    }
+
+    /// What the review card, the review sheet and a review decision compare, from the records.
+    @Test func ceilingsFromTheRecords() throws {
+        let start = compDay("2030-01-07")
+        var gain = CoachPlan.Phase(id: "1", goal: .gain, start: start, startedAt: Date(timeIntervalSince1970: 0), status: .active)
+        gain.bodyFatCeiling = 18
+        let plan = CoachPlan(phases: [gain])
+        let tape = [compTape("2030-01-07", [.waist: 82, .neck: 38]), compTape("2030-03-04", [.waist: 86.2, .neck: 38]),
+                    compTape("2030-03-05", [.waist: 95], standard: false)]
+        let scan = try #require(BodyFatReading(assessmentOn: compDay("2030-03-01"), method: .dexa, values: BodyValues(encoded: "bodyFat=18.4")))
+        func reached(on raw: String, fat: [BodyFatReading] = [scan], height: Double = 0) -> [BodyCeiling] {
+            BodyCeiling.reached(in: plan, on: compDay(raw), tape: tape, fatReadings: fat, sex: .male, heightCm: height,
+                                formula: .male, calendar: compositionUTC)
+        }
+        // The waist up 4.2 cm (the evening reading doesn't count) and the scan over 18 %.
+        #expect(reached(on: "2030-03-06") == [.waistGain, .bodyFat])
+        // Before the scan and the second tape: nothing yet.
+        #expect(reached(on: "2030-02-20").isEmpty)
+        // Without a stored body fat the tape estimate is the tracking series (it needs a height).
+        #expect(BodyCeiling.latestBodyFat([], tape: tape, formula: .male, heightCm: 180, method: nil, on: compDay("2030-03-06"),
+                                          calendar: compositionUTC) != nil)
+        #expect(BodyCeiling.latestBodyFat([], tape: tape, formula: .male, heightCm: 0, method: nil, on: compDay("2030-03-06"),
+                                          calendar: compositionUTC) == nil)
+        // Outside a gain phase nothing.
+        #expect(BodyCeiling.reached(in: CoachPlan(), on: compDay("2030-03-06"), tape: tape, fatReadings: [scan], sex: .male,
+                                    heightCm: 180, formula: .male, calendar: compositionUTC).isEmpty)
     }
 
     @Test func waistRatiosPairTheLatestHip() {

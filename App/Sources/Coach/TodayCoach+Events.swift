@@ -7,20 +7,23 @@ import NinaCore
 // (CoachContext and PlanEditorData read the mark). No SwiftUI here.
 
 extension NinaStore {
-    /// Whether `day` has a live event mark with this key ("incompleteLog", "ill", "travel", "period").
+    /// Whether `day` has an event mark with this key ("incompleteLog", "ill", "travel", "period"):
+    /// the newest mark decides, so "Log Is Complete" on one device beats an older mark from
+    /// another (`DayMarks.newest`).
     func hasDayEvent(_ key: String, on day: DayKey) -> Bool {
-        dayMarks(.event, on: day).contains { $0.key == key }
+        dayMarksIncludingCleared(.event, from: day, through: day).eventDays(key).contains(day)
     }
 
     /// Marks `day` with an event, or takes the mark off (soft delete: the marks go to the trash).
     /// Saves; `undo(result)` puts it back. Nothing changes (an empty result) when the day is
-    /// already that way.
+    /// already that way – as `hasDayEvent` reads it: a live mark from another device that a newer
+    /// clear outranks doesn't count, so turning it on adds a new mark that wins.
     @discardableResult
     func setDayEvent(_ key: String, on day: DayKey, isOn: Bool) -> CoachUndo {
         let live = dayMarks(.event, on: day).filter { $0.key == key }
         var undo = CoachUndo()
         if isOn {
-            guard live.isEmpty else { return undo }
+            guard !hasDayEvent(key, on: day) else { return undo }
             let mark = DayMark(day: day, kind: .event, key: key)
             context.insert(mark)
             undo.inserted.append(mark)

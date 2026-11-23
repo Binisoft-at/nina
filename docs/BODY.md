@@ -32,10 +32,17 @@ your AI, see [IMPORT.md](IMPORT.md)). Without a plan Nina is the diary it always
   are normal (water, salt, carbs); the average evens them out.
 - **Pace (kg a week)**: a straight line through the morning weights of the last 2–3 weeks. It counts
   once it spans at least 14 days with at least 10 mornings, and it never reaches back before the
-  phase start, the last calorie change or the end of a pause.
+  phase start, the last calorie change or the end of a pause. A calorie change is any change of
+  your daily calories: **Apply** in a check-in, an edit in My Plan, **Calculate** in the phase sheet
+  or an import – when it moves your planned week by 50 kcal a day or more. Protein-only edits and
+  an import of the same targets don't count.
 - **Status**: the pace against the phase's range, with a small tolerance of 0.03 kg a week – *In
   range*, *Slower than planned*, *Faster than planned* or *Gathering data*. *Off track* only shows
-  after two check-ins in a row outside the range on the same side.
+  after two check-ins in a row (since the last calorie change) outside the range on the same side,
+  while the pace is still on that side – the same words the check-in uses. Right after a calorie
+  change it says *New targets since Tue · first look Mon 21 Jan* (the first check-in that can judge
+  the new targets), and while coaching is paused *Paused · until 12 Feb*, with **Resume** next to it
+  on Today.
 - **Unusual readings**: a weigh-in far from your trend asks "Unusual reading – anything special?".
   A reason (salty, late meal, alcohol, travel, ill, period, refeed, poor sleep) keeps the dot on the
   chart but leaves it out of the pace. A number that looks like a typo asks "Did you mean …?".
@@ -137,7 +144,8 @@ Find them under **Progress → Body → Photos** (Mac: **Body** in the sidebar �
   Recently Deleted, and in Settings → Recently Deleted.
 - **Privacy**: photos are stored in Nina's private iCloud only (not in iCloud Photos, never shared),
   shrunk to 2048 px, without location data. **Lock Photos with Face ID** (⋯ on the card) is set per
-  device and blurs them until you unlock; they lock again as soon as you leave Nina.
+  device and blurs them until you unlock; they lock again as soon as you leave Nina. Each device has
+  its own switch: turning it on on your iPhone doesn't lock the photos on your Mac or iPad.
 
 ## The measuring schedule
 
@@ -184,7 +192,9 @@ Today's strip shows what is due, so you never have to remember it:
   anywhere.
 - **The rules**, in order:
   1. **Enough data**: at least 14 days and 10 morning weigh-ins since the phase start (or the last
-     change). Before that: "Gathering data – first adjustment check on …".
+     calorie change). Before that: "Gathering data – first adjustment check on …". On a Mac, whose
+     check-in can't see weigh-ins from Apple Health, a week that misses them says **Do this
+     check-in on your iPhone** instead of saving.
   2. **You followed the plan**: at least 80 % of the days logged, and the average intake within
      150 kcal of the average target. Otherwise: hit the targets this week first – no change.
   3. **In range**: keep it.
@@ -192,7 +202,7 @@ Today's strip shows what is due, so you never have to remember it:
      too – one odd week never changes anything.
   5. **The step**: 100–150 kcal a day, the same for every day type, so their differences stay. While
      gaining it goes into carbs; while losing into carbs and some fat. Protein is never lowered.
-  6. **Guard rails**: no new proposal within 14 days of a change; "faster than planned" is held for
+  6. **Guard rails**: no new proposal within 14 days of a calorie change; "faster than planned" is held for
      28 days after starting creatine (it binds water); a gain never goes more than 500 kcal above
      your measured maintenance; a cut never goes below a safe floor.
 - **Your choice**: **Apply from Tomorrow** (one message with Undo), **Not Now**, or **Edit Step**.
@@ -208,21 +218,30 @@ Today's strip shows what is due, so you never have to remember it:
   be reviewed. Nina compares it with your latest value of the body-fat method you track (the tape
   estimate counts). Leave it empty to switch it off.
 - **Nothing switches by itself.** On the next phase's start date a card says "… starts today" with
-  **Start**, **In a week** and Edit; the current phase runs on until you tap.
+  **Start**, **In a week** and Edit; the current phase runs on until you tap. An end date is soft:
+  once it has passed, the weekly check-in still comes first on its days, and the end card waits
+  behind it. Before your first phase starts, no measurement is due yet: the baseline comes on its
+  start day.
 - **Review**: when the 7-day average (never a single weigh-in) reaches the review weight – or in a
   gain phase the waist grew by the limit you set (4 cm unless you change it), waist-to-height
   rose to 0.5 since the start or body fat reached your ceiling – a card asks for a review: where you stand since the start (weight, lean and fat
   mass, waist, arm, chest, how well you followed the plan), then **Keep going**, **Hold my weight**
   until the next phase, **Start** the next phase **now** or **Change the end date**. If no full
   measurement was done in the last two weeks, it offers one first. **Decide Later** asks again in
-  7 days. A decision on a waist or body-fat review doesn't use up the review weight: when the
-  7-day average reaches it later, that review still comes.
+  7 days. A decision answers what was reached when you made it: a decision on a waist or
+  body-fat review doesn't use up the review weight (when the 7-day average reaches it later, that
+  review still comes), and **Keep going** at the review weight doesn't use up the waist and
+  body-fat limits (when one is reached later, the review comes again).
 - **A maintenance bridge after a long gain**: when a gain phase has run for more than 12 weeks and a
   fat-loss phase comes next, the review (and the end of the phase) also offers **1 week at
   maintenance first** or **2 weeks at maintenance first**. Nina adds a short maintain phase from the
   switch day and moves the loss phase to start right after it – one message with Undo.
-- **Pause** (holiday, ill): no checks, check-ins or coach reminders, and the paused days are left
-  out of every average. Afterwards "Welcome back – weigh in tomorrow morning" restarts your average.
+- **Pause** (holiday, ill): no checks, check-ins or coach reminders, and the paused days stay out of
+  your pace, check-ins and adherence (and out of measured maintenance). Today and the Body page say
+  *Paused · until 12 Feb* (or *since 3 Feb*), and **Resume** next to it on Today starts coaching
+  again from that day; after two weeks of a pause without an end a calm card asks
+  "Still on a break?" (**Later** asks again in a week). Afterwards "Welcome back – weigh in tomorrow
+  morning" restarts your average.
 
 ## On Apple Watch
 
@@ -239,6 +258,8 @@ Once your plan is set up, Nina on your watch shows three things under the calori
    - A check is ticked with one tap, and tapping again opens it again.
    - After every change a small **Undo** shows for a few seconds.
 3. **A status line** with the same words as on your iPhone, your 7-day average and your weekly rate.
+   The day-type chip under the ring shows the day's target ("Rest · 2,150 kcal"); the ring shows
+   what is left.
 
 - Full measurements and body-fat checks stay on the iPhone.
 - The watch counts weigh-ins typed in Nina on any of your devices, not ones that exist only in
@@ -252,7 +273,7 @@ on any device.
 
 | Reminder | When |
 |---|---|
-| Morning weigh-in | At your weigh-in time, until you've weighed in. Type your weight right in the notification (Weight…); on a day your weekly waist is due you can type it there too (Waist…); other measurements due that day get a Measure button (Body Fat when only body fat is due). A number that looks wrong comes back as "Is that right?"; tap it to check it in the sheet before it's saved. Checks timed for breakfast come along with a "done" button. |
+| Morning weigh-in | At your weigh-in time, until you've weighed in – and on a measuring day until the measurement is saved (a tap then opens it). Type your weight right in the notification (Weight…); on a day your weekly waist is due you can type it there too (Waist…); other measurements due that day get a Measure button (Body Fat when only body fat is due). A number that looks wrong comes back as "Is that right?"; tap it to check it in the sheet before it's saved. Checks timed for breakfast come along with a "done" button. |
 | Daily checks | At the check's time or meal – only for checks with Remind on in My Plan (Taken / Not today). |
 | Evening before a full measurement | 20:00 the day before. |
 | Weekly check-in | 18:00 on the check-in day, until it's done. |

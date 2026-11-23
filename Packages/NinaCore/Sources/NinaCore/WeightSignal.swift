@@ -225,6 +225,11 @@ public struct WeightSignal: Equatable, Sendable {
     public let others: [Reading]
     /// The EMA trend on each day with a morning weight.
     private let trendByDay: [DayKey: Double]
+    /// Every day from the first morning weight through the last one + 6 days, oldest first, and
+    /// its 7-day average: worked out once here, so the chart, the checkpoint crossing and the
+    /// summaries look them up. Outside this span no 7-day average has a morning weight.
+    private let averageDays: [DayKey]
+    private let averageByDay: [DayKey: Average]
 
     /// - Parameters:
     ///   - readings: typed and Health weigh-ins in any order. Readings outside 25–300 kg are
@@ -268,6 +273,29 @@ public struct WeightSignal: Equatable, Sendable {
             }
         }
         trendByDay = trend
+        let averaged = WeightSignal.slidingAverages(days: days, mornings: mornings, calendar: calendar)
+        averageDays = averaged.days
+        averageByDay = averaged.byDay
+    }
+
+    /// The 7-day average of every day from the first morning weight through the last one + 6
+    /// days in one pass over the sorted days: each window's morning weights in day order, their
+    /// mean as `average(on:)` takes it.
+    private static func slidingAverages(days: [DayKey], mornings: [DayKey: Reading],
+                                        calendar: Calendar) -> (days: [DayKey], byDay: [DayKey: Average]) {
+        guard let first = days.first, let last = days.last else { return ([], [:]) }
+        let span = DayKey.range(first, through: last.adding(days: averageDays - 1, calendar: calendar), calendar: calendar)
+        var byDay: [DayKey: Average] = [:]
+        byDay.reserveCapacity(span.count)
+        var low = 0, high = 0
+        for (index, day) in span.enumerated() {
+            let windowStart = span[max(0, index - (averageDays - 1))]
+            while high < days.count, days[high] <= day { high += 1 }
+            while low < high, days[low] < windowStart { low += 1 }
+            let values = days[low..<high].compactMap { mornings[$0]?.kilograms }
+            byDay[day] = Average(day: day, mean: WeightSignal.mean(values), count: values.count)
+        }
+        return (span, byDay)
     }
 
     /// The morning weight of a day.
@@ -331,15 +359,28 @@ public struct WeightSignal: Equatable, Sendable {
 
     /// The mean of the morning weights in the 7 days ending on `day`.
     public func average(on day: DayKey) -> Average {
+        if let known = averageByDay[day] { return known }
         let values = mornings(from: day.adding(days: -(WeightSignal.averageDays - 1), calendar: calendar), through: day).map(\.kilograms)
         return Average(day: day, mean: WeightSignal.mean(values), count: values.count)
     }
 
     /// The valid 7-day averages of every day from `start` through `end` (the bold chart line).
+    /// Only days within the worked-out span can have one.
     public func averages(from start: DayKey, through end: DayKey) -> [Point] {
-        DayKey.range(start, through: end, calendar: calendar).compactMap { day in
-            average(on: day).value.map { Point(day: day, kilograms: $0) }
+        guard start <= end else { return [] }
+        var low = 0, high = averageDays.count
+        while low < high {
+            let middle = (low + high) / 2
+            if averageDays[middle] < start { low = middle + 1 } else { high = middle }
         }
+        var points: [Point] = []
+        var index = low
+        while index < averageDays.count, averageDays[index] <= end {
+            let day = averageDays[index]
+            if let value = averageByDay[day]?.value { points.append(Point(day: day, kilograms: value)) }
+            index += 1
+        }
+        return points
     }
 
     /// The weight that body math uses on a day.
@@ -434,12 +475,14 @@ public struct WeightSignal: Equatable, Sendable {
     }
 
     /// The rate window from the plan: the last `adjust.windowMaxDays` days, not before the active
-    /// phase's start, its last applied adjustment or the day after the latest finished pause.
+    /// phase's start, its last calorie change in force (`CoachPlan.lastCalorieChange`: Apply in a
+    /// check-in, or an edit, calculation or import that moved the calories) or the day after the
+    /// latest finished pause.
     public static func rateWindow(on day: DayKey, plan: CoachPlan, calendar: Calendar = .current) -> Window {
         var limits: [DayKey?] = []
         if let phase = plan.activePhase(on: day) {
             limits.append(phase.start)
-            limits.append(lastAdjustment(in: phase, on: day))
+            limits.append(plan.lastCalorieChange(on: day, inForce: true)?.from)
         }
         limits.append(plan.pauses.compactMap { pause in
             pause.end.flatMap { $0 < day ? $0.adding(days: 1, calendar: calendar) : nil }
@@ -459,10 +502,10 @@ public struct WeightSignal: Equatable, Sendable {
         weight > 0 ? kilograms / weight * 100 : nil
     }
 
-    /// The first day of the newest applied adjustment (a revision whose reason starts with
-    /// "adjust", e.g. "adjust:+100") in force on `day`.
+    /// The first day of the newest calorie change of a phase in force on `day`, judged without
+    /// day types (`CoachPlan.calorieChanges`; with a plan use `CoachPlan.lastCalorieChange`).
     public static func lastAdjustment(in phase: CoachPlan.Phase, on day: DayKey) -> DayKey? {
-        phase.revisions.filter { $0.reason.hasPrefix("adjust") && $0.from <= day }.map(\.from).max()
+        CoachPlan().calorieChanges(of: phase).last { $0.from <= day }?.from
     }
 
     /// The decision rate: least-squares slope of the untagged morning weights × 7.
@@ -780,8 +823,20 @@ public struct WeightSignal: Equatable, Sendable {
 
     /// The first day from the phase start through `day` whose valid 7-day average reached the checkpoint.
     public func checkpointCrossing(of phase: CoachPlan.Phase, through day: DayKey) -> DayKey? {
-        guard let start = phase.start, start <= day, WeightSignal.checkpoint(of: phase) != nil else { return nil }
-        return WeightSignal.checkpointCrossing(averages(from: start, through: day), phase: phase)
+        guard let start = phase.start, start <= day, let checkpoint = WeightSignal.checkpoint(of: phase) else { return nil }
+        // `averages` comes oldest first.
+        return averages(from: start, through: day).first {
+            WeightSignal.hasReached($0.kilograms, checkpoint: checkpoint, goal: phase.goal)
+        }?.day
+    }
+
+    /// The review checkpoint comes after the phase's planned end at the current pace: `weeks`
+    /// (`Summary.weeksToCheckpoint`) from `day` land after `phase.end`. False without an end or
+    /// without weeks.
+    public static func reachesCheckpointAfterEnd(weeks: Double?, from day: DayKey, phase: CoachPlan.Phase,
+                                                 calendar: Calendar = .current) -> Bool {
+        guard let weeks, weeks > 0, weeks.isFinite, let end = phase.end, end >= day else { return false }
+        return Int((weeks * 7).rounded()) > day.days(to: end, calendar: calendar)
     }
 
     // MARK: Noise band
@@ -895,5 +950,125 @@ public struct WeightSignal: Equatable, Sendable {
             if days[middle] <= day { low = middle + 1 } else { high = middle }
         }
         return low > 0 ? low - 1 : nil
+    }
+}
+
+// MARK: - Status line
+
+extension WeightSignal {
+    /// What the Today phase line, the Body page and the watch say about the active phase, in the
+    /// check-in's words and by its rules: the weight signal's status; "Off track" only once the
+    /// check-ins since the last calorie change were outside on the same side as often as the
+    /// check-in asks (`adjust.confirmChecks`, at least 1) and the live rate is still on that side;
+    /// "New targets since Tue · first look Mon 21 Jan" while the rate restarts after a calorie
+    /// change; "Paused · until 12 Feb" while coaching is paused.
+    public struct StatusLine: Equatable, Sendable {
+        public enum State: Equatable, Sendable {
+            /// The weight signal's status (in range, slower, faster, gathering data).
+            case status(Status)
+            case offTrack
+            /// The rate restarted at a calorie change on `since` and can be judged at the
+            /// check-in on `firstLook`.
+            case newTargets(since: DayKey, firstLook: DayKey)
+            /// Coaching paused since `since`, until `until` (nil = until resumed).
+            case paused(since: DayKey, until: DayKey?)
+        }
+
+        public enum Tone: String, Sendable {
+            case good, watch, alert, neutral
+        }
+
+        public var state: State
+        /// The day it was worked out for.
+        public var day: DayKey
+
+        public init(state: State, day: DayKey) {
+            self.state = state
+            self.day = day
+        }
+
+        public var tone: Tone {
+            switch state {
+            case .status(.inRange): .good
+            case .status(.slower), .status(.faster): .watch
+            case .offTrack: .alert
+            case .status(.gathering), .newTargets, .paused: .neutral
+            }
+        }
+
+        public var isPaused: Bool {
+            if case .paused = state { return true }
+            return false
+        }
+
+        /// "In range", "Off track", "New targets since Tue · first look Mon 21 Jan", "Paused ·
+        /// until 12 Feb". `date` writes a day without its weekday ("21 Jan"; the app passes its
+        /// locale's format).
+        public func text(date: (DayKey) -> String = StatusLine.shortDate, calendar: Calendar = .current) -> String {
+            switch state {
+            case .status(let status):
+                return status.title
+            case .offTrack:
+                return CheckInVerdict.offTarget.title
+            case .newTargets(let since, let firstLook):
+                let ago = since.days(to: day, calendar: calendar)
+                var sinceText = StatusLine.weekday(since, calendar: calendar)
+                if ago < 0 || ago >= 7 { sinceText += " " + date(since) }
+                return "New targets since \(sinceText) · first look \(StatusLine.weekday(firstLook, calendar: calendar)) \(date(firstLook))"
+            case .paused(let since, let until):
+                if let until { return "Paused · until \(date(until))" }
+                return "Paused · since \(date(since))"
+            }
+        }
+
+        /// "21 Jan".
+        public static func shortDate(_ day: DayKey) -> String {
+            let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+            return "\(day.day) \(months[max(1, min(12, day.month)) - 1])"
+        }
+
+        /// "Mon".
+        static func weekday(_ day: DayKey, calendar: Calendar) -> String {
+            Weekdays.shortNames[max(1, min(7, day.weekday(calendar: calendar))) - 1]
+        }
+    }
+
+    /// The status line of the phase active on `day`; nil without an active phase, or when it has
+    /// no rate range and coaching isn't paused (the app says "No rate set").
+    /// - Parameters:
+    ///   - rate: the decision rate on `day` (`rate(on:plan:)`, or `Summary.rate`).
+    ///   - checkIns: the saved check-ins (any order; other phases are left out).
+    public static func statusLine(on day: DayKey, plan: CoachPlan, rate: Rate, checkIns: [CheckInSnapshot],
+                                  calendar: Calendar = .current) -> StatusLine? {
+        guard let phase = plan.activePhase(on: day) else { return nil }
+        if let pause = plan.pause(on: day) {
+            return StatusLine(state: .paused(since: pause.start, until: pause.end), day: day)
+        }
+        guard let status = WeightSignal.status(rate: rate.value, phase: phase, tolerance: plan.adjust.tolerance) else { return nil }
+        let change = plan.lastCalorieChange(on: day, inForce: true)
+        guard let value = rate.value, status != .gathering else {
+            // The window starts at a calorie change: say so instead of "Gathering data".
+            if let change, change.from == rate.window.start {
+                let first = CheckInEngine.firstAdjustmentCheck(plan: plan, on: day, windowStart: rate.window.start, calendar: calendar)
+                return StatusLine(state: .newTargets(since: change.from, firstLook: first), day: day)
+            }
+            return StatusLine(state: .status(status), day: day)
+        }
+        guard status.isOutside, let side = CheckInEngine.deviation(rate: value, phase: phase, tolerance: plan.adjust.tolerance) else {
+            return StatusLine(state: .status(status), day: day)
+        }
+        // The saved check-ins that judged the targets in force, newest first, on the live side.
+        let counted = checkIns
+            .filter { snapshot in
+                snapshot.phaseID == phase.id && snapshot.day <= day && (change.map { $0.covers(checkInOn: snapshot.day) } ?? true)
+            }
+            .sorted { $0.day > $1.day }
+        var inARow = 0
+        for snapshot in counted {
+            guard snapshot.deviation == side else { break }
+            inARow += 1
+        }
+        let confirm = max(1, plan.adjust.confirmChecks)
+        return StatusLine(state: inARow >= confirm ? .offTrack : .status(status), day: day)
     }
 }
