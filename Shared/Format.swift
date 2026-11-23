@@ -67,12 +67,18 @@ enum Fmt {
     /// ("12,5", "1046") – what the keyboard types, so editing it never mixes "." and ",".
     static func editableNumber(_ value: Double, decimals: Int = 2) -> String {
         guard value.isFinite else { return "" }
-        return value.formatted(.number.precision(.fractionLength(0...max(0, decimals))).grouping(.never))
+        let text = NumberText.plain(value, decimals: max(0, decimals))
+        return inputSeparator == "." ? text : text.replacingOccurrences(of: ".", with: inputSeparator)
     }
 
     /// The amount field's text: "½", "1¼", "12,5" – precise enough that showing it never changes it.
     static func amountField(_ value: Double) -> String {
-        AmountText.fieldText(value, decimalSeparator: Locale.current.decimalSeparator ?? ".")
+        AmountText.fieldText(value, decimalSeparator: inputSeparator)
+    }
+
+    /// The decimal separator input fields use: the locale's comma, else a point (both are read back).
+    private static var inputSeparator: String {
+        Locale.current.decimalSeparator == "," ? "," : "."
     }
 
     /// Today / Yesterday / Tomorrow / "Mon, 10 Nov"
