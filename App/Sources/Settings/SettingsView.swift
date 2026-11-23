@@ -37,7 +37,7 @@ struct SettingsView: View {
                     goals
                 } label: {
                     LabeledContent {
-                        Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: app.energyUnit))
+                        Text(Fmt.energy(app.settings.targets(for: app.today).energy, unit: .kcal))
                     } label: {
                         Label(windowActions == nil ? "Goals & Plan" : "Goals", systemImage: "target")
                     }
@@ -54,12 +54,6 @@ struct SettingsView: View {
                     app.updateSettings { $0.foodLanguage = value.rawValue }
                 })) {
                     ForEach(FoodLanguage.allCases) { language in Text(language.title).tag(language) }
-                }
-                Picker("Energy in", selection: Binding(get: { app.settings.energyUnit }, set: { value in
-                    app.updateSettings { $0.energyUnit = value.rawValue }
-                })) {
-                    Text("kcal").tag(EnergyUnit.kcal)
-                    Text("kJ").tag(EnergyUnit.kJ)
                 }
                 Picker("Day starts at", selection: Binding(get: { app.settings.dayStartHour }, set: { value in
                     app.updateSettings { $0.dayStartHour = value }
@@ -649,7 +643,7 @@ struct GoalsView: View {
         }
         targets = calculated
         saveAll()
-        app.toasts.show("Goal set: \(Fmt.energy(calculated.energy, unit: app.energyUnit))", symbol: "target")
+        app.toasts.show("Goal set: \(Fmt.energy(calculated.energy, unit: .kcal))", symbol: "target")
     }
 
     /// Writes the page into the profile. With a running phase the goal, pace, target weight and
