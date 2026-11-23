@@ -131,6 +131,17 @@ struct PlanCleanupTests {
         #expect(PlanSchedule.day(of: "rule:\(rule.uuidString):soon") == nil)
     }
 
+    @Test func untouchedMeansPlannedAndUnchanged() {
+        #expect(PlanSchedule.isUntouched(status: "planned", createdAt: early, modifiedAt: early))
+        #expect(PlanSchedule.isUntouched(status: "planned", createdAt: early, modifiedAt: early.addingTimeInterval(1)))
+        #expect(!PlanSchedule.isUntouched(status: "planned", createdAt: early, modifiedAt: early.addingTimeInterval(2)))
+        #expect(!PlanSchedule.isUntouched(status: "eaten", createdAt: early, modifiedAt: early))
+        #expect(!PlanSchedule.isUntouched(status: "skipped", createdAt: early, modifiedAt: early))
+        #expect(PlanSchedule.isMarked(source: PlanSchedule.duplicateSource))
+        #expect(PlanSchedule.isMarked(source: PlanSchedule.retiredSource))
+        #expect(!PlanSchedule.isMarked(source: "plan") && !PlanSchedule.isMarked(source: "copy"))
+    }
+
     @Test func takenKeysLeaveRetiredPlansOut() {
         let retired = PlanSchedule.Item(id: "r", key: key, source: PlanSchedule.retiredSource, createdAt: early,
                                         modifiedAt: late, isTrashed: true)
