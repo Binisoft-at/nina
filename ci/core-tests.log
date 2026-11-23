@@ -1,0 +1,1835 @@
+Building for debugging...
+[0/17] Write sources
+[3/17] Copying foods.json
+[4/17] Copying Fixtures
+[5/17] Write swift-version-24593BA9C3E375BF.txt
+[7/23] Emitting module BinisoftKitCore
+[8/23] Compiling BinisoftKitCore AppEnvironment.swift
+[9/23] Compiling BinisoftKitCore AppLog.swift
+[10/23] Compiling BinisoftKitCore Import.swift
+[11/23] Compiling BinisoftKitCore Records.swift
+[12/24] Compiling BinisoftKitCore SyncStatus.swift
+[13/24] Compiling BinisoftKitCore Tour.swift
+[14/25] Wrapping AST for BinisoftKitCore for debugging
+[16/77] Emitting module NinaCore
+[17/93] Compiling NinaCore MealPromptRules.swift
+[18/93] Compiling NinaCore MealRemoval.swift
+[19/93] Compiling NinaCore MenuBarSummary.swift
+[20/93] Compiling NinaCore NinaTour.swift
+[21/93] Compiling NinaCore NumberText.swift
+[22/93] Compiling NinaCore Nutrients.swift
+[23/93] Compiling NinaCore OpenFoodFacts.swift
+[24/93] Compiling NinaCore PhaseReviews.swift
+[25/93] Compiling NinaCore PhaseSheetEdits.swift
+[26/93] Compiling NinaCore PhotoLockGrace.swift
+[27/93] Compiling NinaCore Plan.swift
+[28/93] Compiling NinaCore PlanEdits.swift
+[29/93] Compiling NinaCore ProgressCoach.swift
+[30/93] Compiling NinaCore ProgressPhotos.swift
+[31/93] Compiling NinaCore ProteinMeals.swift
+[32/93] Compiling NinaCore QuickParser.swift
+[33/93] Compiling NinaCore RecentFoods.swift
+[34/93] Compiling NinaCore RecipeCSV+RoundTrip.swift
+[35/93] Compiling NinaCore Recipes.swift
+[36/93] Compiling NinaCore Search.swift
+[37/93] Compiling NinaCore SettingsCSV+Plan.swift
+[38/93] Compiling NinaCore SettingsCSV.swift
+[39/93] Compiling NinaCore SetupPrompt.swift
+[40/93] Compiling NinaCore Snapshot.swift
+[41/93] Compiling NinaCore StorageNotice.swift
+[42/93] Compiling NinaCore SyncedSettings.swift
+[43/93] Compiling NinaCore ThaliaExchangeWriter.swift
+[44/93] Compiling NinaCore ThaliaFeed.swift
+[45/93] Compiling NinaCore WatchCoach.swift
+[46/93] Compiling NinaCore WatchSnapshotRelay.swift
+[47/93] Compiling NinaCore WeighInRules.swift
+[48/93] Compiling NinaCore WeightSignal.swift
+[49/93] Compiling NinaCore resource_bundle_accessor.swift
+[50/93] Compiling NinaCore Adherence.swift
+[51/93] Compiling NinaCore Amounts.swift
+[52/93] Compiling NinaCore Backup.swift
+[53/93] Compiling NinaCore BackupRestore.swift
+[54/93] Compiling NinaCore BackupSchedule.swift
+[55/93] Compiling NinaCore Body.swift
+[56/93] Compiling NinaCore BodyComposition.swift
+[57/93] Compiling NinaCore BodyHistoryCSV.swift
+[58/93] Compiling NinaCore BodySchedule.swift
+[59/93] Compiling NinaCore Catalog.swift
+[60/93] Compiling NinaCore CheckInEngine.swift
+[61/93] Compiling NinaCore CoachBoard.swift
+[62/93] Compiling NinaCore CoachCopy.swift
+[63/93] Compiling NinaCore CoachGlue.swift
+[64/93] Compiling NinaCore CoachPlan.swift
+[65/93] Compiling NinaCore CoachReminders.swift
+[66/93] Compiling NinaCore CoachSnapshot.swift
+[67/93] Compiling NinaCore Days.swift
+[68/93] Compiling NinaCore Diary.swift
+[69/93] Compiling NinaCore DiaryCSV.swift
+[70/93] Compiling NinaCore DiaryEntryEdits.swift
+[71/93] Compiling NinaCore DisplayNumber.swift
+[72/93] Compiling NinaCore ExchangeFormat.swift
+[73/93] Compiling NinaCore FoodCSV.swift
+[74/93] Compiling NinaCore FoodCategory.swift
+[75/93] Compiling NinaCore FoodEmoji.swift
+[76/93] Compiling NinaCore Foods.swift
+[77/93] Compiling NinaCore GoalSetupPrompt.swift
+[78/93] Compiling NinaCore Goals.swift
+[79/93] Compiling NinaCore HealthBody.swift
+[80/93] Compiling NinaCore HealthWeightSync.swift
+[81/93] Compiling NinaCore HealthWorkouts.swift
+[82/93] Compiling NinaCore ImportColumns.swift
+[83/93] Compiling NinaCore Insights.swift
+[84/94] Wrapping AST for NinaCore for debugging
+[86/131] Emitting module NinaCoreTests
+[87/143] Compiling NinaCoreTests MealPromptRulesTests.swift
+[88/143] Compiling NinaCoreTests MealRemovalTests.swift
+[89/143] Compiling NinaCoreTests MenuBarSummaryTests.swift
+[90/143] Compiling NinaCoreTests NinaTourTests.swift
+[91/143] Compiling NinaCoreTests NutritionTests.swift
+[92/143] Compiling NinaCoreTests PhotoLockGraceTests.swift
+[93/143] Compiling NinaCoreTests PlanEditsTests.swift
+[94/143] Compiling NinaCoreTests PlanMovedEntryTests.swift
+[95/143] Compiling NinaCoreTests ProgressCoachTests.swift
+[96/143] Compiling NinaCoreTests ProgressFixTests.swift
+[97/143] Compiling NinaCoreTests ProgressPhotosTests.swift
+[98/143] Compiling NinaCoreTests ProteinMealsTests.swift
+[99/143] Compiling NinaCoreTests CoachScenarioTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[100/143] Compiling NinaCoreTests CoachSnapshotTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[101/143] Compiling NinaCoreTests DiaryTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[102/143] Compiling NinaCoreTests DisplayNumberTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[103/143] Compiling NinaCoreTests FlowFixTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[104/143] Compiling NinaCoreTests FoodEmojiTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[105/143] Compiling NinaCoreTests GoalSetupPromptTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[106/143] Compiling NinaCoreTests HealthBodyTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[107/143] Compiling NinaCoreTests HealthWeightSyncTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[108/143] Compiling NinaCoreTests ImportRoundTripTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[109/143] Compiling NinaCoreTests ImportTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[110/143] Compiling NinaCoreTests LogFixTests.swift
+/__w/nina/nina/Packages/NinaCore/Tests/NinaCoreTests/CoachScenarioTests.swift:454:13: warning: variable 'expected' was never mutated; consider changing to 'let' constant
+452 |         var crossing: DayKey?
+453 |         var transitioned = false
+454 |         var expected: [DayKey: String] = [
+    |             `- warning: variable 'expected' was never mutated; consider changing to 'let' constant
+455 |             d("2030-01-07"): "gathering(first: 2030-01-21)",
+456 |             d("2030-01-14"): "gathering(first: 2030-01-21)",
+[111/143] Compiling NinaCoreTests RecentFoodsTests.swift
+[112/143] Compiling NinaCoreTests SettingsImportPreviewTests.swift
+[113/143] Compiling NinaCoreTests SettingsImportTests.swift
+[114/143] Compiling NinaCoreTests SettingsPlanImportTests.swift
+[115/143] Compiling NinaCoreTests StorageNoticeTests.swift
+[116/143] Compiling NinaCoreTests SyncedSettingsTests.swift
+[117/143] Compiling NinaCoreTests ThaliaExchangeTests.swift
+[118/143] Compiling NinaCoreTests TodayFixTests.swift
+[119/143] Compiling NinaCoreTests WatchCoachTests.swift
+[120/143] Compiling NinaCoreTests WatchSnapshotRelayTests.swift
+[121/143] Compiling NinaCoreTests WeightSignalTests.swift
+[122/143] Compiling NinaCoreTests resource_bundle_accessor.swift
+[123/143] Compiling NinaCoreTests BackupScheduleTests.swift
+[124/143] Compiling NinaCoreTests BackupTests.swift
+[125/143] Compiling NinaCoreTests BodyCompositionTests.swift
+[126/143] Compiling NinaCoreTests BodyHistoryTests.swift
+[127/143] Compiling NinaCoreTests BodyScheduleTests.swift
+[128/143] Compiling NinaCoreTests BodyTests.swift
+[129/143] Compiling NinaCoreTests CheckInTests.swift
+[130/143] Compiling NinaCoreTests CoachBoardTests.swift
+[131/143] Compiling NinaCoreTests CoachCopyTests.swift
+[132/143] Compiling NinaCoreTests CoachGlueTests.swift
+[133/143] Compiling NinaCoreTests CoachPlanTests.swift
+[134/143] Compiling NinaCoreTests CoachRemindersTests.swift
+[135/144] /__w/nina/nina/Packages/NinaCore/.build/x86_64-unknown-linux-gnu/debug/NinaCorePackageDiscoveredTests.derived/all-discovered-tests.swift
+[136/144] Write sources
+[137/144] Wrapping AST for NinaCoreTests for debugging
+[139/147] Compiling NinaCorePackageDiscoveredTests all-discovered-tests.swift
+[140/147] Emitting module NinaCorePackageDiscoveredTests
+[141/147] Compiling NinaCorePackageDiscoveredTests NinaCoreTests.swift
+[142/148] /__w/nina/nina/Packages/NinaCore/.build/x86_64-unknown-linux-gnu/debug/NinaCorePackageTests.derived/runner.swift
+[143/148] Write sources
+[144/148] Wrapping AST for NinaCorePackageDiscoveredTests for debugging
+[146/150] Compiling NinaCorePackageTests runner.swift
+[147/150] Emitting module NinaCorePackageTests
+[148/151] Wrapping AST for NinaCorePackageTests for debugging
+[149/151] Write Objects.LinkFileList
+[150/151] Linking NinaCorePackageTests.xctest
+Build complete! (61.77s)
+Test Suite 'All tests' started at 2026-11-23 19:06:01.988
+Test Suite 'debug.xctest' started at 2026-11-23 19:06:01.989
+Test Suite 'debug.xctest' passed at 2026-11-23 19:06:01.989
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+Test Suite 'All tests' passed at 2026-11-23 19:06:01.989
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.0 (0.0) seconds
+◇ Test run started.
+↳ Testing Library Version: 6.2.4 (5ee435b15ad40ec)
+↳ Target Platform: x86_64-unknown-linux-gnu
+◇ Suite SettingsImportTests started.
+◇ Suite "Food CSV" started.
+◇ Suite "Menu bar summary" started.
+◇ Suite "Photo compare weight" started.
+◇ Suite "Diary entry edits" started.
+◇ Suite "Tour" started.
+◇ Suite "Recent foods per meal" started.
+◇ Suite "Insights" started.
+◇ Suite "Coach glue" started.
+◇ Suite "Goals" started.
+◇ Suite "Apple Health body data" started.
+◇ Suite "Settings import: the preview of a whole plan" started.
+◇ Suite WatchCoachChipTests started.
+◇ Suite "Set your goal card" started.
+◇ Suite "Quick add" started.
+◇ Suite "Photo lock grace" started.
+◇ Suite "Meal removal" started.
+◇ Suite "Import round trip: meals & recipes" started.
+◇ Suite "Coach plan" started.
+◇ Suite "Coach reminders" started.
+◇ Suite "Copies of routine meals" started.
+◇ Suite "Open Food Facts" started.
+◇ Suite "iPhone to Apple Watch snapshot" started.
+◇ Suite "Portion texts" started.
+◇ Suite "Quick add: decimals and phrasings" started.
+◇ Suite "Weigh-in rules" started.
+◇ Suite "3D body scan" started.
+◇ Suite "Coach widget snapshot" started.
+◇ Suite "Input fields" started.
+◇ Suite "Phase transition" started.
+◇ Suite "Days" started.
+◇ Suite "Widget timeline" started.
+◇ Suite "Nutrients" started.
+◇ Suite WatchCoachStatusTests started.
+◇ Suite "Check-in engine" started.
+◇ Suite "Apple Health workouts" started.
+◇ Suite "Import round trip: diary" started.
+◇ Suite "Diary" started.
+◇ Suite WatchCoachCrownTests started.
+◇ Suite "Plans" started.
+◇ Suite "Plan: moved entries" started.
+◇ Suite "Body composition" started.
+◇ Suite "Progress photos" started.
+◇ Suite "Phase sheet edits" started.
+◇ Suite "Snapshot" started.
+◇ Suite "Storage notice" started.
+◇ Suite "What only the iPhone knows from Apple Health, on the watch" started.
+◇ Suite "Plan editor changes" started.
+◇ Suite "Copy for my AI" started.
+◇ Suite "Display numbers" started.
+◇ Suite FoodEmojiTests started.
+◇ Suite "Backup: automatic schedule" started.
+◇ Suite "Backup" started.
+◇ Suite "Progress: checks, events and check-in history" started.
+◇ Suite "Recipe CSV" started.
+◇ Suite "Adherence" started.
+◇ Suite "Catalog and search" started.
+◇ Suite "Backup: restore" started.
+◇ Suite "Weigh-ins to Apple Health" started.
+◇ Suite "Weight signal" started.
+◇ Suite "Import round trip: foods" started.
+◇ Suite "Check-in snapshot" started.
+◇ Suite WatchCoachTapeFlowTests started.
+◇ Suite "Nutrient text fast path" started.
+◇ Suite "Diary CSV" started.
+◇ Suite "Settings import: coach plan" started.
+◇ Suite "Prompts for the docs" started.
+◇ Suite "Body" started.
+◇ Suite "Weight & body history CSV" started.
+◇ Suite "Thalia exchange" started.
+◇ Suite "Today snapshot: day types" started.
+◇ Suite "Coach scenario (made-up numbers)" started.
+◇ Suite "Body schedule" started.
+◇ Suite "Coach board" started.
+◇ Suite "Synced settings" started.
+◇ Suite "Meal notifications" started.
+◇ Suite "Protein meals" started.
+◇ Suite "Coach tour" started.
+◇ Suite "Plan clean-up" started.
+◇ Suite "Day start" started.
+◇ Suite "Food search speed and ranking" started.
+◇ Suite WatchCoachPillTests started.
+◇ Suite "Import: cells and shapes" started.
+◇ Suite "Insights: finished days only" started.
+◇ Test bodyDataRecalculatesTheGoal() started.
+◇ Test readsEverySetting() started.
+◇ Test promptsSayTheTargetsAreCalculated() started.
+◇ Test badValuesAreSkippedWithAReason() started.
+◇ Test fixedNumbersWin() started.
+◇ Test repeatedTargetsFollowANewGoal() started.
+◇ Test promptsListEverySetting() started.
+◇ Test exportReadsBack() started.
+◇ Test missingBodyDataIsExplained() started.
+◇ Test repeatedGramsFollowANewMacroSplit() started.
+◇ Test percentSplitAndAge() started.
+◇ Test detectsAndSplitsWhatAnAIWrote() started.
+◇ Test energyUnitRowOfAnOlderFileIsReadSilently() started.
+◇ Test activityBonusRaisesTheBudget() started.
+◇ Test exportReimportsWithoutChanges() started.
+◇ Test understandsGermanHeadersAndCommas() started.
+◇ Test promptListsTheColumns() started.
+◇ Test withoutTargetsItSaysWhatWasEaten() started.
+◇ Test plannedAndSkippedFoodDoNotCount() started.
+◇ Test overTheTarget() started.
+◇ Test dayTypeEmojiGoesInFrontOfTheMenuLineOnly() started.
+◇ Test kilojoulesBecomeKilocalories() started.
+◇ Test parsesRowsAndSkipsBadOnes() started.
+◇ Test brokenNumbersShowNothingStrange() started.
+◇ Test leftWithProteinAndWater() started.
+◇ Test firstPhotoDayUsesTheNearestAverage() started.
+◇ Test untouchedQuickFieldsKeepTheStoredValues() started.
+◇ Test aLateSnackKeepsItsDayWhenOnlyTheAmountChanges() started.
+◇ Test aFractionOverIsStillZeroLeft() started.
+◇ Test anUntouchedDateKeepsTheStoredDay() started.
+◇ Test searchNeedlesFoldLikeEverySearch() started.
+◇ Test movingWithinTheSameDayKeepsTheTime() started.
+◇ Test movedTimesStayOnTheWallClockAcrossDaylightSaving() started.
+◇ Test aNewDateCountsForItsOwnDay() started.
+◇ Test moveKeepsTheClockTime() started.
+◇ Test aLateSnackStaysAtTheEndOfTheTargetDay() started.
+◇ Test aMovedEntryBelongsToTheTargetDayEvenIfItsTimeWasOff() started.
+◇ Test stepsTickOff() started.
+◇ Test quickNumbersNeverTurnTypingMistakesIntoZero() started.
+◇ Test aMealNobodyLogsToLeavesTheOrderAlone() started.
+◇ Test entriesMatchOnNameNoteTagsAndBrand() started.
+◇ Test unavailableFoodsStayOut() started.
+◇ Test hintLooksTheMealUp() started.
+◇ Test entriesWithoutAMealCountOnlyOverall() started.
+◇ Test savedMealsMoveToTheFrontForTheirMeal() started.
+◇ Test catalogHasNoProblems() started.
+◇ Test withoutAMealItIsTheOldRecencyOrder() started.
+◇ Test freshnessCountsTheMealNotTheFood() started.
+◇ Test breakfastFoodsLeadThenTheRestByRecency() started.
+◇ Test equalTimesLetTheLastCountedWin() started.
+◇ Test recordingCountsPerMealInAnyOrder() started.
+◇ Test limitsHoldAndOverflowGoesToTheRest() started.
+◇ Test mostlyAtNeedsTwoFreshLogsAndAFairShare() started.
+◇ Test hintReadsNaturally() started.
+◇ Test sixtyDaysIsStillFresh() started.
+◇ Test equalCountsGoByTheLatestAtTheMeal() started.
+◇ Test streaks() started.
+◇ Test topFoods() started.
+◇ Test entriesWithoutAMealStillCountInTheShare() started.
+◇ Test maintenanceFromIntakeAndWeight() started.
+◇ Test mifflinStJeor() started.
+◇ Test losingRespectsTheFloor() started.
+◇ Test weightTrendSmoothsNoise() started.
+◇ Test deficitIsSevenSevenHundredPerKilo() started.
+◇ Test targetsEncodeAndScale() started.
+◇ Test periodStats() started.
+◇ Test importingAgainChangesNothing() started.
+◇ Test groupsInPreviewOrder() started.
+◇ Test everyPlanRowHasAHome() started.
+◇ Test bodyRecordsCanBeUnticked() started.
+◇ Test dayStartHourKeepsANightValueOnTheDayBefore() started.
+◇ Test relabelChoices() started.
+◇ Test implausibleValuesAndEmptySourcesAreDropped() started.
+◇ Test neverMergedWithNinasSeries() started.
+◇ Test sourcesNewestFirst() started.
+◇ Test heightHint() started.
+◇ Test relabelledSourcesSortByAccuracy() started.
+◇ Test bodyFatSeriesPerSource() started.
+◇ Test dayTypeChoicesShowKcalAndTheFlexibleCount() started.
+◇ Test chipSaysTheDaysTarget() started.
+◇ Test waistIsItsOwnSeries() started.
+◇ Test aSetUpPlanNeverShowsIt() started.
+◇ Test dontShowAgainIsForGood() started.
+◇ Test itShowsOnlyWhenItApplies() started.
+◇ Test onlyCaloriesAndMacrosDecideWhatIsStandard() started.
+◇ Test chipFromTheBoardCountsTheWeek() started.
+◇ Test trainingDayTargetsAreAGoal() started.
+◇ Test ownTargetsWithoutBodyDataStillAsk() started.
+◇ Test storedTextRoundTrips() started.
+◇ Test trailingAmounts() started.
+◇ Test newPeopleSeeItWithTheStartingTargets() started.
+◇ Test leavingTheMacLocksAtOnce() started.
+◇ Test notNowHidesItForSevenDays() started.
+◇ Test earlyTimerWaitsForTheRest() started.
+◇ Test quickSwitchDoesNotLock() started.
+◇ Test caloriesOnly() started.
+◇ Test splitsAListIntoItems() started.
+◇ Test austrianMeasures() started.
+◇ Test hidingAfterSwitchingKeepsTheFirstTime() started.
+◇ Test graceIsFiveMinutes() started.
+◇ Test clockSetBackCountsFromNow() started.
+◇ Test comingBackWithoutLeavingOnlyStopsTheTimer() started.
+◇ Test zeroGraceLocksRightAway() started.
+◇ Test timerAfterComingBackDoesNothing() started.
+◇ Test amountsForFoods() started.
+◇ Test keepsDishNamesTogether() started.
+◇ Test backgroundStartsTheTimerForTheWholeGrace() started.
+◇ Test gluedUnitsFractionsAndWords() started.
+◇ Test fiveMinutesAwayLocksOnTheTimer() started.
+◇ Test unusedMealGoesWithoutAQuestion() started.
+◇ Test countsEntriesAndRoutines() started.
+◇ Test emptyNameReadsMeal() started.
+◇ Test singularTexts() started.
+◇ Test lateTimerStillLocksWhenComingBack() started.
+◇ Test movesToSnacksUnderItsOwnName() started.
+◇ Test anUntouchedExportChangesNothing() started.
+◇ Test weekHelpers() started.
+◇ Test anIngredientWithoutValuesIsTheStoredOne() started.
+◇ Test checkTimingAndDaysText() started.
+◇ Test roundTripsThroughJSON() started.
+◇ Test activePhaseNeedsAConfirmedStart() started.
+◇ Test planEditorWarnings() started.
+◇ Test pauses() started.
+◇ Test unchangedIngredientsAreKept() started.
+◇ Test startingAPhase() started.
+◇ Test aNewerClearBeatsAnOlderOfflineMark() started.
+◇ Test dayTypePrecedence() started.
+◇ Test dayMarksNewestWins() started.
+◇ Test proteinMealsCountAsThePillShowsThem() started.
+◇ Test statusAndVerdictUseTheSameWords() started.
+◇ Test howItWentStartsWhenThePlanWasSetUp() started.
+◇ Test compositionWeighsWithTheMorningWeights() started.
+◇ Test weightSignalFeedsTheCheckIn() started.
+◇ Test measuredMaintenanceCountsOnlyFinishedCompleteDays() started.
+◇ Test aPhaseWithoutARateGetsNoProposal() started.
+◇ Test targetsPrecedence() started.
+◇ Test checkpointStopsTheCheckInUntilReviewed() started.
+◇ Test rateLabelsAndCautions() started.
+◇ Test mirrorWritesTheLegacyValues() started.
+◇ Test savingKeepsWhatANewerBuildAdded() started.
+◇ Test planHistoryKeepsOneVersionPerTenMinutes() started.
+◇ Test revisionByDate() started.
+◇ Test tooFewWeighInsKeepGathering() started.
+◇ Test applyingDeltaKeepsTheCycling() started.
+◇ Test snapshotTakesTheWeightNumbers() started.
+◇ Test flexibleTypeOfferedOnARestDay() started.
+◇ Test typedWeights() started.
+◇ Test typedTapeValues() started.
+◇ Test waistRightInTheMorningBanner() started.
+◇ Test applyingDeltaWithoutRevisionStartsFromTheProfile() started.
+◇ Test emptyAndBrokenTextIsAnEmptyPlan() started.
+◇ Test decodingIsLenient() started.
+◇ Test weeklyCheckInUntilSaved() started.
+◇ Test actionCommands() started.
+◇ Test lossDeltaUsesCarbsAndFatWithAFatFloor() started.
+◇ Test doneTasksTakeTheirNotificationAway() started.
+◇ Test pendingLeavesPastOnesOut() started.
+◇ Test nothingWithoutAPlan() started.
+◇ Test eveningBeforeAFullSet() started.
+◇ Test migrationFromTheProfile() started.
+◇ Test checksFollowTheirTimeWhenTheMorningIsOff() started.
+◇ Test goalSetDateAndBodyFatCeilingRoundTrip() started.
+◇ Test keyValueText() started.
+◇ Test aDueMeasurementOutlastsTheWeighIn() started.
+◇ Test phaseEndOnItsDate() started.
+◇ Test remindersKeepTheirClockTimeOnDaylightSavingDays() started.
+◇ Test reviewComesOnce() started.
+◇ Test atMostOneBeforeTen() started.
+◇ Test aPauseSilencesEverything() started.
+◇ Test onlyBodyFatDueOpensTheBodyFatSheet() started.
+◇ Test atMostFourActions() started.
+◇ Test otherEntriesAreOrdinaryCopies() started.
+◇ Test morningWeighInWithFoldedChecks() started.
+◇ Test aPlannedCopyLeavesOutWhatTheRoutineAlreadyPlans() started.
+◇ Test quietHours() started.
+◇ Test aDeletedPlanGetsAnOrdinaryCopy() started.
+◇ Test aDayTheRoutineHasNotReachedTakesItsKey() started.
+◇ Test volumes() started.
+◇ Test oneServingOrLessIsSingular() started.
+◇ Test missingProducts() started.
+◇ Test parsesAProduct() started.
+◇ Test drinksAreMillilitres() started.
+◇ Test freshnessIsTheNewestChange() started.
+◇ Test portionLabelDisplay() started.
+◇ Test appFormattingKeepsTheShape() started.
+◇ Test theMessageRoundTrips() started.
+◇ Test aWatchRefreshNeverOverwritesFresherIPhoneNumbers() started.
+◇ Test gramsOfADrinkReadAsGrams() started.
+◇ Test thePhoneMarkIsStoredAsJSON() started.
+◇ Test bracketedAmountsAreNotShownTwice() started.
+◇ Test halvesAfterANumberWord() started.
+◇ Test olderOrRepeatedMessagesAreIgnored() started.
+◇ Test newLinesAndOtherSeparators() started.
+◇ Test joinersSplitOnSecondTry() started.
+◇ Test theWatchTakesTheIPhonesNumbersUnlessItHasNewerOnes() started.
+◇ Test aSecondMorningWeighInIsExtra() started.
+◇ Test aHealthCopyOfTheSameWeighInIsNotEarlier() started.
+◇ Test afterTheCutoff() started.
+◇ Test dayStartAfterMidnight() started.
+◇ Test aHalfOfAFoodWithAHalfPortionIsThatPortion() started.
+◇ Test twoAmountsWithoutASeparatorSplit() started.
+◇ Test amountsInsideANameStayTogether() started.
+◇ Test editingTheMorningWeightLater() started.
+◇ Test germanDecimalCommasStayNumbers() started.
+◇ Test ownSeries() started.
+◇ Test settingsImportTakesIt() started.
+◇ Test withoutAPlan() started.
+◇ Test names() started.
+◇ Test todayWidgetIsAlwaysKcal() started.
+◇ Test theMethod() started.
+◇ Test todayAndTomorrow() started.
+◇ Test beforeThePlanWasSetUp() started.
+◇ Test weighInFollowsTheMorning() started.
+◇ Test numbers() started.
+◇ Test timelinePoints() started.
+◇ Test dayStartHourMovesTheDay() started.
+◇ Test links() started.
+◇ Test checksText() started.
+◇ Test weightStatus() started.
+◇ Test nextMeasurement() started.
+◇ Test fileRoundTrip() started.
+◇ Test pausedDay() started.
+◇ Test siriNames() started.
+◇ Test showingAValueNeverRoundsIt() started.
+◇ Test energyFieldRoundTripsInKilojoules() started.
+◇ Test rateIsClampedToBodyWeight() started.
+◇ Test shownThroughTheDay() started.
+◇ Test cutTargetsFromMeasuredMaintenance() started.
+◇ Test calculatedMaintenanceWhenNotConfident() started.
+◇ Test ownRateMaintainAndNoTargetsSoFar() started.
+◇ Test proposalAfterStartKeepsTheCycling() started.
+◇ Test macrosAndBridge() started.
+◇ Test timesOnADayStayOnTheWallClock() started.
+◇ Test daylightSavingDoesNotSkipDays() started.
+◇ Test keysAndArithmetic() started.
+◇ Test lateSnacksCanCountForYesterday() started.
+◇ Test aLateSnackStillCountsForTheAppsDay() started.
+◇ Test theTimelineChangesDayAtTheDayStart() started.
+◇ Test clockTimes() started.
+◇ Test theDayStartAndPlannedMealsReachTheWidget() started.
+◇ Test olderFilesMeanMidnight() started.
+◇ Test thePlannedLineMovesOn() started.
+◇ Test cutNeverGoesBelowTheSafeMinimum() started.
+◇ Test scalingAndSalt() started.
+◇ Test numbersPeopleType() started.
+◇ Test highlightsFollowClaimThresholds() started.
+◇ Test categoriesFromText() started.
+◇ Test energyUnits() started.
+◇ Test macroShares() started.
+◇ Test encodingRoundTripsAndIgnoresUnknownKeys() started.
+◇ Test offTrackOnlyAfterTwoCheckInsOnTheSameSide() started.
+◇ Test sumKeepsUnknownAsUnknown() started.
+◇ Test servingsEncodeAndParse() started.
+◇ Test amountTexts() started.
+◇ Test withoutAPhaseOnlyTheNumbers() started.
+◇ Test fromTheWeightSignal() started.
+◇ Test numbersInThePersonsFormat() started.
+◇ Test gatheringDataWithoutAValidRate() started.
+◇ Test inRangeLine() started.
+◇ Test theIPhonesStatusTravelsAsJSON() started.
+◇ Test everyCalorieChangeRestartsTheCheckIn() started.
+◇ Test statusLineAgreesWithTheCheckIn() started.
+◇ Test theMorningWeighInFromHealth() started.
+◇ Test gainCapAndEnergyFloor() started.
+◇ Test adherenceGate() started.
+◇ Test inRangeKeepsIt() started.
+◇ Test gatheringNamesTheFirstAdjustmentCheck() started.
+◇ Test firstAdjustmentCheckCountsTheFirstAndLastDay() started.
+◇ Test aShortWindowNeverCountsAsOutside() started.
+◇ Test slowerTwiceInARowProposesMoreCarbs() started.
+◇ Test windowStartAndNextCheckIn() started.
+◇ Test anImportOnTheCheckInDayAfterApplyKeepsTheLock() started.
+◇ Test redoAfterApplyingSaysTheTargetsAlreadyChanged() started.
+◇ Test statusLineNamesNewTargetsAndPauses() started.
+◇ Test creatineHoldsFasterFor28Days() started.
+◇ Test outsideOnlyCountsWhenThePreviousCheckInWasOutsideOnTheSameSide() started.
+◇ Test noPhasePausedAndCheckpoint() started.
+◇ Test stepFromTheRate() started.
+◇ Test fasterTwiceInARowProposesLess() started.
+◇ Test normalizesLikeTheImport() started.
+◇ Test lockAfterAnAppliedChange() started.
+◇ Test kindsAndTitles() started.
+◇ Test severalFitThePlanThenTheHigherOneWins() started.
+◇ Test nothingOtherwise() started.
+◇ Test crossCheckFlagsIncompleteLogging() started.
+◇ Test aLateWorkoutBelongsToTheDayBefore() started.
+◇ Test maintainPhase() started.
+◇ Test twoAIFilesInARowAreBothNew() started.
+◇ Test amountsWithTheirUnitGluedOn() started.
+◇ Test offersTheMatchingTypeOnADefaultDay() started.
+◇ Test howImportedAmountsAreStored() started.
+◇ Test aChangedAmountScalesTheTotals() started.
+◇ Test entriesAnEarlierVersionImportedWithAnAIsNumberAreFound() started.
+◇ Test aChangedKcalKeepsThePortion() started.
+◇ Test anExportIntoAnEmptyDiaryComesBackWhole() started.
+◇ Test matching() started.
+◇ Test dayNames() started.
+◇ Test twoIdenticalRowsAreTwoEntries() started.
+◇ Test ownMealIDsMatch() started.
+◇ Test anUntouchedExportChangesNothing() started.
+◇ Test statuses() started.
+◇ Test mealSlots() started.
+◇ Test totalsAndProgress() started.
+◇ Test weighInStartsFromTheLastTypedWeight() started.
+◇ Test valuesStayOnTheGrid() started.
+◇ Test previousReadingOfASite() started.
+◇ Test notesUnderATapeValue() started.
+◇ Test tapeStartsFromTheSitesLastReading() started.
+◇ Test duplicateGroupsConverge() started.
+◇ Test aRowWithoutAMealGoesToTheMealOfItsTime() started.
+◇ Test weekdays() started.
+◇ Test "Wednesday's lunch moved to Saturday keeps Wednesday from being planned again" started.
+◇ Test "A planned meal a routine change took out doesn't keep its day, wherever it is" started.
+◇ Test scheduleDays() started.
+◇ Test weightAroundAnAssessment() started.
+◇ Test "The keys of a rule follow its weekdays and its first and last day" started.
+◇ Test waistGuardAndNote() started.
+◇ Test girthChangesAreJudgedAsShown() started.
+◇ Test ceilingsFromTheRecords() started.
+◇ Test fatAndLeanMass() started.
+◇ Test seriesPerMethodAndDevice() started.
+◇ Test ratiosAndCeilings() started.
+◇ Test navyAvailability() started.
+◇ Test navyVectors() started.
+◇ Test compositionPoints() started.
+◇ Test girthTrends() started.
+◇ Test bodyGoalCard() started.
+◇ Test goalValidation() started.
+◇ Test leanGainRealism() started.
+◇ Test longTermGoalGap() started.
+◇ Test waistRatiosPairTheLatestHip() started.
+◇ Test poses() started.
+◇ Test changesWithinASeries() started.
+◇ Test ceilingsFromWaistReadings() started.
+◇ Test spanText() started.
+◇ Test comparison() started.
+◇ Test fittedSize() started.
+◇ Test nearest() started.
+◇ Test session() started.
+◇ Test exifDates() started.
+◇ Test anotherDevicesEditOfAnUntouchedFieldStays() started.
+◇ Test latestAndDays() started.
+◇ Test onlyTheEditedFieldsMove() started.
+◇ Test comparePairs() started.
+◇ Test theReviewMovesAsAPair() started.
+◇ Test anUntouchedSheetChangesNothing() started.
+◇ Test yesterdaysWordFromTheIPhoneOnlyKeepsTheNote() started.
+◇ Test emptiesOnANewDay() started.
+◇ Test memoryIsRedAndSaysNothingIsSaved() started.
+◇ Test storedOnTheWatchAsJSON() started.
+◇ Test fullICloudShowsAtOnce() started.
+◇ Test healthMappingIsUnique() started.
+◇ Test theCoachPartTravelsWithTheSnapshot() started.
+◇ Test aFreshIPhoneDecidesEvenWithNothingToShow() started.
+◇ Test aMorningTypedInNinaIsNotSentAsHealth() started.
+◇ Test theIPhonesStatusLineAndHealthMorningWhenFresh() started.
+◇ Test oldHealthWeighInsAndNoPlan() started.
+◇ Test sidebarLine() started.
+◇ Test throttleAllowsOneToastAMinute() started.
+◇ Test errorClockStartsKeepsAndClears() started.
+◇ Test theActivityBonusIsTheIPhonesReadingOfToday() started.
+◇ Test theWatchKeepsTheLastCoachPartItGot() started.
+◇ Test noAccountAndRestrictedAreOrange() started.
+◇ Test newErrorAfterASuccessfulSyncStartsAgain() started.
+◇ Test theIPhonesNumbersCountOnceTheyHaveEverythingTheWatchHas() started.
+◇ Test aMessageWithoutACoachPartStillCounts() started.
+◇ Test withoutWordFromTheIPhoneTheNoteFollowsTheTypedMornings() started.
+◇ Test localIsOrange() started.
+◇ Test theIPhoneSendsItsHealthMorningAndItsNumbers() started.
+◇ Test otherErrorsWaitADay() started.
+◇ Test onlyOneDefaultDayType() started.
+◇ Test demoAndHealthySyncShowNothing() started.
+◇ Test theWatchsOwnNumbersAfterAWeighInOnTheWatch() started.
+◇ Test calculatedTargetsMoveEveryDayTypeTheSame() started.
+◇ Test settingUpKeepsWhatThePlanHolds() started.
+◇ Test pausingAndResuming() started.
+◇ Test newDayTypesAreFlexibleAndRestIsTheDefault() started.
+◇ Test typeTargetsChangeFromTheDayOn() started.
+◇ Test idsAreLowercaseLettersAndDigitsAndUnique() started.
+◇ Test firstPhaseAddedBeforeSetUpKeepsTrainingDays() started.
+◇ Test checksAreAddedAndChanged() started.
+◇ Test laterRevisionsFollowAndSameDayRevisionsKeepTheirReason() started.
+◇ Test deletingADayTypeFreesItsChecks() started.
+◇ Test summarizesThePlan() started.
+◇ Test signedChangesShareOneZeroStyle() started.
+◇ Test weeksAreSevenWholeDaysEndingYesterday() started.
+◇ Test plainFormatsOffApplePlatforms() started.
+◇ Test numbersUseADecimalPoint() started.
+◇ Test bodyNumbers() started.
+◇ Test lastFourWeeks() started.
+◇ Test anAdjustmentFromTomorrowSurvivesAnEditToday() started.
+◇ Test withoutAPlan() started.
+◇ Test endsWithTheAnswerRulesAndTheKeyTable() started.
+◇ Test knownFoods() started.
+◇ Test bodyFatErrorAndTheDevicesTapeFormula() started.
+◇ Test fallsBackToTheCategory() started.
+◇ Test appleHealthWeightsOnlyWhenAllowed() started.
+◇ Test aFailedTryWaitsSixHours() started.
+◇ Test mostCatalogFoodsHaveTheirOwnEmoji() started.
+◇ Test keepsTheLastFour() started.
+◇ Test aNumberJSONCantHoldDoesntLoseTheRecord() started.
+◇ Test namesAndPaths() started.
+◇ Test stateSurvivesStorageAndBrokenData() started.
+◇ Test recordsComeBackExactly() started.
+◇ Test stateRecordsWhatHappened() started.
+◇ Test manifestChecksFormatAndVersion() started.
+◇ Test aBrokenLineIsCountedNotFatal() started.
+◇ Test placeTitles() started.
+◇ Test daysUntilTheNextOne() started.
+◇ Test onByDefaultOnlyOnIPhone() started.
+◇ Test statusLines() started.
+◇ Test oneCalmNoticePerRunOfFailures() started.
+◇ Test folderNamesNeverClash() started.
+◇ Test aMuchFullerBackupIsKeptWhenDataWentMissing() started.
+◇ Test dueTheFirstTimeAndThenEverySevenDays() started.
+◇ Test choosingAFolderForgetsOtherPlaces() started.
+◇ Test onlyRemovesBackupsOfTheSamePlace() started.
+◇ Test aClockSetBackDoesntStopTheBackups() started.
+◇ Test onlyABackupWithDataIsWritten() started.
+◇ Test adherenceOverTwentyEightDays() started.
+◇ Test datesKeepTheirMilliseconds() started.
+◇ Test onlyTheBackupItselfIsRemovedNotAnotherFolderOfThatName() started.
+◇ Test adherenceShortWindowAndPauses() started.
+◇ Test checkInHistoryWeights() started.
+◇ Test groupsIngredients() started.
+◇ Test recipeAsFood() started.
+◇ Test windowStart() started.
+◇ Test proteinMealsAreCountedPerMeal() started.
+◇ Test exportParsesBack() started.
+◇ Test dayRules() started.
+◇ Test weekSummary() started.
+◇ Test weightEvents() started.
+◇ Test rankingFindsWhatPeopleMean() started.
+◇ Test diaryDayResolvedThroughThePlan() started.
+◇ Test typos() started.
+◇ Test grades() started.
+◇ Test normalisation() started.
+◇ Test catalogIsConsistent() started.
+◇ Test bundledCatalogLoads() started.
+◇ Test germanNamesComeFirstInGerman() started.
+◇ Test everyTypeHasATitle() started.
+◇ Test addsOnlyWhatIsMissing() started.
+◇ Test aBackupOfTheSameDataChangesNothing() started.
+◇ Test typesFromANewerVersionAreLeftOut() started.
+◇ Test goalsAndPlan() started.
+◇ Test oneDamagedFoodDoesNotCostTheCatalog() started.
+◇ Test importedHistoryIsNeverWritten() started.
+◇ Test usageAndFavoritesLiftResults() started.
+◇ Test syncedSettingsTravelWithTheGoals() started.
+◇ Test onlyLiveTypedPlausibleWeighInsAreWritten() started.
+◇ Test aNoteOnlyEditKeepsTheSample() started.
+◇ Test aWeighInGoneFromTheWindowTakesItsSampleAlong() started.
+◇ Test theLimitsAreInclusive() started.
+◇ Test theSheetHidesTheImportTagAndKeepsIt() started.
+◇ Test weightSamplesHaveASyncIdentifier() started.
+◇ Test removalsComeBeforeWrites() started.
+◇ Test anEditRemovesTheOldSampleFirst() started.
+◇ Test importedWeighInsCarryATag() started.
+◇ Test aDeletedWeighInLeavesHealth() started.
+◇ Test aNewWeighInIsWrittenOnceAndThenRemembered() started.
+◇ Test aDiaryEntryDeletedForGoodLeavesHealth() started.
+◇ Test anEmptiedDiaryOnlyForgets() started.
+◇ Test rateWindowFollowsThePlan() started.
+◇ Test weeklyChangeAndCrossCheck() started.
+◇ Test checkpointCrossingUsesTheSevenDayAverage() started.
+◇ Test anEmptiedStoreIsNotTrusted() started.
+◇ Test trendAndBodyWeight() started.
+◇ Test anUntrustedStoreOnlyForgets() started.
+◇ Test tagsAreReadFromTheNote() started.
+◇ Test unusualReadingsAndTypos() started.
+◇ Test typoSuggestions() started.
+◇ Test morningWeightIsTheEarliestBeforeTheCutoff() started.
+◇ Test healthCopiesOfTypedWeightsCountOnce() started.
+◇ Test checkpointProjection() started.
+◇ Test statusComparesWithTheRangeAndTolerance() started.
+◇ Test decisionRateIsTheLeastSquaresSlope() started.
+◇ Test precomputedAveragesMatchTheDayByDayOnes() started.
+◇ Test corridorFromTheStartWeight() started.
+◇ Test rateOnADayLeavesPausedDaysOut() started.
+◇ Test summaryForTheWeightCard() started.
+◇ Test phaseStartWeightRule() started.
+◇ Test projectedEndWeight() started.
+◇ Test noiseBandIsTheSpreadAroundTheCentredAverage() started.
+◇ Test checkpointAfterThePlannedEnd() started.
+◇ Test recordsTheWeekAndTheResult() started.
+◇ Test emptyCellsOfAnAIRowKeepWhatIHave() started.
+◇ Test anUntouchedExportChangesNothing() started.
+◇ Test readsLeniently() started.
+◇ Test sevenDayAverageNeedsFourMornings() started.
+◇ Test roundTripsThroughDayMarkText() started.
+◇ Test aFoodIAlreadyHaveIsMatchedByNameAndBrand() started.
+◇ Test everyNutrientComesBackAtFullPrecision() started.
+◇ Test dayStartHourAndBackFilledWeighIns() started.
+◇ Test columnsTheFileDoesntHaveKeepTheStoredValues() started.
+◇ Test decisionRateNeedsFourteenDaysAndTenWeighIns() started.
+◇ Test promptListsMyFoodsAndAsksForEmptyIDs() started.
+◇ Test aBarcodeASpreadsheetShortenedIsLeftOut() started.
+◇ Test twoAIFilesInARowDontOverwriteEachOther() started.
+◇ Test oneEditedValueChangesOnlyThatValue() started.
+◇ Test healthWeightsAreNeverStored() started.
+◇ Test savedSitesReadAsAList() started.
+◇ Test oneSiteAtATime() started.
+◇ Test savedValuesStayPlausible() started.
+◇ Test fastEqualsSlowOnOddText() started.
+◇ Test roundTrip() started.
+◇ Test exportRoundTrips() started.
+◇ Test parsesDatesUnitsAndLookups() started.
+◇ Test keysAreForgiving() started.
+◇ Test fastEqualsSlowOnTheCatalog() started.
+◇ Test dates() started.
+◇ Test importedChecksRemindByDefault() started.
+➜ Test writePrompts() skipped.
+◇ Test aRemoveRowDeletesAStartedPhase() started.
+◇ Test approximateNumbersAndUnitsInBrackets() started.
+◇ Test checkTimesAreOnlyRealTimes() started.
+◇ Test everyFormerWishHasAKey() started.
+◇ Test importedTargetsReplaceAChangePlannedForLater() started.
+◇ Test flatTargetsGoToTheActivePhaseFromToday() started.
+◇ Test bodyRowsAreTodaysBaseline() started.
+◇ Test aBackDatedStartKeepsThePastTargets() started.
+◇ Test promptsExplainThePlan() started.
+◇ Test exportReadsBackWithAPlan() started.
+◇ Test aMaintainPhaseReadsBack() started.
+◇ Test flatRateAndGoalMoveTheActivePhase() started.
+◇ Test trainingExtraWithAPlanSaysWhy() started.
+◇ Test legacyTrainingDaysBecomeADayType() started.
+◇ Test notesAreNotWishesAnyMore() started.
+◇ Test aStartedPhaseTheFileLeavesOutStays() started.
+◇ Test bodyFatCeilingIsOptional() started.
+◇ Test percentRatesUseTheWeight() started.
+◇ Test groupsReplaceAndListRemovals() started.
+◇ Test importedTapeIsAStandardBaseline() started.
+◇ Test withoutAPlanTheRangeMidpointGoesToTheProfile() started.
+◇ Test importSetsUpThePlan() started.
+◇ Test previewLinesHaveUniqueIDs() started.
+◇ Test aProfileWithTrainingDaysIsMigrated() started.
+◇ Test numbersReadBackExactly() started.
+◇ Test valuesEncodeAndDecode() started.
+◇ Test methods() started.
+◇ Test validationNotes() started.
+◇ Test protocolAndStandardReadings() started.
+◇ Test sites() started.
+◇ Test exportOfWhatNinaHasReadsBack() started.
+◇ Test mixedRowsAndNotes() started.
+◇ Test readingMerge() started.
+◇ Test dexaReportInGrams() started.
+◇ Test datesWithMonthsAndApproximations() started.
+◇ Test dates() started.
+◇ Test prompts() started.
+◇ Test readsTheOwnFormat() started.
+◇ Test detectedBeforeTheDiary() started.
+◇ Test importingAgainAddsNothing() started.
+◇ Test conditions() started.
+◇ Test otherUnitsAndAppExports() started.
+◇ Test exportReadsBackWithoutChanges() started.
+◇ Test headerProblems() started.
+◇ Test aSetupAnswerCountsTheWeightItsSettingsPartSaved() started.
+◇ Test importKeysAreStable() started.
+◇ Test sameValuesOnTheSameDayAreDuplicates() started.
+◇ Test oneRowBecomesUpToThreeRecords() started.
+◇ Test setupAnswerWithFourBlocks() started.
+◇ Test aDayThatCantBeWrittenDoesntStopTheOthers() started.
+◇ Test theDayFollowsTheTimeZone() started.
+◇ Test onlyMetricsOfTheTable() started.
+◇ Test withoutAMorningWeighInTheDaysEarliestCounts() started.
+◇ Test germanHeadersAndDecimalCommas() started.
+◇ Test expiredDayFilesAreDeleted() started.
+◇ Test theFilesAreTheseBytes() started.
+◇ Test thaliasFixturesRead() started.
+◇ Test sourceIsRewrittenAtOnceWhenTheRefsChange() started.
+◇ Test dayTypeAndTomorrowRoundTrip() started.
+◇ Test entriesWithAValueAreSummed() started.
+◇ Test bodyWeightIsStableAndSortedWithTheRest() started.
+◇ Test threeMealsGiveOneSumPerMetric() started.
+◇ Test olderFilesStillRead() started.
+◇ Test unchangedFactsLeaveTheFileAlone() started.
+◇ Test daysAfterTodayAndBeforeTheWindowAreLeftOut() started.
+◇ Test aMetricNoEntryHasIsLeftOut() started.
+◇ Test writtenFilesReadBack() started.
+◇ Test bodyWeightNeverFromHealthAndImportedCounts() started.
+◇ Test aWeighInWithoutADiaryDayCountsOnTheDayOfItsTime() started.
+◇ Test factsOutsideTheWindowAreIgnored() started.
+◇ Test theMorningRuleWinsOverTheEarliestTime() started.
+◇ Test eachMetricNeedsItsOwnRecords() started.
+◇ Test healthRecordsGiveNoFacts() started.
+◇ Test factsHaveTheExchangeShape() started.
+◇ Test theStatusLineIsGerman() started.
+◇ Test daysWithoutFactsOrFileGetNoFile() started.
+◇ Test atIsCutToTheWholeSecond() started.
+◇ Test aDeletedWeighInLeavesItsDayFile() started.
+◇ Test aRemovedFactIsGoneFromTheFile() started.
+◇ Test atIsTheLatestRecordOfTheMetric() started.
+◇ Test bodyWeightIsRoundedToATenth() started.
+◇ Test onlyEatenEntriesCount() started.
+◇ Test sourceIsWrittenOnChangesAndOnceADay() started.
+◇ Test aMetricIsLeftOutPerDay() started.
+◇ Test valuesAreRoundedTheSameEverywhere() started.
+◇ Test aDayThatLostItsFactsGetsAnEmptyList() started.
+◇ Test fnv1aHashes() started.
+◇ Test aNightWeighInBelongsToTheEveningBefore() started.
+◇ Test ninasFilesHaveTheShapeOfTheFixtures() started.
+◇ Test bodyWeightIsTheMorningWeighIn() started.
+◇ Test sourceRefsAreTheSixMetrics() started.
+◇ Test aMovedMealRewritesBothDays() started.
+◇ Test factsAreStableOnEveryDevice() started.
+◇ Test aFullSetCountsForItsWholeWeek() started.
+◇ Test setUpDayIsTheConfirmationDay() started.
+◇ Test weekdays() started.
+◇ Test weighInPausesAndOptions() started.
+◇ Test weeklyRhythm() started.
+◇ Test whatCountsAsAFullSet() started.
+◇ Test phaseEventsAndCheckpoint() started.
+◇ Test checkpointCrossing() started.
+◇ Test scenarioEndToEnd() started.
+◇ Test nothingIsDueBeforeThePlannedFirstPhase() started.
+◇ Test stripOrder() started.
+◇ Test aDecisionAnswersOnlyTheCeilingsReachedThen() started.
+◇ Test fullSetRhythm() started.
+◇ Test dayTypeChip() started.
+◇ Test baselineCard() started.
+◇ Test dueFromAPlan() started.
+◇ Test ceilingsOpenTheReview() started.
+◇ Test welcomeBackAfterAPause() started.
+◇ Test phaseReviewsCountEachTrigger() started.
+◇ Test checkInCardTiming() started.
+◇ Test overdueBodyItemSaysSo() started.
+◇ Test pastDaysShowOnlyWhatIsMissing() started.
+◇ Test phaseStartTargetChanges() started.
+◇ Test phaseStartCardComesFirst() started.
+◇ Test stripHidesWhenEverythingIsDone() started.
+◇ Test weekAverage() started.
+◇ Test aCeilingReviewDoesNotUseUpTheCheckpoint() started.
+◇ Test phaseEndCard() started.
+◇ Test aPassedEndWaitsBehindTheCheckIn() started.
+◇ Test overdueNoticeShowsOnceThenWaitsForTheCheckIn() started.
+◇ Test postponingAPhase() started.
+◇ Test stillOnABreak() started.
+◇ Test nothingWhilePaused() started.
+◇ Test laterSkipsToTheNextCard() started.
+◇ Test nothingWithoutAPlan() started.
+◇ Test weekAverageCountsFinishedCompleteDays() started.
+◇ Test unknownKeysAreKept() started.
+◇ Test brokenTextReadsAsNoSettings() started.
+◇ Test withoutAProfileTheDeviceValueWaits() started.
+◇ Test aBrokenSyncedTextDoesntLoseTheOldOff() started.
+◇ Test roundTrip() started.
+◇ Test theOldDeviceOnIsTheDefault() started.
+◇ Test theOldDeviceOffMovesIntoTheSyncedSettingsOnce() started.
+◇ Test aSyncedValueWinsEverywhere() started.
+◇ Test onlyActiveRoutinesThatAskPrompt() started.
+◇ Test lenientValues() started.
+◇ Test anOlderOrMissingVersionIsWrittenAsTheCurrentOne() started.
+◇ Test emptyTextHasTheDefaults() started.
+◇ Test aPlannedOrEatenMealGetsNoReminder() started.
+◇ Test gramsPerKilogram() started.
+◇ Test ruleFromThePlan() started.
+◇ Test mealsFromEntries() started.
+◇ Test pillAndHint() started.
+◇ Test peopleWhoTookVersionFiveSeeTheVersionSixSteps() started.
+◇ Test theRoutineIsReadFromThePlanKey() started.
+◇ Test weekCountAndAdherence() started.
+◇ Test readOnlyStepsSayContinue() started.
+◇ Test versionSixAddsBackupMoveAndFind() started.
+◇ Test firstRunHasEverythingInOrder() started.
+◇ Test peopleWhoTookVersionTwoSeeTheCoachAndTheNewerSteps() started.
+◇ Test thaliaComesBackWithTheWeightAndOneSwitch() started.
+◇ Test iPhoneTextsUseTheMoreMenuForCreate() started.
+◇ Test peopleWhoTookVersionFourSeeTheVersionSixSteps() started.
+◇ Test versionSixTextsNameThePathsThatExist() started.
+◇ Test peopleWhoTookVersionThreeSeeTheVersionFourFiveAndSixSteps() started.
+◇ Test versionThreeAddsTheCoachSteps() started.
+◇ Test eatenBeatsADeletedCopy() started.
+◇ Test coachStepsTickOff() started.
+◇ Test keysTellTheirRuleAndDay() started.
+◇ Test otherKeysAreLeftAlone() started.
+◇ Test versionFourAddsPhotosWatchHealthAndHistory() started.
+◇ Test untouchedMeansPlannedAndUnchanged() started.
+◇ Test aTieGoesToTheSmallestID() started.
+◇ Test recipePortionsWithoutAGroupAreToldApart() started.
+◇ Test takenKeysLeaveRetiredPlansOut() started.
+◇ Test aPlanDeletedOnOneDeviceStaysDeleted() started.
+◇ Test theCleanUpsOwnTombstonesNeverWin() started.
+◇ Test untouchedCopiesKeepTheOldest() started.
+◇ Test twoPassesGiveTheSameResult() started.
+◇ Test theDayStartsAtItsHour() started.
+◇ Test timesBeforeTheStartBelongToTheNight() started.
+◇ Test anEditedCopyCountsAsActedOn() started.
+◇ Test slotsSortFromTheDayStart() started.
+◇ Test searchIsFast() started.
+◇ Test theStartMatchesTheDayChangeOnClockChangeNights() started.
+◇ Test theWeighInGoesWhenTheIPhoneSawAHealthWeighIn() started.
+◇ Test aCopyEatenOnTheWatchBeatsTheOlderPlannedOne() started.
+◇ Test fullSetsAndAssessmentsStayOnThePhone() started.
+◇ Test reusedEntriesGiveTheSameResults() started.
+◇ Test pillTitlesLeaveTheDoseOut() started.
+◇ Test umlautFoldMatchesTheThreeReplacements() started.
+◇ Test pillsFromTheSameBoardThePhoneUses() started.
+◇ Test oneEditCheckMatchesTheDistance() started.
+◇ Test rankingIsUnchanged() started.
+◇ Test theWatchDoesWeighInsWeeklyTapeAndChecks() started.
+◇ Test emojiIsTheSameFromTheCache() started.
+◇ Test aFoodRowWithAnApproximateKcalIsRead() started.
+◇ Test settingsWithoutAHeader() started.
+◇ Test aSettingsCommentColumnIsLeftOut() started.
+◇ Test titledAndCopiedBlocksAreFound() started.
+◇ Test numbersPeopleAndAIsWrite() started.
+◇ Test oneFenceWithTwoFiles() started.
+◇ Test millilitreUnits() started.
+◇ Test blocksThatArentRecognisedAreListed() started.
+◇ Test germanNameColumns() started.
+◇ Test todayAndIncompleteDaysDontCount() started.
+◇ Test averageTargetsFollowEachDaysType() started.
+◇ Test maintenanceLeavesOutPartialAndIncompleteDays() started.
+◇ Test nothingFinishedYet() started.
+✔ Test promptsSayTheTargetsAreCalculated() passed after 1.978 seconds.
+✔ Test badValuesAreSkippedWithAReason() passed after 1.980 seconds.
+✔ Test fixedNumbersWin() passed after 1.982 seconds.
+✔ Test bodyDataRecalculatesTheGoal() passed after 1.984 seconds.
+✔ Test readsEverySetting() passed after 1.985 seconds.
+✔ Test missingBodyDataIsExplained() passed after 1.985 seconds.
+✔ Test promptsListEverySetting() passed after 1.985 seconds.
+✔ Test percentSplitAndAge() passed after 1.989 seconds.
+✔ Test repeatedGramsFollowANewMacroSplit() passed after 1.989 seconds.
+✔ Test energyUnitRowOfAnOlderFileIsReadSilently() passed after 1.989 seconds.
+✔ Test activityBonusRaisesTheBudget() passed after 1.989 seconds.
+✔ Test repeatedTargetsFollowANewGoal() passed after 1.989 seconds.
+✔ Test exportReadsBack() passed after 1.989 seconds.
+✔ Test promptListsTheColumns() passed after 1.989 seconds.
+✔ Test withoutTargetsItSaysWhatWasEaten() passed after 1.989 seconds.
+✔ Test plannedAndSkippedFoodDoNotCount() passed after 1.989 seconds.
+✔ Test overTheTarget() passed after 1.989 seconds.
+✔ Test dayTypeEmojiGoesInFrontOfTheMenuLineOnly() passed after 1.989 seconds.
+✔ Test kilojoulesBecomeKilocalories() passed after 1.989 seconds.
+✔ Test understandsGermanHeadersAndCommas() passed after 1.989 seconds.
+✔ Test brokenNumbersShowNothingStrange() passed after 1.989 seconds.
+✔ Test leftWithProteinAndWater() passed after 1.989 seconds.
+✔ Test exportReimportsWithoutChanges() passed after 1.989 seconds.
+✔ Test detectsAndSplitsWhatAnAIWrote() passed after 1.989 seconds.
+✔ Test aLateSnackKeepsItsDayWhenOnlyTheAmountChanges() passed after 1.989 seconds.
+✔ Test untouchedQuickFieldsKeepTheStoredValues() passed after 1.989 seconds.
+✔ Test anUntouchedDateKeepsTheStoredDay() passed after 1.989 seconds.
+✔ Test searchNeedlesFoldLikeEverySearch() passed after 1.989 seconds.
+✔ Test movingWithinTheSameDayKeepsTheTime() passed after 1.989 seconds.
+✔ Test movedTimesStayOnTheWallClockAcrossDaylightSaving() passed after 1.989 seconds.
+✔ Test parsesRowsAndSkipsBadOnes() passed after 1.989 seconds.
+✔ Test aNewDateCountsForItsOwnDay() passed after 1.989 seconds.
+✔ Test moveKeepsTheClockTime() passed after 1.989 seconds.
+✔ Test aMovedEntryBelongsToTheTargetDayEvenIfItsTimeWasOff() passed after 1.989 seconds.
+✔ Test aLateSnackStaysAtTheEndOfTheTargetDay() passed after 1.989 seconds.
+✔ Test quickNumbersNeverTurnTypingMistakesIntoZero() passed after 1.989 seconds.
+✔ Test stepsTickOff() passed after 1.989 seconds.
+✔ Test entriesMatchOnNameNoteTagsAndBrand() passed after 1.989 seconds.
+✔ Test unavailableFoodsStayOut() passed after 1.989 seconds.
+✔ Test aMealNobodyLogsToLeavesTheOrderAlone() passed after 1.989 seconds.
+✔ Test hintLooksTheMealUp() passed after 1.989 seconds.
+✔ Test entriesWithoutAMealCountOnlyOverall() passed after 1.989 seconds.
+✔ Test aFractionOverIsStillZeroLeft() passed after 1.989 seconds.
+✔ Test savedMealsMoveToTheFrontForTheirMeal() passed after 1.989 seconds.
+✔ Test freshnessCountsTheMealNotTheFood() passed after 1.989 seconds.
+✔ Test breakfastFoodsLeadThenTheRestByRecency() passed after 1.989 seconds.
+✔ Test equalTimesLetTheLastCountedWin() passed after 1.989 seconds.
+✔ Test withoutAMealItIsTheOldRecencyOrder() passed after 1.989 seconds.
+✔ Test catalogHasNoProblems() passed after 1.989 seconds.
+✔ Test mostlyAtNeedsTwoFreshLogsAndAFairShare() passed after 1.989 seconds.
+✔ Test hintReadsNaturally() passed after 1.989 seconds.
+✔ Test sixtyDaysIsStillFresh() passed after 1.989 seconds.
+✔ Test firstPhotoDayUsesTheNearestAverage() passed after 1.990 seconds.
+✔ Test equalCountsGoByTheLatestAtTheMeal() passed after 1.989 seconds.
+✔ Test recordingCountsPerMealInAnyOrder() passed after 1.989 seconds.
+✔ Test entriesWithoutAMealStillCountInTheShare() passed after 1.989 seconds.
+✔ Test topFoods() passed after 1.989 seconds.
+✔ Test streaks() passed after 1.989 seconds.
+✔ Test mifflinStJeor() passed after 1.989 seconds.
+✔ Test limitsHoldAndOverflowGoesToTheRest() passed after 1.989 seconds.
+✔ Test losingRespectsTheFloor() passed after 1.989 seconds.
+✔ Test deficitIsSevenSevenHundredPerKilo() passed after 1.989 seconds.
+✔ Test targetsEncodeAndScale() passed after 1.989 seconds.
+✔ Test periodStats() passed after 1.989 seconds.
+✔ Test weightTrendSmoothsNoise() passed after 1.989 seconds.
+✔ Test maintenanceFromIntakeAndWeight() passed after 1.989 seconds.
+✔ Test everyPlanRowHasAHome() passed after 1.989 seconds.
+✔ Test bodyRecordsCanBeUnticked() passed after 1.989 seconds.
+✔ Test relabelChoices() passed after 1.989 seconds.
+✔ Test dayStartHourKeepsANightValueOnTheDayBefore() passed after 1.989 seconds.
+✔ Test implausibleValuesAndEmptySourcesAreDropped() passed after 1.989 seconds.
+✔ Test sourcesNewestFirst() passed after 1.989 seconds.
+✔ Test neverMergedWithNinasSeries() passed after 1.989 seconds.
+✔ Test heightHint() passed after 1.989 seconds.
+✔ Test relabelledSourcesSortByAccuracy() passed after 1.989 seconds.
+✔ Test bodyFatSeriesPerSource() passed after 1.989 seconds.
+✔ Test dayTypeChoicesShowKcalAndTheFlexibleCount() passed after 1.989 seconds.
+✔ Test chipSaysTheDaysTarget() passed after 1.989 seconds.
+✔ Test aSetUpPlanNeverShowsIt() passed after 1.989 seconds.
+✔ Test dontShowAgainIsForGood() passed after 1.989 seconds.
+✔ Test itShowsOnlyWhenItApplies() passed after 1.989 seconds.
+✔ Test waistIsItsOwnSeries() passed after 1.989 seconds.
+✔ Test onlyCaloriesAndMacrosDecideWhatIsStandard() passed after 1.989 seconds.
+✔ Test trainingDayTargetsAreAGoal() passed after 1.989 seconds.
+✔ Test ownTargetsWithoutBodyDataStillAsk() passed after 1.989 seconds.
+✔ Test storedTextRoundTrips() passed after 1.989 seconds.
+✔ Test chipFromTheBoardCountsTheWeek() passed after 1.989 seconds.
+✔ Test newPeopleSeeItWithTheStartingTargets() passed after 1.989 seconds.
+✔ Test leavingTheMacLocksAtOnce() passed after 1.989 seconds.
+✔ Test notNowHidesItForSevenDays() passed after 1.989 seconds.
+✔ Test earlyTimerWaitsForTheRest() passed after 1.989 seconds.
+✔ Test quickSwitchDoesNotLock() passed after 1.989 seconds.
+✔ Test importingAgainChangesNothing() passed after 1.990 seconds.
+✔ Test groupsInPreviewOrder() passed after 1.990 seconds.
+✔ Test caloriesOnly() passed after 1.989 seconds.
+✔ Test austrianMeasures() passed after 1.989 seconds.
+✔ Test splitsAListIntoItems() passed after 1.989 seconds.
+✔ Test trailingAmounts() passed after 1.989 seconds.
+✔ Test hidingAfterSwitchingKeepsTheFirstTime() passed after 1.989 seconds.
+✔ Test clockSetBackCountsFromNow() passed after 1.989 seconds.
+✔ Test comingBackWithoutLeavingOnlyStopsTheTimer() passed after 1.989 seconds.
+✔ Test zeroGraceLocksRightAway() passed after 1.989 seconds.
+✔ Test graceIsFiveMinutes() passed after 1.989 seconds.
+✔ Test backgroundStartsTheTimerForTheWholeGrace() passed after 1.989 seconds.
+✔ Test timerAfterComingBackDoesNothing() passed after 1.989 seconds.
+✔ Test fiveMinutesAwayLocksOnTheTimer() passed after 1.989 seconds.
+✔ Test unusedMealGoesWithoutAQuestion() passed after 1.989 seconds.
+✔ Test countsEntriesAndRoutines() passed after 1.989 seconds.
+✔ Test emptyNameReadsMeal() passed after 1.989 seconds.
+✔ Test singularTexts() passed after 1.989 seconds.
+✔ Test lateTimerStillLocksWhenComingBack() passed after 1.989 seconds.
+✔ Test movesToSnacksUnderItsOwnName() passed after 1.989 seconds.
+✔ Test keepsDishNamesTogether() passed after 1.989 seconds.
+✔ Test gluedUnitsFractionsAndWords() passed after 1.989 seconds.
+✔ Test amountsForFoods() passed after 1.989 seconds.
+✔ Test weekHelpers() passed after 1.989 seconds.
+✔ Test checkTimingAndDaysText() passed after 1.989 seconds.
+✔ Test activePhaseNeedsAConfirmedStart() passed after 1.989 seconds.
+✔ Test planEditorWarnings() passed after 1.989 seconds.
+✔ Test pauses() passed after 1.989 seconds.
+✔ Test anIngredientWithoutValuesIsTheStoredOne() passed after 1.989 seconds.
+✔ Test startingAPhase() passed after 1.989 seconds.
+✔ Test aNewerClearBeatsAnOlderOfflineMark() passed after 1.989 seconds.
+✔ Test anUntouchedExportChangesNothing() passed after 1.989 seconds.
+✔ Test dayTypePrecedence() passed after 1.989 seconds.
+✔ Test dayMarksNewestWins() passed after 1.989 seconds.
+✔ Test proteinMealsCountAsThePillShowsThem() passed after 1.989 seconds.
+✔ Test statusAndVerdictUseTheSameWords() passed after 1.989 seconds.
+✔ Test unchangedIngredientsAreKept() passed after 1.989 seconds.
+✔ Test howItWentStartsWhenThePlanWasSetUp() passed after 1.989 seconds.
+✔ Test compositionWeighsWithTheMorningWeights() passed after 1.989 seconds.
+✔ Test weightSignalFeedsTheCheckIn() passed after 1.989 seconds.
+✔ Test targetsPrecedence() passed after 1.989 seconds.
+✔ Test roundTripsThroughJSON() passed after 1.990 seconds.
+✔ Test rateLabelsAndCautions() passed after 1.989 seconds.
+✔ Test aPhaseWithoutARateGetsNoProposal() passed after 1.989 seconds.
+✔ Test mirrorWritesTheLegacyValues() passed after 1.989 seconds.
+✔ Test measuredMaintenanceCountsOnlyFinishedCompleteDays() passed after 1.989 seconds.
+✔ Test revisionByDate() passed after 1.989 seconds.
+✔ Test planHistoryKeepsOneVersionPerTenMinutes() passed after 1.989 seconds.
+✔ Test applyingDeltaKeepsTheCycling() passed after 1.989 seconds.
+✔ Test tooFewWeighInsKeepGathering() passed after 1.989 seconds.
+✔ Test checkpointStopsTheCheckInUntilReviewed() passed after 1.989 seconds.
+✔ Test flexibleTypeOfferedOnARestDay() passed after 1.989 seconds.
+✔ Test typedWeights() passed after 1.989 seconds.
+✔ Test typedTapeValues() passed after 1.989 seconds.
+✔ Test applyingDeltaWithoutRevisionStartsFromTheProfile() passed after 1.989 seconds.
+✔ Test emptyAndBrokenTextIsAnEmptyPlan() passed after 1.989 seconds.
+✔ Test waistRightInTheMorningBanner() passed after 1.989 seconds.
+✔ Test snapshotTakesTheWeightNumbers() passed after 1.989 seconds.
+✔ Test actionCommands() passed after 1.989 seconds.
+✔ Test lossDeltaUsesCarbsAndFatWithAFatFloor() passed after 1.989 seconds.
+✔ Test weeklyCheckInUntilSaved() passed after 1.989 seconds.
+✔ Test decodingIsLenient() passed after 1.989 seconds.
+✔ Test nothingWithoutAPlan() passed after 1.989 seconds.
+✔ Test pendingLeavesPastOnesOut() passed after 1.989 seconds.
+✔ Test doneTasksTakeTheirNotificationAway() passed after 1.989 seconds.
+✔ Test checksFollowTheirTimeWhenTheMorningIsOff() passed after 1.989 seconds.
+✔ Test eveningBeforeAFullSet() passed after 1.989 seconds.
+✔ Test migrationFromTheProfile() passed after 1.989 seconds.
+✔ Test keyValueText() passed after 1.989 seconds.
+✔ Test phaseEndOnItsDate() passed after 1.989 seconds.
+✔ Test aDueMeasurementOutlastsTheWeighIn() passed after 1.989 seconds.
+✔ Test goalSetDateAndBodyFatCeilingRoundTrip() passed after 1.989 seconds.
+✔ Test remindersKeepTheirClockTimeOnDaylightSavingDays() passed after 1.989 seconds.
+✔ Test aPauseSilencesEverything() passed after 1.989 seconds.
+✔ Test atMostOneBeforeTen() passed after 1.989 seconds.
+✔ Test otherEntriesAreOrdinaryCopies() passed after 1.989 seconds.
+✔ Test onlyBodyFatDueOpensTheBodyFatSheet() passed after 1.989 seconds.
+✔ Test atMostFourActions() passed after 1.989 seconds.
+✔ Test aPlannedCopyLeavesOutWhatTheRoutineAlreadyPlans() passed after 1.989 seconds.
+✔ Test reviewComesOnce() passed after 1.989 seconds.
+✔ Test aDeletedPlanGetsAnOrdinaryCopy() passed after 1.989 seconds.
+✔ Test aDayTheRoutineHasNotReachedTakesItsKey() passed after 1.989 seconds.
+✔ Test volumes() passed after 1.989 seconds.
+✔ Test morningWeighInWithFoldedChecks() passed after 1.989 seconds.
+✔ Test quietHours() passed after 1.989 seconds.
+✔ Test oneServingOrLessIsSingular() passed after 1.989 seconds.
+✔ Test missingProducts() passed after 1.989 seconds.
+✔ Test drinksAreMillilitres() passed after 1.989 seconds.
+✔ Test parsesAProduct() passed after 1.989 seconds.
+✔ Test appFormattingKeepsTheShape() passed after 1.989 seconds.
+✔ Test portionLabelDisplay() passed after 1.989 seconds.
+✔ Test freshnessIsTheNewestChange() passed after 1.989 seconds.
+✔ Test aWatchRefreshNeverOverwritesFresherIPhoneNumbers() passed after 1.989 seconds.
+✔ Test gramsOfADrinkReadAsGrams() passed after 1.989 seconds.
+✔ Test bracketedAmountsAreNotShownTwice() passed after 1.989 seconds.
+✔ Test thePhoneMarkIsStoredAsJSON() passed after 1.989 seconds.
+✔ Test olderOrRepeatedMessagesAreIgnored() passed after 1.989 seconds.
+✔ Test theMessageRoundTrips() passed after 1.989 seconds.
+✔ Test newLinesAndOtherSeparators() passed after 1.989 seconds.
+✔ Test joinersSplitOnSecondTry() passed after 1.989 seconds.
+✔ Test theWatchTakesTheIPhonesNumbersUnlessItHasNewerOnes() passed after 1.989 seconds.
+✔ Test halvesAfterANumberWord() passed after 1.989 seconds.
+✔ Test afterTheCutoff() passed after 1.989 seconds.
+✔ Test aHealthCopyOfTheSameWeighInIsNotEarlier() passed after 1.989 seconds.
+✔ Test aSecondMorningWeighInIsExtra() passed after 1.989 seconds.
+✔ Test dayStartAfterMidnight() passed after 1.989 seconds.
+✔ Test aHalfOfAFoodWithAHalfPortionIsThatPortion() passed after 1.989 seconds.
+✔ Test editingTheMorningWeightLater() passed after 1.989 seconds.
+✔ Test twoAmountsWithoutASeparatorSplit() passed after 1.989 seconds.
+✔ Test amountsInsideANameStayTogether() passed after 1.989 seconds.
+✔ Test ownSeries() passed after 1.989 seconds.
+✔ Test settingsImportTakesIt() passed after 1.989 seconds.
+✔ Test germanDecimalCommasStayNumbers() passed after 1.989 seconds.
+✔ Test todayWidgetIsAlwaysKcal() passed after 1.989 seconds.
+✔ Test names() passed after 1.989 seconds.
+✔ Test theMethod() passed after 1.989 seconds.
+✔ Test beforeThePlanWasSetUp() passed after 1.989 seconds.
+✔ Test todayAndTomorrow() passed after 1.989 seconds.
+✔ Test numbers() passed after 1.989 seconds.
+✔ Test withoutAPlan() passed after 1.989 seconds.
+✔ Test timelinePoints() passed after 1.989 seconds.
+✔ Test links() passed after 1.989 seconds.
+✔ Test weighInFollowsTheMorning() passed after 1.989 seconds.
+✔ Test checksText() passed after 1.989 seconds.
+✔ Test dayStartHourMovesTheDay() passed after 1.989 seconds.
+✔ Test nextMeasurement() passed after 1.989 seconds.
+✔ Test fileRoundTrip() passed after 1.989 seconds.
+✔ Test siriNames() passed after 1.989 seconds.
+✔ Test weightStatus() passed after 1.989 seconds.
+✔ Test showingAValueNeverRoundsIt() passed after 1.989 seconds.
+✔ Test energyFieldRoundTripsInKilojoules() passed after 1.989 seconds.
+✔ Test rateIsClampedToBodyWeight() passed after 1.989 seconds.
+✔ Test cutTargetsFromMeasuredMaintenance() passed after 1.989 seconds.
+✔ Test calculatedMaintenanceWhenNotConfident() passed after 1.989 seconds.
+✔ Test ownRateMaintainAndNoTargetsSoFar() passed after 1.989 seconds.
+✔ Test proposalAfterStartKeepsTheCycling() passed after 1.989 seconds.
+✔ Test shownThroughTheDay() passed after 1.990 seconds.
+✔ Test macrosAndBridge() passed after 1.989 seconds.
+✔ Test pausedDay() passed after 1.990 seconds.
+✔ Test daylightSavingDoesNotSkipDays() passed after 1.989 seconds.
+✔ Test lateSnacksCanCountForYesterday() passed after 1.989 seconds.
+✔ Test timesOnADayStayOnTheWallClock() passed after 1.989 seconds.
+✔ Test keysAndArithmetic() passed after 1.989 seconds.
+✔ Test clockTimes() passed after 1.989 seconds.
+✔ Test aLateSnackStillCountsForTheAppsDay() passed after 1.990 seconds.
+✔ Test theTimelineChangesDayAtTheDayStart() passed after 1.990 seconds.
+✔ Test thePlannedLineMovesOn() passed after 1.990 seconds.
+✔ Test olderFilesMeanMidnight() passed after 1.990 seconds.
+✔ Test theDayStartAndPlannedMealsReachTheWidget() passed after 1.990 seconds.
+✔ Test scalingAndSalt() passed after 1.990 seconds.
+✔ Test cutNeverGoesBelowTheSafeMinimum() passed after 1.990 seconds.
+✔ Test numbersPeopleType() passed after 1.990 seconds.
+✔ Test highlightsFollowClaimThresholds() passed after 1.990 seconds.
+✔ Test energyUnits() passed after 1.990 seconds.
+✔ Test macroShares() passed after 1.990 seconds.
+✔ Test encodingRoundTripsAndIgnoresUnknownKeys() passed after 1.990 seconds.
+✔ Test sumKeepsUnknownAsUnknown() passed after 1.990 seconds.
+✔ Test offTrackOnlyAfterTwoCheckInsOnTheSameSide() passed after 1.990 seconds.
+✔ Test amountTexts() passed after 1.990 seconds.
+✔ Test withoutAPhaseOnlyTheNumbers() passed after 1.990 seconds.
+✔ Test servingsEncodeAndParse() passed after 1.990 seconds.
+✔ Test categoriesFromText() passed after 1.990 seconds.
+✔ Test gatheringDataWithoutAValidRate() passed after 1.990 seconds.
+✔ Test numbersInThePersonsFormat() passed after 1.990 seconds.
+✔ Test inRangeLine() passed after 1.990 seconds.
+✔ Test theIPhonesStatusTravelsAsJSON() passed after 1.990 seconds.
+✔ Test everyCalorieChangeRestartsTheCheckIn() passed after 1.990 seconds.
+✔ Test statusLineAgreesWithTheCheckIn() passed after 1.990 seconds.
+✔ Test theMorningWeighInFromHealth() passed after 1.990 seconds.
+✔ Test adherenceGate() passed after 1.990 seconds.
+✔ Test gainCapAndEnergyFloor() passed after 1.990 seconds.
+✔ Test inRangeKeepsIt() passed after 1.990 seconds.
+✔ Test gatheringNamesTheFirstAdjustmentCheck() passed after 1.990 seconds.
+✔ Test firstAdjustmentCheckCountsTheFirstAndLastDay() passed after 1.990 seconds.
+✔ Test aShortWindowNeverCountsAsOutside() passed after 1.990 seconds.
+✔ Test slowerTwiceInARowProposesMoreCarbs() passed after 1.990 seconds.
+✔ Test windowStartAndNextCheckIn() passed after 1.990 seconds.
+✔ Test anImportOnTheCheckInDayAfterApplyKeepsTheLock() passed after 1.990 seconds.
+✔ Test redoAfterApplyingSaysTheTargetsAlreadyChanged() passed after 1.990 seconds.
+✔ Test fromTheWeightSignal() passed after 1.990 seconds.
+✔ Test statusLineNamesNewTargetsAndPauses() passed after 1.990 seconds.
+✔ Test noPhasePausedAndCheckpoint() passed after 1.989 seconds.
+✔ Test stepFromTheRate() passed after 1.989 seconds.
+✔ Test creatineHoldsFasterFor28Days() passed after 1.990 seconds.
+✔ Test fasterTwiceInARowProposesLess() passed after 1.989 seconds.
+✔ Test normalizesLikeTheImport() passed after 1.989 seconds.
+✔ Test outsideOnlyCountsWhenThePreviousCheckInWasOutsideOnTheSameSide() passed after 1.990 seconds.
+✔ Test lockAfterAnAppliedChange() passed after 1.989 seconds.
+✔ Test kindsAndTitles() passed after 1.989 seconds.
+✔ Test crossCheckFlagsIncompleteLogging() passed after 1.989 seconds.
+✔ Test aLateWorkoutBelongsToTheDayBefore() passed after 1.989 seconds.
+✔ Test nothingOtherwise() passed after 1.990 seconds.
+✔ Test maintainPhase() passed after 1.989 seconds.
+✔ Test severalFitThePlanThenTheHigherOneWins() passed after 1.990 seconds.
+✔ Test amountsWithTheirUnitGluedOn() passed after 1.989 seconds.
+✔ Test howImportedAmountsAreStored() passed after 1.989 seconds.
+✔ Test offersTheMatchingTypeOnADefaultDay() passed after 1.990 seconds.
+✔ Test aChangedAmountScalesTheTotals() passed after 1.989 seconds.
+✔ Test twoAIFilesInARowAreBothNew() passed after 1.990 seconds.
+✔ Test entriesAnEarlierVersionImportedWithAnAIsNumberAreFound() passed after 1.990 seconds.
+✔ Test matching() passed after 1.989 seconds.
+✔ Test dayNames() passed after 1.989 seconds.
+✔ Test aChangedKcalKeepsThePortion() passed after 1.990 seconds.
+✔ Test ownMealIDsMatch() passed after 1.990 seconds.
+✔ Test anExportIntoAnEmptyDiaryComesBackWhole() passed after 1.990 seconds.
+✔ Test statuses() passed after 1.989 seconds.
+✔ Test savingKeepsWhatANewerBuildAdded() passed after 1.995 seconds.
+✔ Test mealSlots() passed after 1.990 seconds.
+✔ Test totalsAndProgress() passed after 1.990 seconds.
+✔ Test valuesStayOnTheGrid() passed after 1.990 seconds.
+✔ Test weighInStartsFromTheLastTypedWeight() passed after 1.990 seconds.
+✔ Test notesUnderATapeValue() passed after 1.990 seconds.
+✔ Test tapeStartsFromTheSitesLastReading() passed after 1.990 seconds.
+✔ Test previousReadingOfASite() passed after 1.990 seconds.
+✔ Test duplicateGroupsConverge() passed after 1.990 seconds.
+✔ Test twoIdenticalRowsAreTwoEntries() passed after 1.990 seconds.
+✔ Test weekdays() passed after 1.990 seconds.
+✔ Test aRowWithoutAMealGoesToTheMealOfItsTime() passed after 1.990 seconds.
+✔ Test "A planned meal a routine change took out doesn't keep its day, wherever it is" passed after 1.990 seconds.
+✔ Test "Wednesday's lunch moved to Saturday keeps Wednesday from being planned again" passed after 1.990 seconds.
+✔ Test scheduleDays() passed after 1.990 seconds.
+✔ Test "The keys of a rule follow its weekdays and its first and last day" passed after 1.990 seconds.
+✔ Test weightAroundAnAssessment() passed after 1.990 seconds.
+✔ Test girthChangesAreJudgedAsShown() passed after 1.990 seconds.
+✔ Test fatAndLeanMass() passed after 1.990 seconds.
+✔ Test seriesPerMethodAndDevice() passed after 1.990 seconds.
+✔ Test ratiosAndCeilings() passed after 1.990 seconds.
+✔ Test ceilingsFromTheRecords() passed after 1.990 seconds.
+✔ Test waistGuardAndNote() passed after 1.990 seconds.
+✔ Test navyVectors() passed after 1.990 seconds.
+✔ Test compositionPoints() passed after 1.990 seconds.
+✔ Test bodyGoalCard() passed after 1.990 seconds.
+✔ Test goalValidation() passed after 1.990 seconds.
+✔ Test leanGainRealism() passed after 1.990 seconds.
+✔ Test longTermGoalGap() passed after 1.990 seconds.
+✔ Test waistRatiosPairTheLatestHip() passed after 1.990 seconds.
+✔ Test poses() passed after 1.990 seconds.
+✔ Test changesWithinASeries() passed after 1.990 seconds.
+✔ Test ceilingsFromWaistReadings() passed after 1.990 seconds.
+✔ Test spanText() passed after 1.990 seconds.
+✔ Test navyAvailability() passed after 1.990 seconds.
+✔ Test fittedSize() passed after 1.990 seconds.
+✔ Test nearest() passed after 1.990 seconds.
+✔ Test session() passed after 1.990 seconds.
+✔ Test exifDates() passed after 1.990 seconds.
+✔ Test girthTrends() passed after 1.990 seconds.
+✔ Test anotherDevicesEditOfAnUntouchedFieldStays() passed after 1.990 seconds.
+✔ Test anUntouchedExportChangesNothing() passed after 1.991 seconds.
+✔ Test onlyTheEditedFieldsMove() passed after 1.990 seconds.
+✔ Test theReviewMovesAsAPair() passed after 1.990 seconds.
+✔ Test anUntouchedSheetChangesNothing() passed after 1.990 seconds.
+✔ Test latestAndDays() passed after 1.990 seconds.
+✔ Test yesterdaysWordFromTheIPhoneOnlyKeepsTheNote() passed after 1.990 seconds.
+✔ Test emptiesOnANewDay() passed after 1.990 seconds.
+✔ Test memoryIsRedAndSaysNothingIsSaved() passed after 1.990 seconds.
+✔ Test comparePairs() passed after 1.990 seconds.
+✔ Test fullICloudShowsAtOnce() passed after 1.990 seconds.
+✔ Test healthMappingIsUnique() passed after 1.990 seconds.
+✔ Test aFreshIPhoneDecidesEvenWithNothingToShow() passed after 1.990 seconds.
+✔ Test theCoachPartTravelsWithTheSnapshot() passed after 1.990 seconds.
+✔ Test storedOnTheWatchAsJSON() passed after 1.990 seconds.
+✔ Test theIPhonesStatusLineAndHealthMorningWhenFresh() passed after 1.990 seconds.
+✔ Test sidebarLine() passed after 1.990 seconds.
+✔ Test throttleAllowsOneToastAMinute() passed after 1.990 seconds.
+✔ Test errorClockStartsKeepsAndClears() passed after 1.990 seconds.
+✔ Test theActivityBonusIsTheIPhonesReadingOfToday() passed after 1.990 seconds.
+✔ Test theWatchKeepsTheLastCoachPartItGot() passed after 1.990 seconds.
+✔ Test noAccountAndRestrictedAreOrange() passed after 1.990 seconds.
+✔ Test newErrorAfterASuccessfulSyncStartsAgain() passed after 1.990 seconds.
+✔ Test theIPhonesNumbersCountOnceTheyHaveEverythingTheWatchHas() passed after 1.990 seconds.
+✔ Test aMessageWithoutACoachPartStillCounts() passed after 1.990 seconds.
+✔ Test withoutWordFromTheIPhoneTheNoteFollowsTheTypedMornings() passed after 1.990 seconds.
+✔ Test localIsOrange() passed after 1.990 seconds.
+✔ Test comparison() passed after 1.991 seconds.
+✔ Test otherErrorsWaitADay() passed after 1.990 seconds.
+✔ Test onlyOneDefaultDayType() passed after 1.990 seconds.
+✔ Test demoAndHealthySyncShowNothing() passed after 1.990 seconds.
+✔ Test theWatchsOwnNumbersAfterAWeighInOnTheWatch() passed after 1.990 seconds.
+✔ Test calculatedTargetsMoveEveryDayTypeTheSame() passed after 1.990 seconds.
+✔ Test settingUpKeepsWhatThePlanHolds() passed after 1.990 seconds.
+✔ Test aMorningTypedInNinaIsNotSentAsHealth() passed after 1.990 seconds.
+✔ Test pausingAndResuming() passed after 1.990 seconds.
+✔ Test newDayTypesAreFlexibleAndRestIsTheDefault() passed after 1.990 seconds.
+✔ Test typeTargetsChangeFromTheDayOn() passed after 1.990 seconds.
+✔ Test idsAreLowercaseLettersAndDigitsAndUnique() passed after 1.990 seconds.
+✔ Test checksAreAddedAndChanged() passed after 1.990 seconds.
+✔ Test firstPhaseAddedBeforeSetUpKeepsTrainingDays() passed after 1.990 seconds.
+✔ Test laterRevisionsFollowAndSameDayRevisionsKeepTheirReason() passed after 1.990 seconds.
+✔ Test deletingADayTypeFreesItsChecks() passed after 1.990 seconds.
+✔ Test signedChangesShareOneZeroStyle() passed after 1.990 seconds.
+✔ Test weeksAreSevenWholeDaysEndingYesterday() passed after 1.990 seconds.
+✔ Test plainFormatsOffApplePlatforms() passed after 1.990 seconds.
+✔ Test numbersUseADecimalPoint() passed after 1.990 seconds.
+✔ Test theIPhoneSendsItsHealthMorningAndItsNumbers() passed after 1.991 seconds.
+✔ Test oldHealthWeighInsAndNoPlan() passed after 1.991 seconds.
+✔ Test anAdjustmentFromTomorrowSurvivesAnEditToday() passed after 1.990 seconds.
+✔ Test lastFourWeeks() passed after 1.990 seconds.
+✔ Test withoutAPlan() passed after 1.990 seconds.
+✔ Test summarizesThePlan() passed after 1.990 seconds.
+✔ Test bodyNumbers() passed after 1.990 seconds.
+✔ Test fallsBackToTheCategory() passed after 1.990 seconds.
+✔ Test endsWithTheAnswerRulesAndTheKeyTable() passed after 1.990 seconds.
+✔ Test aFailedTryWaitsSixHours() passed after 1.990 seconds.
+✔ Test knownFoods() passed after 1.990 seconds.
+✔ Test keepsTheLastFour() passed after 1.990 seconds.
+✔ Test aNumberJSONCantHoldDoesntLoseTheRecord() passed after 1.990 seconds.
+✔ Test namesAndPaths() passed after 1.990 seconds.
+✔ Test stateSurvivesStorageAndBrokenData() passed after 1.990 seconds.
+✔ Test recordsComeBackExactly() passed after 1.990 seconds.
+✔ Test stateRecordsWhatHappened() passed after 1.990 seconds.
+✔ Test appleHealthWeightsOnlyWhenAllowed() passed after 1.990 seconds.
+✔ Test aBrokenLineIsCountedNotFatal() passed after 1.990 seconds.
+✔ Test placeTitles() passed after 1.990 seconds.
+✔ Test daysUntilTheNextOne() passed after 1.990 seconds.
+✔ Test onByDefaultOnlyOnIPhone() passed after 1.990 seconds.
+✔ Test statusLines() passed after 1.990 seconds.
+✔ Test oneCalmNoticePerRunOfFailures() passed after 1.990 seconds.
+✔ Test folderNamesNeverClash() passed after 1.990 seconds.
+✔ Test aMuchFullerBackupIsKeptWhenDataWentMissing() passed after 1.990 seconds.
+✔ Test dueTheFirstTimeAndThenEverySevenDays() passed after 1.990 seconds.
+✔ Test choosingAFolderForgetsOtherPlaces() passed after 1.990 seconds.
+✔ Test onlyRemovesBackupsOfTheSamePlace() passed after 1.990 seconds.
+✔ Test aClockSetBackDoesntStopTheBackups() passed after 1.990 seconds.
+✔ Test onlyABackupWithDataIsWritten() passed after 1.990 seconds.
+✔ Test manifestChecksFormatAndVersion() passed after 1.990 seconds.
+✔ Test datesKeepTheirMilliseconds() passed after 1.990 seconds.
+✔ Test onlyTheBackupItselfIsRemovedNotAnotherFolderOfThatName() passed after 1.990 seconds.
+✔ Test adherenceShortWindowAndPauses() passed after 1.990 seconds.
+✔ Test adherenceOverTwentyEightDays() passed after 1.990 seconds.
+✔ Test bodyFatErrorAndTheDevicesTapeFormula() passed after 1.991 seconds.
+✔ Test recipeAsFood() passed after 1.990 seconds.
+✔ Test windowStart() passed after 1.990 seconds.
+✔ Test proteinMealsAreCountedPerMeal() passed after 1.990 seconds.
+✔ Test groupsIngredients() passed after 1.990 seconds.
+✔ Test dayRules() passed after 1.990 seconds.
+✔ Test weekSummary() passed after 1.990 seconds.
+✔ Test weightEvents() passed after 1.990 seconds.
+✔ Test checkInHistoryWeights() passed after 1.990 seconds.
+✔ Test diaryDayResolvedThroughThePlan() passed after 1.990 seconds.
+✔ Test typos() passed after 1.990 seconds.
+✔ Test grades() passed after 1.990 seconds.
+✔ Test normalisation() passed after 1.990 seconds.
+✔ Test exportParsesBack() passed after 1.990 seconds.
+✔ Test bundledCatalogLoads() passed after 1.990 seconds.
+✔ Test catalogIsConsistent() passed after 1.990 seconds.
+✔ Test everyTypeHasATitle() passed after 1.990 seconds.
+✔ Test addsOnlyWhatIsMissing() passed after 1.990 seconds.
+✔ Test aBackupOfTheSameDataChangesNothing() passed after 1.990 seconds.
+✔ Test typesFromANewerVersionAreLeftOut() passed after 1.990 seconds.
+✔ Test goalsAndPlan() passed after 1.990 seconds.
+✔ Test oneDamagedFoodDoesNotCostTheCatalog() passed after 1.990 seconds.
+✔ Test importedHistoryIsNeverWritten() passed after 1.990 seconds.
+✔ Test usageAndFavoritesLiftResults() passed after 1.990 seconds.
+✔ Test syncedSettingsTravelWithTheGoals() passed after 1.990 seconds.
+✔ Test onlyLiveTypedPlausibleWeighInsAreWritten() passed after 1.990 seconds.
+✔ Test aNoteOnlyEditKeepsTheSample() passed after 1.990 seconds.
+✔ Test aWeighInGoneFromTheWindowTakesItsSampleAlong() passed after 1.990 seconds.
+✔ Test theLimitsAreInclusive() passed after 1.990 seconds.
+✔ Test theSheetHidesTheImportTagAndKeepsIt() passed after 1.990 seconds.
+✔ Test weightSamplesHaveASyncIdentifier() passed after 1.990 seconds.
+✔ Test removalsComeBeforeWrites() passed after 1.990 seconds.
+✔ Test anEditRemovesTheOldSampleFirst() passed after 1.990 seconds.
+✔ Test importedWeighInsCarryATag() passed after 1.990 seconds.
+✔ Test aDeletedWeighInLeavesHealth() passed after 1.990 seconds.
+✔ Test aNewWeighInIsWrittenOnceAndThenRemembered() passed after 1.990 seconds.
+✔ Test aDiaryEntryDeletedForGoodLeavesHealth() passed after 1.990 seconds.
+✔ Test anEmptiedDiaryOnlyForgets() passed after 1.990 seconds.
+✔ Test rateWindowFollowsThePlan() passed after 1.990 seconds.
+✔ Test weeklyChangeAndCrossCheck() passed after 1.990 seconds.
+✔ Test checkpointCrossingUsesTheSevenDayAverage() passed after 1.990 seconds.
+✔ Test anEmptiedStoreIsNotTrusted() passed after 1.990 seconds.
+✔ Test trendAndBodyWeight() passed after 1.990 seconds.
+✔ Test anUntrustedStoreOnlyForgets() passed after 1.990 seconds.
+✔ Test tagsAreReadFromTheNote() passed after 1.990 seconds.
+✔ Test unusualReadingsAndTypos() passed after 1.990 seconds.
+✔ Test typoSuggestions() passed after 1.990 seconds.
+✔ Test morningWeightIsTheEarliestBeforeTheCutoff() passed after 1.990 seconds.
+✔ Test healthCopiesOfTypedWeightsCountOnce() passed after 1.990 seconds.
+✔ Test checkpointProjection() passed after 1.990 seconds.
+✔ Test statusComparesWithTheRangeAndTolerance() passed after 1.990 seconds.
+✔ Test decisionRateIsTheLeastSquaresSlope() passed after 1.990 seconds.
+✔ Test precomputedAveragesMatchTheDayByDayOnes() passed after 1.990 seconds.
+✔ Test corridorFromTheStartWeight() passed after 1.990 seconds.
+✔ Test rateOnADayLeavesPausedDaysOut() passed after 1.990 seconds.
+✔ Test summaryForTheWeightCard() passed after 1.990 seconds.
+✔ Test phaseStartWeightRule() passed after 1.990 seconds.
+✔ Test germanNamesComeFirstInGerman() passed after 1.991 seconds.
+✔ Test projectedEndWeight() passed after 1.990 seconds.
+✔ Test checkpointAfterThePlannedEnd() passed after 1.990 seconds.
+✔ Test recordsTheWeekAndTheResult() passed after 1.990 seconds.
+✔ Test emptyCellsOfAnAIRowKeepWhatIHave() passed after 1.990 seconds.
+✔ Test noiseBandIsTheSpreadAroundTheCentredAverage() passed after 1.990 seconds.
+✔ Test readsLeniently() passed after 1.990 seconds.
+✔ Test sevenDayAverageNeedsFourMornings() passed after 1.990 seconds.
+✔ Test roundTripsThroughDayMarkText() passed after 1.990 seconds.
+✔ Test anUntouchedExportChangesNothing() passed after 1.990 seconds.
+✔ Test everyNutrientComesBackAtFullPrecision() passed after 1.990 seconds.
+✔ Test dayStartHourAndBackFilledWeighIns() passed after 1.990 seconds.
+✔ Test aFoodIAlreadyHaveIsMatchedByNameAndBrand() passed after 1.990 seconds.
+✔ Test columnsTheFileDoesntHaveKeepTheStoredValues() passed after 1.990 seconds.
+✔ Test decisionRateNeedsFourteenDaysAndTenWeighIns() passed after 1.990 seconds.
+✔ Test promptListsMyFoodsAndAsksForEmptyIDs() passed after 1.990 seconds.
+✔ Test aBarcodeASpreadsheetShortenedIsLeftOut() passed after 1.990 seconds.
+✔ Test twoAIFilesInARowDontOverwriteEachOther() passed after 1.990 seconds.
+✔ Test healthWeightsAreNeverStored() passed after 1.990 seconds.
+✔ Test savedSitesReadAsAList() passed after 1.990 seconds.
+✔ Test oneSiteAtATime() passed after 1.990 seconds.
+✔ Test savedValuesStayPlausible() passed after 1.990 seconds.
+✔ Test oneEditedValueChangesOnlyThatValue() passed after 1.990 seconds.
+✔ Test roundTrip() passed after 1.990 seconds.
+✔ Test fastEqualsSlowOnOddText() passed after 1.990 seconds.
+✔ Test parsesDatesUnitsAndLookups() passed after 1.990 seconds.
+✔ Test exportRoundTrips() passed after 1.990 seconds.
+✔ Test keysAreForgiving() passed after 1.990 seconds.
+✔ Test dates() passed after 1.990 seconds.
+✔ Test importedChecksRemindByDefault() passed after 1.990 seconds.
+✔ Test aRemoveRowDeletesAStartedPhase() passed after 1.990 seconds.
+✔ Suite "Prompts for the docs" passed after 2.010 seconds.
+✔ Test approximateNumbersAndUnitsInBrackets() passed after 1.990 seconds.
+✔ Test checkTimesAreOnlyRealTimes() passed after 1.990 seconds.
+✔ Test everyFormerWishHasAKey() passed after 1.990 seconds.
+✔ Test rankingFindsWhatPeopleMean() passed after 1.993 seconds.
+✔ Test importedTargetsReplaceAChangePlannedForLater() passed after 1.990 seconds.
+✔ Test bodyRowsAreTodaysBaseline() passed after 1.990 seconds.
+✔ Test flatTargetsGoToTheActivePhaseFromToday() passed after 1.990 seconds.
+✔ Test aBackDatedStartKeepsThePastTargets() passed after 1.990 seconds.
+✔ Test promptsExplainThePlan() passed after 1.990 seconds.
+✔ Test exportReadsBackWithAPlan() passed after 1.990 seconds.
+✔ Test aMaintainPhaseReadsBack() passed after 1.990 seconds.
+✔ Test flatRateAndGoalMoveTheActivePhase() passed after 1.990 seconds.
+✔ Test trainingExtraWithAPlanSaysWhy() passed after 1.990 seconds.
+✔ Test legacyTrainingDaysBecomeADayType() passed after 1.990 seconds.
+✔ Test notesAreNotWishesAnyMore() passed after 1.990 seconds.
+✔ Test aStartedPhaseTheFileLeavesOutStays() passed after 1.990 seconds.
+✔ Test percentRatesUseTheWeight() passed after 1.990 seconds.
+✔ Test bodyFatCeilingIsOptional() passed after 1.990 seconds.
+✔ Test importedTapeIsAStandardBaseline() passed after 1.990 seconds.
+✔ Test withoutAPlanTheRangeMidpointGoesToTheProfile() passed after 1.990 seconds.
+✔ Test groupsReplaceAndListRemovals() passed after 1.990 seconds.
+✔ Test importSetsUpThePlan() passed after 1.990 seconds.
+✔ Test previewLinesHaveUniqueIDs() passed after 1.990 seconds.
+✔ Test aProfileWithTrainingDaysIsMigrated() passed after 1.990 seconds.
+✔ Test valuesEncodeAndDecode() passed after 1.990 seconds.
+✔ Test methods() passed after 1.990 seconds.
+✔ Test validationNotes() passed after 1.990 seconds.
+✔ Test protocolAndStandardReadings() passed after 1.990 seconds.
+✔ Test sites() passed after 1.990 seconds.
+✔ Test exportOfWhatNinaHasReadsBack() passed after 1.990 seconds.
+✔ Test numbersReadBackExactly() passed after 1.990 seconds.
+✔ Test readingMerge() passed after 1.990 seconds.
+✔ Test mixedRowsAndNotes() passed after 1.990 seconds.
+✔ Test datesWithMonthsAndApproximations() passed after 1.990 seconds.
+✔ Test dexaReportInGrams() passed after 1.990 seconds.
+✔ Test dates() passed after 1.990 seconds.
+✔ Test readsTheOwnFormat() passed after 1.990 seconds.
+✔ Test detectedBeforeTheDiary() passed after 1.990 seconds.
+✔ Test prompts() passed after 1.990 seconds.
+✔ Test conditions() passed after 1.990 seconds.
+✔ Test otherUnitsAndAppExports() passed after 1.990 seconds.
+✔ Test importingAgainAddsNothing() passed after 1.990 seconds.
+✔ Test headerProblems() passed after 1.990 seconds.
+✔ Test aSetupAnswerCountsTheWeightItsSettingsPartSaved() passed after 1.990 seconds.
+✔ Test importKeysAreStable() passed after 1.990 seconds.
+✔ Test sameValuesOnTheSameDayAreDuplicates() passed after 1.990 seconds.
+✔ Test oneRowBecomesUpToThreeRecords() passed after 1.990 seconds.
+✔ Test exportReadsBackWithoutChanges() passed after 1.990 seconds.
+✔ Test setupAnswerWithFourBlocks() passed after 1.990 seconds.
+✔ Test theDayFollowsTheTimeZone() passed after 1.990 seconds.
+✔ Test onlyMetricsOfTheTable() passed after 1.990 seconds.
+✔ Test withoutAMorningWeighInTheDaysEarliestCounts() passed after 1.990 seconds.
+✔ Test germanHeadersAndDecimalCommas() passed after 1.990 seconds.
+✔ Test aDayThatCantBeWrittenDoesntStopTheOthers() passed after 1.990 seconds.
+✔ Test expiredDayFilesAreDeleted() passed after 1.990 seconds.
+✔ Test theFilesAreTheseBytes() passed after 1.990 seconds.
+✔ Test thaliasFixturesRead() passed after 1.990 seconds.
+✔ Test dayTypeAndTomorrowRoundTrip() passed after 1.990 seconds.
+✔ Test entriesWithAValueAreSummed() passed after 1.990 seconds.
+✔ Test sourceIsRewrittenAtOnceWhenTheRefsChange() passed after 1.990 seconds.
+✔ Test threeMealsGiveOneSumPerMetric() passed after 1.990 seconds.
+✔ Test olderFilesStillRead() passed after 1.990 seconds.
+✔ Test mostCatalogFoodsHaveTheirOwnEmoji() passed after 1.996 seconds.
+✔ Test daysAfterTodayAndBeforeTheWindowAreLeftOut() passed after 1.990 seconds.
+✔ Test aMetricNoEntryHasIsLeftOut() passed after 1.990 seconds.
+✔ Test bodyWeightIsStableAndSortedWithTheRest() passed after 1.990 seconds.
+✔ Test bodyWeightNeverFromHealthAndImportedCounts() passed after 1.990 seconds.
+✔ Test aWeighInWithoutADiaryDayCountsOnTheDayOfItsTime() passed after 1.990 seconds.
+✔ Test factsOutsideTheWindowAreIgnored() passed after 1.990 seconds.
+✔ Test theMorningRuleWinsOverTheEarliestTime() passed after 1.990 seconds.
+✔ Test unchangedFactsLeaveTheFileAlone() passed after 1.990 seconds.
+✔ Test eachMetricNeedsItsOwnRecords() passed after 1.990 seconds.
+✔ Test healthRecordsGiveNoFacts() passed after 1.990 seconds.
+✔ Test factsHaveTheExchangeShape() passed after 1.990 seconds.
+✔ Test theStatusLineIsGerman() passed after 1.990 seconds.
+✔ Test atIsCutToTheWholeSecond() passed after 1.990 seconds.
+✔ Test writtenFilesReadBack() passed after 1.990 seconds.
+✔ Test daysWithoutFactsOrFileGetNoFile() passed after 1.990 seconds.
+✔ Test atIsTheLatestRecordOfTheMetric() passed after 1.990 seconds.
+✔ Test bodyWeightIsRoundedToATenth() passed after 1.990 seconds.
+✔ Test onlyEatenEntriesCount() passed after 1.990 seconds.
+✔ Test aDeletedWeighInLeavesItsDayFile() passed after 1.990 seconds.
+✔ Test aMetricIsLeftOutPerDay() passed after 1.990 seconds.
+✔ Test valuesAreRoundedTheSameEverywhere() passed after 1.990 seconds.
+✔ Test aRemovedFactIsGoneFromTheFile() passed after 1.990 seconds.
+✔ Test fnv1aHashes() passed after 1.990 seconds.
+✔ Test aNightWeighInBelongsToTheEveningBefore() passed after 1.990 seconds.
+✔ Test sourceIsWrittenOnChangesAndOnceADay() passed after 1.990 seconds.
+✔ Test bodyWeightIsTheMorningWeighIn() passed after 1.990 seconds.
+✔ Test sourceRefsAreTheSixMetrics() passed after 1.990 seconds.
+✔ Test ninasFilesHaveTheShapeOfTheFixtures() passed after 1.990 seconds.
+✔ Test aDayThatLostItsFactsGetsAnEmptyList() passed after 1.990 seconds.
+✔ Test factsAreStableOnEveryDevice() passed after 1.990 seconds.
+✔ Test setUpDayIsTheConfirmationDay() passed after 1.990 seconds.
+✔ Test aFullSetCountsForItsWholeWeek() passed after 1.990 seconds.
+✔ Test weekdays() passed after 1.990 seconds.
+✔ Test weeklyRhythm() passed after 1.990 seconds.
+✔ Test whatCountsAsAFullSet() passed after 1.990 seconds.
+✔ Test weighInPausesAndOptions() passed after 1.990 seconds.
+✔ Test checkpointCrossing() passed after 1.990 seconds.
+✔ Test phaseEventsAndCheckpoint() passed after 1.990 seconds.
+✔ Test nothingIsDueBeforeThePlannedFirstPhase() passed after 1.990 seconds.
+✔ Test stripOrder() passed after 1.990 seconds.
+✔ Test aMovedMealRewritesBothDays() passed after 1.990 seconds.
+✔ Test fullSetRhythm() passed after 1.990 seconds.
+✔ Test aDecisionAnswersOnlyTheCeilingsReachedThen() passed after 1.990 seconds.
+✔ Test baselineCard() passed after 1.990 seconds.
+✔ Test dayTypeChip() passed after 1.990 seconds.
+✔ Test ceilingsOpenTheReview() passed after 1.990 seconds.
+✔ Test dueFromAPlan() passed after 1.990 seconds.
+✔ Test phaseReviewsCountEachTrigger() passed after 1.990 seconds.
+✔ Test welcomeBackAfterAPause() passed after 1.990 seconds.
+✔ Test overdueBodyItemSaysSo() passed after 1.990 seconds.
+✔ Test checkInCardTiming() passed after 1.990 seconds.
+✔ Test phaseStartTargetChanges() passed after 1.990 seconds.
+✔ Test pastDaysShowOnlyWhatIsMissing() passed after 1.990 seconds.
+✔ Test stripHidesWhenEverythingIsDone() passed after 1.990 seconds.
+✔ Test phaseStartCardComesFirst() passed after 1.990 seconds.
+✔ Test weekAverage() passed after 1.990 seconds.
+✔ Test aCeilingReviewDoesNotUseUpTheCheckpoint() passed after 1.990 seconds.
+✔ Test phaseEndCard() passed after 1.990 seconds.
+✔ Test aPassedEndWaitsBehindTheCheckIn() passed after 1.990 seconds.
+✔ Test postponingAPhase() passed after 1.990 seconds.
+✔ Test stillOnABreak() passed after 1.990 seconds.
+✔ Test nothingWhilePaused() passed after 1.990 seconds.
+✔ Test overdueNoticeShowsOnceThenWaitsForTheCheckIn() passed after 1.990 seconds.
+✔ Test nothingWithoutAPlan() passed after 1.990 seconds.
+✔ Test laterSkipsToTheNextCard() passed after 1.990 seconds.
+✔ Test weekAverageCountsFinishedCompleteDays() passed after 1.990 seconds.
+✔ Test brokenTextReadsAsNoSettings() passed after 1.990 seconds.
+✔ Test withoutAProfileTheDeviceValueWaits() passed after 1.990 seconds.
+✔ Test aBrokenSyncedTextDoesntLoseTheOldOff() passed after 1.990 seconds.
+✔ Test unknownKeysAreKept() passed after 1.990 seconds.
+✔ Test theOldDeviceOnIsTheDefault() passed after 1.990 seconds.
+✔ Test roundTrip() passed after 1.990 seconds.
+✔ Test theOldDeviceOffMovesIntoTheSyncedSettingsOnce() passed after 1.990 seconds.
+✔ Test onlyActiveRoutinesThatAskPrompt() passed after 1.990 seconds.
+✔ Test aSyncedValueWinsEverywhere() passed after 1.990 seconds.
+✔ Test anOlderOrMissingVersionIsWrittenAsTheCurrentOne() passed after 1.990 seconds.
+✔ Test emptyTextHasTheDefaults() passed after 1.990 seconds.
+✔ Test aPlannedOrEatenMealGetsNoReminder() passed after 1.990 seconds.
+✔ Test gramsPerKilogram() passed after 1.990 seconds.
+✔ Test ruleFromThePlan() passed after 1.990 seconds.
+✔ Test lenientValues() passed after 1.990 seconds.
+✔ Test mealsFromEntries() passed after 1.990 seconds.
+✔ Test pillAndHint() passed after 1.990 seconds.
+✔ Test peopleWhoTookVersionFiveSeeTheVersionSixSteps() passed after 1.990 seconds.
+✔ Test theRoutineIsReadFromThePlanKey() passed after 1.990 seconds.
+✔ Test readOnlyStepsSayContinue() passed after 1.990 seconds.
+✔ Test weekCountAndAdherence() passed after 1.990 seconds.
+✔ Test firstRunHasEverythingInOrder() passed after 1.990 seconds.
+✔ Test versionSixAddsBackupMoveAndFind() passed after 1.990 seconds.
+✔ Test peopleWhoTookVersionTwoSeeTheCoachAndTheNewerSteps() passed after 1.990 seconds.
+✔ Test thaliaComesBackWithTheWeightAndOneSwitch() passed after 1.990 seconds.
+✔ Test peopleWhoTookVersionFourSeeTheVersionSixSteps() passed after 1.990 seconds.
+✔ Test iPhoneTextsUseTheMoreMenuForCreate() passed after 1.990 seconds.
+✔ Test peopleWhoTookVersionThreeSeeTheVersionFourFiveAndSixSteps() passed after 1.990 seconds.
+✔ Test versionThreeAddsTheCoachSteps() passed after 1.990 seconds.
+✔ Test eatenBeatsADeletedCopy() passed after 1.990 seconds.
+✔ Test coachStepsTickOff() passed after 1.990 seconds.
+✔ Test keysTellTheirRuleAndDay() passed after 1.990 seconds.
+✔ Test otherKeysAreLeftAlone() passed after 1.990 seconds.
+✔ Test versionFourAddsPhotosWatchHealthAndHistory() passed after 1.990 seconds.
+✔ Test untouchedMeansPlannedAndUnchanged() passed after 1.990 seconds.
+✔ Test aTieGoesToTheSmallestID() passed after 1.990 seconds.
+✔ Test recipePortionsWithoutAGroupAreToldApart() passed after 1.990 seconds.
+✔ Test takenKeysLeaveRetiredPlansOut() passed after 1.990 seconds.
+✔ Test aPlanDeletedOnOneDeviceStaysDeleted() passed after 1.990 seconds.
+✔ Test versionSixTextsNameThePathsThatExist() passed after 1.990 seconds.
+✔ Test theCleanUpsOwnTombstonesNeverWin() passed after 1.990 seconds.
+✔ Test untouchedCopiesKeepTheOldest() passed after 1.990 seconds.
+✔ Test theDayStartsAtItsHour() passed after 1.990 seconds.
+✔ Test timesBeforeTheStartBelongToTheNight() passed after 1.990 seconds.
+✔ Test anEditedCopyCountsAsActedOn() passed after 1.990 seconds.
+✔ Test slotsSortFromTheDayStart() passed after 1.990 seconds.
+✔ Test twoPassesGiveTheSameResult() passed after 1.990 seconds.
+✔ Test theStartMatchesTheDayChangeOnClockChangeNights() passed after 1.990 seconds.
+✔ Test aCopyEatenOnTheWatchBeatsTheOlderPlannedOne() passed after 1.990 seconds.
+✔ Test fullSetsAndAssessmentsStayOnThePhone() passed after 1.990 seconds.
+✔ Test theWeighInGoesWhenTheIPhoneSawAHealthWeighIn() passed after 1.990 seconds.
+✔ Test searchIsFast() passed after 1.990 seconds.
+✔ Test pillTitlesLeaveTheDoseOut() passed after 1.990 seconds.
+✔ Test umlautFoldMatchesTheThreeReplacements() passed after 1.990 seconds.
+✔ Test pillsFromTheSameBoardThePhoneUses() passed after 1.990 seconds.
+✔ Test oneEditCheckMatchesTheDistance() passed after 1.990 seconds.
+✔ Test fastEqualsSlowOnTheCatalog() passed after 1.996 seconds.
+✔ Test theWatchDoesWeighInsWeeklyTapeAndChecks() passed after 1.990 seconds.
+✔ Test emojiIsTheSameFromTheCache() passed after 1.990 seconds.
+✔ Test aFoodRowWithAnApproximateKcalIsRead() passed after 1.988 seconds.
+✔ Test settingsWithoutAHeader() passed after 1.988 seconds.
+✔ Test aSettingsCommentColumnIsLeftOut() passed after 1.987 seconds.
+✔ Test titledAndCopiedBlocksAreFound() passed after 1.987 seconds.
+✔ Test numbersPeopleAndAIsWrite() passed after 1.985 seconds.
+✔ Test oneFenceWithTwoFiles() passed after 1.985 seconds.
+✔ Test millilitreUnits() passed after 1.984 seconds.
+✔ Test blocksThatArentRecognisedAreListed() passed after 1.984 seconds.
+✔ Test germanNameColumns() passed after 1.983 seconds.
+✔ Test todayAndIncompleteDaysDontCount() passed after 1.983 seconds.
+✔ Test averageTargetsFollowEachDaysType() passed after 1.981 seconds.
+✔ Test maintenanceLeavesOutPartialAndIncompleteDays() passed after 1.981 seconds.
+✔ Test nothingFinishedYet() passed after 1.980 seconds.
+✔ Suite SettingsImportTests passed after 2.022 seconds.
+✔ Suite "Menu bar summary" passed after 2.022 seconds.
+✔ Suite "Food CSV" passed after 2.022 seconds.
+✔ Suite "Diary entry edits" passed after 2.022 seconds.
+✔ Suite "Tour" passed after 2.023 seconds.
+✔ Suite "Recent foods per meal" passed after 2.022 seconds.
+✔ Suite "Photo compare weight" passed after 2.022 seconds.
+✔ Suite "Insights" passed after 2.022 seconds.
+✔ Suite "Goals" passed after 2.022 seconds.
+✔ Suite "Settings import: the preview of a whole plan" passed after 2.022 seconds.
+✔ Suite "Apple Health body data" passed after 2.022 seconds.
+✔ Suite WatchCoachChipTests passed after 2.023 seconds.
+✔ Suite "Set your goal card" passed after 2.023 seconds.
+✔ Suite "Photo lock grace" passed after 2.023 seconds.
+✔ Suite "Quick add" passed after 2.023 seconds.
+✔ Suite "Meal removal" passed after 2.023 seconds.
+✔ Suite "Coach plan" passed after 2.023 seconds.
+✔ Suite "Import round trip: meals & recipes" passed after 2.023 seconds.
+✔ Suite "Coach glue" passed after 2.023 seconds.
+✔ Suite "Coach reminders" passed after 2.023 seconds.
+✔ Suite "Copies of routine meals" passed after 2.023 seconds.
+✔ Suite "Open Food Facts" passed after 2.023 seconds.
+✔ Suite "Portion texts" passed after 2.023 seconds.
+✔ Suite "iPhone to Apple Watch snapshot" passed after 2.023 seconds.
+✔ Suite "Quick add: decimals and phrasings" passed after 2.023 seconds.
+✔ Suite "Weigh-in rules" passed after 2.023 seconds.
+✔ Suite "3D body scan" passed after 2.023 seconds.
+✔ Suite "Coach widget snapshot" passed after 2.023 seconds.
+✔ Suite "Input fields" passed after 2.023 seconds.
+✔ Suite "Phase transition" passed after 2.023 seconds.
+✔ Suite "Days" passed after 2.023 seconds.
+✔ Suite "Widget timeline" passed after 2.023 seconds.
+✔ Suite "Nutrients" passed after 2.023 seconds.
+✔ Suite WatchCoachStatusTests passed after 2.023 seconds.
+✔ Suite "Check-in engine" passed after 2.023 seconds.
+✔ Suite "Apple Health workouts" passed after 2.023 seconds.
+✔ Suite "Import round trip: diary" passed after 2.023 seconds.
+✔ Suite "Diary" passed after 2.023 seconds.
+✔ Suite WatchCoachCrownTests passed after 2.023 seconds.
+✔ Suite "Plans" passed after 2.023 seconds.
+✔ Suite "Plan: moved entries" passed after 2.023 seconds.
+✔ Suite "Body composition" passed after 2.023 seconds.
+✔ Suite "Progress photos" passed after 2.023 seconds.
+✔ Suite "Phase sheet edits" passed after 2.023 seconds.
+✔ Suite "What only the iPhone knows from Apple Health, on the watch" passed after 2.023 seconds.
+✔ Suite "Snapshot" passed after 2.023 seconds.
+✔ Suite "Storage notice" passed after 2.023 seconds.
+✔ Suite "Plan editor changes" passed after 2.023 seconds.
+✔ Suite "Display numbers" passed after 2.023 seconds.
+✔ Suite "Copy for my AI" passed after 2.024 seconds.
+✔ Suite FoodEmojiTests passed after 2.024 seconds.
+✔ Suite "Backup: automatic schedule" passed after 2.024 seconds.
+✔ Suite "Backup" passed after 2.024 seconds.
+✔ Suite "Progress: checks, events and check-in history" passed after 2.024 seconds.
+✔ Suite "Recipe CSV" passed after 2.024 seconds.
+✔ Suite "Adherence" passed after 2.024 seconds.
+✔ Suite "Catalog and search" passed after 2.024 seconds.
+✔ Suite "Backup: restore" passed after 2.024 seconds.
+✔ Suite "Weigh-ins to Apple Health" passed after 2.024 seconds.
+✔ Suite "Weight signal" passed after 2.024 seconds.
+✔ Suite "Check-in snapshot" passed after 2.024 seconds.
+✔ Suite "Import round trip: foods" passed after 2.024 seconds.
+✔ Suite WatchCoachTapeFlowTests passed after 2.024 seconds.
+✔ Suite "Nutrient text fast path" passed after 2.024 seconds.
+✔ Suite "Diary CSV" passed after 2.024 seconds.
+✔ Suite "Settings import: coach plan" passed after 2.024 seconds.
+✔ Suite "Body" passed after 2.024 seconds.
+✔ Suite "Weight & body history CSV" passed after 2.024 seconds.
+✔ Suite "Thalia exchange" passed after 2.024 seconds.
+✔ Suite "Today snapshot: day types" passed after 2.024 seconds.
+✔ Suite "Body schedule" passed after 2.024 seconds.
+✔ Suite "Coach board" passed after 2.024 seconds.
+✔ Suite "Synced settings" passed after 2.024 seconds.
+✔ Suite "Meal notifications" passed after 2.024 seconds.
+✔ Suite "Protein meals" passed after 2.024 seconds.
+✔ Suite "Coach tour" passed after 2.024 seconds.
+✔ Suite "Plan clean-up" passed after 2.024 seconds.
+✔ Suite "Day start" passed after 2.024 seconds.
+✔ Suite WatchCoachPillTests passed after 2.024 seconds.
+✔ Suite "Import: cells and shapes" passed after 2.024 seconds.
+✔ Suite "Insights: finished days only" passed after 2.024 seconds.
+✔ Test reusedEntriesGiveTheSameResults() passed after 2.420 seconds.
+✔ Test scenarioEndToEnd() passed after 2.943 seconds.
+✔ Suite "Coach scenario (made-up numbers)" passed after 2.967 seconds.
+✔ Test rankingIsUnchanged() passed after 6.448 seconds.
+✔ Suite "Food search speed and ranking" passed after 6.474 seconds.
+✔ Test run with 714 tests in 84 suites passed after 6.477 seconds.
