@@ -293,20 +293,21 @@ final class HealthBodyReader {
     // MARK: Demo
 
     /// Made-up values for `-Demo` screenshots: a smart scale every week, a waist app and a tennis
-    /// workout that ended an hour ago.
+    /// workout that ended an hour ago. They fit the demo profile (171 cm, about 67 kg at 21 % body
+    /// fat, so about 53 kg lean) and its tape (waist in the low seventies).
     private func fillDemo() {
         let now = Date()
         let day: TimeInterval = 24 * 3600
         let fat: [Double] = [21.4, 21.1, 21.2, 20.8, 20.9, 20.5, 20.6, 20.2]
-        let lean: [Double] = [60.1, 60.2, 60.2, 60.4, 60.3, 60.5, 60.6, 60.7]
-        let waist: [Double] = [84.6, 84.4, 84.5, 84.1, 84.2, 83.9, 84.0, 83.7]
+        let lean: [Double] = [52.6, 52.7, 52.7, 52.9, 53.0, 53.1, 53.2, 53.4]
+        let waist: [Double] = [73.8, 73.6, 73.7, 73.2, 73.3, 72.9, 73.0, 72.6]
         for index in fat.indices {
             let date = now.addingTimeInterval(-Double(fat.count - 1 - index) * 7 * day - 3600)
             bodyFatSamples.append(HealthBodySample(date: date, value: fat[index], sourceID: "com.example.scale", sourceName: "Body Scale"))
             leanSamples.append(HealthBodySample(date: date, value: lean[index], sourceID: "com.example.scale", sourceName: "Body Scale"))
             waistSamples.append(HealthBodySample(date: date, value: waist[index], sourceID: "com.example.tape", sourceName: "Tape Measure"))
         }
-        heightSamples = [HealthBodySample(date: now.addingTimeInterval(-90 * day), value: 179, sourceID: "com.apple.Health",
+        heightSamples = [HealthBodySample(date: now.addingTimeInterval(-90 * day), value: 171, sourceID: "com.apple.Health",
                                           sourceName: "Health")]
         workouts = [HealthWorkout(activity: "tennis", start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-3600))]
     }

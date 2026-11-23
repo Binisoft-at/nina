@@ -10,7 +10,7 @@ struct HealthSettingsView: View {
 
     var body: some View {
         Form {
-            if !app.health.isAvailable {
+            if !app.health.isAvailable && !app.health.isDemo {
                 Section {
                     Text("Apple Health isn't available on this device.")
                         .foregroundStyle(.secondary)
@@ -26,7 +26,7 @@ struct HealthSettingsView: View {
                 } header: {
                     Text("Share with Apple Health")
                 } footer: {
-                    Text("Meals are written as food entries with every nutrient (energy, protein, carbs, fat, fiber, sugar, vitamins …). Edits and deletions in Nina update Health. iOS asks you once per kind of data.")
+                    Text("Meals are written as food entries with every nutrient (energy, protein, carbs, fat, fiber, sugar, vitamins …). Edits, deletions and Undo in Nina update Health. iOS asks you once per kind of data.")
                 }
                 if app.health.isOn(.activity) {
                     Section {
@@ -79,9 +79,13 @@ struct RemindersView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Ask about planned meals", isOn: $planned)
+                Toggle(plannedTitle, isOn: $planned)
+            } header: {
+                if !PlatformInfo.isPhone {
+                    Text("Planned meals")
+                }
             } footer: {
-                Text("At the planned time: \u{201C}Lunch planned – eaten?\u{201D} with ✓ Eaten and Skipped right in the notification, also on your Apple Watch.")
+                Text(plannedFooter)
             }
             Section {
                 ForEach(app.settings.meals) { slot in
@@ -98,7 +102,7 @@ struct RemindersView: View {
             } header: {
                 Text("Remind me if nothing is logged")
             } footer: {
-                Text("A reminder only comes when that meal is still empty – once you log, it's gone.")
+                Text("A reminder only comes while that meal is still empty – once you log it, on any device, it's gone. A planned meal asks its own question instead.")
             }
             ReminderCoachSection(isOn: $coachOn, kinds: $coachKinds)
         }
@@ -110,6 +114,19 @@ struct RemindersView: View {
         .onChange(of: coachOn) { _, _ in applyCoach() }
         .onChange(of: coachKinds) { _, _ in applyCoach() }
         .onAppear(perform: syncCoach)
+    }
+
+    /// The iPhone asks about planned meals by default; iPad and Mac only when turned on there, so
+    /// one planned meal doesn't ask on every device at once.
+    private var plannedTitle: String {
+        if PlatformInfo.isPhone { return "Ask about planned meals" }
+        return PlatformInfo.isMac ? "Also on this Mac" : "Also on this iPad"
+    }
+
+    private var plannedFooter: String {
+        let what = "At the planned time: \u{201C}Lunch planned – eaten?\u{201D} with ✓ Eaten and Skipped right in the notification"
+        if PlatformInfo.isPhone { return what + ", also on your Apple Watch. Once it's answered on any device, it's gone." }
+        return "Your iPhone asks \u{201C}Lunch planned – eaten?\u{201D} at the planned time (your Apple Watch shows it too). Turn this on to be asked here as well."
     }
 
     /// Back from the plan editor pushed below, "Turn on coach reminders?" may have been answered

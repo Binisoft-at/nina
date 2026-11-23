@@ -42,25 +42,43 @@ struct WatchLogView: View {
                     }
                 }
             }
-            let favorites = model.library.favorites.filter { $0.ref.kind != .recipe }
-            if !favorites.isEmpty {
-                Section("Favorites") {
-                    ForEach(favorites.prefix(15)) { record in foodLink(record) }
-                }
-            }
-            let recents = model.library.recents(limit: 20).filter { !$0.isFavorite && $0.ref.kind != .recipe }
-            if !recents.isEmpty {
-                Section("Recent") {
-                    ForEach(recents) { record in foodLink(record) }
-                }
+            if let library = model.library {
+                foods(library)
+            } else {
+                // The foods are read the first time this screen opens (not at launch).
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
             }
         }
         .navigationTitle("Log")
         .onAppear { if meal.isEmpty { meal = model.settings.suggestedMeal().id } }
+        .task {
+            model.logIsVisible = true
+            await model.prepareLibrary()
+        }
+        .onDisappear { model.logIsVisible = false }
         .sheet(item: Binding(get: { spoken.map(SpokenText.init) }, set: { spoken = $0?.text })) { item in
             WatchQuickConfirmView(text: item.text, meal: meal) {
                 spoken = nil
                 dismiss()
+            }
+        }
+    }
+
+    /// Favorites and recent foods (saved meals are listed above).
+    @ViewBuilder
+    private func foods(_ library: FoodLibrary) -> some View {
+        let favorites = library.favorites.filter { $0.ref.kind != .recipe }
+        if !favorites.isEmpty {
+            Section("Favorites") {
+                ForEach(favorites.prefix(15)) { record in foodLink(record) }
+            }
+        }
+        let recents = library.recents(limit: 20).filter { !$0.isFavorite && $0.ref.kind != .recipe }
+        if !recents.isEmpty {
+            Section("Recent") {
+                ForEach(recents) { record in foodLink(record) }
             }
         }
     }
@@ -93,20 +111,24 @@ struct WatchQuickConfirmView: View {
     @Environment(WatchModel.self) private var model
 
     var body: some View {
-        let matches = model.library.quickMatches(text)
+        Group {
+            if let library = model.library {
+                understood(library.quickMatches(text))
+            } else {
+                // Dictated before the foods were read: wait for them.
+                ProgressView()
+            }
+        }
+        .navigationTitle("Understood")
+        .task { await model.prepareLibrary() }
+    }
+
+    private func understood(_ matches: [QuickMatch]) -> some View {
         let resolved = matches.filter(\.isResolved)
         let energy = resolved.map(\.nutrients.energy).reduce(0, +)
-        List {
+        return List {
             ForEach(matches) { match in
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(match.food?.displayName(model.settings.language) ?? (match.item.isEnergyOnly ? "Quick entry" : "\u{201C}\(match.item.query)\u{201D} not found"))
-                        .foregroundStyle(match.isResolved ? Color.primary : Color.secondary)
-                    if let amount = match.amountText {
-                        Text("\(Fmt.amount(amount)) · \(Fmt.energy(match.nutrients.energy, unit: model.settings.energyUnit))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                WatchQuickMatchRow(match: match)
             }
             Button {
                 model.logMatches(resolved, meal: meal)
@@ -117,7 +139,30 @@ struct WatchQuickConfirmView: View {
             .disabled(resolved.isEmpty)
             .tint(Color.accentColor)
         }
-        .navigationTitle("Understood")
+    }
+}
+
+/// One understood line: the food and amount, or "“…” not found".
+private struct WatchQuickMatchRow: View {
+    let match: QuickMatch
+
+    @Environment(WatchModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .foregroundStyle(match.isResolved ? Color.primary : Color.secondary)
+            if let amount = match.amountText {
+                Text("\(Fmt.amount(amount)) · \(Fmt.energy(match.nutrients.energy, unit: model.settings.energyUnit))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var title: String {
+        if let food = match.food { return food.displayName(model.settings.language) }
+        return match.item.isEnergyOnly ? "Quick entry" : "\u{201C}\(match.item.query)\u{201D} not found"
     }
 }
 
