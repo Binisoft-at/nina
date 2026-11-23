@@ -55,6 +55,10 @@ final class WatchModel {
     private(set) var homeDay: DayKey
     /// Bumped on every refresh: the coach on the home screen reloads on it.
     private(set) var dataVersion = 0
+    /// What today's budget gains from activity (kcal): the iPhone's active energy from Apple Health
+    /// times "Add to my budget", as on the iPhone (`WatchPhoneLink.activeEnergy`). Never stored in
+    /// the synced store.
+    private(set) var activityBonus: Double
     /// The last write the home screen offers to undo for a few seconds (`WatchModel+Coach`).
     var undo: WatchUndo?
     /// The Log screen is on screen: refreshes keep the library current right away.
@@ -71,6 +75,7 @@ final class WatchModel {
         let settings = NinaStore(context: container.mainContext).settings
         self.settings = settings
         homeDay = settings.today()
+        activityBonus = WatchPhoneLink.activeEnergy() * settings.activityBonusShare
         // A save on the watch: its snapshot is already written (NinaStore.save); the rest follows
         // after the tap.
         observers.append(NotificationCenter.default.addObserver(forName: .ninaDataChanged, object: nil, queue: .main) { [weak self] _ in
@@ -83,6 +88,11 @@ final class WatchModel {
         // targets, day types, plans, and the numbers for the face.
         observers.append(NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleRefresh(remote: true) }
+        })
+        // A message from the iPhone (its snapshot is already written): the coach's status line,
+        // the weigh-in pill and the activity bonus follow.
+        observers.append(NotificationCenter.default.addObserver(forName: .ninaWatchPhoneMessage, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleRefresh(remote: false) }
         })
     }
 
@@ -119,6 +129,8 @@ final class WatchModel {
         if newSettings != settings { settings = newSettings }
         let day = newSettings.today()
         if day != homeDay { homeDay = day }
+        let bonus = WatchPhoneLink.activeEnergy() * newSettings.activityBonusShare
+        if bonus != activityBonus { activityBonus = bonus }
         dataVersion += 1
         if library != nil {
             if logIsVisible { rebuildLibrary() } else { libraryIsStale = true }
@@ -126,10 +138,11 @@ final class WatchModel {
         if publish { publishSnapshot(store: store) }
     }
 
-    /// The complications' snapshot from this watch's store – unless the iPhone sent fresher numbers
-    /// and this store hasn't caught up with them yet (`WatchSnapshotRelay.acceptsOwn`).
+    /// The complications' snapshot from this watch's store, with the iPhone's activity bonus
+    /// (`WatchPhoneLink.activeEnergy`, which `todaySnapshot` reads) – unless the iPhone sent fresher
+    /// numbers and this store hasn't caught up with them yet (`WatchSnapshotRelay.acceptsOwn`).
     private func publishSnapshot(store: NinaStore) {
-        let snapshot = store.todaySnapshot(activityBonus: 0)
+        let snapshot = store.todaySnapshot()
         guard let day = DayKey(snapshot.day) else { return }
         let freshness = store.watchLinkFreshness(on: day)
         guard WatchSnapshotRelay.acceptsOwn(day: snapshot.day, freshness: freshness, phone: WatchPhoneLink.lastPhoneMark) else { return }

@@ -34,12 +34,14 @@ private struct WatchDayView: View {
         let settings = model.settings
         let targets = settings.targets(for: day)
         let eaten = NutrientValues.sum(entries.filter(\.isEaten).map(\.values))
-        let remaining = targets.energy - eaten.energy
+        // With the activity bonus from the iPhone's Apple Health, like the iPhone's ring.
+        let bonus = day == model.homeDay ? model.activityBonus : 0
+        let remaining = targets.energy + bonus - eaten.energy
         let waterTotal = water.map(\.amount).reduce(0, +)
         let planned = WatchPlannedMeal.meals(entries.filter(\.isPlanned), settings: settings)
         List {
             Section {
-                summary(targets: targets, eaten: eaten, remaining: remaining)
+                summary(targets: targets, bonus: bonus, eaten: eaten, remaining: remaining)
                     .frame(maxWidth: .infinity)
                     .listRowBackground(Color.clear)
             }
@@ -120,13 +122,14 @@ private struct WatchDayView: View {
 
     /// The ring with what's left, the coach under it (a set-up plan makes the ring a little
     /// smaller so the chip, the checks and the status fit on the first screen), the priorities.
-    private func summary(targets: DailyTargets, eaten: NutrientValues, remaining: Double) -> some View {
+    private func summary(targets: DailyTargets, bonus: Double, eaten: NutrientValues, remaining: Double) -> some View {
         let settings = model.settings
         let isCoached = settings.plan.isSetUp
         let ring: CGFloat = isCoached ? 84 : 104
+        let budget = targets.energy + bonus
         return VStack(spacing: isCoached ? 6 : 8) {
             ZStack {
-                ProgressRing(progress: targets.energy > 0 ? eaten.energy / targets.energy : 0, lineWidth: 10)
+                ProgressRing(progress: budget > 0 ? eaten.energy / budget : 0, lineWidth: 10)
                 VStack(spacing: -2) {
                     Text(Fmt.energy(abs(remaining), unit: settings.energyUnit, showUnit: false))
                         .font(.system(.title2, design: .rounded, weight: .bold).monospacedDigit())
@@ -137,6 +140,8 @@ private struct WatchDayView: View {
                 }
             }
             .frame(width: ring, height: ring)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ringLabel(remaining: remaining, bonus: bonus))
             if let coach {
                 WatchCoachSummary(coach: coach, remaining: remaining, route: $route)
             }
@@ -150,6 +155,14 @@ private struct WatchDayView: View {
             }
         }
         .animation(.default, value: model.undo?.id)
+    }
+
+    /// "1,240 kcal left, including 310 kcal from activity".
+    private func ringLabel(remaining: Double, bonus: Double) -> String {
+        let unit = model.settings.energyUnit
+        var text = "\(Fmt.energy(abs(remaining), unit: unit)) \(remaining >= 0 ? "left" : "over")"
+        if bonus >= 1 { text += ", including \(Fmt.energy(bonus, unit: unit)) from activity" }
+        return text
     }
 
     @ViewBuilder
@@ -171,7 +184,7 @@ private struct WatchDayView: View {
     /// goes at the morning cutoff).
     private func reloadCoach() async {
         while !Task.isCancelled {
-            coach = WatchCoachData.load(store: model.store, day: day)
+            coach = WatchCoachData.load(store: model.store, day: day, phone: WatchPhoneLink.phoneCoach)
             try? await Task.sleep(for: .seconds(300))
         }
     }
