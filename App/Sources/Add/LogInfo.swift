@@ -19,8 +19,8 @@ enum LogInfo {
     /// "Mostly at breakfast": the foods usually logged at the meal come first.
     static func mostlyAt(_ hint: String) -> Note {
         Note(title: hint,
-             text: "Foods you usually have at this meal come first – logged here at least twice, the last time within "
-                 + "60 days. Below them is everything else you logged lately, newest first.")
+             text: "Foods you mostly have at this meal come first: at least 2 logs here, at least 40 % of all their "
+                 + "logs, the last within 60 days. Below them is everything else you logged lately, newest first.")
     }
 
     /// "Recent" while no food leads for the meal yet.

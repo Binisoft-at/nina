@@ -210,10 +210,11 @@ private enum PlanInfo {
     static func days(hasDayTypes: Bool) -> (title: String, text: String) {
         let planned = "Planned food shows dimmed in your diary and only counts once you mark it eaten."
         guard hasDayTypes else {
-            return ("Planned food", planned + " When you log a food, Plan for later adds it ahead.")
+            return ("Planned food", planned + " To plan a food, open the day and switch on Plan for later as you log it.")
         }
         return ("Planned food and day types",
-                planned + " The symbol on the right is the day's type from your plan, with its own calories.")
+                planned + " The symbol on the right is the day's type, with its own calories – tinted means you picked it by "
+                    + "hand.")
     }
 
     static let routines: (title: String, text: String) = (

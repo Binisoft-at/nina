@@ -27,8 +27,8 @@ enum TodayInfo {
                         text: "What's left of this day's goal (from \(source)) after what you've eaten. " + planned)
         }
         return Note(title: "Calories left",
-                    text: "This day's goal plus \(shareWord(bonusShare)) of today's active energy from Apple Health, minus "
-                        + "what you've eaten. " + planned)
+                    text: "Today's goal plus \(shareWord(bonusShare)) of today's active energy from Apple Health (Settings → "
+                        + "Apple Health), minus what you've eaten. " + planned)
     }
 
     /// "all", "half" or "part" of the active energy.
@@ -38,19 +38,26 @@ enum TodayInfo {
         return "part"
     }
 
-    /// The day-type chip at the top of the summary card.
-    static var dayType: Note {
-        Note(title: "Day type",
-             text: "Your plan gives each kind of day, like Gym or Rest, its own calories, so the goal follows the day type. "
-                 + "\(tapCapitalized) the chip to change this day's type – filled means you picked it by hand.")
+    /// The day-type chip at the top of the summary card. `hasQuota`: a flexible type whose chip
+    /// counts its days in the week ("Tennis · 1 of 2 this week").
+    static func dayType(hasQuota: Bool) -> Note {
+        var types: String = "Your plan gives each kind of day, like Gym or Rest, its own calories, and the goal follows "
+            + "the day's type."
+        if hasQuota {
+            types = "Your plan gives each kind of day its own calories, and the goal follows the day's type – for this "
+                + "type the chip also counts its days in the week."
+        }
+        return Note(title: "Day type",
+                    text: types + " \(tapCapitalized) the chip to change it – filled means you picked it by hand, outlined "
+                        + "means it follows your schedule.")
     }
 
     /// The small line at the bottom of the summary card: "Week avg …" and/or "Protein meals …".
     static func footnotes(weekAverage: Bool, proteinMeals: Bool) -> Note {
-        let week = "Week avg is what you ate a day on average this week, against the targets of the same days – only "
-            + "finished days with a log count."
-        let protein = "Protein meals counts this day's meals whose protein reached your minimum per meal (the pill in "
-            + "each meal's header), out of the number your plan asks for."
+        let week = "Week avg is what you ate per day on average over this week's finished days with a log, against "
+            + "those days' targets (days marked Log Is Incomplete stay out)."
+        let protein = "Protein meals counts this day's meals whose eaten protein reached your minimum per meal (the "
+            + "pill in each meal's header fills), out of the number your plan asks for."
         switch (weekAverage, proteinMeals) {
         case (true, true): return Note(title: "Week average and protein meals", text: week + " " + protein)
         case (true, false): return Note(title: "Week average", text: week)
@@ -66,7 +73,7 @@ enum TodayInfo {
         let more = "or touch and hold it for other amounts"
         #endif
         return Note(title: "Water",
-                    text: "\(tapCapitalized) the blue button to add one glass (its size is under Settings → Water glass), "
+                    text: "\(tapCapitalized) the + button to add one glass (its size is under Settings → Water glass), "
                         + "\(more). − takes the last one back.")
     }
 
@@ -97,8 +104,8 @@ enum TodayInfo {
                             + "comes next. Edit dates moves the end.")
         case .review:
             return Note(title: "Phase review",
-                        text: "Your 7-day average reached the review weight you set – or a waist or body-fat limit. "
-                            + "Review shows where you stand; then keep going, hold your weight or start the next phase.")
+                        text: "Your 7-day average reached the review weight you set, or your waist or body fat reached "
+                            + "a limit. Review shows where you stand; then keep going, hold your weight or start the next phase.")
         case .checkIn:
             return Note(title: "Weekly check-in",
                         text: "Once a week Nina looks at your weight trend and how closely you followed the plan. It only "
@@ -130,8 +137,8 @@ enum TodayInfo {
         }
         if !hasPace {
             return Note(title: status,
-                        text: "This phase has no planned pace per week, so there's nothing to compare with yet. Set one "
-                            + "in the phase in My Plan.")
+                        text: "This phase has no planned pace (kg a week), so Nina can't judge your weight trend. Set a "
+                            + "pace range for the phase in My Plan.")
         }
         if status.hasPrefix("New targets") {
             return Note(title: "New targets",
@@ -165,7 +172,7 @@ enum TodayInfo {
         switch reason {
         case .standardTargets:
             return Note(title: "Why set your goal?",
-                        text: "Until then Nina uses the same starting targets for everyone. Goals & Plan works out yours "
+                        text: "Until you do, Nina uses the same starting targets for everyone. Goals & Plan works out yours "
                             + "from your sex, age, height, weight, activity and goal – or you type your own.")
         case .missingBody:
             return Note(title: "Why height and birth year?",

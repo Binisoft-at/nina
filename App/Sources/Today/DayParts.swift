@@ -107,7 +107,7 @@ struct DaySummaryCard: View {
 
     /// The day-type chip with its ⓘ (what a day type is and how to change it).
     private func chipRow(_ chip: CoachBoard.Chip) -> some View {
-        let note: TodayInfo.Note = TodayInfo.dayType
+        let note: TodayInfo.Note = TodayInfo.dayType(hasQuota: chip.quotaText != nil)
         return HStack(spacing: 6) {
             TodayCoachChip(chip: chip, day: day)
             InfoButton(note.title, note.text)

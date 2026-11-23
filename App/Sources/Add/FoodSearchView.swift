@@ -301,7 +301,7 @@ struct FoodSearchView: View {
     /// sorts itself for the meal over time. nil while searching, in other scopes and when picking
     /// an ingredient.
     private var recentInfo: LogInfo.Note? {
-        guard mode.isLogging, text.trimmingCharacters(in: .whitespaces).isEmpty, scope == .all || scope == .recent else { return nil }
+        guard mode.isLogging, text.isEmpty, scope == .all || scope == .recent else { return nil }
         return LogInfo.recent
     }
 

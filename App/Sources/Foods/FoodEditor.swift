@@ -395,8 +395,8 @@ private enum FoodEditorInfo {
 
     static let portions: (title: String, text: String) = (
         "Portions",
-        "Add the sizes you eat, like a 30 g slice or a 250 ml glass, so logging takes one tap. Nina works out a "
-            + "portion's values from the label values above."
+        "Add the sizes you eat, like a 30 g slice or a 250 ml glass, so you can log one without weighing. Nina "
+            + "works out a portion's values from the label values above."
     )
 }
 
