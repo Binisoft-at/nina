@@ -328,7 +328,8 @@ private struct CheckInStepHeader: View {
     }
 }
 
-/// Back and Next, pinned under the steps (the last step's decision buttons stay in it).
+/// Back and Next, pinned under the steps (on the last step only Back: its decision buttons are
+/// part of the step).
 private struct CheckInPager: View {
     let page: Int
     let lastPage: Int
@@ -854,9 +855,9 @@ private struct CheckInFeelings: View {
 
     private var footer: String {
         #if os(macOS)
-        "1 = very low, 5 = very high. All optional – click a number again to clear it."
+        return "1 = very low, 5 = very high. All optional – click a number again to clear it."
         #else
-        "1 = very low, 5 = very high. All optional – tap a number again to clear it."
+        return "1 = very low, 5 = very high. All optional – tap a number again to clear it."
         #endif
     }
 }
@@ -1033,9 +1034,9 @@ private struct CheckInNextWeek: View {
 
     private var decisionFooter: String {
         #if os(macOS)
-        "Nothing changes until you click. Undo puts your previous targets back."
+        return "Nothing changes until you click. Undo puts your previous targets back."
         #else
-        "Nothing changes until you tap. Undo puts your previous targets back."
+        return "Nothing changes until you tap. Undo puts your previous targets back."
         #endif
     }
 }
