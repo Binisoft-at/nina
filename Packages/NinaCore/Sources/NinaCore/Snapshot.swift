@@ -230,7 +230,9 @@ public struct TodaySnapshot: Codable, Equatable, Sendable {
         return a == b
     }
 
-    public var unit: EnergyUnit { EnergyUnit(rawValue: energyUnit) ?? .kcal }
+    /// Always kcal: Nina shows and edits energy in kcal only. `energyUnit` stays in the file so
+    /// snapshots written by older builds (which could say "kJ") still read.
+    public var unit: EnergyUnit { .kcal }
 }
 
 /// Which HealthKit quantity type each nutrient is written to (raw HKQuantityTypeIdentifier values),
