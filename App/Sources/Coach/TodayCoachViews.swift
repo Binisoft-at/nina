@@ -130,7 +130,8 @@ struct TodayCoachChip: View {
 /// The checks strip under the summary card: the weigh-in, due measurements and the plan's daily
 /// checks as tinted pills, shown only while something is open. A tap acts (a sheet, or a tick with
 /// Undo); touch and hold a check for "Not Today". Right after a weigh-in the weigh-in pill shows
-/// the weight and the 7-day average for 2 seconds, then the strip moves on or collapses.
+/// the weight and the 7-day average for 2 seconds, then the strip moves on or collapses. An ⓘ
+/// after the last pill says what the strip is.
 struct TodayCoachStrip: View {
     let day: DayKey
     let input: TodayCoachStripInput
@@ -168,6 +169,7 @@ struct TodayCoachStrip: View {
                     TodayCoachPill(item: item, day: day, flash: item.kind == .weighIn ? flash : nil)
                         .transition(AnyTransition.scale(scale: 0.8).combined(with: .opacity))
                 }
+                InfoButton(TodayInfo.checks.title, TodayInfo.checks.text)
             }
             .padding(.horizontal, 2)
             .padding(.vertical, 4)
@@ -387,13 +389,7 @@ struct TodayCoachCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label {
-                Text(card.title)
-                    .font(.headline)
-            } icon: {
-                Image(systemName: symbol)
-                    .foregroundStyle(Brand.accent)
-            }
+            titleRow
             Text(card.message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -413,6 +409,19 @@ struct TodayCoachCard: View {
         } message: { (reason: CoachPlan.PauseReason) in
             Text(TodayCoachCard.pauseMessage(reason))
         }
+    }
+
+    /// The title with the card kind's ⓘ.
+    private var titleRow: some View {
+        let note: TodayInfo.Note = TodayInfo.card(card.kind)
+        return Label {
+            Text(card.title)
+                .font(.headline)
+        } icon: {
+            Image(systemName: symbol)
+                .foregroundStyle(Brand.accent)
+        }
+        .info(note.title, note.text)
     }
 
     /// The dialog's text for the picked reason (from the presented value, so it stays put while
@@ -606,7 +615,8 @@ private struct TodayCoachTargetList: View {
 
 /// Today's running phase above the summary card: "Lean gain · week 3 of 16", a thin progress
 /// capsule and the status pill. A tap opens Progress → Body. While coaching is paused the pill
-/// says so ("Paused · until 12 Feb") and Resume sits next to it.
+/// says so ("Paused · until 12 Feb") and Resume sits next to it. The ⓘ at the end explains the
+/// status words.
 struct TodayCoachPhaseLineView: View {
     let line: TodayCoachPhaseLine
 
@@ -629,7 +639,13 @@ struct TodayCoachPhaseLineView: View {
                     .controlSize(.small)
                     .accessibilityHint("Starts coaching again from today")
             }
+            InfoButton(note.title, note.text)
         }
+    }
+
+    /// What the status words mean and what to do.
+    private var note: TodayInfo.Note {
+        TodayInfo.phase(status: line.status, tone: line.tone, isPaused: line.isPaused, hasPace: line.hasPace)
     }
 
     /// The title and the status side by side, or the status under the title when they don't fit

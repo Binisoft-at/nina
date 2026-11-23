@@ -193,6 +193,7 @@ struct FoodEditor: View {
             }
         } header: {
             Text("Nutrition per 100 \(unitSymbol)")
+                .info(FoodEditorInfo.label.title, FoodEditorInfo.label.text)
         } footer: {
             if let atwaterWarning {
                 Label(atwaterWarning, systemImage: "exclamationmark.triangle")
@@ -234,6 +235,7 @@ struct FoodEditor: View {
             }
         } header: {
             Text("Portions")
+                .info(FoodEditorInfo.portions.title, FoodEditorInfo.portions.text)
         } footer: {
             Text("The first portion is offered first when you log it. Grams and ml always work.")
         }
@@ -380,6 +382,22 @@ struct FoodEditor: View {
             app.present(.food(saved.record))
         }
     }
+}
+
+/// The ⓘ texts of the food editor: the label's values and the portions.
+private enum FoodEditorInfo {
+    static let label: (title: String, text: String) = (
+        "Label values",
+        "Type the kcal and grams from the label's \u{201C}per 100 g\u{201D} column (per 100 ml for drinks), not the "
+            + "per-portion one. If the label only lists a portion, divide each value by the portion's weight and "
+            + "multiply by 100."
+    )
+
+    static let portions: (title: String, text: String) = (
+        "Portions",
+        "Add the sizes you eat, like a 30 g slice or a 250 ml glass, so logging takes one tap. Nina works out a "
+            + "portion's values from the label values above."
+    )
 }
 
 /// A number field of the food editor (the keyboard's Previous and Next go through them in label order).

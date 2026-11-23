@@ -29,13 +29,7 @@ struct TodayGoalCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label {
-                Text("Set your goal")
-                    .font(.headline)
-            } icon: {
-                Image(systemName: "target")
-                    .foregroundStyle(Brand.accent)
-            }
+            titleRow
             Text(message)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -46,6 +40,19 @@ struct TodayGoalCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .card(padding: 16, cornerRadius: 22)
         .accessibilityElement(children: .contain)
+    }
+
+    /// The title with an ⓘ on why the goal (or the body data) matters.
+    private var titleRow: some View {
+        let note: TodayInfo.Note = TodayInfo.goalCard(reason)
+        return Label {
+            Text("Set your goal")
+                .font(.headline)
+        } icon: {
+            Image(systemName: "target")
+                .foregroundStyle(Brand.accent)
+        }
+        .info(note.title, note.text)
     }
 
     /// One line on why it matters.
