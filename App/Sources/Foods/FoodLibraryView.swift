@@ -70,16 +70,20 @@ enum FoodScope: String, CaseIterable, Identifiable {
     }
 }
 
-/// Every food, grouped, sorted and filtered the way you want – the settings are remembered.
+/// Every food, grouped, sorted and filtered the way you want – the settings are remembered, the
+/// search and the filter chips per window (they survive switching sidebar sections).
 struct FoodLibraryView: View {
     @Environment(AppModel.self) private var app
     @AppStorage("nina.foods.grouping") private var grouping: FoodGrouping = .category
     @AppStorage("nina.foods.sorting") private var sorting: FoodSorting = .name
     @AppStorage("nina.foods.scope") private var scope: FoodScope = .all
-    @State private var query = ""
+    @SceneStorage("nina.foods.query") private var query = ""
+    /// The filter chips as text ("c:fruit", "h:highProtein", "t:breakfast", one per line).
+    @SceneStorage("nina.foods.filters") private var storedFilters = ""
     @State private var categories: Set<FoodCategory> = []
     @State private var highlights: Set<FoodHighlight> = []
     @State private var tags: Set<String> = []
+    @State private var restoredFilters = false
     @State private var showFilters = false
 
     private var library: FoodLibrary { app.library }
@@ -106,11 +110,11 @@ struct FoodLibraryView: View {
         }
     }
 
-    private func sorted(_ records: [FoodRecord]) -> [FoodRecord] {
-        let language = app.language
+    /// `order`: each food's place in the A–Z list (worked out once per library rebuild).
+    private func sorted(_ records: [FoodRecord], order: [FoodRef: Int]) -> [FoodRecord] {
         switch sorting {
         case .name:
-            return query.isEmpty ? records.sorted { $0.displayName(language).localizedCaseInsensitiveCompare($1.displayName(language)) == .orderedAscending } : records
+            return query.isEmpty ? records.sorted { (order[$0.ref] ?? Int.max) < (order[$1.ref] ?? Int.max) } : records
         case .mostUsed:
             return records.sorted { (library.usage(of: $0.ref)?.count ?? 0) > (library.usage(of: $1.ref)?.count ?? 0) }
         case .recent:
@@ -130,28 +134,30 @@ struct FoodLibraryView: View {
         var id: String { title }
     }
 
+    /// The list's sections: filtered, grouped and sorted once per redraw.
     private var groups: [FoodGroup] {
         let records = filtered
+        let order = sorting == .name && query.isEmpty ? library.nameOrder() : [:]
         switch grouping {
         case .none:
-            return [FoodGroup(title: "", records: sorted(records))]
+            return [FoodGroup(title: "", records: sorted(records, order: order))]
         case .category:
             let byCategory = Dictionary(grouping: records, by: \.category)
             return FoodCategory.allCases.compactMap { category in
                 guard let list = byCategory[category], !list.isEmpty else { return nil }
-                return FoodGroup(title: "\(category.emoji) \(category.title)", records: sorted(list))
+                return FoodGroup(title: "\(category.emoji) \(category.title)", records: sorted(list, order: order))
             }
         case .brand:
             let byBrand = Dictionary(grouping: records) { $0.brand.isEmpty ? "No brand" : $0.brand }
-            return byBrand.keys.sorted().map { FoodGroup(title: $0, records: sorted(byBrand[$0] ?? [])) }
+            return byBrand.keys.sorted().map { FoodGroup(title: $0, records: sorted(byBrand[$0] ?? [], order: order)) }
         case .tag:
             var result: [FoodGroup] = []
             for tag in allTags {
                 let list = records.filter { $0.tags.contains(tag) }
-                if !list.isEmpty { result.append(FoodGroup(title: "#" + tag, records: sorted(list))) }
+                if !list.isEmpty { result.append(FoodGroup(title: "#" + tag, records: sorted(list, order: order))) }
             }
             let untagged = records.filter { $0.tags.isEmpty }
-            if !untagged.isEmpty { result.append(FoodGroup(title: "No tag", records: sorted(untagged))) }
+            if !untagged.isEmpty { result.append(FoodGroup(title: "No tag", records: sorted(untagged, order: order))) }
             return result
         case .letter:
             let language = app.language
@@ -159,13 +165,34 @@ struct FoodLibraryView: View {
                 let first = SearchText.normalize(record.displayName(language)).prefix(1).uppercased()
                 return first.isEmpty ? "#" : first
             }
-            return byLetter.keys.sorted().map { FoodGroup(title: $0, records: sorted(byLetter[$0] ?? [])) }
+            return byLetter.keys.sorted().map { FoodGroup(title: $0, records: sorted(byLetter[$0] ?? [], order: order)) }
         }
     }
 
     private var activeFilterCount: Int { categories.count + highlights.count + tags.count }
 
     var body: some View {
+        let groups = self.groups
+        list(groups)
+            .overlay {
+                if groups.allSatisfy(\.records.isEmpty) { emptyOverlay }
+            }
+            .searchable(text: $query, prompt: "Search \(library.records.count) foods")
+            .navigationTitle("Foods")
+            .navigationDestination(for: FoodRecord.self) { record in
+                FoodDetailView(record: record, mode: .log(day: app.selectedDay, meal: nil))
+            }
+            .toolbar { toolbar }
+            .sheet(isPresented: $showFilters) {
+                FoodFilterSheet(categories: $categories, highlights: $highlights, tags: $tags, scope: $scope, allTags: allTags)
+            }
+            .onAppear(perform: restoreFilters)
+            .onChange(of: filterText) { _, text in
+                if restoredFilters { storedFilters = text }
+            }
+    }
+
+    private func list(_ groups: [FoodGroup]) -> some View {
         List {
             if activeFilterCount > 0 || scope != .all {
                 Section {
@@ -196,24 +223,7 @@ struct FoodLibraryView: View {
             ForEach(groups) { group in
                 Section {
                     ForEach(group.records) { record in
-                        NavigationLink(value: record) {
-                            FoodRow(record: record, language: app.language, unit: app.energyUnit,
-                                    usage: library.usage(of: record.ref), showsHighlights: sorting == .protein || !highlights.isEmpty)
-                        }
-                        .swipeActions(edge: .leading) {
-                            Button(record.isFavorite ? "Unfavorite" : "Favorite", systemImage: record.isFavorite ? "star.slash" : "star") {
-                                app.toggleFavorite(record)
-                            }
-                            .tint(.yellow)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button("Log", systemImage: "plus") {
-                                app.log(record, amount: record.initialAmount(language: app.language), day: app.selectedDay,
-                                        meal: app.settings.suggestedMeal().id)
-                            }
-                            .tint(Brand.accent)
-                        }
-                        .contextMenu { FoodActions(record: record) }
+                        row(record)
                     }
                 } header: {
                     if !group.title.isEmpty {
@@ -226,32 +236,67 @@ struct FoodLibraryView: View {
                 }
             }
         }
-        .overlay {
-            if filtered.isEmpty {
-                if library.records.isEmpty {
-                    EmptyStateView(title: "No foods yet", message: "Create your first food, or import the list you already have.",
-                                   symbol: "carrot", createTitle: "New Food", onCreate: { app.sheet = .newFood(nil) },
-                                   onImport: { app.sheet = .importData(.foods) })
-                } else {
-                    ContentUnavailableView {
-                        Label("Nothing matches", systemImage: "line.3.horizontal.decrease.circle")
-                    } description: {
-                        Text("Try fewer filters, or create the food.")
-                    } actions: {
-                        Button("Clear Filters") { clearFilters() }
-                        Button("New Food") { app.sheet = .newFood(FoodDraft(name: query, nutrients: .zero)) }
-                    }
-                }
+    }
+
+    /// Swipe right logs (as on Today and in Meals & Recipes), swipe left marks a favorite.
+    private func row(_ record: FoodRecord) -> some View {
+        NavigationLink(value: record) {
+            FoodRow(record: record, language: app.language, unit: app.energyUnit,
+                    usage: library.usage(of: record.ref), showsHighlights: sorting == .protein || !highlights.isEmpty)
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button("Log", systemImage: "plus") {
+                app.log(record, amount: record.initialAmount(language: app.language), day: app.selectedDay,
+                        meal: app.settings.suggestedMeal().id)
+            }
+            .tint(Brand.accent)
+        }
+        .swipeActions(edge: .trailing) {
+            Button(record.isFavorite ? "Unfavorite" : "Favorite", systemImage: record.isFavorite ? "star.slash" : "star") {
+                app.toggleFavorite(record)
+            }
+            .tint(.yellow)
+        }
+        .contextMenu { FoodActions(record: record) }
+    }
+
+    @ViewBuilder
+    private var emptyOverlay: some View {
+        if library.records.isEmpty {
+            EmptyStateView(title: "No foods yet", message: "Create your first food, or import the list you already have.",
+                           symbol: "carrot", createTitle: "New Food", onCreate: { app.sheet = .newFood(nil) },
+                           onImport: { app.sheet = .importData(.foods) })
+        } else {
+            ContentUnavailableView {
+                Label("Nothing matches", systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text("Try fewer filters, or create the food.")
+            } actions: {
+                Button("Clear Filters") { clearFilters() }
+                Button("New Food") { app.sheet = .newFood(FoodDraft(name: query, nutrients: .zero)) }
             }
         }
-        .searchable(text: $query, prompt: "Search \(library.records.count) foods")
-        .navigationTitle("Foods")
-        .navigationDestination(for: FoodRecord.self) { record in
-            FoodDetailView(record: record, mode: .log(day: app.selectedDay, meal: nil))
-        }
-        .toolbar { toolbar }
-        .sheet(isPresented: $showFilters) {
-            FoodFilterSheet(categories: $categories, highlights: $highlights, tags: $tags, scope: $scope, allTags: allTags)
+    }
+
+    // MARK: Filters kept per window
+
+    private var filterText: String {
+        let lines = categories.map { "c:" + $0.rawValue } + highlights.map { "h:" + $0.rawValue } + tags.map { "t:" + $0 }
+        return lines.sorted().joined(separator: "\n")
+    }
+
+    private func restoreFilters() {
+        guard !restoredFilters else { return }
+        restoredFilters = true
+        for line in storedFilters.split(separator: "\n").map(String.init) {
+            let value = String(line.dropFirst(2))
+            if line.hasPrefix("c:"), let category = FoodCategory(rawValue: value) {
+                categories.insert(category)
+            } else if line.hasPrefix("h:"), let highlight = FoodHighlight(rawValue: value) {
+                highlights.insert(highlight)
+            } else if line.hasPrefix("t:"), !value.isEmpty {
+                tags.insert(value)
+            }
         }
     }
 
@@ -307,6 +352,17 @@ struct FoodActions: View {
     let record: FoodRecord
     @Environment(AppModel.self) private var app
 
+    /// Hides a catalog food from search, with Undo (it comes back under Settings → Hidden Foods too).
+    @MainActor
+    static func hide(_ record: FoodRecord, app: AppModel) {
+        app.store.setHidden(record, true)
+        app.refresh()
+        app.toasts.show("Hidden from search. Settings \u{2192} Hidden Foods.", symbol: "eye.slash") {
+            app.store.setHidden(record, false)
+            app.refresh()
+        }
+    }
+
     var body: some View {
         Button("Log \(Fmt.amount(record.initialAmount(language: app.language)))", systemImage: "plus") {
             app.log(record, amount: record.initialAmount(language: app.language), day: app.selectedDay, meal: app.settings.suggestedMeal().id)
@@ -323,8 +379,13 @@ struct FoodActions: View {
         }
         if record.ref.kind == .catalog {
             Button("Hide from Search", systemImage: "eye.slash") {
-                app.store.setHidden(record, true)
-                app.toasts.show("Hidden. Show it again in Settings → Foods.", symbol: "eye.slash")
+                Self.hide(record, app: app)
+            }
+        }
+        if record.ref.kind == .food, let id = record.recordID {
+            Divider()
+            Button("Delete", systemImage: "trash", role: .destructive) {
+                if let food = app.store.food(id) { app.trash(food) }
             }
         }
     }

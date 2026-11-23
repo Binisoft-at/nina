@@ -4,12 +4,16 @@ import NinaCore
 
 /// How much: a number and a unit (the food's portions, g or ml, servings), with quick chips.
 /// Switching the unit keeps the amount the same where it can (150 g → 5 × slice of 30 g).
+/// The field shows the amount precisely and writes back only what the person types, so opening
+/// and saving never rounds an amount.
 struct AmountPicker: View {
     let record: FoodRecord
     let language: FoodLanguage
     @Binding var amount: AmountText
 
     @State private var text = ""
+    /// Bumped by the chips and the stepper: their taps tick, typed digits don't.
+    @State private var tick = 0
     @FocusState private var focused: Bool
 
     struct UnitOption: Hashable, Identifiable {
@@ -37,8 +41,11 @@ struct AmountPicker: View {
             ?? UnitOption(label: amount.unitLabel, amount: amount.unitAmount)
     }
 
+    /// g or ml (also grams of a drink): gram steps and chips, not portions.
+    private var isBaseOption: Bool { AmountText.isBaseLabel(selectedOption.label) }
+
     private var quickValues: [Double] {
-        if selectedOption.amount == 1, ["g", "ml"].contains(selectedOption.label) {
+        if isBaseOption {
             return record.unit == .milliliter ? [100, 200, 250, 330, 500] : [25, 50, 100, 150, 200, 250]
         }
         return [0.5, 1, 1.5, 2, 3]
@@ -54,11 +61,7 @@ struct AmountPicker: View {
                     .keyboardType(.decimalPad)
                     #endif
                     .frame(minWidth: 70, maxWidth: 120)
-                    .onChange(of: text) { _, newValue in
-                        if let value = NumberText.parse(newValue), value > 0, value != amount.quantity {
-                            amount.quantity = value
-                        }
-                    }
+                    .onChange(of: text) { _, newValue in typed(newValue) }
                 Picker("Unit", selection: Binding(get: { selectedOption }, set: { change(to: $0) })) {
                     ForEach(options) { option in
                         Text(optionTitle(option)).tag(option)
@@ -75,7 +78,8 @@ struct AmountPicker: View {
                     ForEach(quickValues, id: \.self) { value in
                         Button {
                             amount.quantity = value
-                            text = AmountText.quantity(value)
+                            text = Fmt.amountField(value)
+                            tick += 1
                         } label: {
                             Chip(text: AmountText.quantity(value), tint: Brand.accent, isSelected: abs(amount.quantity - value) < 0.0001)
                         }
@@ -84,37 +88,50 @@ struct AmountPicker: View {
                 }
             }
         }
-        .onAppear { text = AmountText.quantity(amount.quantity) }
+        .onAppear { text = Fmt.amountField(amount.quantity) }
         .onChange(of: amount.quantity) { _, newValue in
-            if NumberText.parse(text) != newValue { text = AmountText.quantity(newValue) }
+            if NumberText.parse(text) != newValue { text = Fmt.amountField(newValue) }
         }
-        .sensoryFeedback(.selection, trigger: amount.quantity)
+        .sensoryFeedback(.selection, trigger: tick)
     }
 
+    /// A typed amount. The text the field shows for the current amount (two decimals at most) never
+    /// writes back, so 0.333 stays 0.333 until the person types something else.
+    private func typed(_ newValue: String) {
+        guard newValue != Fmt.amountField(amount.quantity) else { return }
+        if let value = NumberText.parse(newValue), value > 0, value != amount.quantity {
+            amount.quantity = value
+        }
+    }
+
+    /// "g", "ml", "serving", "slice (30 g)", "glass (250 ml)" – a label's own bracket isn't repeated.
     private func optionTitle(_ option: UnitOption) -> String {
-        if option.amount == 1, ["g", "ml", BaseUnit.serving.symbol].contains(option.label) { return option.label }
-        let base = record.unit == .serving ? "" : " (\(Fmt.number(option.amount, decimals: option.amount < 10 ? 1 : 0)) \(record.unit.symbol))"
-        return option.label + base
+        if AmountText.isBaseLabel(option.label) { return option.label }
+        if option.amount == 1, option.label == BaseUnit.serving.symbol { return option.label }
+        let label = PortionLabel.display(option.label, baseUnit: record.unit)
+        guard record.unit != .serving else { return label }
+        return "\(label) (\(Fmt.number(option.amount, decimals: option.amount < 10 ? 1 : 0)) \(record.unit.symbol))"
     }
 
     private func change(to option: UnitOption) {
         let total = amount.total
         var quantity = option.amount > 0 ? total / option.amount : 1
-        if option.amount > 1 || option.label == BaseUnit.serving.symbol {
-            quantity = max(0.25, (quantity * 4).rounded() / 4)
-        } else {
+        if AmountText.isBaseLabel(option.label) {
             quantity = max(1, quantity.rounded())
+        } else {
+            quantity = max(0.25, (quantity * 4).rounded() / 4)
         }
         amount = AmountText(quantity: quantity, unitLabel: option.label, unitAmount: option.amount, baseUnit: record.unit)
-        text = AmountText.quantity(quantity)
+        text = Fmt.amountField(quantity)
     }
 
     private func step(_ direction: Double) {
-        let isBase = selectedOption.amount == 1 && ["g", "ml"].contains(selectedOption.label)
+        let isBase = isBaseOption
         let increment = isBase ? (amount.quantity >= 100 ? 10 : 5) : 0.5
         let next = max(isBase ? 1 : 0.25, amount.quantity + direction * increment)
         amount.quantity = next
-        text = AmountText.quantity(next)
+        text = Fmt.amountField(next)
+        tick += 1
     }
 }
 

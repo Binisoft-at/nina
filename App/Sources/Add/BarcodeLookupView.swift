@@ -3,21 +3,28 @@ import SwiftData
 import BinisoftKit
 import NinaCore
 #if os(iOS)
+import UIKit
 import VisionKit
 #endif
 
 /// Scan (iPhone) or type a barcode: your own food with that barcode, else Open Food Facts,
-/// else create the food yourself. Nothing is saved before you check the values.
+/// else create the food yourself. Nothing is saved before you check the values, and creating the
+/// food leads straight to its amount page in this sheet.
 struct BarcodeLookupView: View {
     let day: DayKey
     let meal: String?
 
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var code = ""
     @State private var state: LookupState = .idle
-    @State private var path: [FoodRecord] = []
+    @State private var path: [BarcodeRoute] = []
     @State private var chosenMeal = ""
+    /// A new value gives a fresh camera (Scan Again, back from the amount page).
+    @State private var scanID = UUID()
+    /// Counts scanned codes, for the success tap.
+    @State private var scans = 0
 
     enum LookupState: Equatable {
         case idle, searching
@@ -31,25 +38,7 @@ struct BarcodeLookupView: View {
             Form {
                 #if os(iOS)
                 if DataScannerViewController.isSupported, state == .idle {
-                    Section {
-                        BarcodeScanner { payload in
-                            code = payload
-                            Task { await lookup(payload) }
-                        }
-                        .frame(height: 260)
-                        .clipShape(.rect(cornerRadius: 18, style: .continuous))
-                        .listRowInsets(EdgeInsets())
-                        .overlay {
-                            if !DataScannerViewController.isAvailable {
-                                Text("Allow camera access in Settings to scan.")
-                                    .font(.callout)
-                                    .padding()
-                                    .background(.thinMaterial, in: .rect(cornerRadius: 12))
-                            }
-                        }
-                    } footer: {
-                        Text("Hold the barcode inside the frame.")
-                    }
+                    scannerSection
                 }
                 #endif
                 Section {
@@ -70,17 +59,86 @@ struct BarcodeLookupView: View {
             .formStyle(.grouped)
             .navigationTitle("Barcode")
             .inlineNavigationTitle()
-            .navigationDestination(for: FoodRecord.self) { record in
-                PortionView(record: record, mode: .log(day: day, meal: chosenMeal), day: day, meal: $chosenMeal) { _ in
-                    dismiss()
-                }
+            .navigationDestination(for: BarcodeRoute.self) { route in
+                destination(route)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
             }
-            .onAppear { chosenMeal = meal ?? app.settings.suggestedMeal().id }
+            .onAppear {
+                if chosenMeal.isEmpty { chosenMeal = meal ?? app.settings.suggestedMeal().id }
+            }
+            .onChange(of: path) { _, newPath in
+                // Back from the amount page: the camera starts again.
+                if newPath.isEmpty { scanID = UUID() }
+            }
+            .sensoryFeedback(.success, trigger: scans)
         }
-        .sheetFrame(minWidth: 520, minHeight: 620)
+        .sheetFrame(minWidth: 520, minHeight: 560)
+    }
+
+    #if os(iOS)
+    private var scannerSection: some View {
+        Section {
+            BarcodeScanner { payload in
+                code = payload
+                scans += 1
+                Task { await lookup(payload) }
+            }
+            .id(scanID)
+            .frame(height: 260)
+            .clipShape(.rect(cornerRadius: 18, style: .continuous))
+            .listRowInsets(EdgeInsets())
+            .overlay {
+                if !DataScannerViewController.isAvailable {
+                    cameraDenied
+                }
+            }
+        } footer: {
+            Text("Hold the barcode inside the frame.")
+        }
+    }
+
+    private var cameraDenied: some View {
+        VStack(spacing: 8) {
+            Text("Allow camera access in Settings to scan.")
+                .font(.callout)
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            .font(.callout.weight(.semibold))
+        }
+        .padding()
+        .background(.thinMaterial, in: .rect(cornerRadius: 12))
+    }
+    #endif
+
+    @ViewBuilder
+    private func destination(_ route: BarcodeRoute) -> some View {
+        switch route {
+        case .portion(let record):
+            PortionView(record: record, mode: .log(day: day, meal: chosenMeal), day: day, meal: $chosenMeal) { _ in
+                dismiss()
+            }
+        case .newFood(let request):
+            FoodEditor(food: nil, draft: request.draft) { record in
+                path = [.portion(record)]
+            }
+        }
+    }
+
+    /// Back to the camera for the next product (iPhone).
+    @ViewBuilder
+    private var scanAgainButton: some View {
+        #if os(iOS)
+        if DataScannerViewController.isSupported {
+            Button("Scan Again", systemImage: "barcode.viewfinder") {
+                state = .idle
+                code = ""
+                scanID = UUID()
+            }
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -100,7 +158,10 @@ struct BarcodeLookupView: View {
                         .foregroundStyle(.secondary)
                 }
                 Button("Save and Log", systemImage: "checkmark.circle.fill") { save(draft, thenLog: true) }
-                Button("Check and Edit First", systemImage: "square.and.pencil") { app.present(.newFood(draft)) }
+                Button("Check and Edit First", systemImage: "square.and.pencil") {
+                    path.append(.newFood(LogNewFoodRequest(draft: draft)))
+                }
+                scanAgainButton
             } header: {
                 Text("Found")
             } footer: {
@@ -112,8 +173,9 @@ struct BarcodeLookupView: View {
                 Button("Create It from the Label", systemImage: "square.and.pencil") {
                     var draft = FoodDraft(name: "", nutrients: .zero)
                     draft.barcode = code.filter(\.isNumber)
-                    app.present(.newFood(draft))
+                    path.append(.newFood(LogNewFoodRequest(draft: draft)))
                 }
+                scanAgainButton
             }
         }
     }
@@ -122,7 +184,7 @@ struct BarcodeLookupView: View {
         let digits = raw.filter(\.isNumber)
         guard digits.count >= 6 else { return }
         if let own = app.library.records.first(where: { $0.barcode == digits }) {
-            path = [own]
+            path = [.portion(own)]
             return
         }
         state = .searching
@@ -142,8 +204,14 @@ struct BarcodeLookupView: View {
     private func save(_ draft: FoodDraft, thenLog: Bool) {
         let food = app.store.saveFood(draft, source: .barcode)
         app.refresh()
-        if thenLog { path = [food.record] }
+        if thenLog { path = [.portion(food.record)] }
     }
+}
+
+/// Where the barcode sheet goes: the amount page, or a new food from the label (then its amount page).
+private enum BarcodeRoute: Hashable {
+    case portion(FoodRecord)
+    case newFood(LogNewFoodRequest)
 }
 
 /// Open Food Facts requests (one product at a time, on request only).

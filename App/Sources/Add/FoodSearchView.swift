@@ -4,7 +4,8 @@ import BinisoftKit
 import NinaCore
 
 /// Logging: search ~1,000 foods plus your own, or type a whole meal ("2 eggs, 1 toast and 200 ml
-/// milk") and log it in one go. Also used to pick ingredients for meals and recipes.
+/// milk") and log it in one go. Also used to pick ingredients for meals and recipes. A food that
+/// isn't there is created and logged without leaving the sheet.
 struct FoodSearchView: View {
     let mode: FoodPickMode
 
@@ -14,8 +15,17 @@ struct FoodSearchView: View {
     @State private var scope: Scope = .all
     @State private var meal: String
     @State private var day: DayKey
-    @State private var path: [FoodRecord] = []
+    @State private var path: [FoodSearchRoute] = []
     @State private var matches: [QuickMatch] = []
+    /// The text `matches` were made from: a picked alternative survives library updates.
+    @State private var matchedText = ""
+    /// The list below the search field, worked out once per search (not on every redraw).
+    @State private var results: [FoodRecord] = []
+    @State private var isQuick = false
+    /// The search the shown results belong to (`searchKey`).
+    @State private var shownKey = ""
+    /// Mac: the result Return opens and ⌘Return adds; ↑ and ↓ move it.
+    @State private var highlighted: FoodRef?
     @State private var added = 0
     /// "+18 g protein to reach 35" for the meal being logged to (with a protein minimum).
     @State private var proteinHint: String? = nil
@@ -47,34 +57,42 @@ struct FoodSearchView: View {
         }
     }
 
-    private var isQuick: Bool { FoodLibrary.looksLikeQuickAdd(text) }
     private var library: FoodLibrary { app.library }
 
-    private var results: [FoodRecord] {
-        let query = text.trimmingCharacters(in: .whitespaces)
-        var list: [FoodRecord]
-        if query.isEmpty {
-            switch scope {
-            case .all, .recent: list = library.recents(limit: 40)
-            case .favorites: list = library.favorites
-            case .mine: list = library.records.filter { $0.recordID != nil && $0.ref.kind != .recipe }
-            case .meals: list = library.records.filter { $0.ref.kind == .recipe }
-            }
-        } else {
-            list = library.search(query, limit: 80)
-            switch scope {
-            case .all: break
-            case .favorites: list = list.filter(\.isFavorite)
-            case .recent: list = list.filter { library.usage(of: $0.ref) != nil }
-            case .mine: list = list.filter { $0.recordID != nil && $0.ref.kind != .recipe }
-            case .meals: list = list.filter { $0.ref.kind == .recipe }
-            }
-        }
-        return list
+    /// Everything the results depend on.
+    private var searchKey: String {
+        "\(text)\u{1}\(scope.rawValue)\u{1}\(library.version)\u{1}\(app.language.rawValue)"
     }
 
     var body: some View {
         NavigationStack(path: $path) {
+            list
+                .searchable(text: $text, placement: searchPlacement, prompt: "Food, or \u{201C}2 eggs and a toast\u{201D}")
+                .searchFocused($searchFocused)
+                .onSubmit(of: .search) { submit() }
+                .task(id: searchKey) { await refreshResults() }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    topBar
+                }
+                .navigationTitle(title)
+                .inlineNavigationTitle()
+                .navigationDestination(for: FoodSearchRoute.self) { route in
+                    destination(route)
+                }
+                .toolbar { toolbar }
+                .onAppear(perform: start)
+                .task(id: proteinHintKey) {
+                    proteinHint = loadProteinHint()
+                }
+                #if os(macOS)
+                .background { macKeys }
+                #endif
+        }
+        .sheetFrame(minWidth: 560, minHeight: 560)
+    }
+
+    private var list: some View {
+        ScrollViewReader { proxy in
             List {
                 if mode.isLogging, text.isEmpty, scope == .all {
                     savedMealsRow
@@ -82,68 +100,18 @@ struct FoodSearchView: View {
                 if isQuick, !matches.isEmpty {
                     quickSection
                 }
-                Section {
-                    ForEach(results) { record in
-                        Button {
-                            path.append(record)
-                        } label: {
-                            FoodRow(record: record, language: app.language, unit: app.energyUnit, usage: library.usage(of: record.ref)) {
-                                quickAdd(record)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .leading) {
-                            Button(record.isFavorite ? "Unfavorite" : "Favorite", systemImage: record.isFavorite ? "star.slash" : "star") {
-                                app.toggleFavorite(record)
-                            }
-                            .tint(.yellow)
-                        }
-                        .contextMenu {
-                            Button("Add \(Fmt.amount(record.initialAmount(language: app.language)))", systemImage: "plus") { quickAdd(record) }
-                            Button(record.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: "star") { app.toggleFavorite(record) }
-                        }
-                    }
-                } header: {
-                    if !results.isEmpty { Text(resultsTitle) }
-                }
-                if results.isEmpty, !text.isEmpty, !isQuick {
-                    ContentUnavailableView {
-                        Label("No food called \u{201C}\(text)\u{201D}", systemImage: "magnifyingglass")
-                    } description: {
-                        Text("Create it from the label, scan its barcode, or log just the calories.")
-                    }
+                resultsSection
+                if results.isEmpty, !text.isEmpty, !isQuick, shownKey == searchKey {
+                    notFound
                 }
                 actionsSection
             }
-            .searchable(text: $text, placement: searchPlacement, prompt: "Food, or \u{201C}2 eggs and a toast\u{201D}")
-            .searchFocused($searchFocused)
-            .onSubmit(of: .search) { submit() }
-            .onChange(of: text) { _, newValue in
-                matches = FoodLibrary.looksLikeQuickAdd(newValue) ? library.quickMatches(newValue) : []
+            #if os(macOS)
+            .onChange(of: highlighted) { _, ref in
+                if let ref { proxy.scrollTo(ref) }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                topBar
-            }
-            .navigationTitle(title)
-            .inlineNavigationTitle()
-            .navigationDestination(for: FoodRecord.self) { record in
-                PortionView(record: record, mode: mode, day: day, meal: $meal) { count in
-                    added += count
-                    finishAfterPortion()
-                }
-            }
-            .toolbar { toolbar }
-            .onAppear {
-                if meal.isEmpty {
-                    meal = day == app.today ? app.settings.suggestedMeal().id : "lunch"
-                }
-                searchFocused = true
-            }
-            .task(id: proteinHintKey) {
-                proteinHint = loadProteinHint()
-            }
+            #endif
         }
-        .sheetFrame(minWidth: 560, minHeight: 700)
     }
 
     /// The scope picker, and the protein hint for the meal when it is below the minimum.
@@ -193,10 +161,15 @@ struct FoodSearchView: View {
         #endif
     }
 
+    /// "Log to Lunch", "Log to Dinner · Yesterday" (another day than today is always named).
     private var title: String {
         switch mode {
-        case .log: added > 0 ? "\(added) added" : "Log to \(app.settings.meal(meal).name)"
-        case .pick: "Add Ingredient"
+        case .log:
+            if added > 0 { return "\(added) added" }
+            let target = "Log to \(app.settings.meal(meal).name)"
+            return day == app.today ? target : "\(target) · \(Fmt.dayTitle(day, today: app.today))"
+        case .pick:
+            return "Add Ingredient"
         }
     }
 
@@ -210,7 +183,111 @@ struct FoodSearchView: View {
         }
     }
 
+    // MARK: Results
+
+    /// Waits ~80 ms after a keystroke (a newer one cancels this), then searches once.
+    private func refreshResults() async {
+        if !text.trimmingCharacters(in: .whitespaces).isEmpty, !shownKey.isEmpty {
+            try? await Task.sleep(for: .milliseconds(80))
+            guard !Task.isCancelled else { return }
+        }
+        updateResults()
+    }
+
+    /// Searches now if the shown results are older than the text (Return can come before the pause).
+    private func updateResults() {
+        let key = searchKey
+        guard key != shownKey else { return }
+        let quick = FoodLibrary.looksLikeQuickAdd(text)
+        if text != matchedText {
+            matches = quick ? library.quickMatches(text) : []
+            matchedText = text
+        }
+        isQuick = quick
+        results = currentResults()
+        shownKey = key
+        highlighted = results.first?.ref
+    }
+
+    private func currentResults() -> [FoodRecord] {
+        let query = text.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else {
+            switch scope {
+            case .all, .recent: return library.recents(limit: 40)
+            case .favorites: return library.favorites
+            case .mine: return library.records.filter { $0.recordID != nil && $0.ref.kind != .recipe }
+            case .meals: return library.records.filter { $0.ref.kind == .recipe }
+            }
+        }
+        let list = library.search(query, limit: 80)
+        switch scope {
+        case .all: return list
+        case .favorites: return list.filter(\.isFavorite)
+        case .recent: return list.filter { library.usage(of: $0.ref) != nil }
+        case .mine: return list.filter { $0.recordID != nil && $0.ref.kind != .recipe }
+        case .meals: return list.filter { $0.ref.kind == .recipe }
+        }
+    }
+
+    private var highlightedRecord: FoodRecord? {
+        results.first { $0.ref == highlighted }
+    }
+
     // MARK: Sections
+
+    private var resultsSection: some View {
+        Section {
+            ForEach(results) { record in
+                resultRow(record)
+            }
+        } header: {
+            if !results.isEmpty { Text(resultsTitle) }
+        }
+    }
+
+    private func resultRow(_ record: FoodRecord) -> some View {
+        Button {
+            path.append(.portion(record, created: false))
+        } label: {
+            FoodRow(record: record, language: app.language, unit: app.energyUnit, usage: library.usage(of: record.ref)) {
+                quickAdd(record)
+            }
+        }
+        .buttonStyle(.plain)
+        .listRowBackground(rowBackground(record))
+        .id(record.ref)
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button("Add", systemImage: "plus") { quickAdd(record) }
+                .tint(Brand.accent)
+        }
+        .swipeActions(edge: .trailing) {
+            Button(record.isFavorite ? "Unfavorite" : "Favorite", systemImage: record.isFavorite ? "star.slash" : "star") {
+                app.toggleFavorite(record)
+            }
+            .tint(.yellow)
+        }
+        .contextMenu {
+            Button("Add \(Fmt.amount(record.initialAmount(language: app.language)))", systemImage: "plus") { quickAdd(record) }
+            Button(record.isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: "star") { app.toggleFavorite(record) }
+        }
+    }
+
+    /// Mac: the highlighted result (↑/↓, Return) is tinted.
+    private func rowBackground(_ record: FoodRecord) -> Color? {
+        #if os(macOS)
+        record.ref == highlighted && results.count > 1 ? Brand.accent.opacity(0.14) : nil
+        #else
+        nil
+        #endif
+    }
+
+    private var notFound: some View {
+        ContentUnavailableView {
+            Label("No food called \u{201C}\(text)\u{201D}", systemImage: "magnifyingglass")
+        } description: {
+            Text("Create it from the label, scan its barcode, or log just the calories.")
+        }
+    }
 
     @ViewBuilder
     private var savedMealsRow: some View {
@@ -244,7 +321,9 @@ struct FoodSearchView: View {
     private var quickSection: some View {
         Section {
             ForEach($matches) { $match in
-                QuickMatchRow(match: $match, language: app.language, unit: app.energyUnit)
+                QuickMatchRow(match: $match, language: app.language, unit: app.energyUnit) { query in
+                    text = query
+                }
             }
             let resolved = matches.filter(\.isResolved)
             Button {
@@ -261,8 +340,16 @@ struct FoodSearchView: View {
         } header: {
             Text("Understood")
         } footer: {
-            Text("Tap a line to pick another food. Press Return to add everything.")
+            Text(quickFooter)
         }
+    }
+
+    private var quickFooter: String {
+        #if os(macOS)
+        "Click a line to pick another food. Press Return to add everything."
+        #else
+        "Tap a line to pick another food. Press Return to add everything."
+        #endif
     }
 
     private var actionsSection: some View {
@@ -284,7 +371,27 @@ struct FoodSearchView: View {
             Button("Create a Food", systemImage: "square.and.pencil") {
                 var draft = FoodDraft(name: text.trimmingCharacters(in: .whitespaces), nutrients: .zero)
                 draft.category = .other
-                app.present(.newFood(draft))
+                path.append(.newFood(LogNewFoodRequest(draft: draft)))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func destination(_ route: FoodSearchRoute) -> some View {
+        switch route {
+        case .portion(let record, let created):
+            PortionView(record: record, mode: mode, day: day, meal: $meal) { count in
+                added += count
+                // A food created here was the one thing missing: logged, the sheet's job is done.
+                if created, mode.isLogging {
+                    dismiss()
+                } else {
+                    finishAfterPortion()
+                }
+            }
+        case .newFood(let request):
+            FoodEditor(food: nil, draft: request.draft) { record in
+                path = [.portion(record, created: true)]
             }
         }
     }
@@ -309,7 +416,55 @@ struct FoodSearchView: View {
         }
     }
 
+    #if os(macOS)
+    /// ↑ and ↓ move the highlighted result, ⌘Return adds it (Return in the search field opens it).
+    private var macKeys: some View {
+        Group {
+            Button("Previous Result") { moveHighlight(by: -1) }
+                .keyboardShortcut(.upArrow, modifiers: [])
+            Button("Next Result") { moveHighlight(by: 1) }
+                .keyboardShortcut(.downArrow, modifiers: [])
+            Button("Add Highlighted Result") { addHighlighted() }
+                .keyboardShortcut(.return, modifiers: .command)
+        }
+        .disabled(!path.isEmpty)
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+    }
+
+    private func moveHighlight(by step: Int) {
+        guard !results.isEmpty else { return }
+        let index = results.firstIndex { $0.ref == highlighted } ?? -1
+        let next = min(max(index + step, 0), results.count - 1)
+        highlighted = results[next].ref
+    }
+
+    private func addHighlighted() {
+        updateResults()
+        if isQuick {
+            logMatches()
+        } else if let record = highlightedRecord ?? results.first {
+            quickAdd(record)
+        }
+    }
+    #endif
+
     // MARK: Actions
+
+    private func start() {
+        if meal.isEmpty { meal = suggestedMeal() }
+        searchFocused = true
+    }
+
+    /// Today: the meal of the hour. Another day: the first meal with nothing logged yet there
+    /// (else the meal of the hour).
+    private func suggestedMeal() -> String {
+        let byClock = app.settings.suggestedMeal().id
+        guard day != app.today else { return byClock }
+        let logged = Set(app.store.entries(on: day).map(\.meal))
+        return app.settings.meals.first { !logged.contains($0.id) }?.id ?? byClock
+    }
 
     private func quickAdd(_ record: FoodRecord) {
         let amount = record.initialAmount(language: app.language)
@@ -341,10 +496,11 @@ struct FoodSearchView: View {
     }
 
     private func submit() {
+        updateResults()
         if isQuick {
             logMatches()
-        } else if let first = results.first {
-            path.append(first)
+        } else if let record = highlightedRecord ?? results.first {
+            path.append(.portion(record, created: false))
         }
     }
 
@@ -359,55 +515,86 @@ struct FoodSearchView: View {
     }
 }
 
+/// Where the log sheet goes: a food's amount page (`created`: a food made right here), or a new food.
+private enum FoodSearchRoute: Hashable {
+    case portion(FoodRecord, created: Bool)
+    case newFood(LogNewFoodRequest)
+}
+
+/// A food to create inside the log or barcode sheet ("not found → create it → log it").
+struct LogNewFoodRequest: Hashable {
+    let id = UUID()
+    let draft: FoodDraft
+
+    static func == (lhs: LogNewFoodRequest, rhs: LogNewFoodRequest) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
 /// One understood line of a quick add: the food it matched (tap for alternatives) and the amount.
 private struct QuickMatchRow: View {
     @Binding var match: QuickMatch
     let language: FoodLanguage
     let unit: EnergyUnit
+    /// A line that found nothing: search for its words instead.
+    let onSearch: (String) -> Void
 
     var body: some View {
         Menu {
-            if let food = match.food {
-                Section("Matched") {
-                    Text(food.displayName(language))
-                }
-            }
-            if !match.alternatives.isEmpty {
-                Section("Use instead") {
-                    ForEach(match.alternatives) { alternative in
-                        Button(alternative.displayName(language)) { choose(alternative) }
-                    }
-                }
-            }
+            menuContent
         } label: {
-            HStack(spacing: 12) {
-                if let food = match.food {
-                    CategoryBadge(category: food.category, emoji: food.emoji, size: 32)
-                } else {
-                    Image(systemName: match.item.isEnergyOnly ? "bolt.circle.fill" : "questionmark.circle")
-                        .font(.title2)
-                        .foregroundStyle(match.item.isEnergyOnly ? Color.orange : Color.secondary)
-                        .frame(width: 32, height: 32)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(lineTitle)
-                        .foregroundStyle(match.isResolved ? Color.primary : Color.secondary)
-                        .lineLimit(1)
-                    Text(lineSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-                if match.isResolved {
-                    Text(Fmt.energy(match.nutrients.energy, unit: unit))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
+            label
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var menuContent: some View {
+        if let food = match.food {
+            Section("Matched") {
+                Text(food.displayName(language))
+            }
+        }
+        if !match.alternatives.isEmpty {
+            Section("Use instead") {
+                ForEach(match.alternatives) { alternative in
+                    Button(alternative.displayName(language)) { choose(alternative) }
+                }
+            }
+        }
+        if match.food == nil, !match.item.isEnergyOnly, !match.item.query.isEmpty {
+            Button("Search for \u{201C}\(match.item.query)\u{201D}", systemImage: "magnifyingglass") {
+                onSearch(match.item.query)
+            }
+        }
+    }
+
+    private var label: some View {
+        HStack(spacing: 12) {
+            if let food = match.food {
+                CategoryBadge(category: food.category, emoji: food.emoji, size: 32)
+            } else {
+                Image(systemName: match.item.isEnergyOnly ? "bolt.circle.fill" : "questionmark.circle")
+                    .font(.title2)
+                    .foregroundStyle(match.item.isEnergyOnly ? Color.orange : Color.secondary)
+                    .frame(width: 32, height: 32)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(lineTitle)
+                    .foregroundStyle(match.isResolved ? Color.primary : Color.secondary)
+                    .lineLimit(1)
+                Text(lineSubtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            if match.isResolved {
+                Text(Fmt.energy(match.nutrients.energy, unit: unit))
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var lineTitle: String {
@@ -423,6 +610,7 @@ private struct QuickMatchRow: View {
     private func choose(_ food: FoodRecord) {
         var alternatives = match.alternatives.filter { $0.ref != food.ref }
         if let current = match.food { alternatives.insert(current, at: 0) }
-        match = QuickMatch(item: match.item, food: food, alternatives: alternatives, amount: QuickParser.amount(for: match.item, food: food))
+        match = QuickMatch(item: match.item, food: food, alternatives: alternatives,
+                           amount: QuickParser.amount(for: match.item, food: food), language: match.language)
     }
 }
