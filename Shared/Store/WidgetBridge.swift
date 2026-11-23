@@ -179,7 +179,7 @@ struct NinaOpenWeighInIntent: AppIntent {
 /// "Add Water": opens Nina and adds a glass (the glass size from Settings) with Undo in the toast
 /// (nina://water). Siri's "Log Water" adds water without opening the app.
 struct NinaOpenAddWaterIntent: AppIntent {
-    static let title: LocalizedStringResource = "Add a Glass of Water"
+    static let title: LocalizedStringResource = "Open Nina and Add Water"
     static let description: IntentDescription? = IntentDescription("Opens Nina and adds a glass of water (your glass size) to today, with Undo.")
     static let supportedModes: IntentModes = .foreground
 

@@ -320,6 +320,13 @@ struct CoachWidgetSnapshotTests {
         #expect(CoachSiriNames.dayTypeSynonyms("Rest day").isEmpty)
         #expect(CoachSiriNames.dayTypeSynonyms("  ").isEmpty)
 
+        // How Siri's answers say a day type: never "Rest day day".
+        #expect(CoachSiriNames.dayTitle("Tennis") == "Tennis day")
+        #expect(CoachSiriNames.dayTitle(" Rest day ") == "Rest day")
+        #expect(CoachSiriNames.dayTitle("Ruhetag") == "Ruhetag")
+        let rest = CoachSnapshot.DayType(id: "rest", name: "Rest Day", emoji: "", energy: 2200, isManual: false)
+        #expect(rest.title == "Rest Day" && rest.label == "Rest Day")
+
         #expect(CoachSiriNames.key("Tennistag") == "tennis")
         #expect(CoachSiriNames.key(" Rest Day ") == "rest")
         #expect(CoachSiriNames.key("Kraft-Tag") == "kraft")

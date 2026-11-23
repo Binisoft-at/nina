@@ -1,7 +1,9 @@
 # Nina – Siri, Shortcuts, controls and the coach widget
 
-Everything here works without opening Nina first. Nothing needs setting up: Siri knows the
-phrases as soon as Nina is installed, and the controls and widgets are in the usual galleries.
+Nothing needs setting up: Siri knows the phrases as soon as Nina is installed, and the controls
+and widgets are in the usual galleries. Open Nina once after installing (and after changing your
+plan): that is when Siri learns your plan's day types and checks, and when the Coach widget gets
+its numbers.
 
 ## Say it to Siri
 
@@ -27,11 +29,13 @@ Siri understands these in English and in German (whatever language Siri speaks o
 - **What Siri answers** stays English (Nina's texts are English); only the phrases you say have a
   German version.
 - When Nina is open, a Siri request shows the usual message with **Undo**.
+- **Locked iPhone**: "Log weight" asks you to unlock first, because Siri's answer says your
+  7-day average.
 
 ## Shortcuts and the Action button
 
 All of the above are actions in the Shortcuts app (search "Nina"), plus three that open Nina:
-**Open Log Food**, **Open Weigh-In** and **Add a Glass of Water**. On an iPhone with an Action
+**Open Log Food**, **Open Weigh-In** and **Open Nina and Add Water**. On an iPhone with an Action
 button: Settings → Action Button → Controls → Nina → *Log Food*, *Weigh In* or *Add Water* – or
 choose Shortcut → Nina → *Log Water* to add a glass without opening the app.
 

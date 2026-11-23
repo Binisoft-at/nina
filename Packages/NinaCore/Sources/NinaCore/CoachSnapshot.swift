@@ -82,8 +82,8 @@ public struct CoachSnapshot: Codable, Equatable, Sendable {
 
         /// "🎾 Tennis" ("Tennis" without an emoji).
         public var label: String { [emoji, name].filter { !$0.isEmpty }.joined(separator: " ") }
-        /// "Tennis day".
-        public var title: String { "\(name) day" }
+        /// "Tennis day" ("Rest day" and "Ruhetag" stay as they are).
+        public var title: String { CoachSiriNames.dayTitle(name) }
     }
 
     /// A daily check from the plan with its state that day.
@@ -557,6 +557,15 @@ public enum CoachSiriNames {
         let lower = trimmed.lowercased()
         guard !trimmed.isEmpty, !lower.hasSuffix("day"), !lower.hasSuffix("tag") else { return [] }
         return ["\(trimmed) day", "\(trimmed)tag", "\(trimmed) Tag"]
+    }
+
+    /// How a day type is said in a sentence: "Tennis day"; a name that already ends in "day" or
+    /// "Tag" stays as it is ("Rest day", "Ruhetag"), so it never reads "Rest day day".
+    public static func dayTitle(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        guard !trimmed.isEmpty, !lower.hasSuffix("day"), !lower.hasSuffix("tag") else { return trimmed }
+        return "\(trimmed) day"
     }
 
     /// What is compared: lowercased letters and digits only (no accents, spaces or dashes), without

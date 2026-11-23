@@ -102,6 +102,9 @@ struct CaloriesLeftIntent: AppIntent {
 struct LogWeightIntent: AppIntent {
     static let title: LocalizedStringResource = "Log Weight"
     static let description: IntentDescription? = IntentDescription("Saves today's weigh-in in Nina, in kilograms – e.g. 74.2.")
+    /// Its answers say the 7-day average: on a locked iPhone Siri asks to unlock first (the Coach
+    /// widget hides the weight on the Lock Screen too).
+    static let authenticationPolicy: IntentAuthenticationPolicy = .requiresAuthentication
 
     @Parameter(title: "Weight (kg)", description: "Your weight in kilograms, e.g. 74.2.", controlStyle: .field,
                requestValueDialog: "How much do you weigh, in kilograms?")
@@ -191,9 +194,9 @@ struct SetDayTypeIntent: AppIntent {
             return .result(dialog: "Back to your schedule – \(target) today.")
         }
         if typeID == nil {
-            return .result(dialog: "Back to your schedule: today is a \(type.name) day, \(target).")
+            return .result(dialog: "Back to your schedule: today is a \(CoachSiriNames.dayTitle(type.name)), \(target).")
         }
-        return .result(dialog: "Today is a \(type.name) day – \(target).")
+        return .result(dialog: "Today is a \(CoachSiriNames.dayTitle(type.name)) – \(target).")
     }
 }
 

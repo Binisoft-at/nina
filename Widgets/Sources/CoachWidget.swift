@@ -242,10 +242,11 @@ struct CoachWidgetView: View {
                     }
                 }
                 if let summary = rowsSummary {
+                    // Alone in the column without a plan: room for the whole sentence.
                     Text(summary)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(rows.isEmpty ? 4 : 2)
                 }
                 Spacer(minLength: 0)
             }
