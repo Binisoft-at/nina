@@ -66,6 +66,21 @@ public struct DayKey: Hashable, Comparable, Sendable, Codable, CustomStringConve
         return calendar.date(from: parts) ?? target.date(calendar: calendar)
     }
 
+    /// A moment on this diary day at the clock time `minutes` (0..<1440) when the day starts at
+    /// `dayStartHour`: a time before the start belongs to the end of the day, so it falls on the
+    /// next calendar date (with the day starting at 3:00, 00:30 is the night after).
+    public func date(minutes: Int, dayStartHour: Int, calendar: Calendar = .current) -> Date {
+        date(minutes: ClockTime.diaryMinutes(minutes, dayStartHour: dayStartHour), calendar: calendar)
+    }
+
+    /// When this diary day starts (`dayStartHour` on its date).
+    public func start(dayStartHour: Int, calendar: Calendar = .current) -> Date {
+        date(minutes: DayKey.clampedStartHour(dayStartHour) * 60, calendar: calendar)
+    }
+
+    /// The day start hour as `DayKey(date:dayStartHour:)` uses it (0…12).
+    static func clampedStartHour(_ hour: Int) -> Int { max(0, min(hour, 12)) }
+
     public func adding(days: Int, calendar: Calendar = .current) -> DayKey {
         // Noon avoids daylight-saving edges.
         let noon = calendar.date(byAdding: .hour, value: 12, to: date(calendar: calendar)) ?? date(calendar: calendar)
@@ -112,6 +127,12 @@ public enum ClockTime {
     public static func minutes(of date: Date, calendar: Calendar = .current) -> Int {
         let parts = calendar.dateComponents([.hour, .minute], from: date)
         return (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+    }
+
+    /// A clock time counted from the diary day's start: with the day starting at 3:00, 00:30 comes
+    /// after dinner (1,470). Sorts meal slots and planned times the way the day runs.
+    public static func diaryMinutes(_ minutes: Int, dayStartHour: Int) -> Int {
+        minutes < DayKey.clampedStartHour(dayStartHour) * 60 ? minutes + 1440 : minutes
     }
 
     public static func text(_ minutes: Int) -> String {

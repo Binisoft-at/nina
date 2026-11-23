@@ -247,10 +247,12 @@ struct PlanTests {
     @Test func duplicateGroupsConverge() {
         let early = Date(timeIntervalSince1970: 100)
         let late = Date(timeIntervalSince1970: 200)
-        let groups: [(key: String, createdAt: Date, group: String)] = [
-            ("k1", late, "phone"), ("k1", early, "mac"), ("k2", early, "only"),
+        let items = [
+            PlanSchedule.Item(id: "phone", key: "k1", groupID: "g1", createdAt: late),
+            PlanSchedule.Item(id: "mac", key: "k1", groupID: "g2", createdAt: early),
+            PlanSchedule.Item(id: "only", key: "k2", groupID: "g3", createdAt: early),
         ]
-        #expect(PlanSchedule.duplicates(groups) == ["phone"])
+        #expect(PlanSchedule.duplicates(items) == ["phone"])
     }
 }
 
