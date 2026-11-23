@@ -271,7 +271,6 @@ public enum SettingsCSV {
         Key(name: "training_extra_kcal", meaning: "Extra kcal on training days (mostly carbs), e.g. 300", example: "300", aliases: ["training_kcal", "training_calories", "extra_kcal"]),
         Key(name: "meals", meaning: "My meals with their usual time and an emoji, separated by ;", example: "Breakfast 07:30 🥐;Lunch 12:30 🥗;Snack 16:00 🍎;Dinner 19:00 🍝", aliases: ["mahlzeiten", "meal_times"]),
         Key(name: "food_names", meaning: "english or german", example: "german", aliases: ["food_language", "language", "sprache"]),
-        Key(name: "energy_unit", meaning: "kcal or kJ", example: "kcal", aliases: ["unit", "einheit"]),
         Key(name: "day_starts_at", meaning: "Hour the diary day starts, 0–6 (e.g. 3: a 2 am snack still counts for yesterday)", example: "", aliases: ["day_start", "tagesbeginn", "day_start_hour"]),
         Key(name: "water_glass_ml", meaning: "Size of one glass of water in ml", example: "300", aliases: ["glass", "glass_ml", "glas"]),
         Key(name: "add_burned_calories", meaning: "none, half or all – how much of the calories burned (Apple Health) is added to the day", example: "half", aliases: ["burned_calories", "activity_bonus"]),
@@ -280,9 +279,15 @@ public enum SettingsCSV {
         Key(name: "not_supported", meaning: "Only a real wish: something I want the app to do that no row covers (one row each) – Nina lists it so I can ask for it", example: "", aliases: ["unsupported", "wish"]),
     ]
 
+    /// Settings older files may still have and Nina reads without a word: `energy_unit` (Nina
+    /// always shows kcal now). Not in the prompts or the export.
+    static let retiredKeys: [Key] = [
+        Key(name: "energy_unit", meaning: "", example: "", aliases: ["unit", "einheit"]),
+    ]
+
     static let canonical: [String: String] = {
         var map: [String: String] = [:]
-        for key in keys {
+        for key in keys + retiredKeys {
             map[ImportColumns.normalize(key.name)] = key.name
             for alias in key.aliases { map[ImportColumns.normalize(alias)] = key.name }
         }
@@ -481,9 +486,8 @@ public enum SettingsCSV {
             guard let language = map[word] else { return invalid }
             draft.language = language
         case "energy_unit":
-            let map: [String: EnergyUnit] = ["kcal": .kcal, "calories": .kcal, "kalorien": .kcal, "kj": .kJ, "kilojoule": .kJ, "kilojoules": .kJ]
-            guard let unit = map[word] else { return invalid }
-            draft.energyUnit = unit
+            // Nina is kcal only: an older file's unit row is read and left out, whatever it says.
+            break
         case "day_starts_at":
             let digits = value.split(whereSeparator: { !$0.isNumber }).first.flatMap { Int($0) }
             if ["midnight", "mitternacht"].contains(word) {
@@ -744,7 +748,6 @@ public enum SettingsCSV {
             state.meals = merged.sorted { $0.minutes < $1.minutes }
         }
         if let language = draft.language { state.language = language }
-        if let unit = draft.energyUnit { state.energyUnit = unit }
         if let hour = draft.dayStartHour { state.dayStartHour = hour }
         if let glass = draft.waterGlass { state.waterGlass = glass }
         if let share = draft.activityBonusShare { state.activityBonusShare = share }
@@ -858,7 +861,6 @@ public enum SettingsCSV {
         }
         add("Meals", meals(old.meals), meals(new.meals), .preferences)
         add("Food names", old.language.title, new.language.title, .preferences)
-        add("Energy unit", old.energyUnit.rawValue, new.energyUnit.rawValue, .preferences)
         add("Day starts at", "\(old.dayStartHour):00", "\(new.dayStartHour):00", .preferences)
         add("Glass of water", NumberText.plain(old.waterGlass, decimals: 0) + " ml", NumberText.plain(new.waterGlass, decimals: 0) + " ml", .preferences)
         func bonus(_ share: Double) -> String { share >= 1 ? "all" : (share > 0 ? "half" : "none") }
@@ -916,7 +918,6 @@ public enum SettingsCSV {
         }
         add("meals", state.meals.map { "\($0.name) \(ClockTime.text($0.minutes)) \($0.emoji)" }.joined(separator: ";"))
         add("food_names", state.language == .german ? "german" : "english")
-        add("energy_unit", state.energyUnit.rawValue)
         add("day_starts_at", String(state.dayStartHour))
         add("water_glass_ml", NumberText.plain(state.waterGlass, decimals: 0))
         add("add_burned_calories", state.activityBonusShare >= 1 ? "all" : (state.activityBonusShare > 0 ? "half" : "none"))

@@ -201,6 +201,12 @@ struct NinaBackupWriter {
                 record[key] = fields[key]
             }
         }
+        // The settings for every device (Thalia's switch), from a newer duplicate when the oldest
+        // has none – as the store merges them.
+        if first.syncedSettings.isEmpty,
+           let donor = all.dropFirst().filter({ !$0.syncedSettings.isEmpty }).max(by: { $0.modifiedAt < $1.modifiedAt }) {
+            record.set("syncedSettings", donor.syncedSettings)
+        }
         return record
     }
 
@@ -635,6 +641,9 @@ extension NinaProfile {
         r.set("focusNutrients", focusNutrients)
         r.set("waterGlass", waterGlass)
         r.set("coachPlan", coachPlan)
+        // Only when there is one: a backup from before this field reads the same as a profile
+        // without synced settings (the restore's "same goals & plan" check compares every field).
+        if !syncedSettings.isEmpty { r.set("syncedSettings", syncedSettings) }
         r.set("createdAt", date: createdAt)
         r.set("modifiedAt", date: modifiedAt)
         return r
@@ -666,6 +675,9 @@ extension NinaProfile {
         focusNutrients = r.string("focusNutrients", "protein,carbs,fat")
         waterGlass = r.double("waterGlass", 250)
         coachPlan = r.string("coachPlan")
+        // Thalia's switch and the other settings for every device (lenient JSON, read by
+        // `SyncedSettings`). A backup from before them leaves what is here: empty on a new profile.
+        syncedSettings = r.string("syncedSettings", syncedSettings)
     }
 }
 #endif

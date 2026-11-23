@@ -255,8 +255,8 @@ Today's strip shows what is due, so you never have to remember it:
 
 Once your plan is set up, Nina on your watch shows three things under the calorie ring:
 
-1. **Today's day type** with what's left, for example "🎾 Tennis · 1,240 left". Tap it to pick
-   another type for today; each type shows its calories, and flexible ones show "1 of 2 this week".
+1. **Today's day type** with its target, for example "🎾 Tennis · 2,400 kcal" (the ring shows what
+   is left). Tap it to pick another type for today; each type shows its calories, and flexible ones show "1 of 2 this week".
    **Back to Schedule** undoes a day you picked by hand.
 2. **Today's checks**: **Weigh in** (until your morning cutoff if you haven't weighed in yet), your
    weekly tape site such as **Waist** on its day, and daily checks such as **Creatine**.
@@ -265,13 +265,18 @@ Once your plan is set up, Nina on your watch shows three things under the calori
      come one after the other, and **Skip** moves on.
    - A check is ticked with one tap, and tapping again opens it again.
    - After every change a small **Undo** shows for a few seconds.
-3. **A status line** with the same words as on your iPhone, your 7-day average and your weekly rate.
-   The day-type chip under the ring shows the day's target ("Rest · 2,150 kcal"); the ring shows
-   what is left.
+3. **A status line** with the same words and numbers as on your iPhone: your 7-day average and
+   weekly rate, including weigh-ins from your scale in Apple Health (your iPhone passes them on). If
+   your scale already weighed you this morning, "♥ This morning 74.6 kg" shows under it and the
+   Weigh in pill goes away. The day-type chip under the ring shows the day's target
+   ("Rest · 2,150 kcal"); the ring shows what is left.
 
 - Full measurements and body-fat checks stay on the iPhone.
-- The watch counts weigh-ins typed in Nina on any of your devices, not ones that exist only in
-  Apple Health.
+- The watch shows your iPhone's numbers, Apple Health weigh-ins included, once Nina on your iPhone
+  has read them (open it after weighing on the scale). Right after a weigh-in on the watch, it shows
+  its own numbers until your iPhone has the new weigh-in.
+- When you log on the watch, its Recent list follows the meal, like on the iPhone: the foods
+  mostly logged at that meal first ("Mostly at breakfast"), then the rest.
 - Weigh-ins from the watch reach Apple Health through your iPhone's next Health sync.
 
 ## Coach reminders

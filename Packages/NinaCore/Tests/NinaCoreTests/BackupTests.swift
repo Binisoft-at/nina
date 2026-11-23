@@ -155,6 +155,29 @@ struct BackupRestoreTests {
         #expect(differs.inserts.isEmpty)
     }
 
+    /// The settings for every device (Thalia's switch) travel as their JSON text, written only
+    /// when there are some: a backup from before them is the same goals & plan as a profile
+    /// without them, and a different switch makes the profile differ.
+    @Test func syncedSettingsTravelWithTheGoals() throws {
+        var settings = SyncedSettings()
+        settings.thaliaDeliver = false
+        let synced = settings.encoded
+        var withSettings = BackupRecord(.profile, uuid: UUID())
+        withSettings.set("goal", "maintain")
+        withSettings.set("syncedSettings", synced)
+        let back = try #require(NinaBackup.decode(NinaBackup.encode([withSettings])).records.first)
+        #expect(back.string("syncedSettings") == synced)
+        #expect(SyncedSettings(encoded: back.string("syncedSettings")).thaliaDeliver == false)
+
+        var older = BackupRecord(.profile, uuid: UUID())
+        older.set("goal", "maintain")
+        var mine = BackupRecord(.profile, uuid: UUID())
+        mine.set("goal", "maintain")
+        #expect(older.string("syncedSettings") == "")
+        #expect(BackupRestorePlan([older], existing: [:], currentProfile: mine).profileState == .same)
+        #expect(BackupRestorePlan([withSettings], existing: [:], currentProfile: mine).profileState == .differs)
+    }
+
     @Test func typesFromANewerVersionAreLeftOut() {
         let plan = BackupRestorePlan([BackupRecord(type: "Shopping", uuid: UUID()), entry("A")], existing: [:], currentProfile: nil)
         #expect(plan.unknownTypes == ["Shopping"])

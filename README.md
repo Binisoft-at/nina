@@ -32,7 +32,8 @@ itself stays in your training app.
   you stand the same way, and Compare: two days side by side, faded or with a slider, next to your
   weight and waist. Kept only in Nina's private iCloud, with an optional Face ID lock.
 - **Coach on Apple Watch** – today's day type under the ring (tap to switch), weigh-in and waist
-  with the Digital Crown, daily checks in one tap and how your weight is going, each with Undo.
+  with the Digital Crown, daily checks in one tap and how your weight is going, each with Undo –
+  with your iPhone's numbers, Apple Health weigh-ins included.
 - **Body data from Apple Health** – body fat, lean mass and waist from your scale as series of their
   own, your height as a hint, and "Make it a tennis day?" after a matching workout. Read live, never
   stored: [docs/HEALTH.md](docs/HEALTH.md).
@@ -40,8 +41,12 @@ itself stays in your training app.
   through your AI; Nina adds only what's new, one Undo takes it back, and the export gives it all
   back as CSV.
 - **Thalia** – on each iPhone, iPad and Mac, Nina hands Thalia (Binisoft's planner) the day's
-  calories, protein, carbs, fat and water, never anything from Apple Health; Settings → Thalia
-  turns it off: [docs/THALIA.md](docs/THALIA.md).
+  calories, protein, carbs, fat, water and morning weight, never anything from Apple Health;
+  Settings → Thalia → An Thalia liefern (one switch for all your devices):
+  [docs/THALIA.md](docs/THALIA.md).
+- **Siri, Shortcuts and controls** – Siri and Shortcuts in English and German ("Log weight in
+  Nina", "Heute ist ein Tennistag in Nina"), Control Center / Lock Screen / Action button controls
+  (Log Food, Weigh In, Add Water) and a Coach widget – see [docs/SIRI.md](docs/SIRI.md).
 
 - **Today** – a calorie ring with what's left (swipe it for other days), your priority nutrients,
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
@@ -78,11 +83,13 @@ itself stays in your training app.
   iCloud Drive or your Mac (no Apple Health data). **Restore from Backup** adds back only what is
   missing, with one Undo. The CSV exports cover goals & plan, foods, diary, meals & recipes and
   weight & body, not photos, water, check-ins, day types or routines.
+- **Automatic weekly backup** (on by default on iPhone): Settings → Import & Export keeps the last 4
+  full backups in Files → On My iPhone → Nina, or in a folder you choose such as iCloud Drive.
 - **Apple ecosystem** – iCloud sync between all devices, Apple Health (meals, water and weight
   written; weight and activity read live, never stored), Apple Watch app with Digital Crown amounts
   and dictation, complications and widgets with the day type, coach reminders (weigh in right in
-  the notification), Siri and Shortcuts ("Log food in Nina"), Mac menus and shortcuts, Liquid
-  Glass, light and dark mode.
+  the notification), Siri and Shortcuts ("Log food in Nina", see above), Mac menus and shortcuts,
+  Liquid Glass, light and dark mode. Energy is always in kcal.
 - **On the Mac** – the same pages as on iPhone in the sidebar (Today, Foods, Meals & Recipes, Plan,
   Nutrition, Body), every action in the menus with a shortcut, and Nina in the menu bar: calories
   left, protein and water today, a glass of water, Log Food… and Weigh In… without switching apps.
@@ -108,8 +115,8 @@ Progress → Body), Search and Recently Deleted. Nina opens on the page you used
 - **Menu bar**: the fork-and-knife icon with the calories left today next to it. Its menu shows
   calories left (or over), protein and water against your targets, and has **Add a Glass of
   Water**, **Log Food…**, **Weigh In…** and **Open Nina**. Log Food and Weigh In bring Nina's window
-  forward with the sheet; a sheet that is already open stays. Settings → Menu Bar turns it off, or
-  just the number next to the icon (this Mac only).
+  forward with the sheet; a sheet that is already open stays. Settings → General → Menu Bar turns it
+  off, or just the number next to the icon (this Mac only).
 - **Photo lock**: with Lock Photos on, a quick look at another app doesn't ask again – the photos
   lock after five minutes away from Nina, and at once when the screen locks or the Mac sleeps.
 - Apple Health isn't on the Mac, so weight and activity from Health show on your iPhone; nothing

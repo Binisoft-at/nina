@@ -71,7 +71,8 @@ time your day starts (Settings → Day starts at).
 
 **Privacy**: the widget's numbers come from a small file on this iPhone only (never in iCloud and
 not in device backups), because the 7-day average can include weigh-ins from Apple Health. The
-weight is hidden on the Lock Screen while the iPhone is locked.
+weight is hidden on the Lock Screen while the iPhone is locked. What goes where:
+[HEALTH.md](HEALTH.md). All of it in the tour's "What's new": [TOUR.md](TOUR.md).
 
 ## Links
 

@@ -11,14 +11,16 @@
 | Built-in food catalog | In the app bundle | Everyone (public data) |
 | Today's numbers for widgets and complications | `group.at.binisoft.shared/Nina/today.json` on each device | Nina's widgets on that device |
 | The coach widget's summary (day type, daily checks, 7-day average and rate – which can count Health weigh-ins –, next measurement) | `group.at.binisoft.shared/Nina/coach.json` on that iPhone, never synced and kept out of device backups; the weight is hidden on the locked Lock Screen | Nina's coach widget on that iPhone |
-| Today's numbers handed from the iPhone to its Apple Watch, so the watch face follows what is logged on the iPhone or Mac (without the activity bonus from Health) | Sent device to device (WatchConnectivity, never iCloud), written into the watch's `today.json` | Nina's complications on that watch |
+| Today's numbers handed from the iPhone to its Apple Watch, so the watch face follows what is logged on the iPhone or Mac (activity bonus included), plus what only the iPhone knows from Apple Health: this morning's weigh-in from Health, the 7-day average, rate and status words worked out with Health weigh-ins, and today's active energy | Sent device to device (WatchConnectivity, never iCloud). The numbers go into the watch's `today.json`; the rest goes into the watch's own settings on the watch (UserDefaults), never its synced store | Nina on that watch |
 | Today's active energy for the widget budget (when "Add to my budget" is on) | UserDefaults on that iPhone, with its day | Nina on that device |
-| The day totals for Thalia (calories, protein, carbs, fat, water of the last 62 days – from Nina's own diary, never from Health) | `group.at.binisoft.shared/Nina/exchange/` on each iPhone, iPad and Mac (not the watch), while Settings → Thalia → Send to Thalia is on | Thalia and Nina on that device |
+| The day values for Thalia (calories, protein, carbs, fat, water and the morning weight of the last 62 days – from Nina's own diary and weigh-ins, never from Health) | `group.at.binisoft.shared/Nina/exchange/` on each iPhone, iPad and Mac (not the watch), while Settings → Thalia → An Thalia liefern is on (one synced switch for all devices) | Thalia and Nina on that device |
 | Apple Health values (weight, active energy) | Read live from HealthKit on each device, kept in memory only | Never stored or synced by Nina |
 | Apple Health body values (body fat, lean mass, waist, height) and today's workouts | Read live from HealthKit on iPhone and iPad, kept in memory only | Never stored or synced by Nina |
 | What Nina wrote to Health | A device-only ledger file (entry id → version, and the weigh-ins it wrote) in Application Support | Nina on that device |
 | The Body switches (Settings → Apple Health → Body), the "Body fat from" labels, "Not now" on a workout hint | UserDefaults on that device | Nina on that device |
 | Coach settings of one device (coach reminders on or off, "Later" on a card, chart range, tips seen, the tape formula when sex isn't set, "Include Apple Health weights", "Lock Photos with Face ID", "Then add progress photos") | UserDefaults on that device | Nina on that device |
+| Other settings of one device: Import & Export → Back Up Automatically Every Week, its chosen folder and the list of automatic backups; the Mac's menu bar switches; Not Now / Don't Show Again on "Set your goal" | UserDefaults on that device | Nina on that device |
+| Automatic weekly backups (the same folders as Back Up Everything: Nina's own data, nothing from Apple Health) | Files → On My iPhone → Nina (on the Mac, Nina's own folder), or the folder you chose, such as iCloud Drive | You, like any file |
 | App log | Application Support on each device | The user (Settings → Diagnostics → Copy log) |
 
 No servers, accounts or analytics. App Store guideline 5.1.3(ii) – no Health data in iCloud – is
@@ -26,10 +28,11 @@ respected: Nina writes *its own* diary to Health, and reads Health values only l
 
 ## Thalia gets no Apple Health values
 
-The day totals Nina hands Thalia ([THALIA.md](THALIA.md)) come only from what you log in Nina:
-eaten entries and water logs. Thalia keeps what it receives in its iCloud, so nothing from Health
-may go there: Nina doesn't import foods or water from Health, the active energy it reads from
-Health is never added, and weight and body data aren't sent at all. Should a record from Health
+The day values Nina hands Thalia ([THALIA.md](THALIA.md)) come only from what you save in Nina:
+eaten entries, water logs and weigh-ins (typed, from the watch or a notification, or imported).
+Thalia keeps what it receives in its iCloud, so nothing from Health may go there: Nina doesn't
+import foods, water or weights from Health, the weight and active energy it reads from Health are
+never stored and never sent, and body measurements aren't sent at all. Should a record from Health
 ever exist in Nina, it is left out.
 
 ## The coach and Apple Health
@@ -52,11 +55,20 @@ ever exist in Nina, it is left out.
 - **Imported history** (past weigh-ins from an import, see [IMPORT.md](IMPORT.md)) shows as
   "Imported" in the weigh-in list and is never written to Health – it may be there already from the
   scale it came from.
-- **Mac and Apple Watch** read nothing from Health (the Mac can't; the watch doesn't ask). Their
-  7-day average, pace and the "Weigh in" pill only know the weigh-ins typed in Nina, so they can
-  differ from the iPhone's. With fewer than 4 morning weigh-ins typed in Nina in the last 7 days,
-  the watch says "Weigh-ins from Apple Health count on your iPhone" under its weight numbers. The
-  watch's ring and face also leave out the activity bonus.
+- **Mac** reads nothing from Health (it can't). Its 7-day average, pace and "Weigh in" pill only
+  know the weigh-ins typed in Nina, so they can differ from the iPhone's.
+- **Apple Watch** doesn't ask Health either. Your iPhone passes on what it knows, device to device
+  and never through iCloud:
+  - this morning's weigh-in from your scale (the watch shows "♥ This morning 74.6 kg" and hides the
+    Weigh in pill)
+  - the 7-day average, rate and status words worked out with Health weigh-ins
+  - today's active energy, so the watch ring and the watch face show the same budget as the iPhone
+
+  The watch keeps these on the watch only, never in Nina's synced data. It shows the iPhone's
+  numbers while they are up to date. Right after you weigh in on the watch, it shows its own numbers
+  until your iPhone has the new weigh-in; until then "Weigh-ins from Apple Health count on your
+  iPhone" can show under them. Your iPhone passes on new Health values once Nina on the iPhone has
+  read them, which happens when you open it.
 
 ## Body data from Apple Health (iPhone and iPad)
 

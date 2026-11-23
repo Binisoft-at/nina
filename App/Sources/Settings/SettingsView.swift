@@ -220,7 +220,7 @@ struct SettingsView: View {
             DataFact("barcode.viewfinder", "Open Food Facts", "Scanning sends only the barcode number to Open Food Facts to look the product up. Nothing about you is sent."),
         ]), at: 2)
         sections.insert(DataSection("Thalia", [
-            DataFact("arrow.up.forward.app", "Day values, on this device", "While Settings → Thalia is on (one switch for all your devices), \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days, and your morning weight from the weigh-ins in \(AppInfo.name), into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
+            DataFact("arrow.up.forward.app", "Day values, on this device", "While Settings → Thalia → An Thalia liefern is on (one switch for all your devices), \(AppInfo.name) puts each day's calories, protein, carbs, fat and water of the last 62 days, and your morning weight from the weigh-ins in \(AppInfo.name), into a folder on this device that Binisoft's apps share, where Thalia picks them up and keeps them in its own iCloud. Nothing from Apple Health goes there."),
         ]), at: 3)
         return sections
     }
@@ -228,7 +228,7 @@ struct SettingsView: View {
     /// The backup: by hand (Import & Export, on the Mac also File → Back Up Nina…) or every week.
     private static let backupFact = DataFact(
         "externaldrive", "Back up",
-        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – your progress photos too if you like, nothing from Apple Health – where you choose. With \u{201C}Back Up Automatically Every Week\u{201D} on, \(AppInfo.name) saves one by itself once a week and keeps the last four. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
+        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – your progress photos too if you like, nothing from Apple Health – where you choose. With \u{201C}Back Up Automatically Every Week\u{201D} on – on iPhone from the start – \(AppInfo.name) saves one by itself once a week and keeps the last four – in \(AppInfo.name)'s own folder (on iPhone: Files → On My iPhone → \(AppInfo.name)) or a folder you choose; locked progress photos are left out. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
     )
 }
 

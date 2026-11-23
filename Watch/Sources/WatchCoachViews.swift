@@ -35,8 +35,8 @@ struct WatchCoachSummary: View {
     }
 }
 
-/// "🎾 Tennis · 1,240 left": filled when the day type was picked by hand, tinted when it comes
-/// from the schedule. A tap opens the day types.
+/// "🎾 Tennis · 2,400 kcal" (the day type and its target; the ring shows what is left): filled when
+/// the day type was picked by hand, tinted when it comes from the schedule. A tap opens the day types.
 private struct WatchCoachChip: View {
     let chip: CoachBoard.Chip
     let remaining: Double
@@ -46,7 +46,7 @@ private struct WatchCoachChip: View {
 
     private var text: String {
         let unit = model.settings.energyUnit
-        return WatchCoach.chipText(chip, remaining: remaining) { Fmt.energy($0, unit: unit, showUnit: false) }
+        return WatchCoach.chipText(chip) { Fmt.energy($0, unit: unit) }
     }
 
     var body: some View {

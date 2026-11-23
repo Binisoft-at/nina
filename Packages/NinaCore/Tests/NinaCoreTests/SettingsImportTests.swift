@@ -180,6 +180,19 @@ struct SettingsImportTests {
         #expect(ImportKind.detect("Setting;Value\ngoal;lose") == .settings)
     }
 
+    @Test func energyUnitRowOfAnOlderFileIsReadSilently() {
+        // Nina is kcal only: "energy_unit" is neither skipped nor a change, and no longer written.
+        let draft = SettingsCSV.parse("setting,value\nenergy_unit,kJ\nwater_glass_ml,300\n")
+        #expect(draft.skipped.isEmpty)
+        #expect(draft.energyUnit == nil)
+        #expect(SettingsCSV.parse("setting,value\nEinheit,kilojoule\n").skipped.isEmpty)
+        let result = SettingsCSV.apply(draft, to: SettingsState(), year: 2030)
+        #expect(result.state.energyUnit == .kcal)
+        #expect(result.changes.map(\.title) == ["Glass of water"])
+        #expect(!SettingsCSV.export(SettingsState()).contains("energy_unit"))
+        #expect(!SettingsCSV.prompt(appName: "Nina").contains("energy_unit"))
+    }
+
     @Test func promptsListEverySetting() {
         let prompt = SettingsCSV.prompt(appName: "Nina", current: SettingsCSV.export(SettingsState()))
         for key in SettingsCSV.keys { #expect(prompt.contains("| \(key.name) |")) }

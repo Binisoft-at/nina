@@ -139,7 +139,7 @@ struct EntryEditor: View {
                 Button("Keep Editing", role: .cancel) {}
             }
         }
-        .sheetFrame(minWidth: 520, minHeight: 680)
+        .sheetFrame(minWidth: 520, minHeight: 560)
     }
 
     private var nameSection: some View {
@@ -195,7 +195,7 @@ struct EntryEditor: View {
                 .lineLimit(1...4)
             TextField("Tags, separated by commas", text: $fields.tags)
         } footer: {
-            Text("Tags group entries in Search and Insights, e.g. \u{201C}restaurant\u{201D} or \u{201C}cheat day\u{201D}.")
+            Text("Tags group entries in Search and Nutrition, e.g. \u{201C}restaurant\u{201D} or \u{201C}cheat day\u{201D}.")
         }
     }
 
@@ -351,10 +351,7 @@ struct CopyEntriesView: View {
         if isMove {
             app.todayMove(entries, to: day, meal: keepMeals ? nil : meal)
         } else {
-            let copies = app.store.copy(entries, to: day, meal: keepMeals ? nil : meal, status: planned ? .planned : .eaten)
-            app.toasts.show("Copied \(copies.count) to \(Fmt.dayTitle(day, today: app.today).lowercased())", symbol: "doc.on.doc.fill") {
-                app.store.purge(copies)
-            }
+            app.copy(entries, to: day, meal: keepMeals ? nil : meal, status: planned ? .planned : .eaten)
         }
         dismiss()
     }

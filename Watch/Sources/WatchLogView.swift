@@ -66,7 +66,9 @@ struct WatchLogView: View {
         }
     }
 
-    /// Favorites and recent foods (saved meals are listed above).
+    /// Favorites and recent foods (saved meals are listed above). The recent foods follow the meal
+    /// being logged, as on the iPhone: the ones mostly logged at that meal first ("Mostly at
+    /// breakfast"), then the rest, the most recent first.
     @ViewBuilder
     private func foods(_ library: FoodLibrary) -> some View {
         let favorites = library.favorites.filter { $0.ref.kind != .recipe }
@@ -75,12 +77,29 @@ struct WatchLogView: View {
                 ForEach(favorites.prefix(15)) { record in foodLink(record) }
             }
         }
-        let recents = library.recents(limit: 20).filter { !$0.isFavorite && $0.ref.kind != .recipe }
-        if !recents.isEmpty {
-            Section("Recent") {
-                ForEach(recents) { record in foodLink(record) }
+        let recents = library.recents(for: meal, limit: 30)
+        let forMeal: [FoodRecord] = Array(recents.forMeal.filter(Self.listsAsRecent).prefix(Self.recentLimit))
+        let others: [FoodRecord] = Array(recents.others.filter(Self.listsAsRecent).prefix(Self.recentLimit - forMeal.count))
+        if !forMeal.isEmpty {
+            Section {
+                ForEach(forMeal) { record in foodLink(record) }
+            } header: {
+                Text(RecentFoods.hint(forMeal: meal, in: model.settings.meals))
             }
         }
+        if !others.isEmpty {
+            Section("Recent") {
+                ForEach(others) { record in foodLink(record) }
+            }
+        }
+    }
+
+    /// At most this many recent foods, both parts together.
+    private static let recentLimit = 20
+
+    /// Favorites and saved meals have their own lists above.
+    private static func listsAsRecent(_ record: FoodRecord) -> Bool {
+        !record.isFavorite && record.ref.kind != .recipe
     }
 
     private func foodLink(_ record: FoodRecord) -> some View {

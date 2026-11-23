@@ -64,6 +64,12 @@ public enum NinaTour {
                 goal: .increased(\.eatenCount)
             ),
             TourStep(
+                id: "recentsPerMeal", since: 6, symbol: "clock.arrow.circlepath", title: "Recents for this meal",
+                body: "When you log, the foods you usually have at that meal come first – under \u{201C}Mostly at breakfast\u{201D}. Everything else you logged lately follows, newest first. Change the meal at the top and the list follows – on your Apple Watch too.",
+                macBody: "When you log (⌘N), the foods you usually have at that meal come first – under \u{201C}Mostly at breakfast\u{201D}. Everything else you logged lately follows, newest first. Change the meal at the top and the list follows.",
+                goal: .none
+            ),
+            TourStep(
                 id: "undo", symbol: "arrow.uturn.backward", title: "Mistakes are fine",
                 body: "Swipe left on an entry and tap Delete, then tap Undo in the message. Shaking your iPhone undoes the last change too.",
                 macBody: "Right-click an entry and choose Delete, then click Undo in the message – or press ⌘Z.",
@@ -98,6 +104,12 @@ public enum NinaTour {
                 body: "Tennis on Thursday? Touch and hold that day in the week strip and pick its type. Its targets are ready when the day comes.",
                 macBody: "Tennis on Thursday? Right-click that day in the week strip and choose its type. Its targets are ready when the day comes.",
                 goal: .increased(\.plannedDayTypes)
+            ),
+            TourStep(
+                id: "planDayTypes", since: 6, symbol: "calendar.day.timeline.left", title: "Day types in Plan",
+                body: "In the Plan tab, each of the next 7 days shows its day type's emoji on the right. Tap it to make that day a Gym, Tennis or Rest day – Back to Schedule undoes it, and every change has Undo.",
+                macBody: "In Plan (⌘4), each of the next 7 days shows its day type's emoji on the right. Click it (or right-click the day → Day Type) to change that day's type – Back to Schedule undoes it, and every change has Undo.",
+                goal: .none
             ),
             TourStep(
                 id: "checks", since: 3, symbol: "pills", title: "Daily checks",
@@ -148,6 +160,12 @@ public enum NinaTour {
                 goal: .none
             ),
             TourStep(
+                id: "watchHealth", since: 6, symbol: "applewatch", title: "Your iPhone's numbers on your watch",
+                body: "Your Apple Watch now shows the same weight numbers as your iPhone, including weigh-ins from your scale in Apple Health. Weighed on the scale this morning? The watch shows it and skips Weigh in. Open Nina on your iPhone once after weighing so it can pass it on.",
+                macBody: "Your Apple Watch now shows the same weight numbers as your iPhone, including weigh-ins from your scale in Apple Health. Your iPhone passes them on directly, never through iCloud. This Mac can't read Apple Health, so its numbers only count weigh-ins typed in Nina.",
+                goal: .none
+            ),
+            TourStep(
                 id: "healthBody", since: 4, symbol: "heart.text.square", title: "Body data from Apple Health",
                 body: "Turn on Body in Settings → Apple Health: body fat, lean mass and waist from your scale show in Progress → Body as their own series, marked Health. After a workout, Today asks \u{201C}Make it a tennis day?\u{201D} – only your tap changes the day.",
                 macBody: "List workouts in My Plan → a day type → Apple Health workouts (tennis, strength …). After a matching workout, your iPhone asks whether to make it that kind of day – only your tap changes it.",
@@ -160,15 +178,39 @@ public enum NinaTour {
                 goal: .none
             ),
             TourStep(
-                id: "thalia", since: 5, symbol: "arrow.up.forward.app", title: "Your numbers in Thalia",
-                body: "Nina hands Thalia your daily calories, protein, carbs, fat and water on this device – Thalia takes them as soon as you open it. Turn it off in Settings → Thalia.",
-                macBody: "Nina hands Thalia your daily calories, protein, carbs, fat and water on this Mac – Thalia takes them as soon as you open it here. Turn it off in Settings (⌘,) → General → Thalia.",
+                id: "thalia", since: 6, symbol: "arrow.up.forward.app", title: "Your numbers in Thalia",
+                body: "Nina hands Thalia your daily calories, protein, carbs, fat, water and morning weight on this device – Thalia takes them as soon as you open it. One switch for all your devices: Settings → Thalia → An Thalia liefern.",
+                macBody: "Nina hands Thalia your daily calories, protein, carbs, fat, water and morning weight on this Mac – Thalia takes them as soon as you open it here. One switch for all your devices: Settings (⌘,) → General → Thalia → An Thalia liefern.",
                 goal: .none
             ),
             TourStep(
                 id: "backup", since: 6, symbol: "externaldrive", title: "Back up, move, find",
-                body: "Settings → Import & Export → Back Up Everything saves all your Nina data in one file – photos and check-ins too, nothing from Apple Health. Logged something on the wrong day? Touch and hold the entry → Move to Day…",
-                macBody: "File → Back Up Nina… (⇧⌘B) saves all your Nina data in one file – photos and check-ins too. Search in the sidebar (⇧⌘F) finds any food or day. In the diary, ⌫ deletes the selected entries, ⌘C and then ⌘V on another day copies them, and right-click → Move to Day… moves them.",
+                body: "Settings → Import & Export → Back Up Everything saves all your Nina data in one folder – photos and check-ins too, nothing from Apple Health. Logged something on the wrong day? Touch and hold the entry → Move to Day…",
+                macBody: "File → Back Up Nina… (⇧⌘B) saves all your Nina data in one folder – photos and check-ins too. Search in the sidebar (⇧⌘F) finds any food or day. On Today, ⌫ deletes the selected entries, ⌘C and then ⌘V on another day copies them, and right-click → Move to Day… moves them.",
+                goal: .none
+            ),
+            TourStep(
+                id: "autobackup", since: 6, symbol: "clock.badge.checkmark", title: "A backup every week",
+                body: "Nina now saves a full backup once a week by itself and keeps the last 4 – in the Files app under On My iPhone → Nina. Settings → Import & Export → Choose Folder… keeps them in iCloud Drive instead. (On iPad, switch on Back Up Automatically Every Week there.)",
+                macBody: "Settings → Import & Export → Back Up Automatically Every Week saves a full backup once a week and keeps the last 4 – in Nina's own folder (Show in Finder) or a folder you choose. It's off on the Mac until you switch it on. File → Back Up Nina… (⇧⌘B) still saves one whenever you like.",
+                goal: .none
+            ),
+            TourStep(
+                id: "siri", since: 6, symbol: "waveform", title: "Siri, Shortcuts and controls",
+                body: "Say \u{201C}Log weight in Nina\u{201D}, \u{201C}Today is a Tennis day in Nina\u{201D} or \u{201C}Mark Creatine done in Nina\u{201D} – German works too (\u{201C}Heute ist ein Tennistag in Nina\u{201D}). In Control Center, tap + and then Add a Control → Nina for Log Food, Weigh In and Add Water; they also fit the Lock Screen and the Action button.",
+                macBody: "Ask Siri or use the Shortcuts app: \u{201C}Log weight in Nina\u{201D}, \u{201C}Today is a Gym day in Nina\u{201D}, \u{201C}Mark Creatine done in Nina\u{201D} – in English or German (\u{201C}Gewicht in Nina eintragen\u{201D}).",
+                goal: .none
+            ),
+            TourStep(
+                id: "coachWidget", since: 6, symbol: "rectangle.stack", title: "The coach on your Home Screen",
+                body: "Add the Coach widget (touch and hold the Home Screen → Edit → Add Widget → Nina): today's day type, your 7-day average and weekly rate, the next measurement and the checks still open. Tap a check to tick it off, or Weigh in before your morning cutoff.",
+                macBody: "On your iPhone, add the Coach widget (touch and hold the Home Screen → Edit → Add Widget → Nina): today's day type, your 7-day average and weekly rate, the next measurement and the checks still open – one tap away.",
+                goal: .none
+            ),
+            TourStep(
+                id: "menubar", since: 6, symbol: "menubar.rectangle", title: "Today and Nutrition, everywhere",
+                body: "The Today tab is your diary and Progress → Nutrition shows how you eat – the Mac now uses the same names. On a Mac, Nina also sits in the menu bar with what's left today.",
+                macBody: "The sidebar now uses the iPhone's names: Today (⌘1) is your diary, Nutrition (⌘5) shows how you eat. And Nina sits in the menu bar: calories left, protein and water today, a glass of water, Log Food… and Weigh In… without switching apps. Settings (⌘,) → General → Menu Bar turns it off.",
                 goal: .none
             ),
             TourStep(

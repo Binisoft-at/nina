@@ -963,6 +963,8 @@ struct SettingsImportUndo {
         var focusNutrients: String
         var waterGlass: Double
         var coachPlan: String
+        /// Thalia's switch and the other settings for every device (a backup restore replaces them).
+        var syncedSettings: String
 
         init(_ profile: NinaProfile) {
             targets = profile.targets
@@ -984,6 +986,7 @@ struct SettingsImportUndo {
             focusNutrients = profile.focusNutrients
             waterGlass = profile.waterGlass
             coachPlan = profile.coachPlan
+            syncedSettings = profile.syncedSettings
         }
 
         func write(to profile: NinaProfile) {
@@ -1006,6 +1009,7 @@ struct SettingsImportUndo {
             profile.focusNutrients = focusNutrients
             profile.waterGlass = waterGlass
             profile.coachPlan = coachPlan
+            profile.syncedSettings = syncedSettings
         }
     }
 

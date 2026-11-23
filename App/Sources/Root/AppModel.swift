@@ -186,6 +186,7 @@ final class AppModel {
         guard !isSandbox, !launch.isDemo, AppModel.keepsData(mode) else { return }
         CoachContext.latestHealthReadings = readings
         WidgetBridge.publish(store.todaySnapshot())
+        PhoneWatchLink.refreshed() // new Health weigh-ins reach the watch right after they are read
         CoachWidgetFeed.publish(app: self)
         health.scheduleSync(container: container)
         NotificationScheduler.shared.reschedule(context: container.mainContext, settings: settings, signal: signal)

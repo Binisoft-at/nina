@@ -52,7 +52,8 @@ Import & Export → **Back Up Everything…** (on the Mac also File → Back Up 
 - `manifest.json` – what's inside (format version, date, device, counts);
 - `records.jsonl` – every record Nina keeps in iCloud, one per line, with its id and dates: diary,
   foods (also personalised and hidden catalog foods), meals & recipes, water, weigh-ins, routines,
-  goals & plan (the whole coach plan), measurements, day marks (day types, checks, check-ins,
+  goals & plan (the whole coach plan, and the settings for all your devices such as Thalia's
+  switch), measurements, day marks (day types, checks, check-ins,
   phase decisions) and Recently Deleted;
 - `photos/` – your progress photos as JPEG files (switch **Include Progress Photos** off for a
   small backup).
@@ -124,8 +125,10 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
   those weekdays, 70 % carbs and 30 % protein. With a coach plan, day types do this (see below).
 - **Meals** (`meals` = `Breakfast 07:30 🥐;Lunch 12:30 🥗;Jause 10:00`): `Frühstück`, `Mittagessen`,
   `Abendessen`, `Jause` map to the standard meals; other names become own meals.
-- **Preferences**: `food_names` (english/german), `energy_unit`, `day_starts_at`, `water_glass_ml`,
-  `add_burned_calories` (none/half/all), `focus_nutrients`.
+- **Preferences**: `food_names` (english/german), `day_starts_at`, `water_glass_ml`,
+  `add_burned_calories` (none/half/all), `focus_nutrients`. Nina always uses kcal: an `energy_unit`
+  row in an older file is read and left out (no change in the preview), and the export no longer
+  writes it.
 - **Body values** (`body_fat_percent` with `body_fat_method`, and `neck_cm`, `chest_cm`, `arm_cm`,
   `waist_cm`, `waist_narrow_cm`, `hip_cm`, `thigh_cm`, `calf_cm`) become today's baseline: one
   body-fat record (method `estimate` unless the file says otherwise) and one tape record. Each value
@@ -471,7 +474,6 @@ You set up my nutrition app "Nina" from what I tell you: about me (body, goal, t
 | training_extra_kcal | Extra kcal on training days (mostly carbs), e.g. 300 – e.g. 300 |
 | meals | My meals with their usual time and an emoji, separated by ; – e.g. Breakfast 07:30 🥐;Lunch 12:30 🥗;Snack 16:00 🍎;Dinner 19:00 🍝 |
 | food_names | english or german – e.g. german |
-| energy_unit | kcal or kJ – e.g. kcal |
 | day_starts_at | Hour the diary day starts, 0–6 (e.g. 3: a 2 am snack still counts for yesterday) |
 | water_glass_ml | Size of one glass of water in ml – e.g. 300 |
 | add_burned_calories | none, half or all – how much of the calories burned (Apple Health) is added to the day – e.g. half |
@@ -784,7 +786,6 @@ setting,value
 | training_extra_kcal | Extra kcal on training days (mostly carbs), e.g. 300 – e.g. 300 |
 | meals | My meals with their usual time and an emoji, separated by ; – e.g. Breakfast 07:30 🥐;Lunch 12:30 🥗;Snack 16:00 🍎;Dinner 19:00 🍝 |
 | food_names | english or german – e.g. german |
-| energy_unit | kcal or kJ – e.g. kcal |
 | day_starts_at | Hour the diary day starts, 0–6 (e.g. 3: a 2 am snack still counts for yesterday) |
 | water_glass_ml | Size of one glass of water in ml – e.g. 300 |
 | add_burned_calories | none, half or all – how much of the calories burned (Apple Health) is added to the day – e.g. half |

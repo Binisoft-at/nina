@@ -2,7 +2,8 @@
 
 ```
 Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on Linux in CI)
-  Nutrients            26 nutrients, NutrientValues (unknown ≠ 0, salt/sodium, macro shares, kJ)
+  Nutrients            26 nutrients, NutrientValues (unknown ≠ 0, salt/sodium, macro shares, kJ
+                       labels read as kcal – Nina shows and edits kcal only)
   Foods, FoodCategory  FoodRef (usda:… / nina:… / food:<uuid> / recipe:<uuid>), FoodRecord, Serving
   Catalog              the bundled foods.json (USDA SR28 + DACH staples), loaded once
   Search               normalisation (umlauts, "ae"→a, accents), typo-tolerant ranked search with usage
@@ -23,6 +24,8 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
   Backup, BackupRestore  "Back Up Everything": the folder format (manifest.json, records.jsonl,
                        photos/), generic records (type, uuid, fields), the restore plan (match by
                        uuid per type, add only what is missing)
+  BackupSchedule       the automatic weekly backup: when one is due (at most every 7 days), the
+                       next folder's name, which old ones go (the last 4 stay), the status line
   SettingsCSV(+Plan)   the goals & settings format, including the whole coach plan, the preview
                        groups and the export; SetupPrompt is the combined prompt for an AI
   OpenFoodFacts        barcode product JSON → food draft
@@ -54,6 +57,10 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
   CoachCopy            the "Copy for My AI" text
   WatchCoach           the coach on Apple Watch: day-type chip, checks row (weigh-in, weekly
                        tape, daily checks), Digital Crown values, the status line in the phone's words
+  WatchSnapshotRelay   iPhone → watch over WatchConnectivity: today's snapshot (with the activity
+                       bonus) and the iPhone's coach part (Health morning weigh-in, status line with
+                       Health weigh-ins, active energy for the diary day); freshness and merge rules
+                       (usesPhoneNumbers, coachView)
   HealthBody           Apple Health body data as series of their own: body fat (with lean mass)
                        per source app and the method it counts as, waist, the height hint
   HealthWorkouts       a finished Health workout → which day type it suggests ("Make it a tennis day?")
@@ -70,10 +77,15 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
   -- Binisoft exchange --
   ExchangeFormat       Thalia's reference file, copied unchanged: format v1 types, tolerant reader,
                        dates without fractions, FNV-1a
-  ThaliaFeed           what Nina hands Thalia: the five metrics and their refs, one total per metric
-                       and day from plain records, source.json, Thalia's catalog (read only)
+  ThaliaFeed           what Nina hands Thalia: the six metrics and their refs, one value per metric
+                       and day from plain records (a metric without values that day left out; the
+                       morning weigh-in as body_weight_kg), source.json, the German status line,
+                       Thalia's catalog (read only)
   ThaliaExchangeWriter the day files of the last 62 days (only changed ones, atomically, old ones
                        deleted) and source.json (on changes, else once a day)
+  SyncedSettings       settings for every device as lenient JSON in NinaProfile.syncedSettings
+                       (unknown keys kept, versioned); Thalia's switch and the move of the old
+                       device switch
 Shared/                compiled into the app, the Mac app and the watch app
   Model/Models         SwiftData models (CloudKit rules: defaults, optional relationships with
                        inverses, nothing unique; nutrients as one text field so new nutrients need
@@ -120,16 +132,23 @@ App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tre
                        previews, export menus), ImportPreview (reading and planning off the main
                        thread, ImportApply writes only what changed, the Undo states),
                        ImportBackup (the backup and restore sections, reading a backup folder),
+                       ImportAutoBackup (the weekly backup: background writer, folder bookmark,
+                       retention, its section),
                        ImportTransfer (export texts with a byte order mark, share and drop types),
                        ImportHistory (the history preview lines and the menu of All measurements)
   Services             Apple Health (HealthService; HealthService+Body reads body fat, lean mass,
                        waist, height and today's workouts live), notifications (meal and coach,
-                       with banner actions), App Intents, ThaliaExchange (the App Group folder,
-                       the Mac entitlement check, ThaliaDelivery: the passes for Thalia)
+                       with banner actions), App Intents (Intents: Siri, Shortcuts, the coach
+                       intents; CoachWidgetFeed publishes the coach widget's summary),
+                       ThaliaExchange (the App Group folder, the Mac entitlement check,
+                       ThaliaDelivery: the passes for Thalia), WatchLink (PhoneWatchLink: today's
+                       snapshot and the coach part to the watch, iPhone only)
   Tour                 the tour on the practice day + TipKit hints
-Watch/Sources          watch app: today, water, planned meals, dictation, Digital Crown amounts;
-                       the coach (WatchModel+Coach: one load for the day and the writes with Undo;
-                       WatchCoachViews: chip, checks, Crown screens, status line)
+Watch/Sources          watch app: today, water, planned meals, dictation, Digital Crown amounts,
+                       recent foods per meal; the coach (WatchModel+Coach: one load for the day and
+                       the writes with Undo; WatchCoachViews: chip, checks, Crown screens, status
+                       line); WatchPhoneLink keeps the iPhone's coach part in UserDefaults (never
+                       SwiftData)
 Widgets/Sources        widgets (iPhone) and complications (watch) from one source, day-type emoji;
                        the coach widget and the controls (iPhone only); docs/SIRI.md
 ```
@@ -161,8 +180,14 @@ Widgets/Sources        widgets (iPhone) and complications (watch) from one sourc
   memory. They become series of their own (`HealthBody`), never merged into Nina's records or the
   goal; a workout only offers a day type (`HealthWorkouts`) and the person's tap writes the mark.
 - **Sync**: SwiftData + CloudKit private database of `iCloud.at.binisoft.nina`; the watch syncs on its
-  own. The shared App Group only holds today's snapshot for widgets and complications and the
-  day values for Thalia (below).
+  own. The shared App Group only holds today's snapshot for widgets and complications, the coach
+  widget's summary and the day values for Thalia (below). Settings that follow the person to every
+  device without a schema change go into `NinaProfile.syncedSettings` (`SyncedSettings`, JSON).
+- **iPhone → watch** (`PhoneWatchLink`, `WatchPhoneLink`, `WatchSnapshotRelay`): after every
+  refresh the iPhone hands today's snapshot and what only it knows from Apple Health (this
+  morning's Health weigh-in, the status line over typed and Health weigh-ins, today's active
+  energy) to its watch over WatchConnectivity, never iCloud. The watch keeps them in UserDefaults,
+  never in its synced store, and shows the iPhone's numbers while they are fresher than its own.
 
 ### The exchange with Thalia
 
@@ -171,17 +196,21 @@ folder of the shared App Group `group.at.binisoft.shared` on the device it runs 
 them when it opens there.
 
 - **Files**: `<group>/Nina/exchange/source.json` (source `nina`, app `Nina`, the app version, the
-  five metrics as refs of kind `metric`) and `days/<YYYY-MM-DD>.json` – one `value` fact per metric
+  six metrics as refs of kind `metric`) and `days/<YYYY-MM-DD>.json` – one `value` fact per metric
   and day: `kcal`, `protein_g`, `carbs_g`, `fat_g` (eaten entries, `EntryStatus.eaten` as Today's
-  totals count them) and `water_ml` (the day's water logs, Today's water card). Id
-  `<metric>-<day>`, German `refTitle`, `origin` `app`, kcal and ml whole, grams to 0.1, `at` = the
-  day's latest record of the metric. The day is the entry's diary day.
+  totals count them, with a value for the metric; a metric no entry has is left out that day),
+  `water_ml` (the day's water logs, Today's water card) and `body_weight_kg` (the day's morning
+  weigh-in by WeightSignal's rule from `WeightEntry`, 25–300 kg, 0.1 kg, never Health). Id
+  `<metric>-<day>`, German `refTitle`, `origin` `app`, kcal and ml whole, grams and kg to 0.1,
+  `at` = the day's latest record with a value for the metric (the weigh-in's time for the weight).
+  The day is the record's diary day.
 - **Passes** (`ThaliaDelivery`, App/Sources/Services/ThaliaExchange.swift): after every own save
   (`.ninaDataChanged`, 2 s of quiet), at the end of the own CloudKit import
   (`NSPersistentCloudKitContainer.eventChangedNotification`, an import with an end date), when the
   app comes to the foreground, at the day change and when the switch changes; the first one 5 s
   after launch. A pass reads the last 62 days on the main actor into plain values
-  (`ThaliaFeed.FoodRecord`, `.WaterRecord`); building the facts, writing and the Darwin notification
+  (`ThaliaFeed.FoodRecord`, `.WaterRecord`, `.WeightRecord`, the plan's `.WeighInRule`); building the
+  facts, writing and the Darwin notification
   `at.binisoft.exchange.changed` (once per pass that wrote something) run in a detached task.
   `ThaliaExchangeWriter.sync` writes a day only when its facts changed (compared without
   `generatedAt`), gives a day that lost its facts `"facts":[]`, and deletes files older than 62
@@ -191,17 +220,20 @@ them when it opens there.
   (`AppModel.keepsData`, `isStoredInMemoryOnly`), SwiftUI previews and tests. On the Mac the
   folder is used only when the signed app has the group (`SecTaskCopyValueForEntitlement`, checked
   once, off the main thread); without the group (unsigned builds) nothing is written.
-- **The switch** "Send to Thalia" is per device (`nina.thalia.deliver`, default on), because the
-  synced profile has no free settings field. Off: one pass without facts empties the window's day
-  files, then nothing more (`nina.thalia.cleared`) except deleting files older than 62 days once a
-  day; on: a full pass at once.
+- **The switch** "An Thalia liefern" syncs (`SyncedSettings.thaliaDeliver` in
+  `NinaProfile.syncedSettings`, default on). Every trigger re-reads it; off on one device is off on
+  all of them: each device runs one pass without facts (per-device `nina.thalia.cleared`), then
+  only deletes files older than 62 days once a day, and source.json stays. An old device-only
+  `nina.thalia.deliver` "off" is written into the synced setting once, if the profile has none,
+  then removed. On: a full pass at once.
 - **Same bytes on every device**: the diary day as stored, sums in id order, kcal/ml whole and grams
   to 0.1, `at` cut to the whole second (iCloud keeps dates to the millisecond), facts by (`at`,
   `id`), sorted keys. A file that can't be written doesn't stop the others
   (`ThaliaExchangeWriter.SyncFailure` says whether anything was written, so the notification still
   goes out).
-- **No Apple Health values**: Nina doesn't import foods or water from Health; a record from Health
-  (`ThaliaFeed.isHealthSource`) would never count, and active energy is never added.
+- **No Apple Health values**: Nina doesn't import foods, water or weights from Health; a record from
+  Health (`ThaliaFeed.isHealthSource`) would never count, the weight read live from Health is never
+  sent, and active energy is never added.
 
 ### Coach & body
 
@@ -263,17 +295,26 @@ them when it opens there.
   model (live and in Recently Deleted) and the photos as JPEG files; no Health data (Nina stores
   none) and nothing device-only. A restore matches by uuid per type, adds what is missing with its
   uuid and dates in one save (records deleted longer ago than 30 days stay out), replaces the goals
-  & plan only when switched on, and one Undo moves what it added to Recently Deleted. When this
-  device last saved one is `nina.backup.last` (device-only).
+  & plan only when switched on (with `NinaProfile.syncedSettings`, written only when there are
+  some), and one Undo moves what it added to Recently Deleted. When this device last saved one is
+  `nina.backup.last` (device-only). The **weekly backup** (`ImportAutoBackup`, `BackupSchedule`)
+  writes the same folder from a background model context at most once every 7 days, after launch or
+  coming to the front, into Nina's Documents folder (Files → On My iPhone → Nina) or a chosen folder
+  (security-scoped bookmark), and keeps the last 4 it made. Device-only: on by default on iPhone,
+  off on iPad and Mac.
 - **Device-only settings** (UserDefaults, never synced): `nina.coach.later` (Later taps),
   `nina.coach.reminders.device|off|asked|review` (coach reminders on this device, kinds turned off,
   the one-time question, review times), `nina.coach.measureGuideSeen`, `nina.coach.navyFormula`,
   `nina.coach.copyIncludesHealth`, `nina.body.weightRange`, `nina.body.tip.highCarb`,
   `nina.body.tip.glycogen`, `nina.health.body.bodyFat|waist|workouts` (the Body switches),
   `nina.health.body.labels` (the method per Health app), `nina.photos.lock`,
-  `nina.photos.afterFullSet`, `nina.thalia.deliver|lastWritten|cleared` (Send to Thalia, the last
-  write, the day files emptied after switching off), `nina.backup.last|includePhotos` (when this
-  device last saved a backup, the photos switch).
+  `nina.photos.afterFullSet`, `nina.thalia.deliver` (the old switch, removed after the move),
+  `nina.thalia.lastWritten|cleared` (the last write, the day files emptied after switching off),
+  `nina.backup.last|includePhotos` (when this device last saved a backup, the photos switch),
+  `nina.backup.auto|autoState` (the weekly backup's switch; its folder, the backups it made and
+  its last run), `nina.mac.menuBar|menuBar.title` (the Mac's menu bar extra and its number),
+  `nina.today.goalCard` ("Set your goal": Not Now / Don't Show Again),
+  `nina.watchlink.phone|phoneCoach` (on the watch: what the iPhone last handed over).
 
 ## Decisions
 
@@ -288,7 +329,7 @@ them when it opens there.
 | Target history | Dated revisions per phase | Past days keep their targets; check-ins judge each day by what applied then |
 | Coach changes | Proposals only: Apply, Start, a review choice – each with Undo | Nothing changes calories or phases without a tap |
 | Weight decisions | Morning weights, 7-day average, least-squares pace over 14–21 days, 2 check-ins in a row | Day-to-day swings never move the plan |
-| Thalia | Day totals per metric in the shared App Group, rebuilt from the synced store for 62 days on every trigger; switch per device | Every device writes the same bytes; no CloudKit schema change |
+| Thalia | Day values per metric in the shared App Group, rebuilt from the synced store for 62 days on every trigger; one synced switch (NinaProfile.syncedSettings) | Every device writes the same bytes; future synced settings need no schema change |
 | Tape estimate | Computed live from tape, height and sex | Never stored, always follows the latest tape |
 | Body fat | Each method and device is its own series | Methods disagree by several points; only like with like is compared |
 | Training | Day type and a 1–5 rating only | Training lives in the owner's training app |
@@ -296,3 +337,6 @@ them when it opens there.
 | Progress photos | A SwiftData model with external storage, app only | Private iCloud only (not the photo library); the watch doesn't need them |
 | Weigh-ins from other devices to Health | The iPhone writes them on its sync, imported ones never | One device writes, so nothing reaches Health twice; history may already be in Health from the scale |
 | Backup | A folder (manifest, JSON Lines, JPEG files) made by hand; restore adds only what is missing | iCloud sync isn't a backup (a deletion reaches every device); a folder needs no new file type, photos stay files instead of base64, and nothing is overwritten |
+| Weekly backup | The same folder once a week, the last 4 kept, a device-only switch (on on iPhone) | A copy that doesn't depend on remembering; Files shows it without a new file type |
+| Energy unit | kcal only; the profile's old `energyUnit` field stays (ignored), an `energy_unit` row in an older settings file is read and left out | The owner's choice ("immer kcal"); old data and files still read |
+| Health on the watch | The iPhone hands its Health-based numbers to the watch over WatchConnectivity, kept in the watch's UserDefaults | Health data never goes through iCloud (5.1.3(ii)); the watch shows the same numbers as the iPhone |
