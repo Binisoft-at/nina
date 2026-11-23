@@ -279,6 +279,9 @@ final class NinaProfile {
     var waterGlass: Double = 250
     /// CoachPlan JSON ("" = no plan).
     var coachPlan: String = ""
+    /// Settings that follow the person to every device, as JSON (`SyncedSettings`, "" = all
+    /// defaults): Thalia's switch. New settings go in here, without a schema change.
+    var syncedSettings: String = ""
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
 
