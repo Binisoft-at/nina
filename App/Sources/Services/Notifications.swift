@@ -152,7 +152,9 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     /// Replaces every pending notification with the current plan and reminders (next 3 days),
     /// and takes delivered ones whose meal or task is done – on any device – out of the
     /// Notification Center. Nothing is handed over again when the requests didn't change.
-    func reschedule(context: ModelContext, settings: NinaSettings) {
+    /// `signal`: the weight signal the caller built for these settings (AppModel's refresh), else
+    /// it is built here.
+    func reschedule(context: ModelContext, settings: NinaSettings, signal: WeightSignal? = nil) {
         let store = NinaStore(context: context)
         let now = Date()
         let today = settings.today(now: now)
@@ -201,7 +203,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         }
 
         // The coach: categories follow the plan (the morning's actions change from day to day).
-        let coach = coachSchedule(store: store, settings: settings, now: now, today: today)
+        let coach = coachSchedule(store: store, settings: settings, now: now, today: today, signal: signal)
         registerCategories(coach: coach.categories)
         rememberReviews(coach)
         for item in coach.pending(after: now) {
@@ -269,8 +271,10 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// The coach's notifications of the next 3 days (none without a set-up plan, or when this
-    /// device doesn't schedule them).
-    func coachSchedule(store: NinaStore, settings: NinaSettings, now: Date, today: DayKey) -> CoachReminders.Schedule {
+    /// device doesn't schedule them). `signal`: the weight signal over the typed and live Health
+    /// weigh-ins for these settings, if the caller has it already.
+    func coachSchedule(store: NinaStore, settings: NinaSettings, now: Date, today: DayKey,
+                       signal prepared: WeightSignal? = nil) -> CoachReminders.Schedule {
         let plan = settings.plan
         let kinds = coachKinds
         guard plan.isSetUp, coachOnThisDevice, !kinds.isEmpty else { return .empty }
@@ -279,7 +283,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         input.energyUnit = settings.energyUnit
         input.meals = settings.meals
         let health = CoachContext.latestHealthReadings
-        let signal = store.weightSignal(adding: health, settings: settings)
+        let signal = prepared ?? store.weightSignal(adding: health, settings: settings)
         let schedule = store.bodySchedule(plan: plan, signal: signal, today: today)
         for offset in 0..<CoachReminders.windowDays {
             let day = today.adding(days: offset)
@@ -497,6 +501,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         if let kilograms, case .ok = signal.sanity(kilograms, on: today) {
             let weight = store.addWeight(kilograms, day: today, time: now).healthWeight
             let health = HealthService(enabled: true, storeIsSaved: HealthService.savesData(Persistence.shared.mode))
+            health.dayStartHour = settings.dayStartHour
             Task { await health.writeWeight(weight) }
             AppLog.info("Weight saved from a notification", category: "notifications")
             return true
