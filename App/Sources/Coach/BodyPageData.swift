@@ -606,7 +606,7 @@ extension BodyPageData {
             charts: charts,
             summaryText: weightSummary(context, events: events),
             hasWeighIns: hasWeighIns,
-            rateInfo: BodyPageInfo.rate(summary.rate, maxDays: context.plan.adjust.windowMaxDays, hasPlan: context.plan.isSetUp))
+            rateInfo: BodyPageInfo.rate(summary.rate, maxDays: context.plan.adjust.windowMaxDays, inPhase: phase != nil))
     }
 
     /// "This week +0.20 kg, inside your goal of +0.15 to +0.25 kg a week. 7-day average 76.4 kg.

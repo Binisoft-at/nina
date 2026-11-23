@@ -19,15 +19,18 @@ extension BodyPageInfo {
     static let average = BodyPageInfo(
         title: "7-day average",
         text: "The mean of your morning weights of the last \(WeightSignal.averageDays) days – it needs at least "
-            + "\(WeightSignal.averageMinimum). Single days swing by half a kilo or more with water and salt; the average evens that out.")
+            + "\(WeightSignal.averageMinimum) mornings. Single days swing by half a kilo or more with water and salt; the average evens "
+            + "that out.")
 
     /// The rate tile: how the pace is worked out, with the plan's window (`rate`: the summary's
-    /// decision rate, `maxDays`: the plan's longest window).
-    static func rate(_ rate: WeightSignal.Rate, maxDays: Int, hasPlan: Bool) -> BodyPageInfo {
+    /// decision rate, `maxDays`: the plan's longest window, `inPhase`: a phase is active, so the
+    /// window never reaches back before its start or the last calorie change).
+    static func rate(_ rate: WeightSignal.Rate, maxDays: Int, inPhase: Bool) -> BodyPageInfo {
         var text = "How fast your weight moves, in kg a week: a straight line through your morning weights of the last "
-            + "\(BodyPageInfo.span(days: maxDays)). It shows once it spans \(rate.minimumDays) days with "
-            + "\(rate.minimumWeighIns) morning weigh-ins"
-        text += hasPlan ? ", counted from the phase start or your last calorie change." : "."
+            + BodyPageInfo.span(days: maxDays)
+        if inPhase { text += " (not before the phase start or your last calorie change)" }
+        text += ". It shows once you have at least \(rate.minimumWeighIns) morning weigh-ins spanning at least "
+            + "\(rate.minimumDays) days."
         return BodyPageInfo(title: "Rate", text: text)
     }
 
@@ -63,7 +66,7 @@ extension BodyPageInfo {
             return BodyPageInfo(title: "No rate set",
                                 text: "This phase has no pace range, so Nina can't judge how fast your weight moves. Open the phase to set one.")
         }
-        let confirm = BodyPageInfo.inARow(plan.adjust.confirmChecks)
+        let confirm = BodyPageInfo.outside(plan.adjust.confirmChecks)
         switch line.state {
         case .status(let status):
             switch status {
@@ -73,18 +76,18 @@ extension BodyPageInfo {
                                     text: "Your weight moves at the pace this phase asks for\(goal). Keep doing what you're doing.")
             case .slower, .faster:
                 return BodyPageInfo(title: status.title,
-                                    text: "Your pace is outside this phase's range right now. One week means little: Nina only "
-                                        + "suggests a calorie change after \(confirm) outside the range on the same side.")
+                                    text: "Your pace is outside this phase's range right now. The weekly check-in only suggests a "
+                                        + "calorie change once your pace was \(confirm).")
             case .gathering:
                 return BodyPageInfo(title: status.title,
-                                    text: "Nina needs \(rate.minimumDays) days with at least \(rate.minimumWeighIns) morning "
-                                        + "weigh-ins before it can judge your pace. Weigh in each morning – the days count from "
-                                        + "the phase start or your last calorie change.")
+                                    text: "Nina can judge your pace once you have at least \(rate.minimumWeighIns) morning "
+                                        + "weigh-ins spanning at least \(rate.minimumDays) days. Weigh in each morning – the days "
+                                        + "count from the phase start or your last calorie change.")
             }
         case .offTrack:
             return BodyPageInfo(title: "Off track",
-                                text: "Your pace was outside the range at \(confirm) on the same side, and still is. The weekly "
-                                    + "check-in can suggest a small calorie change – nothing changes until you tap Apply.")
+                                text: "Your pace was \(confirm), and still is. The weekly check-in can suggest a small calorie "
+                                    + "change – nothing changes until you tap Apply.")
         case .newTargets:
             return BodyPageInfo(title: "New targets",
                                 text: "Your calories changed, so your pace starts counting again from that day. The first look "
@@ -106,10 +109,13 @@ extension BodyPageInfo {
                             text: "This phase hasn't started yet. On its start date a card asks you to start it – nothing switches by itself.")
     }
 
-    /// "2 check-ins in a row", "a check-in".
-    static func inARow(_ confirmChecks: Int) -> String {
+    /// How often the pace has to be outside the range before the check-in proposes a change
+    /// (`adjust.confirmChecks`, at least 1): "outside the range on the same side at 2 check-ins in
+    /// a row", "outside the range at a check-in".
+    static func outside(_ confirmChecks: Int) -> String {
         let count = max(1, confirmChecks)
-        return count == 1 ? "a check-in" : "\(count) check-ins in a row"
+        return count == 1 ? "outside the range at a check-in"
+            : "outside the range on the same side at \(count) check-ins in a row"
     }
 
     /// "3 weeks" for 21 days, "20 days" otherwise.
@@ -132,10 +138,10 @@ extension BodyPageInfo {
     /// waist tile shows Apple Health's waist too.
     static func tiles(sincePhase: Bool, hasHealth: Bool) -> BodyPageInfo {
         let since = sincePhase ? "the phase start" : "your first reading"
-        var text = "Your latest value and its change since \(since), from morning readings before eating. Changes under "
-            + "\(BodyPageInfo.centimeters(BodySite.waist.mdc)) (\(BodyPageInfo.centimeters(BodySite.arm.mdc)) for arm and "
-            + "neck) read “\(GirthTrend.noClearChange)” – a careful tape varies that much."
-        if hasHealth { text += " Pink “Health” values come from Apple Health." }
+        var text = "Your latest value, and its change since \(since) counted from morning readings before eating. Changes "
+            + "under \(BodyPageInfo.centimeters(BodySite.waist.mdc)) (\(BodyPageInfo.centimeters(BodySite.arm.mdc)) for arm "
+            + "and neck) read “\(GirthTrend.noClearChange)” – a careful tape varies that much."
+        if hasHealth { text += " Pink “Health” values are read live from Apple Health and never stored." }
         return BodyPageInfo(title: "Measurements", text: text)
     }
 
@@ -156,12 +162,14 @@ extension BodyPageInfo {
     static let composition = BodyPageInfo(
         title: "Body fat by method",
         text: "Each method and each device is its own series, drawn with a band for its typical error – "
-            + "\(BodyMethod.dexa.errorText) points for a DEXA scan, \(BodyMethod.scale.errorText) for a smart scale. Changes "
-            + "smaller than that read “\(CompositionChange.withinErrorText)”, so compare like with like.")
+            + "\(BodyMethod.dexa.errorText) points for a DEXA scan, \(BodyMethod.scale.errorText) for a smart scale – so compare "
+            + "like with like. A lean or fat change too small for the method to tell reads “\(CompositionChange.withinErrorText)”.")
 
     static let waistToHeight = BodyPageInfo(
         title: "Waist-to-height",
-        text: "Your latest waist divided by your height, both in cm – from a morning reading when there is one. Under 0.5 is the usual health guideline.")
+        text: "Your latest waist (for women the narrow waist) divided by your height, from a morning reading before eating "
+            + "when there is one. In a gain phase, rising to \(DisplayNumber.plain(BodyComposition.waistToHeightGuideline, decimals: 1)) "
+            + "asks for a review.")
 
     static let ffmi = BodyPageInfo(
         title: "FFMI",
@@ -177,8 +185,8 @@ extension BodyPageInfo {
         BodyPageInfo(
             title: "Weekly check-in",
             text: "Once a week Nina looks at your 7-day average, your pace and how closely you followed the plan. Only when "
-                + "your pace is outside the range at \(BodyPageInfo.inARow(confirmChecks)) does it propose a small calorie "
-                + "change – and only your tap applies it.")
+                + "your pace was \(BodyPageInfo.outside(confirmChecks)) does it propose a small calorie change – and only your "
+                + "tap applies it.")
     }
 
     /// "1.0 cm".
@@ -206,8 +214,8 @@ extension BodyPageInfo {
     /// The conditions of a tape or body-fat reading.
     static let conditions = BodyPageInfo(
         title: "Conditions",
-        text: "Nina sets Morning and Before eating by itself from the time and what you've logged today. Add an exception "
-            + "if one applies: only readings without one count for your trends.")
+        text: "Only standard readings – morning, before eating, no exception – count for your trends. Nina sets Morning and "
+            + "Before eating from the time and what you've logged today; tap an exception if one applies.")
 
     /// The 2nd and 3rd readings of a site: `twoReadings` in a full set, else the weekly re-check.
     static func readings(twoReadings: Bool) -> BodyPageInfo {
@@ -245,8 +253,8 @@ extension BodyPageInfo {
 
     static let compare = BodyPageInfo(
         title: "Compare",
-        text: "Pick a pose and two days, then Side by Side, Fade or Slider. The weight and waist below come from the days "
-            + "around each photo and are never saved with them.")
+        text: "Side by Side shows the two days next to each other. Fade and Slider lay one photo over the other – move the "
+            + "slider under them to see what changed.")
 
     /// When the photo lock locks again on this device (`isMac`: the Mac's grace).
     static func photoLock(isMac: Bool) -> BodyPageInfo {
