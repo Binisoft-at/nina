@@ -205,6 +205,18 @@ struct DiaryRoundTripTests {
         #expect(DiaryCSV.mealID(rows[1], in: Self.meals) == "snack")
     }
 
+    @Test func howImportedAmountsAreStored() {
+        let banana = Self.entries[0].1.storedAmount()
+        #expect(banana == AmountText(quantity: 1, unitLabel: "medium", unitAmount: 118, baseUnit: .gram))
+        let grams = DiaryDraft(day: Self.day, meal: "lunch", name: "Rice", quantity: 150, unitLabel: "g", amount: 150).storedAmount()
+        #expect(grams == AmountText(quantity: 150, unitLabel: "g", unitAmount: 1, baseUnit: .gram))
+        let quick = Self.entries[2].1.storedAmount()
+        #expect(quick.baseUnit == .serving && quick.unitAmount == 0)
+        // A lookup gave 60 g for two slices.
+        let slices = DiaryDraft(day: Self.day, meal: "lunch", name: "Bread", quantity: 2, unitLabel: "slice").storedAmount(lookedUp: (60, .gram))
+        #expect(slices == AmountText(quantity: 2, unitLabel: "slice", unitAmount: 30, baseUnit: .gram))
+    }
+
     @Test func amountsWithTheirUnitGluedOn() {
         let rows = DiaryCSV.parse("date,food,amount\n2030-03-04,Oats,40.00 g\n2030-03-04,Milk,0.2 l\n2030-03-04,Bread,2 slices\n").rows.map(\.draft)
         #expect(rows[0].quantity == 40 && rows[0].unitLabel == "g" && rows[0].amount == 40)

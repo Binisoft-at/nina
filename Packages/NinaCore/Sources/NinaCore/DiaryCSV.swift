@@ -43,6 +43,35 @@ public struct DiaryDraft: Equatable, Sendable {
     public func sameAmount(as other: DiaryDraft) -> Bool {
         quantity == other.quantity && unitLabel == other.unitLabel && amount == other.amount && unit == other.unit
     }
+
+    /// How the row is stored as an entry's amount. `lookedUp`: the base amount and unit of the food
+    /// a lookup found (the row had no nutrition values).
+    public func storedAmount(lookedUp: (amount: Double, unit: BaseUnit)? = nil) -> AmountText {
+        ImportColumns.storedAmount(quantity: quantity, unitLabel: unitLabel, amount: lookedUp?.amount ?? amount,
+                                   unit: lookedUp?.unit ?? unit)
+    }
+}
+
+extension ImportColumns {
+    /// g, ml, kg, l, serving … – a unit rather than a portion word like "slice" or "medium".
+    static func isUnitWord(_ text: String) -> Bool {
+        ["", "g", "gram", "grams", "gramm", "ml", "milliliter", "millilitre", "kg", "l", "liter", "litre", "cl", "dl",
+         "serving", "servings", "portion", "portions"].contains(SearchText.normalize(text))
+    }
+
+    /// How an imported amount is stored: a portion word keeps its count ("2 × slice (64 g)"), a
+    /// plain unit becomes the base amount ("150 g"), and without a base amount it is servings – with
+    /// unit amount 0, like a quick entry, whose values don't scale.
+    public static func storedAmount(quantity: Double, unitLabel: String, amount: Double, unit: BaseUnit) -> AmountText {
+        let label = unitLabel.trimmingCharacters(in: .whitespaces)
+        if amount > 0 {
+            if !isUnitWord(label), quantity > 0 {
+                return AmountText(quantity: quantity, unitLabel: label, unitAmount: amount / quantity, baseUnit: unit)
+            }
+            return AmountText(quantity: amount, unitLabel: unit.symbol, unitAmount: 1, baseUnit: unit)
+        }
+        return AmountText(quantity: quantity, unitLabel: label.isEmpty ? BaseUnit.serving.symbol : label, unitAmount: 0, baseUnit: .serving)
+    }
 }
 
 /// Nina's diary CSV: one row per thing eaten, nutrition values are the totals for that row.

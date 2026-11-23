@@ -93,6 +93,15 @@ extension RecipeCSV {
     }
 }
 
+extension RecipeItemDraft {
+    /// How the ingredient is stored as a recipe line's amount (see `ImportColumns.storedAmount`).
+    /// `lookedUp`: the base amount and unit of the food a lookup found.
+    public func storedAmount(lookedUp: (amount: Double, unit: BaseUnit)? = nil) -> AmountText {
+        ImportColumns.storedAmount(quantity: quantity, unitLabel: unitLabel, amount: lookedUp?.amount ?? amount,
+                                   unit: lookedUp?.unit ?? unit)
+    }
+}
+
 extension ImportColumns {
     /// The canonical columns of a file's header line.
     public static func headerColumns(_ text: String) -> Set<String> {
