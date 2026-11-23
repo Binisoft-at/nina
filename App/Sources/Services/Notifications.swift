@@ -34,6 +34,10 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     /// A nina:// link a notification asked to open that no window has opened yet: on a cold start
     /// the answer can come before the window listens, so RootView also takes it when it appears.
     private var pendingURL: URL?
+    /// The request set handed to the system last (`fingerprint`): the same set again is skipped.
+    private var lastFingerprint: String?
+    static let plannedPrefix = "nina.plan."
+    static let reminderPrefix = "nina.remind."
 
     /// The link a notification asked to open, once (nil when there is none or it was opened).
     func takePendingURL() -> URL? {
@@ -45,15 +49,19 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
     /// Categories are registered by `reschedule` only (meal and coach ones together, before any
     /// request uses them): registering just the meal ones here would wipe the coach buttons of
     /// pending notifications on every launch, also a background one, until the next reschedule.
+    /// NinaApp calls this first thing at every launch (also a background one), so the iPhone's
+    /// link to the Apple Watch hooks in here too (`PhoneWatchLink`: it starts with the first
+    /// widget snapshot).
     func activate() {
         center.delegate = self
-        if UserDefaults.standard.object(forKey: Self.plannedKey) == nil {
-            UserDefaults.standard.set(true, forKey: Self.plannedKey)
-        }
+        migratePlannedDefault()
+        PhoneWatchLink.install()
     }
 
     func requestAuthorization() async -> Bool {
-        (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        // A request set handed over before permission may not have been taken: hand it over again.
+        lastFingerprint = nil
+        return (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
     }
 
     var reminderMeals: Set<String> {
@@ -61,9 +69,21 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         set { UserDefaults.standard.set(Array(newValue).sorted(), forKey: Self.remindersKey) }
     }
 
+    /// "Lunch planned – eaten?" on this device: on by default on the iPhone (the Apple Watch shows
+    /// them too), off on iPad and Mac until turned on there, so a planned meal doesn't ask on every
+    /// device at once.
     var plannedEnabled: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.plannedKey) }
+        get { UserDefaults.standard.object(forKey: Self.plannedKey) as? Bool ?? PlatformInfo.isPhone }
         set { UserDefaults.standard.set(newValue, forKey: Self.plannedKey) }
+    }
+
+    /// Older builds switched planned prompts on for every device at launch; iPad and Mac go back
+    /// to their default (off) once.
+    private func migratePlannedDefault() {
+        let key = "nina.reminders.planned.perDevice"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        if !PlatformInfo.isPhone { UserDefaults.standard.removeObject(forKey: Self.plannedKey) }
     }
 
     /// Minutes after a meal's usual time before its reminder.
@@ -129,51 +149,51 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
 
     // MARK: Scheduling
 
-    /// Replaces every pending notification with the current plan and reminders (next 3 days).
+    /// Replaces every pending notification with the current plan and reminders (next 3 days),
+    /// and takes delivered ones whose meal or task is done – on any device – out of the
+    /// Notification Center. Nothing is handed over again when the requests didn't change.
     func reschedule(context: ModelContext, settings: NinaSettings) {
         let store = NinaStore(context: context)
         let now = Date()
         let today = settings.today(now: now)
         var requests: [UNNotificationRequest] = []
+        /// Delivered meal notifications that still stand (the rest leave the Notification Center).
+        var open: Set<String> = []
 
+        // "Lunch planned – eaten?" for each group still planned: plans made by hand, and those of
+        // routines that are on and ask (not of a paused or deleted one).
+        var prompted: Set<String> = []
         if plannedEnabled {
-            let rules = Dictionary(store.planRules().map { ($0.uuid.uuidString, $0.notify) }, uniquingKeysWith: { first, _ in first })
-            let planned = store.entries(from: today, through: today.adding(days: 2)).filter { $0.isPlanned && $0.time > now }
+            let rules = Dictionary(store.planRules().map { ($0.uuid.uuidString, $0.isActive && $0.notify) },
+                                   uniquingKeysWith: { first, _ in first })
+            let planned = store.entries(from: today, through: today.adding(days: 2)).filter { $0.isPlanned && Self.asks($0, rules: rules) }
+            prompted = Set(planned.map { Self.slotKey(day: $0.day, meal: $0.meal) })
             let groups = Dictionary(grouping: planned) { entry -> String in
                 entry.groupID.isEmpty ? (entry.planKey.isEmpty ? entry.uuid.uuidString : entry.planKey) : entry.groupID
             }
             for (key, entries) in groups {
                 guard let first = entries.min(by: { $0.time < $1.time }) else { continue }
-                if first.planKey.hasPrefix("rule:") {
-                    let ruleID = first.planKey.split(separator: ":").dropFirst().first.map(String.init) ?? ""
-                    if rules[ruleID] == false { continue }
-                }
-                let slot = settings.meal(first.meal)
-                let content = UNMutableNotificationContent()
-                content.title = "\(slot.emoji) \(slot.name) · planned"
-                let energy = entries.map(\.energy).reduce(0, +)
-                content.body = "\(entries.map(\.displayName).joined(separator: ", ")) · \(Fmt.energy(energy, unit: settings.energyUnit)). Eaten?"
-                content.categoryIdentifier = Self.plannedCategory
-                content.userInfo = ["entries": entries.map(\.uuid.uuidString), "day": first.day]
-                content.sound = .default
-                requests.append(request("nina.plan.\(key)", content, at: first.time))
+                let id = Self.plannedPrefix + key
+                if first.day == today.rawValue { open.insert(id) }
+                guard first.time > now else { continue }
+                requests.append(plannedRequest(id, entries: entries, first: first, settings: settings))
             }
         }
 
+        // "Lunch logged?" while a meal is empty: something eaten, or a planned prompt of its own,
+        // takes it away.
         let meals = reminderMeals
         if !meals.isEmpty {
             for offset in 0..<3 {
                 let day = today.adding(days: offset)
-                let logged = Set(store.entries(on: day).filter(\.isEaten).map(\.meal))
-                for slot in settings.meals where meals.contains(slot.id) && !logged.contains(slot.id) {
+                let eaten = Set(store.entries(on: day).filter(\.isEaten).map(\.meal))
+                for slot in settings.meals where meals.contains(slot.id) && !eaten.contains(slot.id) {
+                    guard !prompted.contains(Self.slotKey(day: day.rawValue, meal: slot.id)) else { continue }
+                    let id = "\(Self.reminderPrefix)\(slot.id).\(day.rawValue)"
+                    if offset == 0 { open.insert(id) }
                     let date = day.date(minutes: slot.minutes + reminderDelay)
                     guard date > now else { continue }
-                    let content = UNMutableNotificationContent()
-                    content.title = "\(slot.emoji) \(slot.name) logged?"
-                    content.body = "Type it like a message – \u{201C}2 eggs and a toast\u{201D} – and you're done."
-                    content.categoryIdentifier = Self.reminderCategory
-                    content.userInfo = ["meal": slot.id, "day": day.rawValue]
-                    requests.append(request("nina.remind.\(slot.id).\(day.rawValue)", content, at: date))
+                    requests.append(reminderRequest(id, slot: slot, day: day, at: date))
                 }
             }
         }
@@ -186,14 +206,71 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
             requests.append(request(item))
         }
 
+        replacePending(with: requests)
+        removeDelivered(prefixes: [CoachReminders.idPrefix, Self.plannedPrefix, Self.reminderPrefix], keeping: coach.ids.union(open))
+    }
+
+    /// A planned entry asks "eaten?": planned by hand, or by a routine that is on and asks.
+    private static func asks(_ entry: LogEntry, rules: [String: Bool]) -> Bool {
+        guard entry.planKey.hasPrefix("rule:") else { return true }
+        let ruleID = entry.planKey.split(separator: ":").dropFirst().first.map(String.init) ?? ""
+        return rules[ruleID] == true
+    }
+
+    private static func slotKey(day: String, meal: String) -> String { day + "|" + meal }
+
+    private func plannedRequest(_ id: String, entries: [LogEntry], first: LogEntry, settings: NinaSettings) -> UNNotificationRequest {
+        let slot = settings.meal(first.meal)
+        let content = UNMutableNotificationContent()
+        content.title = "\(slot.emoji) \(slot.name) · planned"
+        let energy = entries.map(\.energy).reduce(0, +)
+        content.body = "\(entries.map(\.displayName).joined(separator: ", ")) · \(Fmt.energy(energy, unit: settings.energyUnit)). Eaten?"
+        content.categoryIdentifier = Self.plannedCategory
+        content.userInfo = ["entries": entries.map(\.uuid.uuidString), "day": first.day]
+        content.sound = .default
+        return request(id, content, at: first.time)
+    }
+
+    private func reminderRequest(_ id: String, slot: MealSlot, day: DayKey, at date: Date) -> UNNotificationRequest {
+        let content = UNMutableNotificationContent()
+        content.title = "\(slot.emoji) \(slot.name) logged?"
+        content.body = "Type it like a message – \u{201C}2 eggs and a toast\u{201D} – and you're done."
+        content.categoryIdentifier = Self.reminderCategory
+        content.userInfo = ["meal": slot.id, "day": day.rawValue]
+        return request(id, content, at: date)
+    }
+
+    /// Hands the requests to the system, unless they are the same as last time (every save and
+    /// every import reschedules; most change nothing here).
+    private func replacePending(with requests: [UNNotificationRequest]) {
+        let fingerprint = Self.fingerprint(requests)
+        guard fingerprint != lastFingerprint else { return }
+        lastFingerprint = fingerprint
         let center = self.center
         center.removeAllPendingNotificationRequests()
         for request in requests {
             center.add(request) { error in
-                if let error { AppLog.warning("Notification not scheduled: \(error.localizedDescription)", category: "notifications") }
+                guard let error else { return }
+                AppLog.warning("Notification not scheduled: \(error.localizedDescription)", category: "notifications")
+                Task { @MainActor in NotificationScheduler.shared.lastFingerprint = nil }
             }
         }
-        removeDeliveredCoach(keeping: coach.ids)
+    }
+
+    /// Everything a request shows and does: its id, when, the texts, the buttons and the data.
+    private static func fingerprint(_ requests: [UNNotificationRequest]) -> String {
+        requests.map { request -> String in
+            let content = request.content
+            let when = (request.trigger as? UNCalendarNotificationTrigger)?.dateComponents
+            let parts: [Int?] = [when?.year, when?.month, when?.day, when?.hour, when?.minute]
+            let fire = parts.map { (part: Int?) -> String in part.map { String($0) } ?? "-" }.joined(separator: ".")
+            let info = content.userInfo.map { (pair: (key: AnyHashable, value: Any)) -> String in "\(pair.key)=\(pair.value)" }
+                .sorted().joined(separator: "&")
+            return [request.identifier, fire, content.title, content.body, content.categoryIdentifier, content.threadIdentifier, info]
+                .joined(separator: "\u{1F}")
+        }
+        .sorted()
+        .joined(separator: "\u{1E}")
     }
 
     /// The coach's notifications of the next 3 days (none without a set-up plan, or when this
@@ -245,12 +322,14 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         if changed { reviewPlannedAt = stored }
     }
 
-    /// Delivered coach notifications whose task is done (or whose day is over) leave the
-    /// Notification Center.
-    private func removeDeliveredCoach(keeping ids: Set<String>) {
-        let prefix = CoachReminders.idPrefix
+    /// Delivered notifications with one of `prefixes` whose meal or task is done (or whose day is
+    /// over) leave the Notification Center – on this device, so the same meal answered on another
+    /// one doesn't keep asking here.
+    private func removeDelivered(prefixes: [String], keeping ids: Set<String>) {
         center.getDeliveredNotifications { notifications in
-            let stale = notifications.map(\.request.identifier).filter { $0.hasPrefix(prefix) && !ids.contains($0) }
+            let stale = notifications.map(\.request.identifier).filter { id in
+                prefixes.contains { id.hasPrefix($0) } && !ids.contains(id)
+            }
             guard !stale.isEmpty else { return }
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: stale)
         }
@@ -317,34 +396,61 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let coach = info["coach"] as? String
         let url = info["url"] as? String
         let day = info["day"] as? String
+        let category = response.notification.request.content.categoryIdentifier
         let text = (response as? UNTextInputNotificationResponse)?.userText
         await MainActor.run {
             if coach != nil {
                 NotificationScheduler.shared.handleCoach(action: action, text: text, url: url, day: day)
             } else {
-                NotificationScheduler.shared.handle(action: action, entryIDs: ids, meal: meal)
+                NotificationScheduler.shared.handle(action: action, entryIDs: ids, meal: meal, day: day, category: category)
             }
         }
     }
 
-    private func handle(action: String, entryIDs: [String], meal: String?) {
-        let context = Persistence.shared.container.mainContext
-        let store = NinaStore(context: context)
-        let uuids = entryIDs.compactMap(UUID.init(uuidString:))
-        let entries = uuids.isEmpty ? [] : ((try? context.fetch(FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { uuids.contains($0.uuid) }))) ?? [])
+    /// A meal notification's button, or a tap on it: "Log Now" and a tap on "Lunch logged?" open
+    /// Add for that meal and day; a tap on "Lunch planned" opens that day.
+    private func handle(action: String, entryIDs: [String], meal: String?, day: String?, category: String) {
         switch action {
         case "eaten":
+            let store = NinaStore(context: Persistence.shared.container.mainContext)
+            let entries = Self.entries(entryIDs, store: store)
             store.confirm(entries)
             AppLog.info("Planned meal confirmed from a notification (\(entries.count) foods)", category: "notifications")
             followUp(store)
         case "skip":
-            store.setStatus(entries, .skipped)
+            let store = NinaStore(context: Persistence.shared.container.mainContext)
+            store.setStatus(Self.entries(entryIDs, store: store), .skipped)
             followUp(store)
         case "log":
-            open("\(AppInfo.urlScheme)://add")
+            open(Self.link("add", meal: meal, day: day))
+        case UNNotificationDefaultActionIdentifier:
+            if category == Self.reminderCategory {
+                open(Self.link("add", meal: meal, day: day))
+            } else if category == Self.plannedCategory {
+                open(Self.link("today", meal: nil, day: day))
+            }
         default:
             break
         }
+    }
+
+    private static func entries(_ ids: [String], store: NinaStore) -> [LogEntry] {
+        let uuids = ids.compactMap(UUID.init(uuidString:))
+        guard !uuids.isEmpty else { return [] }
+        let descriptor = FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { uuids.contains($0.uuid) })
+        return (try? store.context.fetch(descriptor)) ?? []
+    }
+
+    /// `nina://add?meal=lunch&day=2030-03-14` (AppModel.open checks both).
+    private static func link(_ host: String, meal: String?, day: String?) -> String {
+        var components = URLComponents()
+        components.scheme = AppInfo.urlScheme
+        components.host = host
+        var items: [URLQueryItem] = []
+        if let meal, !meal.isEmpty { items.append(URLQueryItem(name: "meal", value: meal)) }
+        if let day, !day.isEmpty { items.append(URLQueryItem(name: "day", value: day)) }
+        if !items.isEmpty { components.queryItems = items }
+        return components.url?.absoluteString ?? "\(AppInfo.urlScheme)://\(host)"
     }
 
     /// A coach notification's button (or a tap on it): written through the store right in the
@@ -395,7 +501,7 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         let signal = store.weightSignal(adding: CoachContext.latestHealthReadings, settings: settings)
         if let kilograms, case .ok = signal.sanity(kilograms, on: today) {
             let weight = store.addWeight(kilograms, day: today, time: now).healthWeight
-            let health = HealthService(enabled: true)
+            let health = HealthService(enabled: true, storeIsSaved: HealthService.savesData(Persistence.shared.mode))
             Task { await health.writeWeight(weight) }
             AppLog.info("Weight saved from a notification", category: "notifications")
             return true

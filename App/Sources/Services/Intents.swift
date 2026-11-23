@@ -18,7 +18,10 @@ struct LogFoodIntent: AppIntent {
         let settings = store.settings
         let library = FoodLibrary()
         library.rebuild(context: context, language: settings.language)
-        let matches = library.quickMatches(text).filter(\.isResolved)
+        let all = library.quickMatches(text)
+        let matches = all.filter(\.isResolved)
+        // What wasn't found is said, not dropped: the diary would be short without a word.
+        let missing = all.filter { !$0.isResolved }.map(\.item.query).filter { !$0.isEmpty }
         guard !matches.isEmpty else {
             return .result(dialog: "I couldn't find \u{201C}\(text)\u{201D} in Nina. Open the app to create it.")
         }
@@ -39,24 +42,32 @@ struct LogFoodIntent: AppIntent {
             }
         }
         store.save()
-        return .result(dialog: "Logged \(names.joined(separator: ", ")) to \(settings.meal(meal).name.lowercased()) – \(Fmt.energy(energy, unit: settings.energyUnit)).")
+        var answer = "Logged \(names.joined(separator: ", ")) to \(settings.meal(meal).name.lowercased()) – \(Fmt.energy(energy, unit: settings.energyUnit))."
+        if !missing.isEmpty {
+            let quoted = missing.map { "\u{201C}\($0)\u{201D}" }.joined(separator: ", ")
+            answer += " Couldn't find \(quoted) – open Nina to add it."
+        }
+        return .result(dialog: "\(answer)")
     }
 }
 
+/// "Add a glass of water in Nina": your glass size from Settings unless you say how much.
 struct LogWaterIntent: AppIntent {
     static let title: LocalizedStringResource = "Log Water"
-    static let description = IntentDescription("Adds water to today in Nina.")
+    static let description = IntentDescription("Adds a glass of water (your glass size in Nina) or the amount you say to today.")
 
-    @Parameter(title: "Milliliters", default: 250)
-    var milliliters: Int
+    @Parameter(title: "Milliliters")
+    var milliliters: Int?
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let store = NinaStore(context: Persistence.shared.container.mainContext)
-        let today = store.settings.today()
-        store.addWater(Double(milliliters), day: today)
+        let settings = store.settings
+        let today = settings.today()
+        let amount: Double = milliliters.map { Double($0) } ?? settings.waterGlass
+        store.addWater(amount, day: today)
         let total = store.water(on: today).map(\.amount).reduce(0, +)
-        return .result(dialog: "Added \(milliliters) ml – \(Fmt.volume(total)) today.")
+        return .result(dialog: "Added \(Fmt.milliliters(amount)) – \(Fmt.volume(total)) today.")
     }
 }
 
