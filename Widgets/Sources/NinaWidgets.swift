@@ -3,12 +3,21 @@ import SwiftUI
 import NinaCore
 
 /// Today's numbers on the Home Screen, Lock Screen and watch face. Widgets only read the small
-/// snapshot the app writes to the shared App Group (WidgetBridge) – never the diary itself.
-/// The same source builds the iPhone widget extension and the watch complications.
+/// snapshots the app writes to the shared App Group (WidgetBridge) – never the diary itself.
+/// The same source builds the iPhone widget extension and the watch complications; the coach
+/// widget and the controls (Control Center, Lock Screen, Action button) are iPhone only.
 @main
 struct NinaWidgets: WidgetBundle {
     var body: some Widget {
+        #if os(iOS)
         TodayWidget()
+        CoachWidget()
+        NinaLogFoodControl()
+        NinaWeighInControl()
+        NinaAddWaterControl()
+        #else
+        TodayWidget()
+        #endif
     }
 }
 
@@ -70,11 +79,12 @@ struct TodayWidgetView: View {
     let entry: TodayEntry
 
     private var snapshot: TodaySnapshot { entry.snapshot }
+    /// Always kcal (`TodaySnapshot.unit`).
     private var unit: EnergyUnit { snapshot.unit }
     private var remaining: Double { snapshot.remaining }
     /// "1,240" left or "120" over – the word next to it says which.
     private var amountText: String {
-        Fmt.energy(abs(remaining), unit: unit, showUnit: false)
+        Fmt.number(abs(remaining).rounded(), decimals: 0)
     }
     /// For faces without a word: "+120" when over.
     private var signedText: String {
