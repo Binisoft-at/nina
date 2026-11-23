@@ -1,6 +1,7 @@
 import SwiftUI
 import LocalAuthentication
 import BinisoftKit
+import NinaCore
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -8,25 +9,29 @@ import AppKit
 #endif
 
 /// "Lock Photos with Face ID" (this device only, UserDefaults): the photos stay blurred until Face
-/// ID, Touch ID or the device passcode (the Mac's password) unlocks them, and lock again as soon as
-/// Nina stops being active on iPhone and iPad (the app switcher, Control Center, a call – early
-/// enough for the blur to be in the app switcher's picture), goes to the background, the Mac
-/// sleeps or Nina is hidden. On the Mac also after a minute behind other apps (a quick ⌘-Tab
-/// doesn't ask again) and when the screen locks. Off in the demo.
+/// ID, Touch ID or the device passcode (the Mac's password) unlocks them.
+/// - iPhone and iPad: they lock again as soon as Nina stops being active (the app switcher,
+///   Control Center, a call – early enough for the blur to be in the app switcher's picture).
+/// - Mac: the lock stays out of the way. Behind other apps or hidden (⌘H), the photos lock after
+///   five minutes away; leaving the Mac locks them at once – the screen locks, the screen saver
+///   starts, the displays or the Mac go to sleep, or another user takes over the screen
+///   (`NinaPhotoLockGrace`).
+/// Off in the demo.
 @MainActor
 @Observable
 final class BodyPhotoLock {
     static let shared = BodyPhotoLock()
     static let key = "nina.photos.lock"
-    /// How long Nina may sit behind other apps on the Mac before the photos lock again.
-    static let backgroundGrace: Duration = .seconds(60)
     /// Password or Touch ID prompts showing right now (they take the focus from Nina).
     private static var authenticating = 0
 
     private(set) var isEnabled: Bool
     private(set) var isUnlocked = false
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// Mac: locks the photos once Nina has been away for the grace.
     @ObservationIgnored private var backgroundLock: Task<Void, Never>?
+    /// Mac: when Nina went away, and what to do next.
+    @ObservationIgnored private var grace = NinaPhotoLockGrace()
 
     private init() {
         isEnabled = !LaunchOptions.current.isDemo && UserDefaults.standard.bool(forKey: BodyPhotoLock.key)
@@ -94,15 +99,26 @@ final class BodyPhotoLock {
         }
     }
 
-    /// Mac: Nina went behind another app; the photos lock once it stays there for
-    /// `backgroundGrace` (not while a password prompt has the focus).
-    private func scheduleBackgroundLock() {
-        guard BodyPhotoLock.authenticating == 0 else { return }
-        backgroundLock?.cancel()
-        backgroundLock = Task { [weak self] in
-            try? await Task.sleep(for: BodyPhotoLock.backgroundGrace)
-            guard !Task.isCancelled else { return }
-            self?.lock()
+    /// Mac: what happened (Nina went away or came back, the person left the Mac, the timer went
+    /// off) and what `NinaPhotoLockGrace` says to do about it. A password or Touch ID prompt takes
+    /// the focus from Nina: that isn't going away.
+    private func handle(_ event: NinaPhotoLockGrace.Event) {
+        if event == .background, BodyPhotoLock.authenticating > 0 { return }
+        switch grace.handle(event, at: Date()) {
+        case .nothing:
+            break
+        case .lock:
+            cancelBackgroundLock()
+            lock()
+        case .lockAfter(let seconds):
+            backgroundLock?.cancel()
+            backgroundLock = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(seconds))
+                guard !Task.isCancelled else { return }
+                self?.handle(.timerFired)
+            }
+        case .cancelTimer:
+            cancelBackgroundLock()
         }
     }
 
@@ -124,31 +140,33 @@ final class BodyPhotoLock {
             })
         }
         #elseif os(macOS)
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didHideNotification, object: nil,
-                                                                queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lock() }
+        let center = NotificationCenter.default
+        // Behind other apps or hidden: the grace starts (the first of the two counts).
+        for name in [NSApplication.didResignActiveNotification, NSApplication.didHideNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handle(.background) }
+            })
+        }
+        // In front again: within the grace nothing asks again; after it the photos lock first.
+        observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil,
+                                            queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.handle(.foreground) }
         })
+        // Leaving the Mac: the displays or the Mac go to sleep, another user takes over the screen.
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification, NSWorkspace.willSleepNotification] {
             observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.lock() }
+                MainActor.assumeIsolated { self?.handle(.away) }
             })
         }
-        // The screen locked (without the display sleeping).
+        // The screen locked (without the displays sleeping), or the screen saver started.
         let distributed = DistributedNotificationCenter.default()
-        observers.append(distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil,
-                                                 queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.lock() }
-        })
-        // Behind other apps for a minute.
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil,
-                                                                queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.scheduleBackgroundLock() }
-        })
-        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil,
-                                                                queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.cancelBackgroundLock() }
-        })
+        for name in ["com.apple.screenIsLocked", "com.apple.screensaver.didstart"] {
+            observers.append(distributed.addObserver(forName: Notification.Name(name), object: nil,
+                                                     queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.handle(.away) }
+            })
+        }
         #endif
     }
 }

@@ -144,8 +144,11 @@ Find them under **Progress → Body → Photos** (Mac: **Body** in the sidebar �
   Recently Deleted, and in Settings → Recently Deleted.
 - **Privacy**: photos are stored in Nina's private iCloud only (not in iCloud Photos, never shared),
   shrunk to 2048 px, without location data. **Lock Photos with Face ID** (⋯ on the card) is set per
-  device and blurs them until you unlock; they lock again as soon as you leave Nina. Each device has
-  its own switch: turning it on on your iPhone doesn't lock the photos on your Mac or iPad.
+  device and blurs them until you unlock. On iPhone and iPad they lock again as soon as you leave
+  Nina. On the Mac a quick look at another app doesn't ask again: they lock after five minutes in
+  other apps (or with Nina hidden), and at once when the screen locks, the screen saver starts or
+  the Mac goes to sleep. Each device has its own switch: turning it on on your iPhone doesn't lock
+  the photos on your Mac or iPad.
 
 ## The measuring schedule
 
