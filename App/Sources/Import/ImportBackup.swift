@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 import BinisoftKit
 import NinaCore
 
@@ -66,12 +67,19 @@ enum ImportBackupFiles {
     static let photosKey = "nina.backup.includePhotos"
 
     /// Writes a backup into a new temporary folder named "Nina Backup 2030-01-07" and returns it
-    /// (the file mover then moves it where the person wants it).
+    /// (the file mover then moves it where the person wants it). Read and written off the main
+    /// thread, on a context of its own, so the app stays responsive with many photos.
     @MainActor
-    static func write(app: AppModel, includePhotos: Bool) throws -> URL {
+    static func write(app: AppModel, includePhotos: Bool) async throws -> URL {
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent("NinaBackup-" + UUID().uuidString, isDirectory: true)
         let folder = parent.appendingPathComponent(NinaBackup.folderName(app: AppInfo.name, day: app.today), isDirectory: true)
-        try app.store.writeBackup(to: folder, includePhotos: includePhotos, appVersion: appVersion, device: device)
+        let container = app.container
+        let version = appVersion
+        let deviceName = device
+        _ = try await Task.detached(priority: .userInitiated) {
+            try NinaBackupWriter(context: ModelContext(container)).write(to: folder, includePhotos: includePhotos, appVersion: version,
+                                                                         device: deviceName)
+        }.value
         return folder
     }
 
