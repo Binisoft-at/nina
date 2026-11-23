@@ -41,10 +41,47 @@ public struct Weekdays: Equatable, Hashable, Sendable {
 
 /// Planned meals: a rule ("my usual breakfast, Mon–Fri at 07:30") is turned into planned entries
 /// for the next days. Each planned group carries a key, so it is created once per day and rule
-/// – even with several devices, which converge on the oldest group.
+/// – even with several devices, which converge on the same group (`duplicates`).
 public enum PlanSchedule {
+    /// `LogEntry.source` of a copy the clean-up took out (`duplicates`): it keeps the day's key, so
+    /// the routine doesn't plan that day again, and it never counts as the person's delete.
+    public static let duplicateSource = "plan-duplicate"
+    /// `LogEntry.source` of planned entries taken out because their routine was deleted, paused or
+    /// changed: they don't keep the routine from planning that day again (a resumed or edited
+    /// routine plans it anew), and they never count as the person's delete.
+    public static let retiredSource = "plan-off"
+
     public static func key(rule: UUID, day: DayKey) -> String {
         "rule:\(rule.uuidString):\(day.rawValue)"
+    }
+
+    /// The start every key of a rule shares ("rule:<uuid>:").
+    public static func keyPrefix(rule: UUID) -> String {
+        "rule:\(rule.uuidString):"
+    }
+
+    /// The rule a key belongs to; nil for anything that isn't "rule:<uuid>:<day>".
+    public static func ruleID(of key: String) -> UUID? {
+        let parts = key.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0] == "rule", DayKey(String(parts[2])) != nil else { return nil }
+        return UUID(uuidString: String(parts[1]))
+    }
+
+    /// The day of a key "rule:<uuid>:<day>".
+    public static func day(of key: String) -> DayKey? {
+        guard ruleID(of: key) != nil, let last = key.split(separator: ":").last else { return nil }
+        return DayKey(String(last))
+    }
+
+    /// A planned entry the person hasn't acted on: still planned and not changed since it was made
+    /// (a second of slack for the save).
+    public static func isUntouched(status: String, createdAt: Date, modifiedAt: Date) -> Bool {
+        status == EntryStatus.planned.rawValue && modifiedAt.timeIntervalSince(createdAt) <= 1
+    }
+
+    /// Planned entries taken out by the clean-up or a routine change, not by the person.
+    public static func isMarked(source: String) -> Bool {
+        source == duplicateSource || source == retiredSource
     }
 
     /// Days in `[from, from + horizon)` on which the rule should have planned entries.
@@ -58,18 +95,127 @@ public enum PlanSchedule {
         }
     }
 
-    /// Of several groups created for the same key (two devices planned before they synced),
-    /// keep the one created first; the others are duplicates.
-    public static func duplicates<T>(_ groups: [(key: String, createdAt: Date, group: T)]) -> [T] {
-        var byKey: [String: [(createdAt: Date, group: T)]] = [:]
-        for item in groups where !item.key.isEmpty {
-            byKey[item.key, default: []].append((item.createdAt, item.group))
+    /// One planned entry as the clean-up sees it (live or in the trash).
+    public struct Item: Equatable, Sendable {
+        public var id: String
+        /// The entry's plan key ("" = not planned by a routine).
+        public var key: String
+        /// Entries logged together share it ("" for a single entry, e.g. a recipe portion).
+        public var groupID: String
+        public var status: String
+        public var source: String
+        public var createdAt: Date
+        public var modifiedAt: Date
+        public var isTrashed: Bool
+
+        public init(id: String, key: String, groupID: String = "", status: String = EntryStatus.planned.rawValue,
+                    source: String = "plan", createdAt: Date, modifiedAt: Date? = nil, isTrashed: Bool = false) {
+            self.id = id
+            self.key = key
+            self.groupID = groupID
+            self.status = status
+            self.source = source
+            self.createdAt = createdAt
+            self.modifiedAt = modifiedAt ?? createdAt
+            self.isTrashed = isTrashed
         }
-        var result: [T] = []
-        for (_, items) in byKey where items.count > 1 {
-            let sorted = items.sorted { $0.createdAt < $1.createdAt }
-            result.append(contentsOf: sorted.dropFirst().map(\.group))
+    }
+
+    /// The entries logged together for one key: one device's copy of a routine's day.
+    struct Copy {
+        var items: [Item]
+        var createdAt: Date
+        var firstID: String
+        /// Not all of it in the trash.
+        var isLive: Bool
+        /// The person ate, skipped, edited or deleted something of it.
+        var isActedOn: Bool
+        /// Taken out by the clean-up or a routine change before: never ranked again.
+        var isMarked: Bool
+
+        init(_ items: [Item]) {
+            self.items = items
+            createdAt = items.map(\.createdAt).min() ?? .distantPast
+            firstID = items.map(\.id).min() ?? ""
+            isLive = items.contains { !$0.isTrashed }
+            isActedOn = items.contains { item in
+                item.isTrashed || !PlanSchedule.isUntouched(status: item.status, createdAt: item.createdAt,
+                                                            modifiedAt: item.modifiedAt)
+            }
+            isMarked = items.contains { PlanSchedule.isMarked(source: $0.source) }
         }
-        return result
+
+        /// The same order on every device: oldest first, then the smallest id.
+        static func precedes(_ a: Copy, _ b: Copy) -> Bool {
+            a.createdAt != b.createdAt ? a.createdAt < b.createdAt : a.firstID < b.firstID
+        }
+    }
+
+    /// The keys a routine must not plan again: every entry's key, live or in the trash (the person
+    /// deleted that day's plan, so it stays deleted), except entries a routine change took out.
+    public static func takenKeys(_ items: [Item]) -> Set<String> {
+        Set(items.filter { !$0.key.isEmpty && !($0.isTrashed && $0.source == retiredSource) }.map(\.key))
+    }
+
+    /// What a copy of a routine's entry becomes on another day (`copyRule`).
+    public enum CopyRule: Equatable, Sendable {
+        /// The routine already plans it there: leave the entry out.
+        case skip
+        /// It carries the routine's key for that day, so the routine doesn't plan it a second time.
+        case key(String)
+        /// An ordinary copy.
+        case plain
+    }
+
+    /// A copy of an entry with `sourceKey` onto `day`, whose entries (live and in the trash) are
+    /// `existing`. Only when the routine is active and covers that day (`ruleCovers`): a planned
+    /// copy is left out when the routine's plan is already there; a day whose plan the person
+    /// deleted gets an ordinary copy; any other day's copy takes the routine's key.
+    public static func copyRule(sourceKey: String, to day: DayKey, planned: Bool, existing: [Item],
+                                ruleCovers: (UUID) -> Bool) -> CopyRule {
+        guard let rule = ruleID(of: sourceKey), ruleCovers(rule) else { return .plain }
+        let target = key(rule: rule, day: day)
+        if existing.contains(where: { $0.key == target && !$0.isTrashed }) { return planned ? .skip : .plain }
+        return takenKeys(existing).contains(target) ? .plain : .key(target)
+    }
+
+    /// Several copies of one key (devices that planned the same routine day before they synced):
+    /// the ids of the live entries to move to the trash (marked `duplicateSource`). Every device
+    /// gives the same answer, and the next pass finds nothing more to do:
+    /// - a copy the person acted on (ate, skipped, edited, deleted a part of) beats an untouched
+    ///   one; between equals the oldest wins, then the smallest id;
+    /// - a copy the person deleted, with no live copy acted on, takes the untouched live copies
+    ///   with it (the person removed that plan, so it stays removed);
+    /// - copies taken out by the clean-up or a routine change are never ranked again.
+    /// Copies are told apart by plan key and group id; an entry without a group id (a recipe
+    /// portion) is a copy of its own, so two devices' portions don't fall into one group.
+    public static func duplicates(_ items: [Item]) -> [String] {
+        var byGroup: [String: [Item]] = [:]
+        for item in items where !item.key.isEmpty {
+            byGroup[item.key + "#" + (item.groupID.isEmpty ? item.id : item.groupID), default: []].append(item)
+        }
+        var byKey: [String: [Copy]] = [:]
+        for group in byGroup.values {
+            guard let key = group.first?.key else { continue }
+            byKey[key, default: []].append(Copy(group))
+        }
+        var result: [String] = []
+        for copies in byKey.values {
+            let ranked = copies.filter { !$0.isMarked }
+            let live = ranked.filter(\.isLive).sorted(by: Copy.precedes)
+            guard !live.isEmpty else { continue }
+            let losers: [Copy]
+            if let winner = live.first(where: \.isActedOn) {
+                losers = live.filter { $0.firstID != winner.firstID }
+            } else if ranked.contains(where: { !$0.isLive }) {
+                losers = live
+            } else {
+                losers = Array(live.dropFirst())
+            }
+            for copy in losers {
+                result.append(contentsOf: copy.items.filter { !$0.isTrashed }.map(\.id))
+            }
+        }
+        return result.sorted()
     }
 }

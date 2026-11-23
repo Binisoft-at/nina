@@ -246,7 +246,8 @@ final class PlanRule {
 }
 
 /// Goals and preferences that follow the person to every device. There is one; if two devices
-/// each created one before they synced, the newest wins (`NinaStore.profile()`).
+/// each created one before they synced, the oldest wins, and a coach plan only the newer copy has
+/// is carried over first (`NinaStore.profile()`).
 @Model
 final class NinaProfile {
     var uuid: UUID = UUID()

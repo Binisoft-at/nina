@@ -3,6 +3,11 @@ import SwiftData
 import CoreData
 import BinisoftKit
 import NinaCore
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 /// App-wide state shared by all windows: navigation, the selected day, the food library and the
 /// actions that show a toast with Undo. The tour's practice page gets its own instance on its own
@@ -23,6 +28,9 @@ final class AppModel {
     let thalia: ThaliaDelivery
 
     private(set) var settings: NinaSettings
+    /// The diary day it is now (Settings → Day starts at). Moves on by itself at the day start,
+    /// after sleep or a clock change and when the app comes back (`checkDay`).
+    private(set) var today: DayKey
     var tab: AppTab = .today
     var foodsPage: FoodsPage = .foods
     /// iPhone/iPad: the Progress tab's page (Body first once a plan is set up).
@@ -50,6 +58,17 @@ final class AppModel {
 
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    /// A change from another device waits in the debounced refresh (a local save in between
+    /// doesn't drop its plan clean-up).
+    @ObservationIgnored private var pendingRemote = false
+    @ObservationIgnored private var lastRefresh: Date?
+    /// Wakes the app at the next diary day start.
+    @ObservationIgnored private var dayTask: Task<Void, Never>?
+    @ObservationIgnored private var nextDayStart: Date?
+    /// This launch planned the routines' meals (after its first iCloud import, or a while without).
+    @ObservationIgnored private var launchPlansDone = false
+    /// This launch may sweep the trash (after its first successful iCloud import, or a while without).
+    @ObservationIgnored private var launchPurgeDone = false
     @ObservationIgnored private var coachQuestionPending = false
 
     init(container: ModelContainer, mode: StorageMode, launch: LaunchOptions = .current, isSandbox: Bool = false) {
@@ -65,25 +84,33 @@ final class AppModel {
         let store = NinaStore(context: container.mainContext)
         let settings = store.coachSettings()
         self.settings = settings
-        self.selectedDay = settings.today()
+        let today = settings.today()
+        self.today = today
+        self.selectedDay = today
         progressPage = settings.plan.isSetUp ? .body : .nutrition
-        if !isSandbox, !launch.isDemo { coachDismissals = CoachLater.load(today: settings.today()) }
-        library.rebuild(context: container.mainContext, language: settings.language)
+        if !isSandbox, !launch.isDemo { coachDismissals = CoachLater.load(today: today) }
+        if isSandbox || launch.isDemo {
+            // The practice page and the screenshots need the library right away ("food" screen).
+            library.rebuild(context: container.mainContext, language: settings.language)
+        } else {
+            // After the first frame: Today doesn't need the food library.
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.library.rebuild(context: self.container.mainContext, language: self.settings.language)
+            }
+        }
         guard !isSandbox else {
             observeChanges(rebuildOnly: true)
             return
         }
         observeChanges(rebuildOnly: false)
+        observeDayChanges()
         thalia.start()
         applyLaunchOptions()
-        if !launch.isDemo {
-            store.purgeExpired()
-            store.materializePlans(today: settings.today())
-        }
+        if !launch.isDemo { startLaunchWork() }
     }
 
     var store: NinaStore { NinaStore(context: container.mainContext) }
-    var today: DayKey { settings.today() }
     var language: FoodLanguage { settings.language }
     var energyUnit: EnergyUnit { settings.energyUnit }
 
@@ -93,37 +120,57 @@ final class AppModel {
     // MARK: Data changes
 
     private func observeChanges(rebuildOnly: Bool) {
-        observers.append(NotificationCenter.default.addObserver(forName: .ninaDataChanged, object: nil, queue: .main) { [weak self] _ in
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: .ninaDataChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleRefresh() }
         })
         guard !rebuildOnly else { return }
         // CloudKit imports from other devices.
-        observers.append(NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
+        observers.append(center.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.scheduleRefresh(remote: true) }
+        })
+        // Saves that don't go through NinaStore – ⌘Z and shake to undo work on the main context –
+        // refresh widgets, the coach, reminders and Apple Health too.
+        observers.append(center.addObserver(forName: ModelContext.didSave, object: container.mainContext, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleRefresh() }
         })
     }
 
-    /// Coalesces bursts of saves (an import, a meal of five foods) into one refresh.
+    /// Coalesces bursts of saves (an import, a meal of five foods) into one refresh. A change
+    /// from another device in the burst keeps its longer wait and its plan clean-up.
     func scheduleRefresh(remote: Bool = false) {
+        if remote { pendingRemote = true }
         refreshTask?.cancel()
+        let delay = pendingRemote ? 600 : 150
         refreshTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(remote ? 600 : 150))
+            try? await Task.sleep(for: .milliseconds(delay))
             guard !Task.isCancelled, let self else { return }
-            self.refresh()
-            if remote, !self.isSandbox {
+            let remote = self.pendingRemote
+            self.pendingRemote = false
+            if remote, !self.isSandbox, !self.launch.isDemo {
                 self.store.removeDuplicatePlans(from: self.today, through: self.today.adding(days: 3))
             }
+            self.refresh(reason: remote ? "remote" : "local")
         }
     }
 
-    func refresh() {
+    /// Reads the settings again and refreshes the library, widgets, Apple Health and reminders.
+    /// Logs its reason and time (App Log, category "perf").
+    func refresh(reason: String = "app") {
+        let started = Date()
         let store = self.store
         // The plan, the day-type marks and the real body weight (typed and Health weigh-ins).
         let newSettings = store.coachSettings(adding: healthWeightReadings)
         if newSettings != settings { settings = newSettings }
+        // A changed day start can make it another day.
+        rollDay()
         library.rebuild(context: container.mainContext, language: settings.language)
         dataVersion += 1
-        guard !isSandbox, !launch.isDemo else { return }
+        lastRefresh = Date()
+        defer { AppLog.debug("Refresh (\(reason)): \(Int(Date().timeIntervalSince(started) * 1000)) ms", category: "perf") }
+        // Nothing outside the store is touched by the practice page, the demo or a store that
+        // isn't saved (an empty in-memory fallback would empty the widget, reminders and Health).
+        guard !isSandbox, !launch.isDemo, AppModel.keepsData(mode) else { return }
         CoachContext.latestHealthReadings = healthWeightReadings
         WidgetBridge.publish(store.todaySnapshot())
         health.scheduleSync(container: container)
@@ -132,46 +179,195 @@ final class AppModel {
     }
 
     /// The app came to the foreground: a new day may have started, plans and Health need a look.
+    /// Coming back within half a minute on the same day doesn't refresh again.
     func becameActive() {
         guard !isSandbox, !launch.isDemo else { return }
-        let newToday = settings.today()
-        if selectedDay < newToday, selectedDay == newToday.adding(days: -1) { selectedDay = newToday }
-        store.materializePlans(today: newToday)
+        let newDay = rollDay()
+        if !newDay, launchPlansDone { store.materializePlans(today: today) }
         thalia.becameActive()
+        let health = self.health
         Task { @MainActor [weak self] in
-            guard let self else { return }
-            let before = self.health.weightSamples
-            await self.health.refreshReadings()
-            // New Health weigh-ins change the body weight, the weight signal and the coach board.
-            if self.health.weightSamples != before { self.scheduleRefresh() }
+            let weights = health.weightSamples
+            let active = health.activeEnergyToday
+            await health.refreshReadings()
+            // New Health weigh-ins change the body weight, the weight signal and the coach board;
+            // new active energy the budget on the widget.
+            if health.weightSamples != weights || health.activeEnergyToday != active { self?.scheduleRefresh() }
         }
-        refresh()
+        if newDay || !refreshedRecently { scheduleRefresh() }
+    }
+
+    private var refreshedRecently: Bool {
+        guard let lastRefresh else { return false }
+        return Date().timeIntervalSince(lastRefresh) < 30
+    }
+
+    // MARK: The day
+
+    /// The clock moved on (the day start, a day change, a clock or time-zone change, waking from
+    /// sleep, the Mac app coming to the front): a new day refreshes everything.
+    func checkDay() {
+        guard rollDay() else { return }
+        refresh(reason: "day")
+    }
+
+    /// Moves `today` on when the diary day changed – and the shown day with it when it was the old
+    /// today – and plans the routines' meals for the new days. True when the day changed.
+    @discardableResult
+    private func rollDay() -> Bool {
+        let newToday = settings.today()
+        scheduleDayChange(after: newToday)
+        guard newToday != today else { return false }
+        let old = today
+        today = newToday
+        if selectedDay == old { selectedDay = newToday }
+        AppLog.info("New day: \(newToday.rawValue)", category: "app")
+        guard !isSandbox, !launch.isDemo else { return true }
+        if launchPlansDone { store.materializePlans(today: newToday) }
+        if launchPurgeDone { sweepTrashIfDue() }
+        return true
+    }
+
+    /// A one-off wake-up at the next diary day start (sleep pauses it; waking checks anyway).
+    private func scheduleDayChange(after day: DayKey) {
+        let start = day.adding(days: 1).start(dayStartHour: settings.dayStartHour)
+        guard start != nextDayStart else { return }
+        nextDayStart = start
+        dayTask?.cancel()
+        let wait = max(1, start.timeIntervalSinceNow + 1)
+        dayTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(wait))
+            guard !Task.isCancelled, let self else { return }
+            self.nextDayStart = nil
+            self.checkDay()
+        }
+    }
+
+    private func observeDayChanges() {
+        let center = NotificationCenter.default
+        var names: [Notification.Name] = [.NSCalendarDayChanged]
+        #if os(iOS)
+        names.append(UIApplication.significantTimeChangeNotification)
+        #elseif os(macOS)
+        // The Mac window stays active overnight: coming to the front checks the day too.
+        names.append(NSApplication.didBecomeActiveNotification)
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil,
+                                                                           queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkDay() }
+        })
+        #endif
+        for name in names {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.checkDay() }
+            })
+        }
+        scheduleDayChange(after: today)
+    }
+
+    // MARK: After the launch's first sync
+
+    /// Planning the routines' meals and sweeping the trash wait for this launch's first iCloud
+    /// import (or a while without one): a device that was off for a while would otherwise plan
+    /// meals again that another device planned or deleted, or delete for good a record another
+    /// device restored.
+    private func startLaunchWork() {
+        guard mode.isSynced else {
+            runLaunchPlans()
+            runLaunchPurge()
+            return
+        }
+        observers.append(NotificationCenter.default.addObserver(forName: NSPersistentCloudKitContainer.eventChangedNotification,
+                                                                object: nil, queue: .main) { [weak self] note in
+            guard let event = note.userInfo?[NSPersistentCloudKitContainer.eventNotificationUserInfoKey]
+                as? NSPersistentCloudKitContainer.Event, event.type == .import, event.endDate != nil else { return }
+            let succeeded = event.succeeded
+            MainActor.assumeIsolated {
+                self?.runLaunchPlans()
+                if succeeded { self?.runLaunchPurge() }
+            }
+        })
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            self?.runLaunchPlans()
+        }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(60))
+            self?.runLaunchPurge()
+        }
+    }
+
+    private func runLaunchPlans() {
+        guard !launchPlansDone else { return }
+        launchPlansDone = true
+        let store = self.store
+        store.materializePlans(today: today)
+        // Also without routines: copies made by other devices.
+        store.removeDuplicatePlans(from: today, through: today.adding(days: 3))
+    }
+
+    private func runLaunchPurge() {
+        guard !launchPurgeDone else { return }
+        launchPurgeDone = true
+        sweepTrashIfDue()
+    }
+
+    /// Empties the trash of what is past its time, at most once a day.
+    private func sweepTrashIfDue() {
+        let key = "nina.trash.sweptDay"
+        guard UserDefaults.standard.string(forKey: key) != today.rawValue else { return }
+        UserDefaults.standard.set(today.rawValue, forKey: key)
+        store.purgeExpired()
     }
 
     // MARK: Logging with Undo
 
+    /// Logs a food; a saved meal logs all its foods (with the time and amount given, if any).
     @discardableResult
     func log(_ record: FoodRecord, amount: AmountText, day: DayKey, meal: String, time: Date? = nil,
              status: EntryStatus = .eaten, source: String = "search") -> LogEntry? {
         if record.ref.kind == .recipe, let id = record.recordID, let recipe = store.recipe(id), recipe.recipeKind == .meal {
-            logRecipe(recipe, day: day, meal: meal, status: status)
+            logRecipe(recipe, amount: amount, day: day, meal: meal, time: time, status: status)
             return nil
         }
         if record.recordID != nil, record.ref.kind != .recipe { store.rememberAmount(amount.total, for: record) }
         let entry = store.log(record, amount: amount, day: day, meal: meal, time: time, status: status, source: source, language: language)
         let verb = status == .planned ? "Planned" : "Added"
-        toasts.show("\(verb) \(entry.displayName) · \(Fmt.energy(entry.energy, unit: energyUnit))", symbol: "checkmark.circle.fill") { [weak self] in
+        toasts.show("\(verb) \(entry.displayName) \(destination(day, meal, status)) · \(Fmt.energy(entry.energy, unit: energyUnit))",
+                    symbol: "checkmark.circle.fill") { [weak self] in
             self?.store.purge([entry])
         }
         return entry
     }
 
-    func logRecipe(_ recipe: Recipe, amount: AmountText? = nil, day: DayKey, meal: String, status: EntryStatus = .eaten) {
-        let entries = store.logRecipe(recipe, amount: amount, day: day, meal: meal, status: status, source: "recipe", language: language)
+    /// A saved meal (all its foods) or a recipe portion; `time` nil: the meal's usual time (now on today).
+    func logRecipe(_ recipe: Recipe, amount: AmountText? = nil, day: DayKey, meal: String, time: Date? = nil,
+                   status: EntryStatus = .eaten) {
+        let entries = store.logRecipe(recipe, amount: amount, day: day, meal: meal, time: time, status: status,
+                                      source: "recipe", language: language)
         let energy = entries.map(\.energy).reduce(0, +)
-        toasts.show("Added \(recipe.displayName) · \(Fmt.energy(energy, unit: energyUnit))", symbol: "checkmark.circle.fill") { [weak self] in
+        let verb = status == .planned ? "Planned" : "Added"
+        toasts.show("\(verb) \(recipe.displayName) \(destination(day, meal, status)) · \(Fmt.energy(energy, unit: energyUnit))",
+                    symbol: "checkmark.circle.fill") { [weak self] in
             self?.store.purge(entries)
         }
+    }
+
+    /// Where something was logged, for its toast: "to Breakfast", "to yesterday's Lunch",
+    /// "for tomorrow's Dinner", "to Lunch on Mon, 17 Nov".
+    private func destination(_ day: DayKey, _ meal: String, _ status: EntryStatus = .eaten) -> String {
+        let name = settings.meal(meal).name
+        let word = status == .planned ? "for" : "to"
+        switch today.days(to: day) {
+        case 0: return "\(word) \(name)"
+        case -1: return "\(word) yesterday's \(name)"
+        case 1: return "\(word) tomorrow's \(name)"
+        default: return "\(word) \(name) on \(Fmt.dayTitle(day, today: today))"
+        }
+    }
+
+    /// "today", "yesterday", "tomorrow" or "Mon, 17 Nov" inside a sentence.
+    private func dayPhrase(_ day: DayKey) -> String {
+        abs(today.days(to: day)) <= 1 ? Fmt.dayTitle(day, today: today).lowercased() : Fmt.dayTitle(day, today: today)
     }
 
     /// Logs every resolved line of a quick-add preview.
@@ -191,14 +387,17 @@ final class AppModel {
         guard !created.isEmpty else { return }
         let energy = created.map(\.energy).reduce(0, +)
         let label = created.count == 1 ? created[0].displayName : "\(created.count) foods"
-        toasts.show("Added \(label) · \(Fmt.energy(energy, unit: energyUnit))", symbol: "checkmark.circle.fill") { [weak self] in
+        let verb = status == .planned ? "Planned" : "Added"
+        toasts.show("\(verb) \(label) \(destination(day, meal, status)) · \(Fmt.energy(energy, unit: energyUnit))",
+                    symbol: "checkmark.circle.fill") { [weak self] in
             self?.store.purge(created)
         }
     }
 
     func logQuick(name: String, nutrients: NutrientValues, day: DayKey, meal: String) {
         let entry = store.logQuick(name: name, nutrients: nutrients, day: day, meal: meal)
-        toasts.show("Added \(entry.displayName) · \(Fmt.energy(entry.energy, unit: energyUnit))", symbol: "checkmark.circle.fill") { [weak self] in
+        toasts.show("Added \(entry.displayName) \(destination(day, meal)) · \(Fmt.energy(entry.energy, unit: energyUnit))",
+                    symbol: "checkmark.circle.fill") { [weak self] in
             self?.store.purge([entry])
         }
     }
@@ -232,11 +431,38 @@ final class AppModel {
         }
     }
 
+    /// Copies entries to a day. A planned copy leaves out what a routine already plans there.
     func copy(_ entries: [LogEntry], to day: DayKey, status: EntryStatus = .eaten) {
+        guard !entries.isEmpty else { return }
         let copies = store.copy(entries, to: day, status: status)
+        guard !copies.isEmpty else {
+            toasts.show("Already planned for \(dayPhrase(day))", symbol: "calendar")
+            return
+        }
         let what = copies.count == 1 ? copies[0].displayName : "\(copies.count) entries"
-        toasts.show("Copied \(what) to \(Fmt.dayTitle(day, today: today).lowercased())", symbol: "doc.on.doc.fill") { [weak self] in
+        toasts.show("Copied \(what) to \(dayPhrase(day))", symbol: "doc.on.doc.fill") { [weak self] in
             self?.store.purge(copies)
+        }
+    }
+
+    /// "Plan the Week Like Last Week": what was eaten 7 days earlier, planned on each of `days`
+    /// that has nothing planned yet (a routine's meals are left out where the routine plans them).
+    /// One Undo takes it all out again.
+    func planLikeLastWeek(_ days: [DayKey]) {
+        let store = self.store
+        var created: [LogEntry] = []
+        for day in days where !store.entries(on: day).contains(where: \.isPlanned) {
+            let source = store.entries(on: day.adding(days: -7)).filter(\.isEaten)
+            guard !source.isEmpty else { continue }
+            created += store.copy(source, to: day, status: .planned)
+        }
+        guard !created.isEmpty else {
+            toasts.show("Nothing to copy from last week", symbol: "calendar.badge.plus")
+            return
+        }
+        let what = created.count == 1 ? "1 food" : "\(created.count) foods"
+        toasts.show("Planned \(what) like last week", symbol: "calendar.badge.plus") { [weak self] in
+            self?.store.purge(created)
         }
     }
 
@@ -298,10 +524,70 @@ final class AppModel {
         }
     }
 
+    // MARK: Routines
+
+    /// Deletes a routine and its planned meals the person hasn't touched, from today on (their
+    /// reminders go with them). One Undo brings both back.
     func trash(_ rule: PlanRule) {
+        let store = self.store
+        let retired = store.retirePlans(store.untouchedPlans(of: rule, from: today), saveNow: false)
         let trashed = store.trash([rule])
-        toasts.show("Routine deleted", symbol: "trash.fill") { [weak self] in
-            self?.store.restore(trashed)
+        toasts.show(retired.isEmpty ? "Routine deleted" : "Routine and its planned meals deleted", symbol: "trash.fill") { [weak self] in
+            guard let self else { return }
+            let store = self.store
+            store.bringBack(retired, saveNow: false)
+            store.restore(trashed)
+        }
+    }
+
+    /// Pauses or resumes a routine. Paused, its untouched planned meals from today on go too (Undo
+    /// brings them and the routine back); resumed, it plans its meals again.
+    func setActive(_ rule: PlanRule, _ active: Bool) {
+        guard rule.isActive != active else { return }
+        let store = self.store
+        guard !active else {
+            store.setActive(rule, true)
+            store.materializePlans(today: today)
+            return
+        }
+        let retired = store.retirePlans(store.untouchedPlans(of: rule, from: today), saveNow: false)
+        store.setActive(rule, false)
+        toasts.show(retired.isEmpty ? "Routine paused" : "Routine paused · its planned meals are gone",
+                    symbol: "pause.circle") { [weak self] in
+            guard let self else { return }
+            let store = self.store
+            store.bringBack(retired, saveNow: false)
+            store.setActive(rule, true)
+        }
+    }
+
+    /// Saves a routine from its editor and plans its meals. Changing what it plans (meal, time,
+    /// days) replaces its planned meals that aren't confirmed yet; Undo puts the routine and those
+    /// meals back. Asks for notification permission only where planned meals are announced.
+    func saveRoutine(_ rule: PlanRule?, recipe: Recipe, meal: String, minutes: Int, weekdays: Weekdays, notify: Bool) {
+        let store = self.store
+        let before = rule.map { NinaStore.RoutineFields($0) }
+        let saved = store.savePlanRule(rule, recipe: recipe, meal: meal, minutes: minutes, weekdays: weekdays,
+                                       notify: notify, startDay: rule?.start ?? today)
+        var retired = NinaStore.RetiredPlans()
+        if let before, before.plansDiffer(from: NinaStore.RoutineFields(saved)) {
+            retired = store.retirePlans(store.untouchedPlans(of: saved, from: today))
+        }
+        let prefix = PlanSchedule.keyPrefix(rule: saved.uuid)
+        let planned = store.materializePlans(today: today).filter { $0.planKey.hasPrefix(prefix) }
+        let scheduler = NotificationScheduler.shared
+        if notify, scheduler.plannedEnabled { Task { _ = await scheduler.requestAuthorization() } }
+        guard let before, !retired.isEmpty else {
+            toasts.show("Routine saved · \(weekdays.summary)", symbol: "calendar.badge.clock")
+            return
+        }
+        toasts.show("Routine saved · planned meals updated", symbol: "calendar.badge.clock") { [weak self] in
+            guard let self else { return }
+            let store = self.store
+            store.retirePlans(planned, saveNow: false)
+            store.bringBack(retired, saveNow: false)
+            before.write(to: saved)
+            store.save()
         }
     }
 
@@ -642,7 +928,9 @@ final class AppModel {
 
     // MARK: URLs
 
-    /// nina://add, nina://water?ml=250, nina://quick, nina://today, nina://weigh[?value=74.2[&check=1]]
+    /// nina://add[?meal=<slot id>&day=<yyyy-mm-dd>] (a meal the settings have; a day up to today),
+    /// nina://water[?ml=250] (no ml: the glass size), nina://quick, nina://today[?day=<yyyy-mm-dd>],
+    /// nina://weigh[?value=74.2[&check=1]]
     /// (check: always show the sheet first), nina://measure?mode=weekly|full|assessment|<site key>
     /// (waist, arm_l …: that site only; assessment: the body-fat sheet), nina://checkin,
     /// nina://daytype/<id> (no id: back to the schedule), nina://check/<id>[?state=done|skipped|open]
@@ -656,8 +944,14 @@ final class AppModel {
             let path = url.pathComponents.first { $0 != "/" }
             switch url.host ?? "" {
             case "add":
-                show(day: today)
-                present(.addFood(day: today, meal: nil))
+                // A reminder's "Log Now" says which meal and day it was about.
+                let day = query("day").flatMap { DayKey($0) }.map { min($0, today) } ?? today
+                let meals = settings.meals
+                let meal: String? = query("meal").flatMap { id -> String? in meals.contains(where: { $0.id == id }) ? id : nil }
+                show(day: day)
+                present(.addFood(day: day, meal: meal))
+            case "today":
+                show(day: query("day").flatMap { DayKey($0) } ?? today)
             case "water":
                 let amount = parts?.queryItems?.first { $0.name == "ml" }?.value.flatMap(Double.init) ?? settings.waterGlass
                 show(day: today)

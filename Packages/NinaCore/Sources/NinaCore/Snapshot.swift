@@ -28,8 +28,33 @@ public struct TodaySnapshot: Codable, Equatable, Sendable {
     public var dayTypeEmoji: String?
     /// Picked by hand rather than by the schedule.
     public var dayTypeIsManual: Bool?
-    /// The next day's goals and day type, for the widget's entry after midnight.
+    /// The next day's goals and day type, for the widget's entry after the day changes.
     public var tomorrow: Goals?
+    /// The hour the diary day starts (Settings → Day starts at); nil in files of older builds,
+    /// which means midnight. The widget's day and its change follow it.
+    public var dayStartHour: Int?
+    /// The planned meals still to come today and tomorrow, so the widget's "next planned" line
+    /// moves on by itself (`timeline`); nil in files of older builds.
+    public var planned: [PlannedItem]?
+
+    /// A planned meal on the widget: "Lunch · 12:30" at its time on its diary day.
+    public struct PlannedItem: Codable, Equatable, Sendable {
+        public var day: String
+        public var time: Date
+        public var text: String
+
+        public init(day: DayKey, time: Date, text: String) {
+            self.day = day.rawValue
+            self.time = time
+            self.text = text
+        }
+    }
+
+    /// One widget timeline entry: the snapshot to show from `date` on.
+    public struct TimelinePoint: Equatable, Sendable {
+        public var date: Date
+        public var snapshot: TodaySnapshot
+    }
 
     /// A day's goals and day type (the snapshot's next day).
     public struct Goals: Codable, Equatable, Sendable {
@@ -108,26 +133,90 @@ public struct TodaySnapshot: Codable, Equatable, Sendable {
         return emoji + " "
     }
 
-    /// An empty day (shown after midnight until the app writes a new snapshot): the next day's
-    /// goals and day type when the snapshot has them, else the same goals without a day type.
+    /// An empty day (shown after the day changed until the app writes a new snapshot): the next
+    /// day's goals and day type when the snapshot has them, else the same goals without a day type.
+    /// The day start and the planned meals stay.
     public func emptied(for day: DayKey) -> TodaySnapshot {
+        var snapshot: TodaySnapshot
         if let next = tomorrow, next.day == day.rawValue {
-            var snapshot = TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: next.energyGoal, protein: 0, proteinGoal: next.proteinGoal,
-                                         carbs: 0, carbsGoal: next.carbsGoal, fat: 0, fatGoal: next.fatGoal, water: 0,
-                                         waterGoal: next.waterGoal, nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
+            snapshot = TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: next.energyGoal, protein: 0, proteinGoal: next.proteinGoal,
+                                     carbs: 0, carbsGoal: next.carbsGoal, fat: 0, fatGoal: next.fatGoal, water: 0,
+                                     waterGoal: next.waterGoal, nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
             snapshot.dayTypeID = next.dayTypeID
             snapshot.dayTypeName = next.dayTypeName
             snapshot.dayTypeEmoji = next.dayTypeEmoji
-            return snapshot
+        } else {
+            snapshot = TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: energyGoal, protein: 0, proteinGoal: proteinGoal,
+                                     carbs: 0, carbsGoal: carbsGoal, fat: 0, fatGoal: fatGoal, water: 0, waterGoal: waterGoal,
+                                     nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
         }
-        return TodaySnapshot(day: day.rawValue, energy: 0, energyGoal: energyGoal, protein: 0, proteinGoal: proteinGoal,
-                             carbs: 0, carbsGoal: carbsGoal, fat: 0, fatGoal: fatGoal, water: 0, waterGoal: waterGoal,
-                             nextPlanned: nil, energyUnit: energyUnit, updatedAt: updatedAt)
+        snapshot.dayStartHour = dayStartHour
+        snapshot.planned = planned
+        return snapshot
     }
 
     /// The snapshot for `today` – emptied when it is from an earlier day.
     public func current(today: DayKey) -> TodaySnapshot {
         day == today.rawValue ? self : emptied(for: today)
+    }
+
+    /// The diary day `now` counts for, with the snapshot's day start.
+    public func today(now: Date, calendar: Calendar = .current) -> DayKey {
+        DayKey(date: now, calendar: calendar, dayStartHour: dayStartHour ?? 0)
+    }
+
+    /// When the diary day after the one `now` counts for starts (the widget's day change).
+    public func nextDayStart(after now: Date, calendar: Calendar = .current) -> Date {
+        today(now: now, calendar: calendar).adding(days: 1, calendar: calendar)
+            .start(dayStartHour: dayStartHour ?? 0, calendar: calendar)
+    }
+
+    /// The snapshot as the widget shows it at `now`: its diary day (emptied once that day is over)
+    /// and the next planned meal still to come on it.
+    public func current(now: Date, calendar: Calendar = .current) -> TodaySnapshot {
+        shown(on: today(now: now, calendar: calendar), at: now, including: true)
+    }
+
+    /// The widget's timeline from `now`: now, each planned meal's time (the line moves on to the
+    /// next one), the next diary day's start (an empty day with its own goals and planned meals),
+    /// and that day's planned times. The widget asks again after the last entry.
+    public func timeline(now: Date, calendar: Calendar = .current) -> [TimelinePoint] {
+        let today = today(now: now, calendar: calendar)
+        let change = nextDayStart(after: now, calendar: calendar)
+        let nextDay = today.adding(days: 1, calendar: calendar)
+        let afterChange = nextDay.adding(days: 1, calendar: calendar).start(dayStartHour: dayStartHour ?? 0, calendar: calendar)
+        var points = [TimelinePoint(date: now, snapshot: current(now: now, calendar: calendar))]
+        for time in plannedTimes(on: today, after: now, before: change) {
+            points.append(TimelinePoint(date: time, snapshot: shown(on: today, at: time)))
+        }
+        points.append(TimelinePoint(date: change, snapshot: shown(on: nextDay, at: change, including: true)))
+        for time in plannedTimes(on: nextDay, after: change, before: afterChange) {
+            points.append(TimelinePoint(date: time, snapshot: shown(on: nextDay, at: time)))
+        }
+        return points
+    }
+
+    /// The snapshot for `day` from `date` on, with the next planned meal after that moment (a file
+    /// of an older build keeps its one line).
+    private func shown(on day: DayKey, at date: Date, including: Bool = false) -> TodaySnapshot {
+        var snapshot = current(today: day)
+        if planned != nil {
+            snapshot.nextPlanned = nextPlannedText(on: day.rawValue, from: date, including: including)
+        }
+        return snapshot
+    }
+
+    /// The first planned meal on `day` at or after (`including`) or after `date`.
+    private func nextPlannedText(on day: String, from date: Date, including: Bool) -> String? {
+        guard let planned else { return nil }
+        return planned.filter { $0.day == day && (including ? $0.time >= date : $0.time > date) }
+            .min { $0.time < $1.time }?.text
+    }
+
+    /// The distinct planned times on `day` inside (`start`, `end`), at most 8.
+    private func plannedTimes(on day: DayKey, after start: Date, before end: Date) -> [Date] {
+        let times = (planned ?? []).filter { $0.day == day.rawValue && $0.time > start && $0.time < end }.map(\.time)
+        return Array(Set(times).sorted().prefix(8))
     }
 
     public var remaining: Double { energyGoal - energy }
