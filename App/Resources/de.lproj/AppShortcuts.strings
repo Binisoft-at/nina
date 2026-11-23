@@ -1,0 +1,34 @@
+/*
+  German phrases for Siri (App Shortcuts). One German phrase per English phrase in
+  App/Sources/Services/Intents.swift (NinaShortcuts): the key is the English phrase with
+  ${applicationName} for "Nina" and ${dayType} / ${check} for the plan's day type or check.
+  Every phrase keeps ${applicationName}, and a phrase with a parameter keeps it too.
+  Only Siri and Shortcuts read this file; Nina's own screens stay English.
+*/
+
+/* Log Food */
+"Log food in ${applicationName}" = "Essen in ${applicationName} eintragen";
+"Add food to ${applicationName}" = "Essen zu ${applicationName} hinzufügen";
+
+/* Log Water */
+"Log water in ${applicationName}" = "Wasser in ${applicationName} eintragen";
+"Add a glass of water in ${applicationName}" = "Ein Glas Wasser in ${applicationName} eintragen";
+
+/* Calories Left Today */
+"Calories left in ${applicationName}" = "Wie viele Kalorien habe ich noch in ${applicationName}";
+"How many calories are left in ${applicationName}" = "Wie viele Kalorien sind noch übrig in ${applicationName}";
+
+/* Log Weight */
+"Log weight in ${applicationName}" = "Gewicht in ${applicationName} eintragen";
+"Log my weight in ${applicationName}" = "Mein Gewicht in ${applicationName} eintragen";
+"Weigh in with ${applicationName}" = "Gewicht mit ${applicationName} erfassen";
+
+/* Set Day Type ("Heute ist ein Tennistag in Nina": Siri also knows each day type as "<Name>tag") */
+"Today is a ${dayType} in ${applicationName}" = "Heute ist ein ${dayType} in ${applicationName}";
+"Today is ${dayType} in ${applicationName}" = "Heute ist ${dayType} in ${applicationName}";
+"Set the day type in ${applicationName}" = "Tagestyp in ${applicationName} festlegen";
+
+/* Mark Check Done */
+"Mark ${check} done in ${applicationName}" = "${check} in ${applicationName} abhaken";
+"${check} done in ${applicationName}" = "${check} in ${applicationName} erledigt";
+"Tick off a check in ${applicationName}" = "Einen Check in ${applicationName} abhaken";

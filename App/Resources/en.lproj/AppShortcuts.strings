@@ -1,0 +1,31 @@
+/*
+  English phrases for Siri (App Shortcuts): the same as in App/Sources/Services/Intents.swift
+  (NinaShortcuts), so every language Nina declares has its file. German: de.lproj.
+*/
+
+/* Log Food */
+"Log food in ${applicationName}" = "Log food in ${applicationName}";
+"Add food to ${applicationName}" = "Add food to ${applicationName}";
+
+/* Log Water */
+"Log water in ${applicationName}" = "Log water in ${applicationName}";
+"Add a glass of water in ${applicationName}" = "Add a glass of water in ${applicationName}";
+
+/* Calories Left Today */
+"Calories left in ${applicationName}" = "Calories left in ${applicationName}";
+"How many calories are left in ${applicationName}" = "How many calories are left in ${applicationName}";
+
+/* Log Weight */
+"Log weight in ${applicationName}" = "Log weight in ${applicationName}";
+"Log my weight in ${applicationName}" = "Log my weight in ${applicationName}";
+"Weigh in with ${applicationName}" = "Weigh in with ${applicationName}";
+
+/* Set Day Type ("Today is a Tennis day in Nina": Siri also knows each day type as "<Name> day") */
+"Today is a ${dayType} in ${applicationName}" = "Today is a ${dayType} in ${applicationName}";
+"Today is ${dayType} in ${applicationName}" = "Today is ${dayType} in ${applicationName}";
+"Set the day type in ${applicationName}" = "Set the day type in ${applicationName}";
+
+/* Mark Check Done */
+"Mark ${check} done in ${applicationName}" = "Mark ${check} done in ${applicationName}";
+"${check} done in ${applicationName}" = "${check} done in ${applicationName}";
+"Tick off a check in ${applicationName}" = "Tick off a check in ${applicationName}";
