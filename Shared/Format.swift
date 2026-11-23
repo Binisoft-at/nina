@@ -57,19 +57,22 @@ enum Fmt {
         number((fraction * 100).rounded(), decimals: 0) + " %"
     }
 
-    /// Amount for an entry: "150 g", "2 × slice (60 g)".
+    /// Amount for an entry: "150 g", "2 × slice (60 g)", "1 glass (250 ml)" (a portion label's own
+    /// bracket isn't repeated), "200 g (194 ml)", "½ serving".
     static func amount(_ amount: AmountText) -> String {
-        let total = amount.total
-        let base = amount.baseUnit
-        if amount.isBaseUnit {
-            if base == .serving {
-                return "\(AmountText.quantity(amount.quantity)) \(amount.quantity == 1 ? "serving" : "servings")"
-            }
-            return number(amount.quantity, decimals: amount.quantity < 10 ? 1 : 0) + " " + base.symbol
-        }
-        let weight = base == .serving ? "" : " (" + number(total.rounded(), decimals: 0) + " " + base.symbol + ")"
-        if amount.quantity == 1 { return "1 \(amount.unitLabel)\(weight)" }
-        return "\(AmountText.quantity(amount.quantity)) × \(amount.unitLabel)\(weight)"
+        amount.text(count: AmountText.quantity, measure: { number($0, decimals: $0 < 10 ? 1 : 0) })
+    }
+
+    /// A number for an input field: the person's decimal separator, no grouping, no trailing zeros
+    /// ("12,5", "1046") – what the keyboard types, so editing it never mixes "." and ",".
+    static func editableNumber(_ value: Double, decimals: Int = 2) -> String {
+        guard value.isFinite else { return "" }
+        return value.formatted(.number.precision(.fractionLength(0...max(0, decimals))).grouping(.never))
+    }
+
+    /// The amount field's text: "½", "1¼", "12,5" – precise enough that showing it never changes it.
+    static func amountField(_ value: Double) -> String {
+        AmountText.fieldText(value, decimalSeparator: Locale.current.decimalSeparator ?? ".")
     }
 
     /// Today / Yesterday / Tomorrow / "Mon, 10 Nov"
