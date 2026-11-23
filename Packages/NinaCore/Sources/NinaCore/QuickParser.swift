@@ -136,15 +136,20 @@ public enum QuickParser {
 
     /// Splits "3 eggs 2 toast" before a new number – only when the part starts with a number and
     /// both sides name a food, so "Cola 0,5 l", "Joghurt 3,5%" and "Rotwein 1 Achtel" stay whole.
+    /// A percentage is part of a name ("1 Joghurt 0,1 % Fett").
     static func splitOnAmounts(_ part: String) -> [String] {
         let words = part.split(separator: " ").map(String.init)
         guard words.count >= 4, let first = words.first, leadingNumber(first) != nil || multiplierToken(first) != nil else {
             return [part]
         }
+        func isPercent(_ index: Int) -> Bool {
+            if let (_, rest) = leadingNumber(words[index]), rest.hasPrefix("%") { return true }
+            return index + 1 < words.count && words[index + 1].hasPrefix("%")
+        }
         var result: [String] = []
         var current: [String] = []
         for (index, word) in words.enumerated() {
-            if index > 1, current.count > 1, leadingNumber(word) != nil,
+            if index > 1, current.count > 1, leadingNumber(word) != nil, !isPercent(index),
                namesFood(current.joined(separator: " ")),
                namesFood(words[index...].joined(separator: " ")) {
                 result.append(current.joined(separator: " "))

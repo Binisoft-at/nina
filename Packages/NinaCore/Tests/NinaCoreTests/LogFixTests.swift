@@ -68,6 +68,9 @@ struct QuickAddPhrasingTests {
         #expect(QuickParser.parse("Pizza 4 Jahreszeiten").count == 1)
         #expect(QuickParser.parse("1 Glas Milch 3,5 %").count == 1)
         #expect(QuickParser.parse("2 Eier 2 Stück").count == 1)
+        #expect(QuickParser.parse("1 Joghurt 0,1 % Fett").count == 1)
+        #expect(QuickParser.parse("1 Joghurt 0,1% Fett").count == 1)
+        #expect(QuickParser.parse("1 Joghurt 0,1 % Fett").first?.query == "Joghurt 0,1 % Fett")
     }
 
     @Test func joinersSplitOnSecondTry() throws {
