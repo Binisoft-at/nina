@@ -6,7 +6,7 @@ import Foundation
 // and written back with every key it had, also the ones a newer version of Nina added, so an
 // older device never throws away what a newer one wrote. Owner doc: docs/THALIA.md.
 
-/// The settings that sync to every device, as `{"v":1,"thaliaDeliver":false}`.
+/// The settings that sync to every device, as `{"thaliaDeliver":false,"v":1}` (sorted keys).
 public struct SyncedSettings: Equatable, Sendable {
     /// The format version Nina writes into "v".
     public static let version = 1

@@ -686,6 +686,56 @@ struct ThaliaExchangeTests {
         #expect(String(decoding: data, as: UTF8.self).contains(#""unit":"kg","value":75.2}"#))
     }
 
+    @Test func aWeighInWithoutADiaryDayCountsOnTheDayOfItsTime() throws {
+        // 23:30 UTC on the 22nd is 00:30 on the 23rd in Vienna.
+        let weighIn = Self.weighIn("w-no-day", "2026-11-22T23:30:00Z", 75.34, day: "")
+        let vienna = Self.weights([weighIn], today: "2026-11-23")
+        #expect(Array(vienna.keys) == ["2026-11-23"])
+        #expect(vienna["2026-11-23"]?.first?.at == "2026-11-23T00:30:00+01:00")
+        #expect(Self.value(vienna["2026-11-23"], "body_weight_kg") == 75.3)
+        // In UTC it is still the 22nd, and `at` ends in Z.
+        let utc = ThaliaFeed.facts(food: [], water: [], weights: [weighIn], today: "2026-11-23", timeZone: Self.utc)
+        #expect(Array(utc.keys) == ["2026-11-22"])
+        #expect(utc["2026-11-22"]?.first?.at == "2026-11-22T23:30:00Z")
+    }
+
+    @Test func aDeletedWeighInLeavesItsDayFile() throws {
+        let folder = TemporaryFolder()
+        let url = BinisoftExchange.dayFileURL(appFolder: folder.app, day: Self.today)
+        let weighIn = Self.weighIn("w-only", "2026-11-22T07:00:00+01:00", 75.0)
+        #expect(try ThaliaExchangeWriter.sync(Self.weights([weighIn]), source: ThaliaFeed.source, appFolder: folder.app,
+                                              today: Self.today, now: Self.time("2026-11-22T08:00:00+01:00"),
+                                              timeZone: Self.vienna))
+        let written = try ExchangeReader.dayFile(Data(contentsOf: url), folder: "Nina", fileName: "2026-11-22.json").get()
+        #expect(written.file.facts.map(\.id) == ["body_weight_kg-2026-11-22"])
+        // Deleted (here or on another device): the day had a file, so it is rewritten empty and
+        // Thalia removes the weight.
+        var deleted = weighIn
+        deleted.isDeleted = true
+        #expect(try ThaliaExchangeWriter.sync(Self.weights([deleted]), source: ThaliaFeed.source, appFolder: folder.app,
+                                              today: Self.today, now: Self.time("2026-11-22T09:00:00+01:00"),
+                                              timeZone: Self.vienna))
+        let emptied = try ExchangeReader.dayFile(Data(contentsOf: url), folder: "Nina", fileName: "2026-11-22.json").get()
+        #expect(emptied.file.facts.isEmpty)
+        #expect(emptied.skipped.isEmpty)
+    }
+
+    @Test func aMetricIsLeftOutPerDay() throws {
+        // The 21st has a quick entry with calories only, the 22nd the full meals.
+        let quick = ThaliaFeed.FoodRecord(id: "quick-21", day: "2026-11-21", time: Self.time("2026-11-21T12:00:00+01:00"),
+                                          energy: 600, protein: nil, carbs: nil, fat: nil)
+        let facts = Self.facts(Self.meals + [quick], [])
+        #expect(facts["2026-11-21"]?.compactMap(\.metric) == ["kcal"])
+        #expect(facts["2026-11-22"]?.compactMap(\.metric).sorted() == ["carbs_g", "fat_g", "kcal", "protein_g"])
+        // A planned entry's protein that day doesn't bring the protein back.
+        var planned = Self.meals[0]
+        planned.id = "planned-21"
+        planned.day = "2026-11-21"
+        planned.time = Self.time("2026-11-21T18:00:00+01:00")
+        planned.isEaten = false
+        #expect(Self.facts([quick, planned], [])["2026-11-21"]?.compactMap(\.metric) == ["kcal"])
+    }
+
     // MARK: Settings → Thalia (German)
 
     @Test func theStatusLineIsGerman() {
