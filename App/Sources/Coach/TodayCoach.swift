@@ -165,6 +165,8 @@ struct TodayCoachPhaseLine: Equatable, Sendable {
     var progress: Double?
     /// Coaching is paused ("Paused · until 12 Feb"): the line offers Resume.
     var isPaused = false
+    /// The phase has a pace range (without one the status reads "No rate set").
+    var hasPace = true
 
     /// The active phase of today; nil without a set-up plan or without a running phase.
     @MainActor
@@ -177,6 +179,7 @@ struct TodayCoachPhaseLine: Equatable, Sendable {
         tone = header.tone
         progress = header.progress
         isPaused = header.isPaused
+        hasPace = header.rate != nil
     }
 
     /// "Lean gain, week 3 of 16, In range"

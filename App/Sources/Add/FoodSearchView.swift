@@ -267,7 +267,7 @@ struct FoodSearchView: View {
                     resultRow(record)
                 }
             } header: {
-                Text(mealHint)
+                resultsHeader(mealHint, info: LogInfo.mostlyAt(mealHint))
             }
             Section {
                 ForEach(results.dropFirst(lead)) { record in
@@ -282,9 +282,27 @@ struct FoodSearchView: View {
                     resultRow(record)
                 }
             } header: {
-                if !results.isEmpty { Text(resultsTitle) }
+                if !results.isEmpty { resultsHeader(resultsTitle, info: recentInfo) }
             }
         }
+    }
+
+    /// A results header, with an ⓘ when it has one.
+    @ViewBuilder
+    private func resultsHeader(_ title: String, info: LogInfo.Note?) -> some View {
+        if let info {
+            Text(title).info(info.title, info.text)
+        } else {
+            Text(title)
+        }
+    }
+
+    /// The ⓘ of the plain Recent list while logging (no food leads for the meal yet): how it
+    /// sorts itself for the meal over time. nil while searching, in other scopes and when picking
+    /// an ingredient.
+    private var recentInfo: LogInfo.Note? {
+        guard mode.isLogging, text.isEmpty, scope == .all || scope == .recent else { return nil }
+        return LogInfo.recent
     }
 
     private func resultRow(_ record: FoodRecord) -> some View {
@@ -393,6 +411,7 @@ struct FoodSearchView: View {
             .listRowBackground(Color.clear)
         } header: {
             Text("Understood")
+                .info(LogInfo.quickAdd.title, LogInfo.quickAdd.text)
         } footer: {
             Text(quickFooter)
         }

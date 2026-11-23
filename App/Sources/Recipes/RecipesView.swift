@@ -220,11 +220,18 @@ struct RecipeEditor: View {
                         TextField(kind == .meal ? "Name, e.g. Usual breakfast" : "Name, e.g. Chili con carne", text: $name)
                             .font(.headline)
                     }
-                    Picker("Type", selection: $kind) {
-                        Text("Meal").tag(RecipeKind.meal)
-                        Text("Recipe").tag(RecipeKind.recipe)
+                    LabeledContent {
+                        Picker("Type", selection: $kind) {
+                            Text("Meal").tag(RecipeKind.meal)
+                            Text("Recipe").tag(RecipeKind.recipe)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    } label: {
+                        Text("Type")
+                            .info(RecipeEditorInfo.kind.title, RecipeEditorInfo.kind.text)
                     }
-                    .pickerStyle(.segmented)
                 } footer: {
                     Text(kind == .meal ? "Logging a meal adds each food separately – you can still change one later." : "Logging a recipe adds one entry: a portion or a weight of the cooked dish.")
                 }
@@ -260,6 +267,7 @@ struct RecipeEditor: View {
                         Stepper("Makes \(AmountText.quantity(servings)) \(servings == 1 ? "serving" : "servings")", value: $servings, in: 1...40, step: 1)
                         HStack {
                             Text("Cooked weight")
+                                .info(RecipeEditorInfo.cookedWeight.title, RecipeEditorInfo.cookedWeight.text)
                             Spacer()
                             TextField("Cooked weight", text: $cookedWeight,
                                       prompt: Text(rawWeight > 0 ? Fmt.number(rawWeight.rounded()) : "optional"))
@@ -366,6 +374,21 @@ struct RecipeEditor: View {
             dismiss()
         }
     }
+}
+
+/// The ⓘ texts of the recipe editor: meal or recipe, and the cooked weight.
+private enum RecipeEditorInfo {
+    static let kind: (title: String, text: String) = (
+        "Meal or recipe",
+        "A meal is foods you eat together, like your usual breakfast: logging it adds each food. A recipe is a dish you "
+            + "cook once and eat in portions: logging it adds one entry, by serving or by weight."
+    )
+
+    static let cookedWeight: (title: String, text: String) = (
+        "Cooked weight",
+        "Weigh the finished dish without the pot, so a weighed portion counts right. Cooking changes the weight (water "
+            + "cooks off, pasta and rice soak it up); without it Nina uses the raw ingredients' weight."
+    )
 }
 
 /// What the recipe editor's fields held when it opened.

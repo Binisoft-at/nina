@@ -77,8 +77,11 @@ struct PortionView: View {
                     }
                 }
             } else {
-                Section("Amount") {
+                Section {
                     AmountPicker(record: record, language: app.language, amount: $amount)
+                } header: {
+                    Text("Amount")
+                        .info(LogInfo.amount.title, LogInfo.amount.text)
                 }
             }
 

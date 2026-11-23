@@ -109,8 +109,11 @@ struct EntryEditor: View {
                 if isQuick {
                     quickSection
                 } else {
-                    Section("Amount") {
+                    Section {
                         AmountPicker(record: record, language: app.language, amount: $fields.amount)
+                    } header: {
+                        Text("Amount")
+                            .info(LogInfo.amount.title, LogInfo.amount.text)
                     }
                 }
                 Section {
@@ -181,10 +184,16 @@ struct EntryEditor: View {
                 }
             }
             DatePicker("When", selection: $fields.date)
-            Picker("Status", selection: $fields.status) {
-                Text("Eaten").tag(EntryStatus.eaten)
-                Text("Planned").tag(EntryStatus.planned)
-                Text("Skipped").tag(EntryStatus.skipped)
+            LabeledContent {
+                Picker("Status", selection: $fields.status) {
+                    Text("Eaten").tag(EntryStatus.eaten)
+                    Text("Planned").tag(EntryStatus.planned)
+                    Text("Skipped").tag(EntryStatus.skipped)
+                }
+                .labelsHidden()
+            } label: {
+                Text("Status")
+                    .info(LogInfo.status.title, LogInfo.status.text)
             }
         }
     }

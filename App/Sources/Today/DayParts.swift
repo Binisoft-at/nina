@@ -27,7 +27,7 @@ struct DaySummaryCard: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
                 if let chip {
-                    TodayCoachChip(chip: chip, day: day)
+                    chipRow(chip)
                         .todayCoachWorkoutHint(day: day)
                 }
                 ringRow
@@ -63,6 +63,7 @@ struct DaySummaryCard: View {
             StatTile(title: "Eaten", value: Fmt.energy(progress.energyEaten, unit: unit))
             StatTile(title: goalTitle, value: Fmt.energy(progress.energyBudget, unit: unit), detail: goalDetail)
                 .animation(.snappy, value: progress.energyBudget)
+                .info(goalInfo.title, goalInfo.text)
             if progress.totals.plannedCount > 0 {
                 Label("\(Fmt.energy(progress.totals.planned.energy, unit: unit)) planned", systemImage: "circle.dashed")
                     .font(.caption)
@@ -104,6 +105,22 @@ struct DaySummaryCard: View {
         }
     }
 
+    /// The day-type chip with its ⓘ (what a day type is and how to change it).
+    private func chipRow(_ chip: CoachBoard.Chip) -> some View {
+        let note: TodayInfo.Note = TodayInfo.dayType(hasQuota: chip.quotaText != nil)
+        return HStack(spacing: 6) {
+            TodayCoachChip(chip: chip, day: day)
+            InfoButton(note.title, note.text)
+        }
+    }
+
+    /// The goal tile's ⓘ: what "kcal left" counts (activity bonus, planned food).
+    private var goalInfo: TodayInfo.Note {
+        let settings = app.settings
+        return TodayInfo.caloriesLeft(activityBonus: progress.activityBonus, bonusShare: settings.activityBonusShare,
+                                      fromPlan: settings.plan.isSetUp)
+    }
+
     /// "Gym day goal" with a plan's day type, else "Training day goal" / "Goal"; with activity
     /// from Apple Health the budget.
     private var goalTitle: String {
@@ -119,23 +136,30 @@ struct DaySummaryCard: View {
 }
 
 /// The summary card's small lines: the week average and the protein meals, side by side when
-/// they fit, else one under the other.
+/// they fit, else one under the other, with one ⓘ for both.
 private struct DaySummaryFootnotes: View {
     let weekAverage: String?
     let proteinMeals: String?
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) {
-                lines(separated: true)
+        HStack(spacing: 4) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    lines(separated: true)
+                }
+                .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    lines(separated: false)
+                }
             }
-            .lineLimit(1)
-            VStack(alignment: .leading, spacing: 2) {
-                lines(separated: false)
-            }
+            InfoButton(note.title, note.text)
         }
         .font(.caption.monospacedDigit())
         .foregroundStyle(.secondary)
+    }
+
+    private var note: TodayInfo.Note {
+        TodayInfo.footnotes(weekAverage: weekAverage != nil, proteinMeals: proteinMeals != nil)
     }
 
     @ViewBuilder
@@ -549,6 +573,7 @@ struct WaterCard: View {
                 Label("Water", systemImage: "drop.fill")
                     .font(.headline)
                     .foregroundStyle(NutrientStyle.water)
+                InfoButton(TodayInfo.water.title, TodayInfo.water.text)
                 Spacer()
                 Text("\(Fmt.volume(total)) of \(Fmt.volume(goal))")
                     .font(.subheadline.monospacedDigit())

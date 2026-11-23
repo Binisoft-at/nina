@@ -89,6 +89,7 @@ private struct PlanWeekView: View {
             }
         } header: {
             Text("Next 7 days")
+                .info(daysInfo.title, daysInfo.text)
         } footer: {
             Text(daysFooter)
         }
@@ -130,6 +131,11 @@ private struct PlanWeekView: View {
         }
     }
 
+    /// What planned food is and, with plan day types, what the symbol on the right means.
+    private var daysInfo: (title: String, text: String) {
+        PlanInfo.days(hasDayTypes: app.settings.todayCoachHasDayTypes)
+    }
+
     private var daysFooter: String {
         #if os(macOS)
         let open = "Click a day to open it. Planned foods count once you click ✓ next to them – or answer the reminder."
@@ -151,6 +157,7 @@ private struct PlanWeekView: View {
             Button("New Routine", systemImage: "plus.circle") { app.sheet = .planRule(nil, recipe: nil) }
         } header: {
             Text("Routines")
+                .info(PlanInfo.routines.title, PlanInfo.routines.text)
         } footer: {
             Text("A routine plans a saved meal on chosen weekdays, e.g. your usual breakfast Mon–Fri at 7:30.")
         }
@@ -172,13 +179,16 @@ private struct PlanWeekView: View {
     // MARK: Plan quickly
 
     private var quickSection: some View {
-        Section("Plan quickly") {
+        Section {
             Button("Plan Tomorrow Like Today", systemImage: "calendar.badge.plus") {
                 planTomorrowLikeToday()
             }
             Button("Plan the Week Like Last Week", systemImage: "calendar") {
                 app.planLikeLastWeek(Array(days.dropFirst()))
             }
+        } header: {
+            Text("Plan quickly")
+                .info(PlanInfo.quick.title, PlanInfo.quick.text)
         }
     }
 
@@ -192,6 +202,32 @@ private struct PlanWeekView: View {
         }
         app.copy(todays, to: today.adding(days: 1), status: .planned)
     }
+}
+
+/// The ⓘ texts of the Plan tab: planned food and day types, routines, planning quickly.
+private enum PlanInfo {
+    /// "Next 7 days".
+    static func days(hasDayTypes: Bool) -> (title: String, text: String) {
+        let planned = "Planned food shows dimmed in your diary and only counts once you mark it eaten."
+        guard hasDayTypes else {
+            return ("Planned food", planned + " To plan a food, open the day and switch on Plan for later as you log it.")
+        }
+        return ("Planned food and day types",
+                planned + " The symbol on the right is the day's type, with its own calories – tinted means you picked it by "
+                    + "hand.")
+    }
+
+    static let routines: (title: String, text: String) = (
+        "Routines",
+        "A routine puts a saved meal into your diary as planned on the weekdays you choose, a few days ahead – you "
+            + "only confirm it. Switch one off to pause it."
+    )
+
+    static let quick: (title: String, text: String) = (
+        "Plan quickly",
+        "Plan Tomorrow Like Today copies today's food to tomorrow as planned. Plan the Week Like Last Week fills each of "
+            + "the next 6 days that has nothing planned yet with what you ate on that weekday last week."
+    )
 }
 
 /// "My Plan" with the running phase, at the top of the Plan tab.
