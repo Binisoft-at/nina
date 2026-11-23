@@ -461,8 +461,9 @@ enum ImportApply {
                 // Values from the file; an ingredient of the same name keeps its food link.
                 let name = SearchText.normalize(item.name)
                 let same = storedItems.first { SearchText.normalize($0.name) == name }
+                let amount = liquidChecked(item, same: same, app: app).storedAmount()
                 lines.append(RecipeLine(name: item.name, brand: same?.brand ?? "", ref: same?.ref ?? .none,
-                                        category: same?.foodCategory ?? .other, amount: item.storedAmount(), nutrients: item.nutrients))
+                                        category: same?.foodCategory ?? .other, amount: amount, nutrients: item.nutrients))
             } else if let food = app.library.bestMatch(item.name) {
                 let quick = QuickParser.amount(for: QuickItem(original: item.name, quantity: item.amount > 0 ? item.amount : item.quantity,
                                                               unit: item.amount > 0 ? .mass(1) : QuickParser.unit(for: SearchText.normalize(item.unitLabel)),
@@ -479,6 +480,39 @@ enum ImportApply {
         }
         return lines
     }
+
+    /// The meals & recipes CSV has no base column, so a drink written with a portion word ("1
+    /// glass", 250 in grams) or a liquid unit the reader takes for a portion (cl, dl) would be
+    /// stored in grams. A liquid unit (cl and dl without grams are converted), the stored
+    /// ingredient of the same name, or a drink of exactly that name in the food library makes it
+    /// ml again. Anything else stays as the file says.
+    static func liquidChecked(_ item: RecipeItemDraft, same: RecipeItem?, app: AppModel) -> RecipeItemDraft {
+        guard item.unit == .gram else { return item }
+        var checked = item
+        let label = SearchText.normalize(item.unitLabel)
+        if let perUnit = liquidUnits[label] {
+            if checked.amount <= 0 { checked.amount = item.quantity * perUnit }
+            checked.unit = .milliliter
+            return checked
+        }
+        guard item.amount > 0, !gramWords.contains(label) else { return item }
+        if let same {
+            if same.amount.baseUnit == .milliliter { checked.unit = .milliliter }
+        } else if let food = app.library.bestMatch(item.name), food.unit == .milliliter {
+            let name = SearchText.normalize(item.name)
+            if [food.name, food.nameDE].contains(where: { !$0.isEmpty && SearchText.normalize($0) == name }) { checked.unit = .milliliter }
+        }
+        return checked
+    }
+
+    /// ml per unit of the liquid units a meals & recipes file may use.
+    private static let liquidUnits: [String: Double] = [
+        "ml": 1, "milliliter": 1, "millilitre": 1, "milliliters": 1, "millilitres": 1,
+        "cl": 10, "dl": 100, "l": 1000, "liter": 1000, "litre": 1000, "liters": 1000, "litres": 1000,
+    ]
+
+    /// Units that mean grams or servings: never a drink's portion.
+    private static let gramWords: Set<String> = ["", "g", "gram", "grams", "gramm", "kg", "serving", "servings", "portion", "portions"]
 }
 
 /// What Undo puts back after a foods, diary, meals & recipes or weight & body import: the new

@@ -371,7 +371,9 @@ date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,n
   approximations and limits: `~52`, `≈ 52`, `ca. 52`, `<0.5` (as EU labels print it), `12.5 (est.)`.
 - **Units and amounts**: a food's unit `ml`, `100 ml` or `per 100 ml` means millilitres. In the
   diary and recipes an amount with its unit (`40.00 g`, `0.2 l`, `2 slices`) works without a unit
-  column, and in the diary `cl` and `dl` are converted to ml.
+  column, and in the diary and recipes `cl` and `dl` are converted to ml. A recipe ingredient with
+  a portion word and its amount in `grams` (`1` + `glass`, `250`) stays in ml when Nina knows it
+  as a drink (the same ingredient in the stored recipe, or a drink of exactly that name).
 - **Headers**: German and label wording is understood: `Brennwert (kcal)`, `Eiweiß`,
   `Kohlenhydrate`, `davon Zucker`, `Fett`, `gesättigte Fettsäuren`, `Ballaststoffe`, `Salz`,
   `Lebensmittel`, `Produkt`, `Artikel`, `Nahrungsmittel`, `Marke`, `Datum`, `Mahlzeit` …
