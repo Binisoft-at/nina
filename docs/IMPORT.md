@@ -7,15 +7,22 @@ lines about you (age, height, weight, goal, training, meal times) and the foods 
 four CSV blocks – goals & settings, foods, meals & recipes and (if you give one) your weight and
 body history – and Nina imports them together, settings first, with a preview of every change.
 
-Each format also works on its own, with its own **"Copy the prompt for another AI"** button in
+Each format also works on its own, with its own **Copy the … Prompt** button (Copy the Foods Prompt, Copy the Diary Prompt …) in
 Settings → Import & Export (or ⋯ → Create… → Import My Data): paste the prompt into any AI
 together with your data – photos of nutrition labels, product names, notes, screenshots, another
 app's export (Yazio, MyFitnessPal …) – and paste the CSV it writes back into Nina. Nina shows a
 preview first; nothing changes until you tap Import. Everything is read on the device.
 
-Importing the same file again **updates instead of duplicating**: rows are matched by their `id`
-column (or, without one, by their content). The exports use the same formats, so you can export,
-edit in Numbers or Excel, and import again.
+Importing the same file again **updates instead of duplicating**, and changes only what the file
+changed. Rows Nina exported carry their record's own id, so they find it again; rows without one –
+or with an AI's own numbering 1, 2, 3 … – are matched by their content: a food by name and brand
+(also against the foods you made yourself), a diary row by date, meal, food and amount. A column
+the file doesn't have, an empty nutrient cell and differences from rounding never change anything
+(write 0 to clear a nutrient). The exports use the same formats and hold every value Nina stores –
+every nutrient a food or entry has at full precision, the diary's meal names and portions – so
+you can export, edit and import again, and only what you changed changes. Edit in **Numbers**; in
+**Excel** use Data → From Text/CSV with the barcode column set to Text (opening the file directly
+turns 13-digit barcodes into `5.2E+12`; Nina leaves such barcodes out and says so).
 
 | Format | One row per | Nutrition values | Header |
 |---|---|---|---|
@@ -24,6 +31,46 @@ edit in Numbers or Excel, and import again.
 | Diary | thing eaten | totals of that row | `id,date,time,meal,food,brand,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,note,status` |
 | Meals & recipes | ingredient | totals of that ingredient | `recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes` |
 | Weight & body history | moment (a weigh-in, a tape session or a scan) | – (kg, cm and %) | `date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,neck_cm,chest_cm,arm_cm,arm_flexed_cm,waist_cm,waist_narrow_cm,hip_cm,thigh_cm,calf_cm,arm_l_cm,thigh_l_cm,calf_l_cm,conditions,note` |
+
+The exports add a column for every other nutrient a row has (`monounsaturated_fat` …
+`caffeine_mg`, and `sodium_mg` next to `salt`) and, in the diary, `base` (`ml` or `serving`) when
+an entry isn't in grams. Their files start with a byte order mark, so Excel shows umlauts right.
+
+**Getting files in**: paste the AI's answer (on iPhone and iPad **Paste** pastes and previews in one
+tap), choose a file, or drop a CSV or text file on Import & Export (Mac and iPad). A loaded file
+shows as "name · 1,204 rows" with a button to clear it. **Getting files out**: each export has
+Save as File, Share and Copy.
+
+## Back up everything
+
+iCloud sync keeps your iPhone, iPad, Mac and Apple Watch the same – but it isn't a backup: a
+deletion, a bad import or "Delete data" in iCloud settings reaches every device. Settings →
+Import & Export → **Back Up Everything…** (on the Mac also File → Back Up Nina…) saves one folder,
+`Nina Backup 2030-01-07`, wherever you choose – Files, iCloud Drive, a USB stick or your Mac:
+
+- `manifest.json` – what's inside (format version, date, device, counts);
+- `records.jsonl` – every record Nina keeps in iCloud, one per line, with its id and dates: diary,
+  foods (also personalised and hidden catalog foods), meals & recipes, water, weigh-ins, routines,
+  goals & plan (the whole coach plan), measurements, day marks (day types, checks, check-ins,
+  phase decisions) and Recently Deleted;
+- `photos/` – your progress photos as JPEG files (switch **Include Progress Photos** off for a
+  small backup).
+
+Nothing from Apple Health is in it (Nina stores none), and nothing that only lives on one device
+(reminder settings, the record of what Nina wrote to Health). Import & Export shows when this
+device last saved a backup. Nina doesn't back up by itself yet: save one now and then, and keep a
+few.
+
+**Restore from Backup…**: choose the folder. The preview lists per kind what is in the backup,
+what is new and what is already here. Nothing Nina has is changed or deleted – only what is missing
+is added, with its original dates, so the links between diary, foods, recipes, routines, check-ins
+and photos stay intact. Things deleted more than 30 days before the backup stay out. If your goals
+& plan differ from the backup's, yours stay unless you switch on **Use the Backup's Goals & Plan**.
+One Undo takes the whole restore back (what it added goes to Recently Deleted).
+
+**What the CSV exports cover**: goals & settings with the plan, foods, diary, meals & recipes and
+the weight & body history – not photos, water, check-ins, day types, daily checks or routines. For
+everything, use the backup.
 
 ## Goals & settings
 
@@ -37,6 +84,12 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
 - **Fixed numbers** (`calories`, `protein_g`, `carbs_g`, `fat_g`, `fiber_g`, `sugar_max_g`,
   `saturated_fat_max_g`, `salt_max_g`, `water_ml`) win over the calculation. Calories without macros
   keep the current split (or use `macro_split`, also as percent: `30/40/30`).
+- **Repeated numbers**: when a file repeats your current calories and grams (an AI copied your
+  whole settings back) and changes your goal, pace or body data, the calories are calculated again
+  for the new numbers, and the preview says so in orange. To keep fixed calories, import
+  `calories` on its own. The prompts tell the AI not to copy them.
+- **A third column** (a comment or reason next to the value) is fine: only the `value` column is
+  read. The `setting,value` line itself may be missing too.
 - **Training days** (`training_days` = `mon;wed;fri` or `none`, `training_extra_kcal`) add calories on
   those weekdays, 70 % carbs and 30 % protein. With a coach plan, day types do this (see below).
 - **Meals** (`meals` = `Breakfast 07:30 🥐;Lunch 12:30 🥗;Jause 10:00`): `Frühstück`, `Mittagessen`,
@@ -70,7 +123,7 @@ Keys are read like every setting (`.`, spaces and `-` become `_`, upper or lower
 | Rows | What they set |
 |---|---|
 | `day_type.<id>.name`, `.emoji`, `.days` (`mon;wed;fri`, `flexible` or `default`), `.per_week`, `.workouts` | Up to 4 kinds of day with their own targets. Exactly one is the default (all other days). Gym, tennis and rest get an emoji by themselves. |
-| `phase.<n>.name`, `.goal`, `.start`, `.end`, `.rate_kg_per_week` (`0.15-0.25`), `.rate_percent_per_week`, `.review_weight_kg` (`82-83`), `.target_weight_kg`, `.target_body_fat_percent`, `.max_waist_gain_cm`, `.body_fat_ceiling_percent`, `.note` | Dated phases. Dates are `YYYY-MM-DD` or `YYYY-MM` (a start becomes the 1st, an end the last day of the month); `~` or "about" in front marks them as approximate. `.body_fat_ceiling_percent` is optional and only for gain phases: when your body fat reaches it, Nina suggests reviewing the phase (`0` or no row = off). |
+| `phase.<n>.name`, `.goal`, `.start`, `.end`, `.rate_kg_per_week` (`0.15-0.25`), `.rate_percent_per_week`, `.review_weight_kg` (`82-83`), `.target_weight_kg`, `.target_body_fat_percent`, `.max_waist_gain_cm`, `.body_fat_ceiling_percent`, `.note`, `.remove` (`yes` deletes the phase) | Dated phases. Dates are `YYYY-MM-DD` or `YYYY-MM` (a start becomes the 1st, an end the last day of the month); `~` or "about" in front marks them as approximate. `.body_fat_ceiling_percent` is optional and only for gain phases: when your body fat reaches it, Nina suggests reviewing the phase (`0` or no row = off). |
 | `phase.<n>.calories`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml`, `.macros_g` (`160/328/72`) | A phase's baseline targets (for a later phase – the current phase uses the flat rows). |
 | `phase.<n>.<day type>.calories`, `.macros_g`, `.protein_g`, `.carbs_g`, `.fat_g`, `.fiber_g`, `.water_ml` | Targets of one day type in that phase. Missing values come from the baseline; calories without carbs keep protein and fat and give carbs the rest. |
 | `check.<id>.name`, `.emoji`, `.dose`, `.when` (a meal, `08:00` or `anytime`), `.days` (`daily`, weekdays or day-type ids), `.optional`, `.remind`, `.affects_weight` | Daily checks such as a supplement (`supplement.<id>.*` works too). A new check gets a reminder unless `.remind` is `no`; a check you already have keeps its setting. Creatine is marked "affects weight" by itself. |
@@ -104,7 +157,11 @@ How an import changes the plan:
 1. **A group replaces the whole group.** If the file has any `day_type.*` rows, the day types become
    exactly those in the file; the same for `phase.*`, `check.*` and `note`. The preview lists what is
    removed. A phase that keeps its number keeps its history (when it was started, earlier targets).
-   `long_term.*`, `measure.*`, `checkin.*` and the protein rows change only the values in the file.
+   **A phase that has already started (running or done) stays** when the file leaves it out – its
+   history judges your past days – and the preview says so in orange; `phase.N.remove,yes` deletes
+   it. A file with only `remove` rows leaves the other phases as they are. Planned phases that
+   haven't started are replaced. `long_term.*`, `measure.*`, `checkin.*` and the protein rows change
+   only the values in the file.
 2. **Setting up a plan.** The first file with day types or phases turns the current goal into a plan
    (training days become a "Training" day type plus "Rest", the goal one open-ended phase from today),
    then applies the file.
@@ -199,6 +256,13 @@ number is how many there will be).
   whole plan, the body values and the weight it logged. When the same import also brings foods,
   diary entries or meals & recipes, that one Undo takes them back too: new ones go to Recently
   Deleted, changed ones get their old values.
+- **Foods, diary and meals & recipes**: an update line says what it replaces ("was Greek yogurt 2%
+  · 73 → 63 kcal per 100 g"); a meal or recipe lists each ingredient Nina looks up ("Oats → Oats,
+  rolled · Kidney beans → not found"). One that has an ingredient Nina can't find is listed in
+  orange and not saved, rather than saved lighter than it is.
+- **Diary rows and Apple Health**: when Nina writes your meals to Apple Health and the file has rows
+  from the last 14 days, the preview asks **Also write these to Apple Health** – off by default,
+  because rows from another app (Yazio, MyFitnessPal …) are usually in Health already.
 - The first import that sets up a plan asks once: **"Turn on coach reminders?"** (Turn On / Not
   Now). You can change them any time in Settings → Reminders → Coach.
 - **Imported checks remind you** (a supplement at its meal or time) unless the file says
@@ -275,10 +339,18 @@ date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,n
 ## Forgiving on purpose
 
 - **Delimiters**: comma, semicolon, tab or `|` – detected from the header line.
-- **Numbers**: `4.5`, `4,5`, `1.234,5`, `120 kcal`, `4,5 g` all work.
+- **Numbers**: `4.5`, `4,5`, `1.234,5`, `1 234`, `120 kcal`, `4,5 g` all work, and so do
+  approximations and limits: `~52`, `≈ 52`, `ca. 52`, `<0.5` (as EU labels print it), `12.5 (est.)`.
+- **Units and amounts**: a food's unit `ml`, `100 ml` or `per 100 ml` means millilitres. In the
+  diary and recipes an amount with its unit (`40.00 g`, `0.2 l`, `2 slices`) works without a unit
+  column, and `cl` and `dl` are converted.
 - **Headers**: German and label wording is understood: `Brennwert (kcal)`, `Eiweiß`,
   `Kohlenhydrate`, `davon Zucker`, `Fett`, `gesättigte Fettsäuren`, `Ballaststoffe`, `Salz`,
-  `Lebensmittel`, `Marke`, `Datum`, `Mahlzeit` …
+  `Lebensmittel`, `Produkt`, `Artikel`, `Nahrungsmittel`, `Marke`, `Datum`, `Mahlzeit` …
+- **The AI's answer in other shapes**: a title or label before a block (`# 2. Foods`,
+  `Goals & settings:`), the `csv` and `Copy code` lines you get when copying a chat, two files in
+  one code block (a blank line between them), settings rows without the `setting,value` line. A
+  block Nina doesn't recognise is listed in orange ("Block 3, starting …, wasn't recognised").
 - **Energy** in kJ (`kj` column) is converted; **salt** (EU labels) or **sodium_mg** (US labels).
 - **Optional nutrients** (foods format): `monounsaturated_fat`, `polyunsaturated_fat`, `trans_fat`,
   `cholesterol_mg`, `potassium_mg`, `calcium_mg`, `iron_mg`, `magnesium_mg`, `zinc_mg`,
@@ -287,13 +359,15 @@ date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,n
 - **Lists in a cell** (tags, portions): separated by `;` (`|` works too).
 - **Diary and recipe rows without nutrition** (empty `kcal`): Nina looks the food up by name in the
   built-in catalog and your foods and uses the amount (`grams`, or `amount` + `unit` like
-  `2` + `slice`). Rows it can't find are reported in the preview and skipped.
+  `2` + `slice`); foods from the same answer count ("from this import"). Diary rows it can't find
+  are reported in the preview and skipped; a meal or recipe with an ingredient it can't find isn't
+  saved.
 - **Ranges** (rates, review weight, protein per meal, check-in steps): `0.15-0.25`, `0.15–0.25`,
   `0.15 to 0.25`.
 - **Dates**: `2026-11-13`, `13.11.2026`, `13.11.26`, `11/13/2026`; in the weight & body history
   also `7 Jan 2030`, `Jan 7, 2030`, `7. Jänner 2030` and `Mo, 07.01.2030`. **Meals**: `breakfast`,
   `lunch`, `dinner`, `snack` or your own meal names; `Frühstück`, `Mittagessen`, `Abendessen`,
-  `Jause` work too.
+  `Jause` work too. A diary row without a meal goes to the meal nearest its time.
 - **Weight & body history**: units in the header are converted – `Weight (lb)` and `Waist (in)` to
   kg and cm, `Lean (g)` and `Fat (g)` from a DEXA report to kg; a body fat of `0.198` reads as
   19.8 %. German headers work (`Gewicht`, `Körperfett`, `Taille`, `Hüfte`, `Oberarm links`,
@@ -382,7 +456,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 - Supplements my plan names → check.ID.* (only what my plan says; never add one).
 - Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.
 - Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
-- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.
+- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes. A phase that has already started stays even when you leave it out; to delete one, write phase.N.remove,yes.
 
 | setting | value |
 |---|---|
@@ -412,6 +486,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | phase.N.ID.calories | Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml) – e.g. 2600 |
 | phase.N.ID.macros_g | Protein/carbs/fat in grams on that day type – e.g. 160/328/72 |
 | phase.N.note | A note about the phase |
+| phase.N.remove | yes deletes the phase. A phase that has started stays (with its history) when the file leaves it out – only this row deletes it |
 | check.ID.name | A daily check my plan names (a supplement). ID like creatine – e.g. Creatine monohydrate |
 | check.ID.emoji | One emoji (optional) |
 | check.ID.dose | The dose as written in my plan – e.g. 3-5 g |
@@ -502,15 +577,15 @@ note,The fat-loss start depends on progress.
 
 ## 2. My foods
 Turn the foods I give you (photos of nutrition labels, product names, a spreadsheet or another app's export) into my food list. Values are per 100 g, or per 100 ml for drinks.
-- One row per food. Use the values printed on the label (per 100 g / 100 ml). If I only give a product name, use the manufacturer's label values or a national food composition database (USDA, BLS, Swiss Food Composition Database) and never guess wildly; if you're unsure, leave the row out.
-- kcal must match the macros roughly (4 kcal per g protein and carbs, 9 per g fat).
+- One row per food. Copy the values exactly as printed on the label (per 100 g / 100 ml). If I only give a product name, use the manufacturer's label values or a national food composition database (USDA, BLS, Swiss Food Composition Database) and never guess wildly; if you're unsure, leave the row out.
+- If kcal and the macros clearly don't fit together (about 4 kcal per g protein and carbs, 9 per g fat), leave the row out instead of changing the label's numbers.
 - Decimal point, not comma (4.5). No units inside the number cells.
 - category must be one of the listed values.
-- Number the id column 1, 2, 3 … unless my data already has ids.
+- Leave the id column empty for new rows; keep ids that are already in my data (Nina writes them when it exports).
 
 | column | meaning | required |
 |---|---|---|
-| id | A stable id per food (1, 2, 3 …). Keep it when you edit the file so importing again updates instead of duplicating. | no |
+| id | Leave it empty for new foods. Nina writes an id when it exports; keep it when you edit that file, so importing again updates instead of duplicating. | no |
 | name | Food name in my words, short ("Greek yogurt 2%", "Oat milk Barista"). | yes |
 | name_de | German name, if you know it (optional). | no |
 | brand | Brand or shop, empty for generic foods. | no |
@@ -609,7 +684,7 @@ not_supported,I'm lactose intolerant
 ```
 ```csv
 id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,portions,barcode,favorite,notes
-1,Greek yogurt 2%,Griechisches Joghurt 2 %,Fage,dairy,breakfast;high-protein,g,73,10,3.6,2,,3.6,1.3,0.1,pot=170,5201054017197,yes,
+,Greek yogurt 2%,Griechisches Joghurt 2 %,Fage,dairy,breakfast;high-protein,g,73,10,3.6,2,,3.6,1.3,0.1,pot=170,5201054017197,yes,
 ```
 ```csv
 recipe,kind,servings,total_weight_g,ingredient,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,notes
@@ -694,7 +769,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 - Supplements my plan names → check.ID.* (only what my plan says; never add one).
 - Advice that isn't a setting (training, recovery, timing tips) → one note row each. not_supported is only for real wishes: something I want the app to do that no row covers.
 - Ranges are written 0.15-0.25, 82-83, 35-45; macros_g is protein/carbs/fat in grams like 160/328/72.
-- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes.
+- A group you write replaces that whole group: if you change a day type, a phase or a check, write all day_type.*, phase.N.* and check.* rows again (copy the unchanged ones from my current settings). Leave the groups out when nothing in them changes. A phase that has already started stays even when you leave it out; to delete one, write phase.N.remove,yes.
 
 | setting | value |
 |---|---|
@@ -724,6 +799,7 @@ Same block, same two columns. Use these rows only when my notes describe a plan:
 | phase.N.ID.calories | Calories on that day type in this phase (also phase.N.ID.protein_g, carbs_g, fat_g, fiber_g, water_ml) – e.g. 2600 |
 | phase.N.ID.macros_g | Protein/carbs/fat in grams on that day type – e.g. 160/328/72 |
 | phase.N.note | A note about the phase |
+| phase.N.remove | yes deletes the phase. A phase that has started stays (with its history) when the file leaves it out – only this row deletes it |
 | check.ID.name | A daily check my plan names (a supplement). ID like creatine – e.g. Creatine monohydrate |
 | check.ID.emoji | One emoji (optional) |
 | check.ID.dose | The dose as written in my plan – e.g. 3-5 g |
@@ -827,16 +903,16 @@ id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,satu
 - Comma separated, UTF-8. Put a value in "double quotes" if it contains a comma, a quote or a line break.
 - Leave a column empty when it doesn't apply. Never invent data; skip a row if it is unclear.
 - Keep my own words and names exactly as I wrote them.
-- One row per food. Use the values printed on the label (per 100 g / 100 ml). If I only give a product name, use the manufacturer's label values or a national food composition database (USDA, BLS, Swiss Food Composition Database) and never guess wildly; if you're unsure, leave the row out.
-- kcal must match the macros roughly (4 kcal per g protein and carbs, 9 per g fat).
+- One row per food. Copy the values exactly as printed on the label (per 100 g / 100 ml). If I only give a product name, use the manufacturer's label values or a national food composition database (USDA, BLS, Swiss Food Composition Database) and never guess wildly; if you're unsure, leave the row out.
+- If kcal and the macros clearly don't fit together (about 4 kcal per g protein and carbs, 9 per g fat), leave the row out instead of changing the label's numbers.
 - Decimal point, not comma (4.5). No units inside the number cells.
 - category must be one of the listed values.
-- Number the id column 1, 2, 3 … unless my data already has ids.
+- Leave the id column empty for new rows; keep ids that are already in my data (Nina writes them when it exports).
 
 ## Columns
 | column | meaning | required |
 |---|---|---|
-| id | A stable id per food (1, 2, 3 …). Keep it when you edit the file so importing again updates instead of duplicating. | no |
+| id | Leave it empty for new foods. Nina writes an id when it exports; keep it when you edit that file, so importing again updates instead of duplicating. | no |
 | name | Food name in my words, short ("Greek yogurt 2%", "Oat milk Barista"). | yes |
 | name_de | German name, if you know it (optional). | no |
 | brand | Brand or shop, empty for generic foods. | no |
@@ -859,8 +935,8 @@ id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,satu
 ## Example
 ```csv
 id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,portions,barcode,favorite,notes
-1,Greek yogurt 2%,Griechisches Joghurt 2 %,Fage,dairy,breakfast;high-protein,g,73,10,3.6,2,,3.6,1.3,0.1,pot=170,5201054017197,yes,
-2,Oat drink Barista,Haferdrink Barista,Oatly,beverages,,ml,59,1,6.6,3,0.8,3.4,0.3,0.1,glass=250,,,
+,Greek yogurt 2%,Griechisches Joghurt 2 %,Fage,dairy,breakfast;high-protein,g,73,10,3.6,2,,3.6,1.3,0.1,pot=170,5201054017197,yes,
+,Oat drink Barista,Haferdrink Barista,Oatly,beverages,,ml,59,1,6.6,3,0.8,3.4,0.3,0.1,glass=250,,,
 ```
 
 Here is my data:
@@ -880,12 +956,12 @@ id,date,time,meal,food,brand,amount,unit,grams,kcal,protein,carbs,fat,fiber,suga
 - One row per food eaten. A meal with several foods becomes several rows with the same date and meal.
 - Use the values from my data. If you must estimate, use reliable sources (product labels, USDA, BLS) and say so in the note column.
 - Decimal point, not comma. No units inside the number cells.
-- Number the id column 1, 2, 3 … unless my data already has ids.
+- Leave the id column empty for new rows; keep ids that are already in my data (Nina writes them when it exports).
 
 ## Columns
 | column | meaning | required |
 |---|---|---|
-| id | A stable id per row (1, 2, 3 …). | no |
+| id | Leave it empty for new rows. Nina writes an id when it exports; keep it when you edit that file. | no |
 | date | Day in YYYY-MM-DD. | yes |
 | time | Time HH:MM (24 h), if known. | no |
 | meal | breakfast, lunch, dinner or snack (or one of my own meal names). | yes |
@@ -911,8 +987,8 @@ id,date,time,meal,food,brand,amount,unit,grams,kcal,protein,carbs,fat,fiber,suga
 ## Example
 ```csv
 id,date,time,meal,food,brand,amount,unit,grams,kcal,protein,carbs,fat,fiber,sugar,saturated_fat,salt,note,status
-1,2026-11-12,07:30,breakfast,Oats,,60,g,60,233,8.1,40,4.1,6,0.6,0.7,0,,
-2,2026-11-12,07:30,breakfast,Banana,,1,piece,118,105,1.3,27,0.4,3.1,14.4,0.1,0,,
+,2026-11-12,07:30,breakfast,Oats,,60,g,60,233,8.1,40,4.1,6,0.6,0.7,0,,
+,2026-11-12,07:30,breakfast,Banana,,1,piece,118,105,1.3,27,0.4,3.1,14.4,0.1,0,,
 ```
 
 Here is my data:

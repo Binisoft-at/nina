@@ -64,10 +64,19 @@ itself stays in your training app.
   pause. On the Mac it is a tab of the Settings window.
 - **Import from anywhere** – one setup prompt for your AI that writes your goals, the whole coach
   plan, your foods, your meals and your weight history in one go, plus five CSV formats (goals &
-  settings, foods, diary, meals & recipes, weight & body history) with their own prompts. Preview first, with a switch per body value; importing
-  again updates instead of duplicating, and Undo puts everything back. "Copy for My AI" hands your
-  last four weeks to your AI and asks for an answer you can import. Formats and prompts:
-  [docs/IMPORT.md](docs/IMPORT.md).
+  settings, foods, diary, meals & recipes, weight & body history) with their own prompts. Paste,
+  pick a file or drop it on the window; preview first, with a switch per body value; importing
+  again updates instead of duplicating and changes only what the file changed, and Undo puts
+  everything back. The exports hold every value Nina stores, so export → edit → import is safe.
+  "Copy for My AI" hands your last four weeks to your AI and asks for an answer you can import.
+  Formats and prompts: [docs/IMPORT.md](docs/IMPORT.md).
+- **Back Up Everything** – iCloud sync keeps your devices the same, but it isn't a backup: a
+  deletion reaches every device. Settings → Import & Export → **Back Up Everything** saves one
+  folder with all of it – diary, foods, meals & recipes, water, weigh-ins, measurements, day types,
+  checks and check-ins, routines, goals & plan, progress photos and Recently Deleted – to Files,
+  iCloud Drive or your Mac (no Apple Health data). **Restore from Backup** adds back only what is
+  missing, with one Undo. The CSV exports cover goals & plan, foods, diary, meals & recipes and
+  weight & body, not photos, water, check-ins, day types or routines.
 - **Apple ecosystem** – iCloud sync between all devices, Apple Health (meals, water and weight
   written; weight and activity read live, never stored), Apple Watch app with Digital Crown amounts
   and dictation, complications and widgets with the day type, coach reminders (weigh in right in
