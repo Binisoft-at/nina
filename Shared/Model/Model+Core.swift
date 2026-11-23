@@ -22,7 +22,8 @@ extension LogEntry {
     var isPlanned: Bool { status == EntryStatus.planned.rawValue }
     var isEaten: Bool { status == EntryStatus.eaten.rawValue }
     var values: NutrientValues { NutrientValues(encoded: nutrients) }
-    var energy: Double { values.energy }
+    /// The energy alone, without decoding the other nutrients.
+    var energy: Double { NutrientValues.energy(encoded: nutrients) }
     var ref: FoodRef { FoodRef(foodRef) }
     var foodCategory: FoodCategory { FoodCategory(rawValue: category) ?? .other }
     /// The food's own emoji (🍌), else its category's.
@@ -298,8 +299,10 @@ struct NinaSettings: Equatable {
         return trainingTargets != nil && trainingDays.contains(day, calendar: calendar)
     }
 
+    /// The meal slot of `id`; a removed own meal ("meal-1a2b3c4d") reads "Other meal".
     func meal(_ id: String) -> MealSlot {
-        meals.first { $0.id == id } ?? MealSlot(id: id, name: id.capitalized, emoji: "🍽️", minutes: 12 * 60)
+        meals.first { $0.id == id }
+            ?? MealSlot(id: id, name: id.hasPrefix("meal-") ? "Other meal" : id.capitalized, emoji: "🍽️", minutes: 12 * 60)
     }
 
     /// The meal people usually eat now.
