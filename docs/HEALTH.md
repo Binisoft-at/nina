@@ -10,6 +10,7 @@
 | Progress photos (front, side, back) – Nina's own data, not Health data | SwiftData (`ProgressPhoto`), the photo and its thumbnail as files in Nina's private iCloud database; not in iCloud Photos, not on the watch | Only the user's Apple Account |
 | Built-in food catalog | In the app bundle | Everyone (public data) |
 | Today's numbers for widgets and complications | `group.at.binisoft.shared/Nina/today.json` on each device | Nina's widgets on that device |
+| The coach widget's summary (day type, daily checks, 7-day average and rate – which can count Health weigh-ins –, next measurement) | `group.at.binisoft.shared/Nina/coach.json` on that iPhone, never synced and kept out of device backups; the weight is hidden on the locked Lock Screen | Nina's coach widget on that iPhone |
 | Today's numbers handed from the iPhone to its Apple Watch, so the watch face follows what is logged on the iPhone or Mac (without the activity bonus from Health) | Sent device to device (WatchConnectivity, never iCloud), written into the watch's `today.json` | Nina's complications on that watch |
 | Today's active energy for the widget budget (when "Add to my budget" is on) | UserDefaults on that iPhone, with its day | Nina on that device |
 | The day totals for Thalia (calories, protein, carbs, fat, water of the last 62 days – from Nina's own diary, never from Health) | `group.at.binisoft.shared/Nina/exchange/` on each iPhone, iPad and Mac (not the watch), while Settings → Thalia → Send to Thalia is on | Thalia and Nina on that device |
