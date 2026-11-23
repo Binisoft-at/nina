@@ -19,6 +19,7 @@ struct DaySummaryCard: View {
     var proteinMeals: String? = nil
 
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var remaining: Double { progress.energyRemaining }
 
@@ -39,20 +40,34 @@ struct DaySummaryCard: View {
         .onTapGesture(count: 2) { app.sheet = .dayNutrition(day) }
     }
 
+    /// Ring and numbers side by side; one under the other at the accessibility text sizes, where
+    /// the numbers no longer fit next to the ring.
+    @ViewBuilder
     private var ringRow: some View {
-        HStack(alignment: .center, spacing: 20) {
-            ring
-            VStack(alignment: .leading, spacing: 10) {
-                StatTile(title: "Eaten", value: Fmt.energy(progress.energyEaten, unit: unit))
-                StatTile(title: goalTitle, value: Fmt.energy(progress.energyBudget, unit: unit), detail: goalDetail)
-                    .animation(.snappy, value: progress.energyBudget)
-                if progress.totals.plannedCount > 0 {
-                    Label("\(Fmt.energy(progress.totals.planned.energy, unit: unit)) planned", systemImage: "circle.dashed")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 16) {
+                ring
+                stats
             }
-            Spacer(minLength: 0)
+        } else {
+            HStack(alignment: .center, spacing: 20) {
+                ring
+                stats
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var stats: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            StatTile(title: "Eaten", value: Fmt.energy(progress.energyEaten, unit: unit))
+            StatTile(title: goalTitle, value: Fmt.energy(progress.energyBudget, unit: unit), detail: goalDetail)
+                .animation(.snappy, value: progress.energyBudget)
+            if progress.totals.plannedCount > 0 {
+                Label("\(Fmt.energy(progress.totals.planned.energy, unit: unit)) planned", systemImage: "circle.dashed")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -170,9 +185,8 @@ struct WeekStrip: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("Previous week")
             ForEach(days) { day in
-                let target = app.settings.targets(for: day).energy
-                let fraction = target > 0 ? (energyByDay[day.rawValue] ?? 0) / target : 0
-                WeekStripDay(day: day, selected: selected, fraction: fraction, showsTypes: showsTypes)
+                WeekStripDay(day: day, selected: selected, eaten: energyByDay[day.rawValue] ?? 0,
+                             target: app.settings.targets(for: day).energy, showsTypes: showsTypes)
             }
             Button {
                 withAnimation(.snappy) { app.selectedDay = selected.adding(days: 7) }
@@ -182,12 +196,19 @@ struct WeekStrip: View {
             .buttonStyle(.borderless)
             .accessibilityLabel("Next week")
         }
-        .gesture(
-            DragGesture(minimumDistance: 25).onEnded { value in
-                guard abs(value.translation.width) > 60 else { return }
-                withAnimation(.snappy) { app.selectedDay = selected.adding(days: value.translation.width < 0 ? 7 : -7) }
+        // Fixed-size rings: larger text would no longer fit them.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .simultaneousGesture(weekSwipe)
+    }
+
+    /// A clearly sideways swipe changes the week; a scroll that drifts sideways doesn't.
+    private var weekSwipe: some Gesture {
+        DragGesture(minimumDistance: 25)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                guard abs(horizontal) > 60, abs(horizontal) > abs(value.translation.height) * 1.5 else { return }
+                withAnimation(.snappy) { app.selectedDay = selected.adding(days: horizontal < 0 ? 7 : -7) }
             }
-        )
     }
 }
 
@@ -196,10 +217,14 @@ struct WeekStrip: View {
 private struct WeekStripDay: View {
     let day: DayKey
     let selected: DayKey
-    let fraction: Double
+    /// Eaten energy (kcal) and the day's target.
+    let eaten: Double
+    let target: Double
     let showsTypes: Bool
 
     @Environment(AppModel.self) private var app
+
+    private var fraction: Double { target > 0 ? eaten / target : 0 }
 
     var body: some View {
         if showsTypes, let chip = app.settings.todayCoachChip(for: day, today: app.today) {
@@ -231,7 +256,12 @@ private struct WeekStripDay: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .pointerStyle(.link)
+        #endif
         .accessibilityLabel(labelText)
+        .accessibilityValue(valueText)
+        .accessibilityAddTraits(day == selected ? .isSelected : [])
     }
 
     private var ring: some View {
@@ -252,6 +282,13 @@ private struct WeekStripDay: View {
         let title = Fmt.dayTitle(day, today: app.today)
         guard showsTypes, let type = app.settings.dayType(for: day) else { return title }
         return "\(title), \(type.name) day"
+    }
+
+    /// "1,240 of 2,400 kcal eaten", or "Nothing eaten".
+    private var valueText: String {
+        guard eaten > 0 else { return "Nothing eaten" }
+        let unit = app.energyUnit
+        return "\(Fmt.energy(eaten, unit: unit, showUnit: false)) of \(Fmt.energy(target, unit: unit)) eaten"
     }
 }
 
@@ -359,8 +396,8 @@ struct MealSection: View {
                 if !entries.isEmpty {
                     Divider()
                     Button("Save as Meal…", systemImage: "square.and.arrow.down.on.square") { app.sheet = .saveAsMeal(entries) }
-                    Button("Copy to Today", systemImage: "doc.on.doc") { app.copy(entries, to: app.today) }
-                        .disabled(day == app.today)
+                    Button("Copy to Today", systemImage: "doc.on.doc") { app.copy(entries.filter(\.isEaten), to: app.today) }
+                        .disabled(day == app.today || !entries.contains(where: \.isEaten))
                     Button("Delete All", systemImage: "trash", role: .destructive) { app.trash(entries) }
                 }
             } label: {
@@ -379,25 +416,25 @@ struct MealSection: View {
         }
     }
 
+    /// Entries dropped here (from this day or another window's day) move to this meal and day, at
+    /// their time of day, with Undo – the same move as "Move to Day…".
     private func moveDropped(_ ids: [String]) {
         let uuids = Array(Set(ids.compactMap(UUID.init(uuidString:))))
         guard !uuids.isEmpty else { return }
-        let descriptor = FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { uuids.contains($0.uuid) })
-        let dropped = ((try? app.container.mainContext.fetch(descriptor)) ?? []).filter { $0.meal != slot.id || $0.day != day.rawValue }
-        guard !dropped.isEmpty else { return }
-        for entry in dropped where entry.day != day.rawValue {
-            entry.day = day.rawValue
-        }
-        app.move(dropped, to: slot.id)
+        let descriptor = FetchDescriptor<LogEntry>(predicate: #Predicate<LogEntry> { uuids.contains($0.uuid) && $0.deletedAt == nil })
+        let dropped = (try? app.container.mainContext.fetch(descriptor)) ?? []
+        app.todayMove(dropped, to: day, meal: slot.id)
     }
 
+    /// Yesterday's eaten foods of this meal again (planned ones were never confirmed); planned
+    /// when this day is still ahead.
     private func copyFromYesterday() {
-        let yesterday = app.store.entries(on: day.adding(days: -1)).filter { $0.meal == slot.id && $0.entryStatus != .skipped }
+        let yesterday = app.store.entries(on: day.adding(days: -1)).filter { $0.meal == slot.id && $0.isEaten }
         guard !yesterday.isEmpty else {
-            app.toasts.show("Nothing logged for \(slot.name.lowercased()) yesterday", symbol: "info.circle")
+            app.toasts.show("Nothing eaten for \(slot.name.lowercased()) yesterday", symbol: "info.circle")
             return
         }
-        app.copy(yesterday, to: day)
+        app.copy(yesterday, to: day, status: day > app.today ? .planned : .eaten)
     }
 }
 
@@ -459,7 +496,37 @@ struct EntryRow: View {
         }
         .opacity(entry.isEaten ? 1 : 0.55)
         .contentShape(.rect)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spokenText)
+        .accessibilityActions {
+            if entry.isPlanned, let onConfirm {
+                Button("Mark as Eaten", action: onConfirm)
+            }
+        }
+    }
+
+    /// "Banana, 1 medium (118 g), 105 kilocalories, protein 1 gram, carbs 27 grams, fat 0 grams,
+    /// planned 12:30" – units spelled out instead of "P 1 · C 27".
+    private var spokenText: String {
+        let values = entry.values
+        var parts: [String] = [entry.displayName]
+        if let amount = entry.amountDescription { parts.append(amount) }
+        let energyUnit = unit == .kJ ? "kilojoules" : "kilocalories"
+        parts.append("\(Fmt.energy(values.energy, unit: unit, showUnit: false)) \(energyUnit)")
+        parts.append("protein \(EntryRow.grams(values.protein)), carbs \(EntryRow.grams(values.carbs)), fat \(EntryRow.grams(values.fat))")
+        if entry.isPlanned {
+            parts.append("planned \(Fmt.time(entry.time))")
+        } else if entry.entryStatus == .skipped {
+            parts.append("skipped")
+        }
+        if let tag = entry.tagList.first { parts.append("tag \(tag)") }
+        if !entry.note.isEmpty { parts.append("note: \(entry.note)") }
+        return parts.joined(separator: ", ")
+    }
+
+    private static func grams(_ value: Double) -> String {
+        let text = Fmt.number(value)
+        return value.rounded() == 1 ? "\(text) gram" : "\(text) grams"
     }
 }
 
@@ -497,6 +564,7 @@ struct WaterCard: View {
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
+            .accessibilityHidden(true)
             HStack(spacing: 10) {
                 Button {
                     app.removeLastWater(on: day)
@@ -525,7 +593,6 @@ struct WaterCard: View {
         }
         .padding(16)
         .background(Color.cardBackground, in: .rect(cornerRadius: 22, style: .continuous))
-        .sensoryFeedback(.increase, trigger: total)
     }
 }
 
@@ -534,7 +601,9 @@ struct WaterAmountView: View {
     let day: DayKey
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @State private var text = "250"
+    @State private var text = ""
+    @State private var isPrefilled = false
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -542,6 +611,7 @@ struct WaterAmountView: View {
                 Section {
                     HStack {
                         TextField("Amount", text: $text)
+                            .focused($isFocused)
                             #if os(iOS)
                             .keyboardType(.numberPad)
                             #endif
@@ -562,6 +632,12 @@ struct WaterAmountView: View {
                         dismiss()
                     }
                 }
+            }
+            .onAppear {
+                guard !isPrefilled else { return }
+                isPrefilled = true
+                text = NumberText.plain(app.settings.waterGlass, decimals: 0)
+                isFocused = true
             }
         }
         .presentationDetents([.medium])

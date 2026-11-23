@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import TipKit
+import UniformTypeIdentifiers
 import BinisoftKit
 import NinaCore
 
@@ -30,6 +31,9 @@ struct DayView: View {
     @State private var clock = 0
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
+    #else
+    /// The diary's width, so a wide Mac window keeps it readable (`macSideMargin`).
+    @State private var listWidth: CGFloat = 0
     #endif
 
     init(day: DayKey) {
@@ -101,6 +105,7 @@ struct DayView: View {
                 WaterCard(day: day, logs: water, goal: settings.targets(for: day).water, glass: settings.waterGlass)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
 
             Section {
@@ -134,6 +139,15 @@ struct DayView: View {
         .environment(\.editMode, $editMode)
         #else
         .listStyle(.inset)
+        .contentMargins(.horizontal, macSideMargin, for: .scrollContent)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            listWidth = width
+        }
+        .onDeleteCommand(perform: deleteSelection)
+        .onCopyCommand(perform: copySelection)
+        .onPasteCommand(of: [UTType.plainText], perform: pasteEntries)
         #endif
         .contextMenu(forSelectionType: UUID.self) { ids in
             selectionMenu(ids)
@@ -163,19 +177,62 @@ struct DayView: View {
             WeekStrip(selected: day)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             VStack(alignment: .leading, spacing: 0) {
                 if let line = coach.phaseLine {
                     TodayCoachPhaseLineView(line: line)
                         .padding(.bottom, 8)
                 }
                 summaryCard(protein: protein)
+                #if os(macOS)
+                if day == app.today, settings.activityBonusShare > 0 {
+                    activityBonusNote
+                }
+                #endif
                 TodayCoachStrip(day: day, input: coach.stripInput)
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
         }
         .listSectionSeparator(.hidden)
     }
+
+    #if os(macOS)
+    /// The activity bonus comes from Apple Health, which only the iPhone reads: the Mac's budget
+    /// leaves it out.
+    private var activityBonusNote: some View {
+        Text("Activity bonus shows on iPhone.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+            .padding(.horizontal, 18)
+    }
+
+    /// Side margins that keep the diary about 840 pt wide and centred in a wide window; nil keeps
+    /// the list's own margins.
+    private var macSideMargin: CGFloat? {
+        listWidth >= 880 ? (listWidth - 840) / 2 : nil
+    }
+
+    /// ⌫ and Edit → Delete: the selected entries go to Recently Deleted (with Undo).
+    private func deleteSelection() {
+        let chosen = selectedEntries
+        guard !chosen.isEmpty else { return }
+        app.trash(chosen)
+        selection = []
+    }
+
+    /// ⌘C: the selected entries as readable lines; ⌘V on any day copies them there.
+    private func copySelection() -> [NSItemProvider] {
+        TodayEntryClipboard.providers(for: selectedEntries, unit: app.energyUnit)
+    }
+
+    /// ⌘V: copies the entries Nina put on the pasteboard to this day (Undo in the toast).
+    private func pasteEntries(_ providers: [NSItemProvider]) {
+        app.todayPaste(TodayEntryClipboard.pastedIDs(), on: day)
+    }
+    #endif
 
     private func summaryCard(protein: ProteinMeals.Day?) -> some View {
         let unit = settings.energyUnit
@@ -218,6 +275,7 @@ struct DayView: View {
                 TodayCoachCard(card: card, day: day, targets: coach.cardTargets)
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
             .listSectionSeparator(.hidden)
         }
@@ -263,7 +321,7 @@ struct DayView: View {
         Button("Plan Tomorrow Like This", systemImage: "calendar.badge.plus") {
             app.copy(entries.filter { $0.entryStatus != .skipped }, to: app.today.adding(days: 1), status: .planned)
         }
-        Button("Copy to Another Day…", systemImage: "calendar") { app.sheet = .copyEntries(entries) }
+        Button("Copy to Another Day…", systemImage: "calendar") { app.todayOpenDaySheet(entries, move: false) }
         Button("Save Day as Meal…", systemImage: "square.and.arrow.down.on.square") { app.sheet = .saveAsMeal(entries) }
     }
 
@@ -279,17 +337,26 @@ struct DayView: View {
         }
     }
 
+    private var logFoodButton: some View {
+        Button {
+            app.sheet = .addFood(day: day, meal: nil)
+        } label: {
+            Label("Log Food", systemImage: "plus")
+        }
+        .popoverTip(NinaTips.LogTip())
+    }
+
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                app.sheet = .addFood(day: day, meal: nil)
-            } label: {
-                Label("Log Food", systemImage: "plus")
-            }
-            .popoverTip(NinaTips.LogTip())
-        }
         #if os(iOS)
+        // While selecting, a visible Done takes the + button's place.
+        if editMode.isEditing {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { withAnimation { editMode = .inactive; selection = [] } }
+            }
+        } else {
+            ToolbarItem(placement: .primaryAction) { logFoodButton }
+        }
         ToolbarItem(placement: .topBarLeading) {
             Button {
                 pickedDate = day.date()
@@ -330,6 +397,7 @@ struct DayView: View {
             }
         }
         #else
+        ToolbarItem(placement: .primaryAction) { logFoodButton }
         ToolbarItem(placement: .navigation) {
             HStack(spacing: 2) {
                 Button { app.selectedDay = day.adding(days: -1) } label: { Image(systemName: "chevron.left") }
@@ -353,7 +421,7 @@ struct DayView: View {
             Button {
                 app.sheet = .create
             } label: {
-                Label("Create", systemImage: "plus.square.on.square")
+                Label("Create", systemImage: "square.grid.2x2")
             }
             .help("Create (⇧⌘N)")
         }
@@ -400,15 +468,16 @@ struct EntryActions: View {
             Button("Mark as Eaten", systemImage: "checkmark.circle") { app.confirm(planned) }
         }
         Button("Log Again Now", systemImage: "arrow.clockwise") { app.logAgain(entries) }
-        Menu("Move to", systemImage: "arrow.left.arrow.right") {
+        Menu("Move to Meal", systemImage: "arrow.left.arrow.right") {
             ForEach(app.settings.meals) { slot in
                 Button("\(slot.emoji) \(slot.name)") { app.move(entries, to: slot.id) }
             }
         }
+        Button("Move to Day…", systemImage: "calendar") { app.todayOpenDaySheet(entries, move: true) }
         Menu("Copy to", systemImage: "doc.on.doc") {
             Button("Today") { app.copy(entries, to: app.today) }
             Button("Tomorrow (planned)") { app.copy(entries, to: app.today.adding(days: 1), status: .planned) }
-            Button("Another Day…") { app.sheet = .copyEntries(entries) }
+            Button("Another Day…") { app.todayOpenDaySheet(entries, move: false) }
         }
         Button("Save as Meal…", systemImage: "square.and.arrow.down.on.square") { app.sheet = .saveAsMeal(entries) }
         if entries.count == 1, let entry = entries.first, let record = app.library.record(entry.ref) {

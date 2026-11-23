@@ -98,7 +98,16 @@ enum NinaTips {
 
     struct TypeItTip: Tip {
         var title: Text { Text("Type it like a message") }
-        var message: Text? { Text("Write everything you ate in one line – \u{201C}200 g Skyr, 1 Banane, Kaffee mit Milch\u{201D} – and log it at once. Swipe left on the ring to see yesterday.") }
+        var message: Text? { Text("Write everything you ate in one line – \u{201C}200 g Skyr, 1 Banane, Kaffee mit Milch\u{201D} – and log it at once. \(TypeItTip.yesterdayHint)") }
         var image: Image? { Image(systemName: "text.bubble") }
+
+        /// The ring swipes right for the day before; the Mac has a shortcut for it.
+        private static var yesterdayHint: String {
+            #if os(macOS)
+            return "Press \u{2318}[ for yesterday."
+            #else
+            return "Swipe right on the ring to see yesterday."
+            #endif
+        }
     }
 }
