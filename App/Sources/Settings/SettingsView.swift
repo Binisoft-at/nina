@@ -820,12 +820,13 @@ struct MealsSettingsView: View {
     private func remove(_ removal: NinaMealRemoval, moving: Bool) {
         let before = cleaned
         let after = before.filter { $0.id != removal.slot.id }
-        var movedEntries: [(LogEntry, String)] = []
-        var movedRules: [(PlanRule, String)] = []
+        let mealID = removal.slot.id
+        var movedEntries: [LogEntry] = []
+        var movedRules: [PlanRule] = []
         if moving {
-            let uses = MealSlotUses(mealID: removal.slot.id, app: app)
-            movedEntries = uses.entries.map { ($0, $0.meal) }
-            movedRules = uses.rules.map { ($0, $0.meal) }
+            let uses = MealSlotUses(mealID: mealID, app: app)
+            movedEntries = uses.entries
+            movedRules = uses.rules
             let target = removal.target.id
             for rule in uses.rules {
                 rule.meal = target
@@ -837,16 +838,16 @@ struct MealsSettingsView: View {
         meals = after
         app.updateSettings { $0.meals = MealSlot.encode(after) }
         let app = self.app
+        let entries = movedEntries
+        let rules = movedRules
         app.toasts.show(removal.toast(moved: moving), symbol: "trash.fill") {
-            for (entry, meal) in movedEntries {
-                entry.meal = meal
-                entry.touch()
-            }
-            for (rule, meal) in movedRules {
-                rule.meal = meal
+            // Everything that moved was in this meal.
+            for rule in rules {
+                rule.meal = mealID
                 rule.touch()
             }
-            // Saves the entries and routines too.
+            if !entries.isEmpty { app.store.move(entries, to: mealID) }
+            // Saves the routines too.
             app.updateSettings { $0.meals = MealSlot.encode(before) }
         }
     }

@@ -55,8 +55,8 @@ struct RootView: View {
 }
 
 /// Links, files and notifications for the window. Links and files go to this window (macOS
-/// opens a new one only when none is open); a reminder clicked on the Mac brings it forward,
-/// as does a sheet or the tour opened from the Settings window (a phase in My Plan …). A failed
+/// opens a new one only when none is open); a reminder clicked on the Mac brings it forward (a
+/// sheet or the tour opened from the Settings window does too: SettingsWindowContent). A failed
 /// save shows a toast, at most once a minute.
 private struct RootEvents: ViewModifier {
     let app: AppModel
@@ -84,12 +84,6 @@ private struct RootEvents: ViewModifier {
                 app.toasts.show("Couldn't save your last change – App Log has details.", symbol: "exclamationmark.triangle.fill")
             }
             #if os(macOS)
-            .onChange(of: app.sheet?.id) { _, id in
-                if id != nil, MacWindowState.shared.settingsIsKey { bringWindowForward() }
-            }
-            .onChange(of: app.tour?.id) { _, id in
-                if id != nil, MacWindowState.shared.settingsIsKey { bringWindowForward() }
-            }
             .background {
                 NinaWindowReader(role: .main)
                     .frame(width: 0, height: 0)

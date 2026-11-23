@@ -174,7 +174,7 @@ public enum NinaTour {
             TourStep(
                 id: "everywhere", symbol: "applewatch", title: "Everywhere you are",
                 body: "Nina syncs through your iCloud with your Mac and Apple Watch. Log from the watch, see what's left in widgets, and send everything to Apple Health in Settings.",
-                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals & Plan, My Plan, meals, reminders and Import & Export.",
+                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals, My Plan, meals, reminders and Import & Export.",
                 goal: .none
             ),
         ]

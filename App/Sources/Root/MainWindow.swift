@@ -33,7 +33,18 @@ enum MainWindow {
         NSApp.activate()
         if let window = existing {
             if window.isMiniaturized { window.deminiaturize(nil) }
-            window.makeKeyAndOrderFront(nil)
+            // Already in front (it, or a sheet or the tour on it, is key): the focus stays where it
+            // is, e.g. in an editor's text field when ⌘1 or ⌃⌘W is pressed.
+            if let key = NSApp.keyWindow, isOrIsOn(key, window) { return }
+            var front = window
+            while let sheet = front.attachedSheet { front = sheet }
+            if front === window {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                // A sheet is up: the window comes forward with it, and the sheet keeps the focus.
+                window.orderFront(nil)
+                front.makeKey()
+            }
             return
         }
         if let openWindow {
@@ -49,6 +60,16 @@ enum MainWindow {
         while let candidate = current {
             if let settingsWindow, candidate === settingsWindow { return true }
             if candidate.identifier?.rawValue.localizedCaseInsensitiveContains("settings") == true { return true }
+            current = candidate.sheetParent ?? candidate.parent
+        }
+        return false
+    }
+
+    /// `window` is `owner`, or a sheet, popover or panel on it.
+    private static func isOrIsOn(_ window: NSWindow, _ owner: NSWindow) -> Bool {
+        var current: NSWindow? = window
+        while let candidate = current {
+            if candidate === owner { return true }
             current = candidate.sheetParent ?? candidate.parent
         }
         return false
@@ -162,7 +183,8 @@ final class NinaWindowReaderView: NSView {
 
 /// The Settings window (⌘,): General and My Plan as tabs. One toast host for the window, shown
 /// while it is the key window; Import & Export opens here as its own sheet, and Replay the Tour
-/// closes the window and starts the tour in the main window.
+/// closes the window and starts the tour in the main window. A sheet opened from here (a phase in
+/// My Plan …) shows in the main window, which comes forward – or opens again after ⌘W.
 struct SettingsWindowContent: View {
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
@@ -173,11 +195,17 @@ struct SettingsWindowContent: View {
             .environment(\.settingsWindowActions, actions)
             .sheet(isPresented: $showsImport) {
                 ImportView(initialKind: nil)
-                    .sheetToasts(app.toasts)
+                    .sheetToasts(importToasts)
                     .environment(app)
                     .modelContainer(app.container)
             }
             .sheetToasts(windowToasts)
+            .onChange(of: app.sheet?.id) { _, id in
+                if id != nil { showMainWindow() }
+            }
+            .onChange(of: app.tour?.id) { _, id in
+                if id != nil { showMainWindow() }
+            }
             .background {
                 NinaWindowReader(role: .settings)
                     .frame(width: 0, height: 0)
@@ -202,6 +230,18 @@ struct SettingsWindowContent: View {
     /// Silent while the main window is key or the import sheet shows them.
     private var windowToasts: ToastCenter {
         MacWindowState.shared.settingsIsKey && !showsImport ? app.toasts : ToastCenter.silent
+    }
+
+    /// The import sheet's: silent while the main window is key (it shows them then).
+    private var importToasts: ToastCenter {
+        MacWindowState.shared.settingsIsKey ? app.toasts : ToastCenter.silent
+    }
+
+    /// The main window shows app sheets and the tour: in front when this window was key, opened
+    /// again when it was closed (no RootView is there to notice the sheet then).
+    private func showMainWindow() {
+        guard MacWindowState.shared.settingsIsKey || MainWindow.existing == nil else { return }
+        MainWindow.bringForward(openWindow: openWindow)
     }
 
     private var actions: SettingsWindowActions {

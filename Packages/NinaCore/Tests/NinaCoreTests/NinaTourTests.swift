@@ -167,6 +167,9 @@ struct CoachTourTests {
         #expect(byID["history"]?.macBody.contains("File → Import & Export… (⇧⌘I) → Body") == true)
         #expect(byID["photos"]?.body.contains("Progress → Body → Photos") == true)
         #expect(byID["photos"]?.macBody.contains("Body → Photos → Add Photos") == true)
+        // The Mac Settings window: Goals and My Plan as they are named there; Apple Health is iPhone only.
+        #expect(byID["everywhere"]?.macBody.contains("Settings (⌘,) has Goals, My Plan") == true)
+        #expect(byID["everywhere"]?.macBody.contains("Apple Health") == false)
     }
 
     @Test func readOnlyStepsSayContinue() {
