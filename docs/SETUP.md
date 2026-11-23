@@ -17,6 +17,7 @@ with Nina's values. Claude turns them into a numbered claude.ai checklist and ti
 | Shared iCloud container / App Group | `iCloud.at.binisoft.shared` / `group.at.binisoft.shared` (exist – only tick them) |
 | Shared keychain group | `$(AppIdentifierPrefix)at.binisoft.shared` (no portal step) |
 | Capabilities | iOS + Mac: iCloud (CloudKit, both containers), App Groups, Push Notifications, HealthKit (iOS) · Watch: iCloud, App Groups, Push · Widgets and complications: App Groups |
+| iPhone → watch face | Today's numbers go device to device (WatchConnectivity) – no capability, no portal step |
 | TestFlight group | `Binisoft Team`, automatic distribution |
 
 All identifiers are defined in [`Config/Base.xcconfig`](../Config/Base.xcconfig).

@@ -10,6 +10,8 @@
 | Progress photos (front, side, back) – Nina's own data, not Health data | SwiftData (`ProgressPhoto`), the photo and its thumbnail as files in Nina's private iCloud database; not in iCloud Photos, not on the watch | Only the user's Apple Account |
 | Built-in food catalog | In the app bundle | Everyone (public data) |
 | Today's numbers for widgets and complications | `group.at.binisoft.shared/Nina/today.json` on each device | Nina's widgets on that device |
+| Today's numbers handed from the iPhone to its Apple Watch, so the watch face follows what is logged on the iPhone or Mac (without the activity bonus from Health) | Sent device to device (WatchConnectivity, never iCloud), written into the watch's `today.json` | Nina's complications on that watch |
+| Today's active energy for the widget budget (when "Add to my budget" is on) | UserDefaults on that iPhone, with its day | Nina on that device |
 | The day totals for Thalia (calories, protein, carbs, fat, water of the last 62 days – from Nina's own diary, never from Health) | `group.at.binisoft.shared/Nina/exchange/` on each iPhone, iPad and Mac (not the watch), while Settings → Thalia → Send to Thalia is on | Thalia and Nina on that device |
 | Apple Health values (weight, active energy) | Read live from HealthKit on each device, kept in memory only | Never stored or synced by Nina |
 | Apple Health body values (body fat, lean mass, waist, height) and today's workouts | Read live from HealthKit on iPhone and iPad, kept in memory only | Never stored or synced by Nina |
@@ -49,6 +51,11 @@ ever exist in Nina, it is left out.
 - **Imported history** (past weigh-ins from an import, see [IMPORT.md](IMPORT.md)) shows as
   "Imported" in the weigh-in list and is never written to Health – it may be there already from the
   scale it came from.
+- **Mac and Apple Watch** read nothing from Health (the Mac can't; the watch doesn't ask). Their
+  7-day average, pace and the "Weigh in" pill only know the weigh-ins typed in Nina, so they can
+  differ from the iPhone's. With fewer than 4 morning weigh-ins typed in Nina in the last 7 days,
+  the watch says "Weigh-ins from Apple Health count on your iPhone" under its weight numbers. The
+  watch's ring and face also leave out the activity bonus.
 
 ## Body data from Apple Health (iPhone and iPad)
 
@@ -78,8 +85,12 @@ Settings → Apple Health → turn on what to share:
   known nutrients (energy, protein, carbs, fat, fiber, sugar, saturated/mono/poly fat, cholesterol,
   sodium, potassium, calcium, iron, magnesium, zinc, vitamins A, C, D, E, B12, folate, caffeine).
   Each correlation carries a sync identifier and a version: editing an entry replaces it, deleting or
-  un-eating it removes it. Planned and skipped entries are not written.
-- **Water** – each water log.
+  un-eating it removes it. Planned and skipped entries are not written. Undo right after logging,
+  ⌘Z, and an entry deleted for good on another device remove it from Health too (the next sync
+  looks for every entry it wrote that has no record left on any day). Diary rows imported from
+  another app's export are written only when "Also write these to Apple Health" was on in the
+  import – that app has usually written them to Health already.
+- **Water** – each water log; Undo and deleting remove it again.
 - **Weight** – weigh-ins typed in Nina are written; weigh-ins from the scale are read live for the
   trend and the coach. Weigh-ins you save on the watch, iPad or Mac are written by your iPhone on its
   next sync, once (editing or deleting one there updates or removes it in Health too, and so does
@@ -87,9 +98,20 @@ Settings → Apple Health → turn on what to share:
   once even when your iPhone and iPad both write it. Imported history is never written to Health –
   not when you edit it, restore it from Recently Deleted or undo either.
 - **Active energy** – read to show "budget incl. activity" when you choose to add half or all of it.
+  The widget's budget uses the value read today only (never yesterday's).
 
 Only the iPhone writes, so entries from the Mac or the watch reach Health once the iPhone has synced
 them (usually within seconds when Nina is open).
+
+Two safety rules:
+
+- **Nothing is written while Nina runs on temporary storage** (Settings → About → Storage says
+  "Temporary (not saved)"): what is typed then is lost on quit, so it must not stay in Health.
+- **A store that suddenly looks empty removes nothing.** After signing out of iCloud or switching
+  to another Apple Account, the device's copy of Nina's data can be empty for a while. When all of
+  them vanish at once (or more than 20 entries, or more than 3 weigh-ins, in one sync), Nina only
+  forgets what it wrote instead of deleting it from Health; once the data is back, the sync
+  identifiers keep each entry and weigh-in in Health once.
 
 ## Barcode lookups
 
