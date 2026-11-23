@@ -209,14 +209,9 @@ struct InsightsView: View {
 
     private var unit: EnergyUnit { app.energyUnit }
 
-    /// "Nutrition" under Progress on iPhone and iPad (the segment's name); the Mac sidebar calls it Insights.
-    private var pageTitle: String {
-        #if os(macOS)
-        "Insights"
-        #else
-        "Nutrition"
-        #endif
-    }
+    /// "Nutrition" everywhere: under Progress on iPhone and iPad (the segment's name), and the Mac
+    /// sidebar's Nutrition.
+    private var pageTitle: String { "Nutrition" }
 
     /// Reload on range and data changes, when Apple Health weights arrive (read live, never
     /// stored) and when a tape formula is picked.
