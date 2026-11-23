@@ -31,6 +31,11 @@ private struct EntryEditorFields: Equatable {
         carbs = values[.carbs].map { EntryEditorNumber.text($0, decimals: 1) } ?? ""
         fat = values[.fat].map { EntryEditorNumber.text($0, decimals: 1) } ?? ""
     }
+
+    /// The quick entry's number fields by nutrient (`DiaryEntryEdits.quickNutrients`).
+    var quickTexts: [Nutrient: String] {
+        [.energy: energy, .protein: protein, .carbs: carbs, .fat: fat]
+    }
 }
 
 /// Numbers in the editor's fields the way the keyboard types them: the person's decimal
@@ -38,7 +43,9 @@ private struct EntryEditorFields: Equatable {
 private enum EntryEditorNumber {
     static func text(_ value: Double, decimals: Int) -> String {
         guard value.isFinite else { return "" }
-        return value.formatted(.number.precision(.fractionLength(0...max(0, decimals))).grouping(.never))
+        let text = value.formatted(.number.precision(.fractionLength(0...max(0, decimals))).grouping(.never))
+        // A locale with its own digits would show text Nina can't read back: plain digits then.
+        return NumberText.parse(text) != nil ? text : NumberText.plain(value, decimals: decimals)
     }
 }
 
@@ -87,18 +94,10 @@ struct EntryEditor: View {
         return entry.values.scaled(by: fields.amount.total / old)
     }
 
-    /// The quick entry's numbers; nil while a field doesn't read as a number (Save waits).
+    /// The quick entry's numbers: untouched fields keep the stored values exactly; nil while a
+    /// changed field doesn't read as a number (Save waits).
     private var quickValues: NutrientValues? {
-        guard let energy = DiaryEntryEdits.quickValue(fields.energy, isEnergy: true),
-              let protein = DiaryEntryEdits.quickValue(fields.protein, isEnergy: false),
-              let carbs = DiaryEntryEdits.quickValue(fields.carbs, isEnergy: false),
-              let fat = DiaryEntryEdits.quickValue(fields.fat, isEnergy: false) else { return nil }
-        var values = entry.values
-        values[.energy] = energy
-        values[.protein] = protein
-        values[.carbs] = carbs
-        values[.fat] = fat
-        return values
+        DiaryEntryEdits.quickNutrients(entry.values, typed: fields.quickTexts, initial: initial.quickTexts)
     }
 
     private var canSave: Bool { !isQuick || quickValues != nil }
@@ -160,10 +159,10 @@ struct EntryEditor: View {
 
     private var quickSection: some View {
         Section {
-            numberRow("Energy (kcal)", text: $fields.energy, isEnergy: true)
-            numberRow("Protein (g)", text: $fields.protein, isEnergy: false)
-            numberRow("Carbs (g)", text: $fields.carbs, isEnergy: false)
-            numberRow("Fat (g)", text: $fields.fat, isEnergy: false)
+            numberRow("Energy (kcal)", text: $fields.energy, startText: initial.energy, isEnergy: true)
+            numberRow("Protein (g)", text: $fields.protein, startText: initial.protein, isEnergy: false)
+            numberRow("Carbs (g)", text: $fields.carbs, startText: initial.carbs, isEnergy: false)
+            numberRow("Fat (g)", text: $fields.fat, startText: initial.fat, isEnergy: false)
         } header: {
             Text("Nutrition")
         } footer: {
@@ -219,9 +218,11 @@ struct EntryEditor: View {
         }
     }
 
-    /// A number field named for VoiceOver ("Protein (g)"), red while it doesn't read as a number.
-    private func numberRow(_ title: String, text: Binding<String>, isEnergy: Bool) -> some View {
-        let isInvalid: Bool = DiaryEntryEdits.quickValue(text.wrappedValue, isEnergy: isEnergy) == nil
+    /// A number field named for VoiceOver ("Protein (g)"), red once a change doesn't read as a
+    /// number.
+    private func numberRow(_ title: String, text: Binding<String>, startText: String, isEnergy: Bool) -> some View {
+        let typed: String = text.wrappedValue
+        let isInvalid: Bool = typed != startText && DiaryEntryEdits.quickValue(typed, isEnergy: isEnergy) == nil
         return HStack {
             Text(title)
             Spacer()
@@ -248,9 +249,7 @@ struct EntryEditor: View {
         let store = app.store
         if isQuick {
             guard let values = quickValues else { return }
-            // Untouched fields keep the stored values exactly (the fields show them rounded).
-            let typed = [fields.energy, fields.protein, fields.carbs, fields.fat]
-            if typed != [initial.energy, initial.protein, initial.carbs, initial.fat] { store.setNutrients(entry, values) }
+            if values != entry.values { store.setNutrients(entry, values) }
         } else if fields.amount != entry.amount {
             store.update(entry, amount: fields.amount)
         }

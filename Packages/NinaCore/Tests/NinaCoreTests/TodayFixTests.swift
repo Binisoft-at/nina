@@ -131,6 +131,32 @@ struct DiaryEntryEditsTests {
         #expect(DiaryEntryEdits.quickValue("7a", isEnergy: false) == nil)
     }
 
+    @Test func untouchedQuickFieldsKeepTheStoredValues() throws {
+        // Stored: 105.4 kcal, 1.27 g protein, carbs unknown; the fields show them rounded.
+        let stored = NutrientValues([.energy: 105.4, .protein: 1.27, .fat: 0.3])
+        let initial: [Nutrient: String] = [.energy: "105", .protein: "1.3", .carbs: "", .fat: "0.3"]
+        // Nothing changed: exactly what was stored, carbs still unknown.
+        #expect(DiaryEntryEdits.quickNutrients(stored, typed: initial, initial: initial) == stored)
+        // Only fat changed: energy and protein stay exact, fat is the typed value.
+        var typed = initial
+        typed[.fat] = "4,5"
+        let edited = try #require(DiaryEntryEdits.quickNutrients(stored, typed: typed, initial: initial))
+        #expect(edited[.energy] == 105.4)
+        #expect(edited[.protein] == 1.27)
+        #expect(edited[.carbs] == nil)
+        #expect(edited[.fat] == 4.5)
+        // A cleared macro counts as 0; a cleared or negative energy and junk wait for a fix.
+        typed[.protein] = ""
+        #expect(DiaryEntryEdits.quickNutrients(stored, typed: typed, initial: initial)?[.protein] == 0)
+        typed[.energy] = ""
+        #expect(DiaryEntryEdits.quickNutrients(stored, typed: typed, initial: initial) == nil)
+        typed[.energy] = "-20"
+        #expect(DiaryEntryEdits.quickNutrients(stored, typed: typed, initial: initial) == nil)
+        typed[.energy] = "120"
+        typed[.carbs] = "1.,2"
+        #expect(DiaryEntryEdits.quickNutrients(stored, typed: typed, initial: initial) == nil)
+    }
+
     // MARK: Searching the diary
 
     @Test func searchNeedlesFoldLikeEverySearch() {

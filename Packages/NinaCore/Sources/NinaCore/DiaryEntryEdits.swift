@@ -44,6 +44,20 @@ public enum DiaryEntryEdits {
         return max(0, value)
     }
 
+    /// A quick entry's nutrients after editing (`typed` and `initial`: the field texts now and as
+    /// the editor opened). A field still showing its starting text keeps the stored value exactly
+    /// – the field shows it rounded, and an unknown value stays unknown; a changed one counts as
+    /// typed (`quickValue`). Nil while a changed field doesn't read as a number.
+    public static func quickNutrients(_ stored: NutrientValues, typed: [Nutrient: String],
+                                      initial: [Nutrient: String]) -> NutrientValues? {
+        var values = stored
+        for (nutrient, text) in typed where text != initial[nutrient] {
+            guard let value = quickValue(text, isEnergy: nutrient == .energy) else { return nil }
+            values[nutrient] = value
+        }
+        return values
+    }
+
     // MARK: Searching the diary
 
     /// What a diary search looks for: "#" dropped and folded like every search ("Café-Latte" →

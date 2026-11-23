@@ -317,7 +317,7 @@ struct DayView: View {
     @ViewBuilder
     private var dayActions: some View {
         Button("Copy to Today", systemImage: "doc.on.doc") { app.copy(entries.filter(\.isEaten), to: app.today) }
-            .disabled(day == app.today)
+            .disabled(day == app.today || !entries.contains(where: \.isEaten))
         Button("Plan Tomorrow Like This", systemImage: "calendar.badge.plus") {
             app.copy(entries.filter { $0.entryStatus != .skipped }, to: app.today.adding(days: 1), status: .planned)
         }
@@ -354,7 +354,8 @@ struct DayView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") { withAnimation { editMode = .inactive; selection = [] } }
             }
-        } else {
+        }
+        if !editMode.isEditing {
             ToolbarItem(placement: .primaryAction) { logFoodButton }
         }
         ToolbarItem(placement: .topBarLeading) {

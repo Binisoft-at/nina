@@ -488,9 +488,15 @@ struct GlobalSearchView: View {
         .contentShape(.rect)
     }
 
+    /// What "New Food" names the food; empty for a #tag search, which looks for no food.
+    private var newFoodName: String {
+        let name = query.trimmingCharacters(in: .whitespaces)
+        return name.hasPrefix("#") ? "" : name
+    }
+
     @ViewBuilder
     private var emptyState: some View {
-        if query.isEmpty {
+        if query.trimmingCharacters(in: .whitespaces).isEmpty {
             ContentUnavailableView("Search \(AppInfo.name)", systemImage: "magnifyingglass",
                                    description: Text("Foods, meals and everything in your diary – names, notes and #tags."))
         } else if searchedQuery == query, foods.isEmpty, history.isEmpty {
@@ -499,7 +505,9 @@ struct GlobalSearchView: View {
             } description: {
                 Text("No food, meal or diary entry matches. Check the spelling, or create the food.")
             } actions: {
-                Button("New Food") { app.sheet = .newFood(FoodDraft(name: query, nutrients: .zero)) }
+                if !newFoodName.isEmpty {
+                    Button("New Food") { app.sheet = .newFood(FoodDraft(name: newFoodName, nutrients: .zero)) }
+                }
             }
         }
     }

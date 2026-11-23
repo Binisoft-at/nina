@@ -104,8 +104,9 @@ enum TodayEntryClipboard {
 
     /// The entries behind the pasteboard's text, if it is still what Nina copied.
     static func pastedIDs() -> [UUID] {
-        guard !copiedIDs.isEmpty, NSPasteboard.general.string(forType: .string) == copiedText else { return [] }
-        return copiedIDs
+        guard !copiedIDs.isEmpty, let pasted = NSPasteboard.general.string(forType: .string) else { return [] }
+        let same = pasted.trimmingCharacters(in: .whitespacesAndNewlines) == copiedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return same ? copiedIDs : []
     }
 }
 #endif

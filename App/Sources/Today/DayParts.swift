@@ -631,6 +631,7 @@ struct WaterAmountView: View {
                         if let amount = NumberText.parse(text), amount > 0 { app.addWater(amount, day: day) }
                         dismiss()
                     }
+                    .disabled((NumberText.parse(text) ?? 0) <= 0)
                 }
             }
             .onAppear {
