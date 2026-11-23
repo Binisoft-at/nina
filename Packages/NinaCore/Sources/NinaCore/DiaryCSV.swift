@@ -100,7 +100,7 @@ public enum DiaryCSV {
 
     public static var header: [String] { columns.map(\.name) }
 
-    public struct Parsed {
+    public struct Parsed: Sendable {
         public var rows: [(key: String, draft: DiaryDraft)]
         public var skipped: [String]
         /// The file's columns (canonical keys).

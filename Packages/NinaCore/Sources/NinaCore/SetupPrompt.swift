@@ -24,6 +24,7 @@ public enum ImportBundle {
     /// "csv", "Copy code", a label) are skipped, a blank line followed by another header starts a
     /// new part, and settings rows without a `setting,value` line count as settings.
     public static func split(_ text: String) -> Split {
+        let text = text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
         var result = Split(parts: [], unrecognised: [])
         var number = 0
         for block in fencedBlocks(text) ?? headerBlocks(text) {

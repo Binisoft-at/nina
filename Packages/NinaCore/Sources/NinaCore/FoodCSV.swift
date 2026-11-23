@@ -66,7 +66,7 @@ public enum FoodCSV {
     /// How many own food names the prompts list ("Foods I already have").
     public static let promptNameLimit = 200
 
-    public struct Parsed {
+    public struct Parsed: Sendable {
         public var rows: [(key: String, draft: FoodDraft)]
         public var skipped: [String]
         /// Per row: the columns it speaks for (the file's columns, without a barcode Excel damaged).
