@@ -95,6 +95,16 @@ public enum PlanSchedule {
         }
     }
 
+    /// The keys a rule plans in `[from, from + horizon)` (`days(for:…)`). An entry moved to
+    /// another day ("Move to Day…", a new date in the entry editor) keeps the key of the day it was
+    /// planned for, so the store looks these keys up on any day, not only in the window: the day
+    /// the person moved a planned meal away from isn't planned again (`takenKeys`).
+    public static func keys(rule: UUID, weekdays: Weekdays, from start: DayKey, horizon: Int, startDay: DayKey? = nil,
+                            endDay: DayKey? = nil, calendar: Calendar = .current) -> [String] {
+        days(for: weekdays, from: start, horizon: horizon, startDay: startDay, endDay: endDay, calendar: calendar)
+            .map { key(rule: rule, day: $0) }
+    }
+
     /// One planned entry as the clean-up sees it (live or in the trash).
     public struct Item: Equatable, Sendable {
         public var id: String

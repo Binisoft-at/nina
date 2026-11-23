@@ -703,7 +703,8 @@ struct NinaStore {
         guard !rules.isEmpty else { return [] }
         let settings = self.settings
         let end = today.adding(days: horizon - 1, calendar: calendar)
-        let existing = PlanSchedule.takenKeys(entriesIncludingTrash(from: today, through: end).map(\.cleanupItem))
+        let existing = takenPlanKeys(window: entriesIncludingTrash(from: today, through: end).map(\.cleanupItem), rules: rules,
+                                     from: today, horizon: horizon)
         var created: [LogEntry] = []
         for rule in rules {
             guard let recipeID = rule.recipeUUID, let recipe = recipe(recipeID), recipe.deletedAt == nil else { continue }
