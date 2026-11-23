@@ -116,9 +116,9 @@ Progress → Body), Search and Recently Deleted. Nina opens on the page you used
   iCloud & data, Import & Export) and My Plan.
 - **Menu bar**: the fork-and-knife icon with the calories left today next to it. Its menu shows
   calories left (or over), protein and water against your targets, and has **Add a Glass of
-  Water**, **Log Food…**, **Weigh In…** and **Open Nina**. Log Food and Weigh In bring Nina's window
-  forward with the sheet; a sheet that is already open stays. Settings → General → Menu Bar turns it
-  off, or just the number next to the icon (this Mac only).
+  Water**, **Log Food…**, **Weigh In…**, **Open Nina** and **Settings…**. Log Food and Weigh In
+  bring Nina's window forward with the sheet; a sheet that is already open stays. Settings →
+  General → Menu Bar turns it off, or just the number next to the icon (this Mac only).
 - **Photo lock**: with Lock Photos on, a quick look at another app doesn't ask again – the photos
   lock after five minutes away from Nina, and at once when the screen locks or the Mac sleeps.
 - Apple Health isn't on the Mac, so weight and activity from Health show on your iPhone; nothing

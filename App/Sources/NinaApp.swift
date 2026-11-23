@@ -9,9 +9,6 @@ import AppKit
 struct NinaApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MainWindowGuard.self) private var windowGuard
-    /// Settings → Menu Bar → "Show in menu bar" (this Mac only); ⌘-dragging the icon out of the
-    /// menu bar turns it off.
-    @AppStorage(NinaMenuBar.showKey) private var showsMenuBar = true
     #endif
     @Environment(\.scenePhase) private var scenePhase
     @State private var app: AppModel
@@ -27,7 +24,13 @@ struct NinaApp: App {
         MacWindowState.shared.start()
         #endif
         let opened = Persistence.shared
-        _app = State(initialValue: AppModel(container: opened.container, mode: opened.mode))
+        let model = AppModel(container: opened.container, mode: opened.mode)
+        _app = State(initialValue: model)
+        #if os(macOS)
+        // Nina in the menu bar (MenuBar.swift): an AppKit status item, set up once launching is
+        // done. Not a SwiftUI MenuBarExtra scene – with one, macOS didn't open the main window.
+        NinaMenuBarController.shared.start(app: model)
+        #endif
     }
 
     var body: some Scene {
@@ -63,14 +66,6 @@ struct NinaApp: App {
                 .appearanceFromSettings()
                 .frame(minWidth: 580, minHeight: 520)
         }
-
-        // Nina in the menu bar: today's numbers and quick actions (MenuBar.swift).
-        MenuBarExtra(isInserted: $showsMenuBar) {
-            NinaMenuBarMenu(app: app)
-        } label: {
-            NinaMenuBarLabel(app: app)
-        }
-        .menuBarExtraStyle(.menu)
         #endif
     }
 }
