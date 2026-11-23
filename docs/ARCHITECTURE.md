@@ -6,8 +6,12 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
   Foods, FoodCategory  FoodRef (usda:… / nina:… / food:<uuid> / recipe:<uuid>), FoodRecord, Serving
   Catalog              the bundled foods.json (USDA SR28 + DACH staples), loaded once
   Search               normalisation (umlauts, "ae"→a, accents), typo-tolerant ranked search with usage
+  RecentFoods          usage per meal; the log sheet's Recent list for the meal being logged
+                       ("Mostly at breakfast" first, then the rest by recency)
   QuickParser          "200 g chicken, 2 eggs and 1 Semmel" → items with amounts (EN/DE, dag, Achtel …)
   Goals                Mifflin–St Jeor calculator with explainable steps, targets, macro splits
+  GoalSetupPrompt      when Today shows "Set your goal" (no plan; starting targets or no body
+                       data) and its "Not now" (7 days) / "Don't show again" (device-only)
   Days, Diary          day keys (optional late-night day start), meals, day totals and progress
   Insights             period stats, streaks, top foods, weight trend, measured maintenance
   Plan                 weekday rules, materialisation keys, multi-device duplicate convergence
