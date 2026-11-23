@@ -804,13 +804,14 @@ public enum SettingsCSV {
         return same(draft.protein, targets.protein) && same(draft.carbs, targets.carbs) && same(draft.fat, targets.fat)
     }
 
-    /// Something the calorie calculation uses changed: goal, pace, sex, birth year, height,
-    /// activity or weight.
+    /// Something the calorie and macro calculation uses changed: goal, pace, sex, birth year,
+    /// height, activity, weight or the macro split.
     static func bodyInputsChanged(_ draft: SettingsDraft, state: SettingsState, current: SettingsState, today: DayKey) -> Bool {
         if let goal = draft.goal, goal != current.goal { return true }
         if let range = draft.rateRange, range != flatRate(current, today: today) { return true }
         return state.sex != current.sex || state.birthYear != current.birthYear || abs(state.heightCm - current.heightCm) >= 0.05
             || state.activity != current.activity || abs(state.weightKg - current.weightKg) >= 0.05
+            || state.macroSplit != current.macroSplit
     }
 
     /// Every setting that differs, in plain words and by group. With an active phase its goal, rate

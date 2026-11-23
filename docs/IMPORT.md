@@ -18,7 +18,8 @@ changed. Rows Nina exported carry their record's own id, so they find it again; 
 or with an AI's own numbering 1, 2, 3 … – are matched by their content: a food by name and brand
 (also against the foods you made yourself), a diary row by date, meal, food and amount. A column
 the file doesn't have, an empty nutrient cell and differences from rounding never change anything
-(write 0 to clear a nutrient). The exports use the same formats and hold every value Nina stores –
+(write 0 to clear a nutrient); in a food row without Nina's id, an empty cell keeps what Nina has
+(a favourite, tags, a barcode). The exports use the same formats and hold every value Nina stores –
 every nutrient a food or entry has at full precision, the diary's meal names and portions – so
 you can export, edit and import again, and only what you changed changes. Edit in **Numbers**; in
 **Excel** use Data → From Text/CSV with the barcode column set to Text (opening the file directly
@@ -85,9 +86,10 @@ values is in the prompt below (`SettingsCSV.keys` in NinaCore).
   `saturated_fat_max_g`, `salt_max_g`, `water_ml`) win over the calculation. Calories without macros
   keep the current split (or use `macro_split`, also as percent: `30/40/30`).
 - **Repeated numbers**: when a file repeats your current calories and grams (an AI copied your
-  whole settings back) and changes your goal, pace or body data, the calories are calculated again
-  for the new numbers, and the preview says so in orange. To keep fixed calories, import
-  `calories` on its own. The prompts tell the AI not to copy them.
+  whole settings back) and changes your goal, pace, body data or macro split, the calories and grams
+  are calculated again for the new numbers, and the preview says so in orange when the calories
+  change. To keep fixed calories, import `calories` on its own. The prompts tell the AI not to copy
+  them.
 - **A third column** (a comment or reason next to the value) is fine: only the `value` column is
   read. The `setting,value` line itself may be missing too.
 - **Training days** (`training_days` = `mon;wed;fri` or `none`, `training_extra_kcal`) add calories on
@@ -343,7 +345,7 @@ date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,n
   approximations and limits: `~52`, `≈ 52`, `ca. 52`, `<0.5` (as EU labels print it), `12.5 (est.)`.
 - **Units and amounts**: a food's unit `ml`, `100 ml` or `per 100 ml` means millilitres. In the
   diary and recipes an amount with its unit (`40.00 g`, `0.2 l`, `2 slices`) works without a unit
-  column, and `cl` and `dl` are converted.
+  column, and in the diary `cl` and `dl` are converted to ml.
 - **Headers**: German and label wording is understood: `Brennwert (kcal)`, `Eiweiß`,
   `Kohlenhydrate`, `davon Zucker`, `Fett`, `gesättigte Fettsäuren`, `Ballaststoffe`, `Salz`,
   `Lebensmittel`, `Produkt`, `Artikel`, `Nahrungsmittel`, `Marke`, `Datum`, `Mahlzeit` …

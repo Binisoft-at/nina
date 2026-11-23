@@ -66,6 +66,15 @@ struct BackupTests {
         #expect(back.unreadable == 1)
     }
 
+    @Test func aNumberJSONCantHoldDoesntLoseTheRecord() {
+        var record = entry("NaN")
+        record.set("quantity", Double.nan)
+        record.set("unitAmount", Double.infinity)
+        let back = NinaBackup.decode(NinaBackup.encode([record]))
+        #expect(back.records.count == 1 && back.unreadable == 0)
+        #expect(back.records.first?.double("quantity", 1) == 0)
+    }
+
     @Test func manifestChecksFormatAndVersion() throws {
         let manifest = NinaBackup.Manifest(app: "Nina", appVersion: "1.2.0", created: created, device: "iPhone",
                                            counts: ["LogEntry": 2, "Food": 1], photos: 0)

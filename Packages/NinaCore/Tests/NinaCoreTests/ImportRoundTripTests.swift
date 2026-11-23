@@ -89,6 +89,22 @@ struct FoodRoundTripTests {
         #expect(newer.updates == 1)
     }
 
+    @Test func emptyCellsOfAnAIRowKeepWhatIHave() throws {
+        // An AI writes a food I already have with every column but leaves what it doesn't know empty.
+        let text = "id,name,name_de,brand,category,tags,unit,kcal,protein,carbs,fat,portions,barcode,favorite,notes\n"
+            + "7,Oat drink,,Oatly,beverages,,ml,60,1,6.6,3,,,,\n"
+        let plan = FoodCSV.plan(text, existing: foodMap([(UUID(), oatDrink, "")]))
+        let merged = try #require(plan.entries.first?.record)
+        #expect(plan.updates == 1)
+        #expect(merged.nutrients[.energy] == 60)
+        #expect(merged.barcode == oatDrink.barcode && merged.notes == "Barista" && merged.servings == oatDrink.servings)
+        // An exported row (its id) speaks for every column: an emptied cell clears the value.
+        let a = UUID()
+        let exported = FoodCSV.export([(ImportColumns.idKey(a), oatDrink)]).replacingOccurrences(of: ",Barista", with: ",")
+        let cleared = try #require(FoodCSV.plan(exported, existing: foodMap([(a, oatDrink, "")])).entries.first?.record)
+        #expect(cleared.notes.isEmpty && cleared.barcode == oatDrink.barcode)
+    }
+
     @Test func aBarcodeASpreadsheetShortenedIsLeftOut() throws {
         let parsed = FoodCSV.parse("name,kcal,protein,carbs,fat,barcode\nSkyr,63,11,4,0.2,5.2E+12\n")
         #expect(parsed.rows.first?.draft.barcode == "")
@@ -190,6 +206,23 @@ struct DiaryRoundTripTests {
         #expect(plan.creates == 1 && plan.updates == 0)
         // The same AI file again updates nothing.
         #expect(DiaryCSV.plan(first, existing: Self.existing(stored, importKeys: keys)).unchanged == 1)
+    }
+
+    @Test func entriesAnEarlierVersionImportedWithAnAIsNumberAreFound() {
+        // Imported before ids became local to the file: the entry's import key is "id:1".
+        let file = "id,date,meal,food,amount,unit,grams,kcal,protein,carbs,fat\n1,2030-10-01,breakfast,Oats,60,g,60,233,8.1,40,4.1\n"
+        let stored = DiaryDraft(day: DayKey("2030-10-01")!, meal: "breakfast", name: "Oats", quantity: 60, unitLabel: "g", amount: 60,
+                                nutrients: NutrientValues([.energy: 233, .protein: 8.1, .carbs: 40, .fat: 4.1]))
+        let uuid = UUID()
+        let keys = DiaryCSV.storedKeys(uuid: uuid, importKey: "id:1", draft: { stored })
+        #expect(keys.count == 3)
+        var map: [String: DiaryDraft] = [:]
+        for key in keys { map[key] = stored }
+        #expect(DiaryCSV.plan(file, existing: map).unchanged == 1)
+        // Entries logged in Nina, or imported by uuid, answer only to their ids.
+        #expect(DiaryCSV.storedKeys(uuid: uuid, importKey: "", draft: { stored }) == [ImportColumns.idKey(uuid)])
+        let other = UUID()
+        #expect(DiaryCSV.storedKeys(uuid: uuid, importKey: ImportColumns.idKey(other), draft: { stored }).count == 2)
     }
 
     @Test func twoIdenticalRowsAreTwoEntries() {

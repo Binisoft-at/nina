@@ -132,10 +132,13 @@ struct ImportDroppedText: Transferable {
 struct ImportLoadedFile: Equatable {
     let name: String
     let text: String
+    /// Lines with something in them, without the header (counted once: a diary file can be large).
+    let rows: Int
 
-    /// Lines with something in them, without the header.
-    var rows: Int {
-        max(0, text.split(whereSeparator: \.isNewline).filter { !$0.allSatisfy(\.isWhitespace) }.count - 1)
+    init(name: String, text: String) {
+        self.name = name
+        self.text = text
+        rows = max(0, text.split(whereSeparator: \.isNewline).filter { !$0.allSatisfy(\.isWhitespace) }.count - 1)
     }
 
     var title: String {

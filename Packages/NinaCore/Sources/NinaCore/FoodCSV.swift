@@ -117,7 +117,13 @@ public enum FoodCSV {
                 isFavorite: ImportColumns.isYes(record["favorite"]),
                 notes: record["notes"] ?? ""
             )
-            parsed.rows.append((ImportColumns.rowKey(id: record["id"] ?? "", content: [draft.name, draft.brand]), draft))
+            let key = ImportColumns.rowKey(id: record["id"] ?? "", content: [draft.name, draft.brand])
+            if !key.hasPrefix("id:") {
+                // Matched by name and brand (an AI's row, not one Nina exported): an empty cell
+                // means "not known" there, so it keeps what Nina has – a favourite, tags, a barcode.
+                columns = columns.filter { !(record[$0] ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+            }
+            parsed.rows.append((key, draft))
             parsed.columns.append(columns)
             parsed.given.append(Set(nutrients.known))
         }

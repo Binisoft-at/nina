@@ -72,6 +72,20 @@ struct SettingsImportTests {
         #expect(fixed.state.targets.energy == 2500)
     }
 
+    @Test func repeatedGramsFollowANewMacroSplit() throws {
+        // Made-up person; the AI copies the whole file back and only asks for more protein.
+        let body = "setting,value\nsex,female\nbirth_year,1992\nheight_cm,168\nweight_kg,64\nactivity,light\ngoal,maintain\n"
+        let start = SettingsCSV.apply(SettingsCSV.parse(body), to: SettingsState(), year: 2030).state
+        let exported = SettingsCSV.export(start)
+        let splitLine = try #require(exported.split(separator: "\n").first { $0.hasPrefix("macro_split,") })
+        let echoed = exported.replacingOccurrences(of: String(splitLine), with: "macro_split,high_protein")
+        let result = SettingsCSV.apply(SettingsCSV.parse(echoed), to: start, year: 2030)
+        let alone = SettingsCSV.apply(SettingsCSV.parse("setting,value\nmacro_split,high_protein\n"), to: start, year: 2030)
+        #expect(result.state.targets.protein == alone.state.targets.protein)
+        #expect(result.state.targets.protein > start.targets.protein)
+        #expect(result.state.targets.energy == start.targets.energy)
+    }
+
     @Test func promptsSayTheTargetsAreCalculated() {
         let current = "setting,value\ncalories,2400\n"
         #expect(SettingsCSV.prompt(appName: "Nina", current: current).contains(SettingsCSV.currentSettingsNote))

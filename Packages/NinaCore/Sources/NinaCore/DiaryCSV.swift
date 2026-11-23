@@ -152,8 +152,7 @@ public enum DiaryCSV {
                 note: record["note"] ?? record["notes"] ?? "",
                 status: EntryStatus(text: record["status"] ?? "")
             )
-            var key = ImportColumns.rowKey(id: record["id"] ?? "",
-                                           content: [day.rawValue, draft.meal, draft.name, NumberText.plain(draft.quantity), draft.unitLabel])
+            var key = ImportColumns.rowKey(id: record["id"] ?? "", content: contentParts(draft))
             if !key.hasPrefix("id:") {
                 let count = (repeats[key] ?? 0) + 1
                 repeats[key] = count
@@ -163,6 +162,23 @@ public enum DiaryCSV {
             parsed.given.append(Set(nutrients.known))
         }
         return parsed
+    }
+
+    /// What a row without an id of Nina's is matched by: day, meal, food, amount and unit.
+    static func contentParts(_ draft: DiaryDraft) -> [String] {
+        [draft.day.rawValue, draft.meal, draft.name, NumberText.plain(draft.quantity), draft.unitLabel]
+    }
+
+    /// Every key a stored entry answers to: "id:<uuid>" (what the exports write), the key it was
+    /// imported with and – for an entry an earlier version imported under an AI's own number
+    /// ("id:1") – the content key such a row has now, so importing that file again still finds it.
+    /// `draft` is only read for those entries.
+    public static func storedKeys(uuid: UUID, importKey: String, draft: () -> DiaryDraft) -> [String] {
+        var keys = ImportColumns.lookupKeys(uuid: uuid, importKey: importKey)
+        if importKey.hasPrefix("id:"), UUID(uuidString: String(importKey.dropFirst(3))) == nil {
+            keys.append(ImportPlan<DiaryDraft>.contentKey(contentParts(draft())))
+        }
+        return keys
     }
 
     /// The base amount and unit of a row: from the unit word (g, ml, kg, l, cl, dl), the grams

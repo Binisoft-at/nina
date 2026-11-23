@@ -68,13 +68,17 @@ struct ImportView: View {
                     backupMoved(result)
                 }
                 .dropDestination(for: ImportDroppedText.self) { items, _ in
-                    dropped(items)
+                    let handled = dropped(items)
+                    return handled
                 }
                 .onChange(of: kind) { _, _ in
                     promptCopied = false
                 }
                 .onChange(of: app.pendingImport) { _, _ in
-                    pickUpPendingImport()
+                    // Only while this sheet stays open. When the app closes it to open Import &
+                    // Export again for the file (or this one sits in My Plan), the new sheet picks
+                    // the file up – taking it here would lose it with this sheet.
+                    if case .importData? = app.sheet { pickUpPendingImport() }
                 }
                 .task(id: ImportPromptKey(kind: kind, version: app.dataVersion)) {
                     makePrompts()

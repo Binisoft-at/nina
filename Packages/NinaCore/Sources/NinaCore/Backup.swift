@@ -97,7 +97,8 @@ public struct BackupRecord: Equatable, Sendable {
     // MARK: Writing fields
 
     public mutating func set(_ key: String, _ value: String) { fields[key] = .string(value) }
-    public mutating func set(_ key: String, _ value: Double) { fields[key] = .number(value) }
+    /// A number JSON can't hold (NaN, infinity) is written as 0, so the record's line is never lost.
+    public mutating func set(_ key: String, _ value: Double) { fields[key] = .number(value.isFinite ? value : 0) }
     public mutating func set(_ key: String, _ value: Int) { fields[key] = .number(Double(value)) }
     public mutating func set(_ key: String, _ value: Bool) { fields[key] = .bool(value) }
     public mutating func set(_ key: String, date: Date?) { fields[key] = date.map { .string(NinaBackup.text(of: $0)) } ?? .null }

@@ -150,7 +150,7 @@ struct ImportPreview {
         let wanted = Set(parsed.rows.map(\.key))
         var existing: [String: DiaryDraft] = [:]
         for entry in allEntries(app) {
-            let entryKeys = ImportColumns.lookupKeys(uuid: entry.uuid, importKey: entry.importKey).filter(wanted.contains)
+            let entryKeys = DiaryCSV.storedKeys(uuid: entry.uuid, importKey: entry.importKey, draft: { entry.draft }).filter(wanted.contains)
             guard !entryKeys.isEmpty else { continue }
             let draft = entry.draft
             for key in entryKeys { existing[key] = draft }
@@ -326,7 +326,9 @@ enum ImportApply {
         let wanted = Set(plan.entries.filter { $0.action == .update }.map(\.key))
         var byKey: [String: LogEntry] = [:]
         for entry in ImportPreview.allEntries(app) {
-            for key in ImportColumns.lookupKeys(uuid: entry.uuid, importKey: entry.importKey) where wanted.contains(key) { byKey[key] = entry }
+            for key in DiaryCSV.storedKeys(uuid: entry.uuid, importKey: entry.importKey, draft: { entry.draft }) where wanted.contains(key) {
+                byKey[key] = entry
+            }
         }
         let settings = app.settings
         for row in plan.entries where row.action != .unchanged {
