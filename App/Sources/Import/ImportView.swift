@@ -372,14 +372,15 @@ struct ImportView: View {
         }
     }
 
-    /// Reads a CSV (coordinated, so a file that is only in iCloud Drive is downloaded first). A
-    /// copy another app sent to Nina is removed once read.
-    private func load(_ url: URL) {
+    /// Reads a CSV (coordinated, so a file that is only in iCloud Drive is downloaded first).
+    /// `received`: another app sent it to Nina; its copy in Documents/Inbox is removed once read
+    /// (a file the person picks is never removed, wherever it is).
+    private func load(_ url: URL, received: Bool = false) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
             use(ImportLoadedFile(name: url.lastPathComponent, text: CSV.decode(try ImportBackupFolder.read(url))))
-            ImportInbox.removeCopy(url)
+            if received { ImportInbox.removeCopy(url) }
         } catch {
             problem = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
         }
@@ -389,7 +390,7 @@ struct ImportView: View {
     private func pickUpPendingImport() {
         guard let url = app.pendingImport else { return }
         app.pendingImport = nil
-        load(url)
+        load(url, received: true)
     }
 
     // MARK: Importing

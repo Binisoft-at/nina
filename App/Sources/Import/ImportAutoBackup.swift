@@ -36,6 +36,8 @@ final class ImportAutoBackup {
     private(set) var isRunning = false
     /// A due backup waiting for the app to settle after it opened.
     @ObservationIgnored private var waiting: Task<Void, Never>?
+    /// A folder was chosen while a backup was being written: one more there right after.
+    @ObservationIgnored private var runAgain = false
 
     private init() {
         let defaults = UserDefaults.standard
@@ -57,24 +59,39 @@ final class ImportAutoBackup {
             guard self.isOn, !self.isRunning, BackupSchedule.isDue(self.state, now: Date()) else { return }
             self.isRunning = true
             await self.run(app: app, announce: false)
-            self.isRunning = false
+            self.finishRun(app: app)
         }
     }
 
     /// "Back Up Now" (and right after a folder was chosen): now, with a toast when it is done.
+    /// While one is being written, the next follows right after it (a folder chosen meanwhile).
     func runNow(app: AppModel) {
-        guard !isRunning, Self.canRun(app) else { return }
+        guard Self.canRun(app) else { return }
+        guard !isRunning else {
+            runAgain = true
+            return
+        }
         waiting?.cancel()
         waiting = nil
         isRunning = true
         Task { @MainActor [weak self] in
             guard let self else { return }
             await self.run(app: app, announce: true)
-            self.isRunning = false
+            self.finishRun(app: app)
         }
     }
 
+    private func finishRun(app: AppModel) {
+        isRunning = false
+        guard runAgain else { return }
+        runAgain = false
+        runNow(app: app)
+    }
+
     private func run(app: AppModel, announce: Bool) async {
+        // What was just changed counts too: the backup reads the saved store on a context of its own.
+        let context = app.store.context
+        if context.hasChanges { try? context.save() }
         let now = Date()
         let job = ImportAutoBackupJob(container: app.container, folder: state.folder, made: state.made, day: app.today,
                                       includePhotos: Self.includesPhotos, appVersion: ImportBackupFiles.appVersion,
@@ -183,9 +200,12 @@ final class ImportAutoBackup {
 
     // MARK: Helpers
 
-    /// The photos follow Back Up Everything's switch (on unless switched off).
+    /// The photos follow Back Up Everything's switch (on unless switched off), but stay out while
+    /// Lock Photos is on: the folder in Files or the Finder would show them without Face ID.
     private static var includesPhotos: Bool {
-        UserDefaults.standard.object(forKey: ImportBackupFiles.photosKey) as? Bool ?? true
+        let defaults = UserDefaults.standard
+        let wanted = defaults.object(forKey: ImportBackupFiles.photosKey) as? Bool ?? true
+        return wanted && !defaults.bool(forKey: BodyPhotoLock.key)
     }
 
     /// Only for the real, saved store: never the demo, the practice page or an in-memory store.
@@ -217,7 +237,8 @@ struct ImportAutoBackupJob {
     enum Outcome: Sendable {
         /// A new, empty Nina (or one still waiting for iCloud): nothing written.
         case nothingToBackUp
-        /// `bookmark`: a fresh one for the chosen folder, when the stored one was stale.
+        /// `removed`: old automatic backups that are gone now (or are no longer this device's to
+        /// remove). `bookmark`: a fresh one for the chosen folder, when the stored one was stale.
         case written(BackupAutoState.Made, usedFallback: Bool, removed: [BackupAutoState.Made], bookmark: Data?)
         /// What went wrong, and the error for the app log (no paths).
         case failed(BackupAutoState.Problem, String)
@@ -264,7 +285,11 @@ struct ImportAutoBackupJob {
         let backup = BackupAutoState.Made(name: name, place: place, created: now, records: manifest.total)
         var removed: [BackupAutoState.Made] = []
         for old in BackupSchedule.removals(made + [backup], in: place) where old.name != name {
-            if Self.remove(destination.appendingPathComponent(old.name, isDirectory: true)) { removed.append(old) }
+            let url = destination.appendingPathComponent(old.name, isDirectory: true)
+            // A folder of that name that isn't the automatic backup any more stays; the list forgets it.
+            if !BackupSchedule.isSameBackup(old, manifestData: Self.manifestData(in: url)) || Self.remove(url) {
+                removed.append(old)
+            }
         }
         return .written(backup, usedFallback: usedFallback, removed: removed, bookmark: bookmark)
     }
@@ -335,6 +360,11 @@ struct ImportAutoBackupJob {
         }
         if let coordinationError { throw coordinationError }
         if let moveError { throw moveError }
+    }
+
+    /// A backup folder's manifest.json, when it is there to read.
+    static func manifestData(in folder: URL) -> Data? {
+        try? Data(contentsOf: folder.appendingPathComponent(NinaBackup.manifestName))
     }
 
     /// Removes an old automatic backup; true when it is gone (also when it already was).
@@ -478,12 +508,13 @@ struct ImportAutoBackupSection: View {
     private var footer: String {
         #if os(macOS)
         return "Once a week, shortly after you open \(AppInfo.name), everything is saved like Back Up Everything (photos as set above). "
-            + "The last 4 stay; older ones are removed. To bring one back, use Restore from Backup… and choose its folder. "
-            + "This switch is for this Mac only."
+            + "The last 4 stay; older ones are removed. Locked photos are left out. "
+            + "To bring one back, use Restore from Backup… and choose its folder. This switch is for this Mac only."
         #else
         let device = PlatformInfo.isPhone ? "iPhone" : "iPad"
         return "Once a week, shortly after you open \(AppInfo.name), everything is saved like Back Up Everything (photos as set above). "
-            + "The last 4 stay; older ones are removed. Choose a folder in iCloud Drive to keep them safe even without this \(device). "
+            + "The last 4 stay; older ones are removed. Locked photos are left out. "
+            + "Choose a folder in iCloud Drive to keep them safe even without this \(device). "
             + "To bring one back, use Restore from Backup… and choose its folder. This switch is for this \(device) only."
         #endif
     }

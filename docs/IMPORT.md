@@ -71,7 +71,9 @@ device and isn't synced.
   first iCloud sync). Nothing waits for it, and an empty Nina (a new device before iCloud has
   brought your data) saves nothing. **Back Up Now** saves one right away.
 - **What**: the same folder as Back Up Everything, `Nina Backup 2030-01-07`, with the photos when
-  **Include Progress Photos** is on.
+  **Include Progress Photos** is on – but not while **Lock Photos with Face ID** is on, because the
+  folder would show them without Face ID (Back Up Everything still includes them when you save one
+  yourself).
 - **Where**: on iPhone and iPad in Nina's own folder – the Files app → On My iPhone (On My iPad) →
   Nina (**Show in Files**). On the Mac in Nina's own folder in its container (**Show in Finder**).
   **Choose Folder…** sends them to a folder you pick instead, e.g. iCloud Drive → Nina, so they

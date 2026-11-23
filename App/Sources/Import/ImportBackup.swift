@@ -73,6 +73,9 @@ enum ImportBackupFiles {
     static func write(app: AppModel, includePhotos: Bool) async throws -> URL {
         let parent = FileManager.default.temporaryDirectory.appendingPathComponent("NinaBackup-" + UUID().uuidString, isDirectory: true)
         let folder = parent.appendingPathComponent(NinaBackup.folderName(app: AppInfo.name, day: app.today), isDirectory: true)
+        // What was just changed counts too: the backup reads the saved store.
+        let context = app.store.context
+        if context.hasChanges { try? context.save() }
         let container = app.container
         let version = appVersion
         let deviceName = device

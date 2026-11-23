@@ -223,6 +223,16 @@ public enum BackupSchedule {
         return remove
     }
 
+    /// Whether the folder with an automatic backup's name still holds that backup, by its
+    /// manifest.json: the same time of writing. One saved by hand (or by another device) under
+    /// that name, or anything that isn't a Nina backup, is never removed. Without a manifest to
+    /// read (gone, or not downloaded yet) the list of what this device made decides.
+    public static func isSameBackup(_ backup: BackupAutoState.Made, manifestData: Data?) -> Bool {
+        guard let manifestData else { return true }
+        guard let manifest = try? NinaBackup.decodeManifest(manifestData) else { return false }
+        return abs(manifest.created.timeIntervalSince(backup.created)) < 1
+    }
+
     // MARK: Words
 
     /// How a chosen folder is shown: "iCloud Drive → Nina" for iCloud Drive, "Documents → Nina

@@ -124,6 +124,22 @@ struct BackupScheduleTests {
         #expect(BackupSchedule.removals(refilled, in: BackupAutoState.appFolder).map(\.name) == ["Full2"])
     }
 
+    @Test func onlyTheBackupItselfIsRemovedNotAnotherFolderOfThatName() {
+        let backup = made("Nina Backup 2030-01-07", day: 0, records: 120)
+        func manifest(created: Date) -> Data {
+            NinaBackup.encode(NinaBackup.Manifest(app: "Nina", appVersion: "1.2.0", created: created, device: "iPhone",
+                                                  counts: ["Food": 120], photos: 0))
+        }
+        // The one this device wrote (the manifest keeps milliseconds).
+        #expect(BackupSchedule.isSameBackup(backup, manifestData: manifest(created: at(0).addingTimeInterval(0.0004))))
+        // Nothing to read: the list decides.
+        #expect(BackupSchedule.isSameBackup(backup, manifestData: nil))
+        // Saved by hand (or by another device) later under the same name, or not a backup at all: it stays.
+        #expect(!BackupSchedule.isSameBackup(backup, manifestData: manifest(created: at(0, hours: 3))))
+        #expect(!BackupSchedule.isSameBackup(backup, manifestData: Data("holiday photos".utf8)))
+        #expect(!BackupSchedule.isSameBackup(backup, manifestData: Data(#"{"format": "something-else"}"#.utf8)))
+    }
+
     @Test func stateRecordsWhatHappened() {
         var state = BackupAutoState()
         state.succeeded(made("A", day: 0), usedFallback: false)
