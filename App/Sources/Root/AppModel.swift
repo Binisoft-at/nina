@@ -222,6 +222,14 @@ final class AppModel {
     func checkDay() {
         guard rollDay() else { return }
         refresh(reason: "day")
+        // Today's active energy starts again with the new diary day: read it, so Today and the
+        // widget add the new day's (the app was open at the day start; coming back reads it anyway).
+        guard !isSandbox, !launch.isDemo, health.isAvailable else { return }
+        let health = self.health
+        Task { @MainActor [weak self] in
+            await health.refreshReadings()
+            self?.scheduleRefresh()
+        }
     }
 
     /// Moves `today` on when the diary day changed – and the shown day with it when it was the old
