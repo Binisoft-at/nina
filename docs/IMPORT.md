@@ -59,10 +59,38 @@ Import & Export → **Back Up Everything…** (on the Mac also File → Back Up 
 
 Nothing from Apple Health is in it (Nina stores none), and nothing that only lives on one device
 (reminder settings, the record of what Nina wrote to Health). Import & Export shows when this
-device last saved a backup. Nina doesn't back up by itself yet: save one now and then, and keep a
-few.
+device last saved a backup.
 
-**Restore from Backup…**: choose the folder. The preview lists per kind what is in the backup,
+### Automatic backup every week
+
+Settings → Import & Export → Automatic Backup → **Back Up Automatically Every Week**. It is on by
+default on iPhone and off on iPad and Mac (they usually hold the same data); the switch is per
+device and isn't synced.
+
+- **When**: at most once every 7 days, in the background shortly after you open Nina (after its
+  first iCloud sync). Nothing waits for it, and an empty Nina (a new device before iCloud has
+  brought your data) saves nothing. **Back Up Now** saves one right away.
+- **What**: the same folder as Back Up Everything, `Nina Backup 2030-01-07`, with the photos when
+  **Include Progress Photos** is on – but not while **Lock Photos with Face ID** is on, because the
+  folder would show them without Face ID (Back Up Everything still includes them when you save one
+  yourself).
+- **Where**: on iPhone and iPad in Nina's own folder – the Files app → On My iPhone (On My iPad) →
+  Nina (**Show in Files**). On the Mac in Nina's own folder in its container (**Show in Finder**).
+  **Choose Folder…** sends them to a folder you pick instead, e.g. iCloud Drive → Nina, so they
+  are safe even if the iPhone is lost; Nina saves one there right away so you see it works. If
+  that folder can't be opened later (deleted, a drive not connected), the backup goes to Nina's
+  own folder and Import & Export says so. **Use Nina's Own Folder** switches back.
+- **How many**: the last 4 automatic backups in a folder stay; older ones are removed after a new
+  one was saved. Only folders the automatic backup of that device made are ever removed – never
+  one you saved yourself or renamed. When a lot went missing (the newer backups hold less than
+  half of an older one), that fuller backup is kept too, until the newer ones are about as full
+  again.
+- **When it doesn't work** (full device, folder gone), Import & Export says why in plain words and
+  Nina tries again a few hours later. If there has been no backup for two weeks, one short message
+  says so.
+
+**Restore from Backup…**: choose the folder (an automatic one: On My iPhone → Nina → `Nina Backup …`,
+or in the folder you chose). The preview lists per kind what is in the backup,
 what is new and what is already here. Nothing Nina has is changed or deleted – only what is missing
 is added, with its original dates, so the links between diary, foods, recipes, routines, check-ins
 and photos stay intact. Things deleted more than 30 days before the backup stay out. If your goals
@@ -345,7 +373,9 @@ date,time,weight_kg,body_fat_pct,body_fat_method,device,lean_kg,fat_kg,bone_kg,n
   approximations and limits: `~52`, `≈ 52`, `ca. 52`, `<0.5` (as EU labels print it), `12.5 (est.)`.
 - **Units and amounts**: a food's unit `ml`, `100 ml` or `per 100 ml` means millilitres. In the
   diary and recipes an amount with its unit (`40.00 g`, `0.2 l`, `2 slices`) works without a unit
-  column, and in the diary `cl` and `dl` are converted to ml.
+  column, and in the diary and recipes `cl` and `dl` are converted to ml. A recipe ingredient with
+  a portion word and its amount in `grams` (`1` + `glass`, `250`) stays in ml when Nina knows it
+  as a drink (the same ingredient in the stored recipe, or a drink of exactly that name).
 - **Headers**: German and label wording is understood: `Brennwert (kcal)`, `Eiweiß`,
   `Kohlenhydrate`, `davon Zucker`, `Fett`, `gesättigte Fettsäuren`, `Ballaststoffe`, `Salz`,
   `Lebensmittel`, `Produkt`, `Artikel`, `Nahrungsmittel`, `Marke`, `Datum`, `Mahlzeit` …

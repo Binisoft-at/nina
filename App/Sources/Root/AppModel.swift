@@ -198,6 +198,7 @@ final class AppModel {
         let newDay = rollDay()
         if !newDay, launchPlansDone { store.materializePlans(today: today) }
         thalia.becameActive()
+        if launchPurgeDone { ImportAutoBackup.shared.runIfDue(app: self) } // weekly backup, in the background
         let health = self.health
         Task { @MainActor [weak self] in
             let weights = health.weightSamples
@@ -330,6 +331,7 @@ final class AppModel {
         guard !launchPurgeDone else { return }
         launchPurgeDone = true
         sweepTrashIfDue()
+        ImportAutoBackup.shared.runIfDue(app: self) // after the launch's first sync: the weekly backup, if due
     }
 
     /// Empties the trash of what is past its time, at most once a day.

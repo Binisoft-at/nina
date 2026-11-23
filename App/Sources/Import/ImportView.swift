@@ -45,6 +45,8 @@ struct ImportView: View {
     @State private var isBackingUp = false
     @State private var restore: ImportRestore?
     @State private var useBackupProfile = false
+    /// What went wrong choosing the automatic backup's folder.
+    @State private var autoBackupProblem: String?
     @AppStorage(ImportBackupFiles.photosKey) private var includePhotos = true
     @AppStorage(ImportBackupFiles.lastKey) private var lastBackup: Double = 0
 
@@ -114,12 +116,18 @@ struct ImportView: View {
 
     @ViewBuilder
     private var backupSections: some View {
-        ImportBackupSection(includePhotos: $includePhotos, lastBackup: lastBackup, isWorking: isBackingUp, problem: backupProblem,
+        ImportBackupSection(includePhotos: $includePhotos, lastBackup: newestBackup, isWorking: isBackingUp, problem: backupProblem,
                             onBackUp: { makeBackup() }, onRestore: { chooseBackup() })
         if let restore {
             ImportRestoreSection(restore: restore, useBackupProfile: $useBackupProfile, onRestore: { restoreBackup() },
                                  onCancel: { self.restore = nil })
         }
+        ImportAutoBackupSection(onChooseFolder: { chooseAutoBackupFolder() }, problem: autoBackupProblem)
+    }
+
+    /// This device's newest backup, saved by hand or automatically (seconds since 1970).
+    private var newestBackup: Double {
+        max(lastBackup, ImportAutoBackup.shared.state.lastSuccess?.timeIntervalSince1970 ?? 0)
     }
 
     private var setupSection: some View {
@@ -350,17 +358,29 @@ struct ImportView: View {
     private func picked(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            if picker == .backup { readBackup(url) } else { load(url) }
+            switch picker {
+            case .csv: load(url)
+            case .backup: readBackup(url)
+            case .backupFolder: autoBackupProblem = ImportAutoBackup.shared.choose(url, app: app)
+            }
         case .failure(let error):
-            problem = error.localizedDescription
+            switch picker {
+            case .csv: problem = error.localizedDescription
+            case .backup: backupProblem = error.localizedDescription
+            case .backupFolder: autoBackupProblem = error.localizedDescription
+            }
         }
     }
 
-    private func load(_ url: URL) {
+    /// Reads a CSV (coordinated, so a file that is only in iCloud Drive is downloaded first).
+    /// `received`: another app sent it to Nina; its copy in Documents/Inbox is removed once read
+    /// (a file the person picks is never removed, wherever it is).
+    private func load(_ url: URL, received: Bool = false) {
         let scoped = url.startAccessingSecurityScopedResource()
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
-            use(ImportLoadedFile(name: url.lastPathComponent, text: CSV.decode(try Data(contentsOf: url))))
+            use(ImportLoadedFile(name: url.lastPathComponent, text: CSV.decode(try ImportBackupFolder.read(url))))
+            if received { ImportInbox.removeCopy(url) }
         } catch {
             problem = "Couldn't read \(url.lastPathComponent): \(error.localizedDescription)"
         }
@@ -370,7 +390,7 @@ struct ImportView: View {
     private func pickUpPendingImport() {
         guard let url = app.pendingImport else { return }
         app.pendingImport = nil
-        load(url)
+        load(url, received: true)
     }
 
     // MARK: Importing
@@ -443,9 +463,8 @@ struct ImportView: View {
         isBackingUp = true
         let photos = includePhotos
         Task {
-            await Task.yield()
             do {
-                backupFolder = try ImportBackupFiles.write(app: app, includePhotos: photos)
+                backupFolder = try await ImportBackupFiles.write(app: app, includePhotos: photos)
             } catch {
                 backupProblem = "The backup couldn't be written: \(error.localizedDescription)"
             }
@@ -473,6 +492,12 @@ struct ImportView: View {
     private func chooseBackup() {
         backupProblem = nil
         picker = .backup
+        showFilePicker = true
+    }
+
+    private func chooseAutoBackupFolder() {
+        autoBackupProblem = nil
+        picker = .backupFolder
         showFilePicker = true
     }
 
@@ -523,15 +548,31 @@ struct ImportView: View {
     }
 }
 
-/// Which files the file picker offers.
+/// Which files the file picker offers: a CSV, a backup folder to restore, or the folder for the
+/// automatic backups.
 enum ImportPicker {
-    case csv, backup
+    case csv, backup, backupFolder
 
     var types: [UTType] {
         switch self {
         case .csv: [.commaSeparatedText, .plainText, .text, .tabSeparatedText]
-        case .backup: [.folder]
+        case .backup, .backupFolder: [.folder]
         }
+    }
+}
+
+/// Files another app sends to Nina ("Open in Nina", AirDrop, Mail) arrive as copies in
+/// Documents/Inbox – which Files shows under On My iPhone → Nina, next to the backups.
+enum ImportInbox {
+    /// Removes `url` once it is read when it is such a copy (never anything else).
+    static func removeCopy(_ url: URL) {
+        guard url.isFileURL,
+              let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let inbox = documents.appendingPathComponent("Inbox", isDirectory: true).resolvingSymlinksInPath().path(percentEncoded: false)
+        let path = url.resolvingSymlinksInPath().path(percentEncoded: false)
+        guard path.hasPrefix(inbox.hasSuffix("/") ? inbox : inbox + "/") else { return }
+        try? FileManager.default.removeItem(at: url)
+        AppLog.info("Removed the received copy of \(url.lastPathComponent)", category: "import")
     }
 }
 

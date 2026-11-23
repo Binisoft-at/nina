@@ -17,34 +17,8 @@ extension NinaStore {
     /// at `folder`, which must not exist yet. Returns its manifest.
     @discardableResult
     func writeBackup(to folder: URL, includePhotos: Bool, appVersion: String, device: String, now: Date = Date()) throws -> NinaBackup.Manifest {
-        let files = FileManager.default
-        try files.createDirectory(at: folder, withIntermediateDirectories: true)
-        var records = backupRecords()
-        var photoFiles = 0
-        if includePhotos {
-            try files.createDirectory(at: folder.appendingPathComponent(NinaBackup.photosFolder), withIntermediateDirectories: true)
-            for photo in everyRecord(ProgressPhoto.self) {
-                var record = photo.backupRecord
-                if let image = photo.image {
-                    let path = NinaBackup.photoPath(photo.uuid)
-                    try image.write(to: folder.appendingPathComponent(path))
-                    record.set("image", path)
-                    photoFiles += 1
-                }
-                if let thumbnail = photo.thumbnail {
-                    let path = NinaBackup.photoPath(photo.uuid, thumbnail: true)
-                    try thumbnail.write(to: folder.appendingPathComponent(path))
-                    record.set("thumbnail", path)
-                }
-                records.append(record)
-            }
-        }
-        try NinaBackup.encode(records).write(to: folder.appendingPathComponent(NinaBackup.recordsName))
-        let manifest = NinaBackup.Manifest(app: AppInfo.name, appVersion: appVersion, created: now, device: device,
-                                           counts: NinaBackup.counts(records), photos: photoFiles)
-        try NinaBackup.encode(manifest).write(to: folder.appendingPathComponent(NinaBackup.manifestName))
-        AppLog.info("Backup written: \(records.count) records, \(photoFiles) photos", category: "backup")
-        return manifest
+        try NinaBackupWriter(context: context).write(to: folder, records: backupRecords(), includePhotos: includePhotos,
+                                                     appVersion: appVersion, device: device, now: now)
     }
 
     /// Every record but the photos, live and in Recently Deleted, the profile first.
@@ -184,6 +158,86 @@ struct BackupRestoreUndo {
     mutating func add(_ record: some SoftDeletable) {
         count += 1
         if record.deletedAt == nil { live.append(record) }
+    }
+}
+
+/// Writes a backup from any model context: the main one (`NinaStore.writeBackup`), or a background
+/// one made from the container (`ModelContext(container)`), so Back Up Everything and the
+/// automatic weekly backup never hold up the app. It only reads: nothing is changed or saved.
+struct NinaBackupWriter {
+    let context: ModelContext
+
+    /// Every record of a model, live and in Recently Deleted.
+    func every<T: PersistentModel>(_ type: T.Type) -> [T] {
+        (try? context.fetch(FetchDescriptor<T>())) ?? []
+    }
+
+    /// Every record but the photos, live and in Recently Deleted, the profile first.
+    func records() -> [BackupRecord] {
+        var records: [BackupRecord] = []
+        if let profile = profileRecord() { records.append(profile) }
+        records += every(Food.self).map(\.backupRecord)
+        records += every(Recipe.self).map(\.backupRecord)
+        records += every(LogEntry.self).map(\.backupRecord)
+        records += every(WaterLog.self).map(\.backupRecord)
+        records += every(WeightEntry.self).map(\.backupRecord)
+        records += every(PlanRule.self).map(\.backupRecord)
+        records += every(BodyMeasurement.self).map(\.backupRecord)
+        records += every(DayMark.self).map(\.backupRecord)
+        return records
+    }
+
+    /// The goals & plan: the oldest profile, as `NinaStore.profile()` keeps it, with the plan of a
+    /// newer duplicate when the oldest has none (the store merges duplicates the same way; this
+    /// only reads).
+    func profileRecord() -> BackupRecord? {
+        let all = (try? context.fetch(FetchDescriptor<NinaProfile>(sortBy: [SortDescriptor(\.createdAt)]))) ?? []
+        guard let first = all.first else { return nil }
+        var record = first.backupRecord
+        if first.coachPlan.isEmpty,
+           let donor = all.dropFirst().filter({ !$0.coachPlan.isEmpty }).max(by: { $0.modifiedAt < $1.modifiedAt }) {
+            let fields = donor.backupRecord
+            for key in ["coachPlan", "targets", "trainingTargets", "trainingDays", "goal", "ratePerWeek", "targetWeight"] {
+                record[key] = fields[key]
+            }
+        }
+        return record
+    }
+
+    /// Writes the backup folder (manifest, records and – with `includePhotos` – the photos' JPEGs)
+    /// at `folder`, which must not exist yet. `records`: what `records()` gave, when the caller
+    /// already has them. Returns its manifest.
+    @discardableResult
+    func write(to folder: URL, records given: [BackupRecord]? = nil, includePhotos: Bool, appVersion: String, device: String,
+               now: Date = Date()) throws -> NinaBackup.Manifest {
+        let files = FileManager.default
+        try files.createDirectory(at: folder, withIntermediateDirectories: true)
+        var records = given ?? self.records()
+        var photoFiles = 0
+        if includePhotos {
+            try files.createDirectory(at: folder.appendingPathComponent(NinaBackup.photosFolder), withIntermediateDirectories: true)
+            for photo in every(ProgressPhoto.self) {
+                var record = photo.backupRecord
+                if let image = photo.image {
+                    let path = NinaBackup.photoPath(photo.uuid)
+                    try image.write(to: folder.appendingPathComponent(path))
+                    record.set("image", path)
+                    photoFiles += 1
+                }
+                if let thumbnail = photo.thumbnail {
+                    let path = NinaBackup.photoPath(photo.uuid, thumbnail: true)
+                    try thumbnail.write(to: folder.appendingPathComponent(path))
+                    record.set("thumbnail", path)
+                }
+                records.append(record)
+            }
+        }
+        try NinaBackup.encode(records).write(to: folder.appendingPathComponent(NinaBackup.recordsName))
+        let manifest = NinaBackup.Manifest(app: AppInfo.name, appVersion: appVersion, created: now, device: device,
+                                           counts: NinaBackup.counts(records), photos: photoFiles)
+        try NinaBackup.encode(manifest).write(to: folder.appendingPathComponent(NinaBackup.manifestName))
+        AppLog.info("Backup written: \(records.count) records, \(photoFiles) photos", category: "backup")
+        return manifest
     }
 }
 
