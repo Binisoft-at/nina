@@ -1450,6 +1450,37 @@ public enum DayMarkKind: String, Codable, Sendable, CaseIterable {
     case phase
     /// key = "ill", "travel", "period", "incompleteLog".
     case event
+    /// An earlier version of the plan: key = when it was replaced (ISO 8601), note = the plan's
+    /// JSON as it was, meta "reason=edit|checkIn|import|…". Builds without this case skip it.
+    case planVersion
+}
+
+/// Earlier versions of the plan (`DayMark` kind `planVersion`), so a plan can be put back after
+/// the toast's Undo is gone: a save keeps the plan it replaces, at most one every 10 minutes (a
+/// burst of edits keeps the plan from before it), the newest 30.
+public enum PlanHistory {
+    /// A save within this many seconds of the newest version records none.
+    public static let minimumGap: TimeInterval = 600
+    /// Versions kept.
+    public static let kept = 30
+
+    /// A save at `now` records the plan it replaces: no version yet, or the newest is 10 minutes old.
+    public static func records(newest: Date?, now: Date) -> Bool {
+        guard let newest else { return true }
+        return now.timeIntervalSince(newest) >= minimumGap || now < newest
+    }
+
+    /// The versions beyond the newest 30 (`versions` in any order), to move to the trash.
+    public static func dropped<Version>(_ versions: [Version], time: (Version) -> Date) -> [Version] {
+        let sorted = versions.sorted { time($0) > time($1) }
+        return Array(sorted.dropFirst(kept))
+    }
+
+    /// The version's key: "2030-01-07T08:00:00Z".
+    public static func key(_ date: Date) -> String { CoachPlan.momentText(date) }
+
+    /// When a version was replaced, from its key.
+    public static func date(fromKey key: String) -> Date? { CoachPlan.moment(from: key) }
 }
 
 /// A daily check's mark (`DayMark.meta` "state=…"). Any live "done" mark means done.

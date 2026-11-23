@@ -107,22 +107,19 @@ struct CoachContext {
         let tape = measurements.compactMap(\.tapeRecord)
         let fatReadings = (measurements.compactMap(\.bodyFatReading) + weights.compactMap(\.bodyFatReading))
             .sorted { $0.day < $1.day }
-        let schedule = store.bodySchedule(plan: plan, signal: signal, today: today)
+        // The checkpoint crossing and the schedule once, for the schedule, the board and the due items.
+        let checkpoint = signal.checkpointCrossing(in: plan, through: today)
+        let schedule = store.bodySchedule(plan: plan, checkpoint: checkpoint)
         let due = CoachBoard.bodyItems(schedule, on: day, today: today, now: now,
                                        hasMorningWeighIn: signal.morning(on: today) != nil, calendar: calendar)
         // The stored height, as the Body page uses it: a height without a birth year still counts.
         let heightCm = store.profile()?.heightCm ?? 0
-        let running = plan.activePhase(on: today)
-        // The latest tracking body fat, only needed for a gain phase's body-fat ceiling.
-        var bodyFat: Double?
-        if let running, running.goal == .gain, running.bodyFatCeiling > 0 {
-            bodyFat = PhaseBodyFat.latest(fatReadings, tape: tape, sex: settings.body.sex, heightCm: heightCm,
-                                          method: plan.routine.bodyFatMethod, on: today, calendar: calendar)
-        }
-        let ceilings = CoachContext.reachedCeilings(phase: running, tape: tape, settings: settings,
-                                                    heightCm: heightCm, bodyFat: bodyFat)
+        let sex = settings.body.sex
+        let ceilings = BodyCeiling.reached(phase: plan.activePhase(on: today), bodyFatMethod: plan.routine.bodyFatMethod, on: today,
+                                           tape: tape, fatReadings: fatReadings, sex: sex, heightCm: heightCm,
+                                           formula: NinaStore.navyFormula(sex: sex), calendar: calendar)
         let board = store.coachBoard(for: day, settings: settings, signal: signal, now: now, dismissed: dismissed,
-                                     ceilings: ceilings)
+                                     ceilings: ceilings, prepared: (schedule: schedule, checkpoint: checkpoint))
         let fallbackWeight = CoachContext.startWeightFallback(phase: phase, weights: weights, health: health)
         let summary = signal.summary(on: day, plan: plan, fallbackWeight: fallbackWeight)
         let rule = ProteinMeals.Rule(protein: plan.protein, weightKg: signal.bodyWeight(on: day)?.kilograms ?? 0,
@@ -145,13 +142,16 @@ struct CoachContext {
                                    checkIns: checkIns, reviews: reviews)
     }
 
-    /// Measured maintenance over the 28 days ending on `day` (default today); nil without enough
-    /// logged days and weigh-ins.
+    /// Measured maintenance over the 28 days ending on `day` (default today), at most yesterday
+    /// (today is still being eaten), without the days marked "Log Is Incomplete" and the paused
+    /// days (`CoachMaintenance`); nil without enough logged days and weigh-ins.
     func maintenance(on day: DayKey? = nil) -> Insights.Maintenance? {
-        let end = day ?? today
-        let totals = CoachContext.totals(store: store, from: end.adding(days: -27, calendar: calendar), through: end)
-        return Insights.maintenance(totals: totals.values.sorted { $0.day < $1.day }, weights: signal.morningWeights,
-                                    today: end, calendar: calendar)
+        let end = CoachMaintenance.windowEnd(day ?? today, today: today, calendar: calendar)
+        let start = end.adding(days: -27, calendar: calendar)
+        let totals = CoachContext.totals(store: store, from: start, through: end)
+        return CoachMaintenance.measured(totals: Array(totals.values), weights: signal.morningWeights, through: end, today: today,
+                                         incomplete: store.incompleteDays(from: start, through: end), plan: plan,
+                                         calendar: calendar)
     }
 
     /// The targets proposed for a phase without targets of its own if it started today (the
@@ -193,24 +193,6 @@ struct CoachContext {
         return totals
     }
 
-    /// The gain-phase ceilings reached (`BodyCeiling.reached(phase:waists:…)`): standard waist
-    /// readings since the phase start (against the last one on or before it, else the first after
-    /// it), the waist-to-height ratio once it rose to 0.5 during the phase, and the latest
-    /// tracking body fat against the phase's optional body-fat ceiling. `heightCm`: the profile's
-    /// stored height (0 = not entered); the ratio needs only the height, not the birth year.
-    /// `bodyFat`: `PhaseBodyFat.latest` (nil = none).
-    static func reachedCeilings(phase: CoachPlan.Phase?, tape: [BodyTapeRecord], settings: NinaSettings,
-                                heightCm: Double, bodyFat: Double? = nil) -> [BodyCeiling] {
-        guard let phase, phase.goal == .gain else { return [] }
-        let sex = settings.body.sex
-        var waists: [(day: DayKey, cm: Double)] = []
-        for record in tape where record.isStandard {
-            if let cm = BodyComposition.waist(in: record.values, sex: sex) { waists.append((day: record.day, cm: cm)) }
-        }
-        return BodyCeiling.reached(phase: phase, waists: waists, heightCm: heightCm, bodyFat: bodyFat,
-                                   bodyFatCeiling: phase.bodyFatCeiling)
-    }
-
     /// The typed or Health weight nearest the phase start (the summary's start weight when the
     /// weigh-ins around the start don't give a 7-day average).
     static func startWeightFallback(phase: CoachPlan.Phase?, weights: [WeightEntry],
@@ -246,7 +228,8 @@ struct CheckInEvaluation {
     let weekSummary: AdherenceSummary
     /// The days of "How it went" (up to 7, none before the set-up day), oldest first.
     let weekDays: [DayAdherence]
-    /// Measured maintenance (28 days ending on the check-in day).
+    /// Measured maintenance (the 28 days before the check-in day, without incomplete logs and
+    /// paused days).
     let maintenance: Insights.Maintenance?
     /// Ready to save: the weight numbers, the week's adherence and the result (no decision yet;
     /// the sheet adds the waist, ratings and note). Save with `app.saveCheckIn` or apply with
@@ -281,17 +264,19 @@ struct CheckInEvaluation {
                                  bmr: GoalCalculator.bmr(settings.body), sex: settings.body.sex)
         input.use(signal: signal, reviews: reviews)
 
-        // Diary totals for the decision window, the week and the 28-day maintenance window.
+        // Diary totals for the decision window, the week and the 28-day maintenance window (the
+        // days before the check-in day: it is still being logged, like the adherence window).
         let windowKeys = input.adherenceDays(calendar: calendar)
         let weekKeys = input.weekDays(calendar: calendar)
-        let start = min(windowKeys.first ?? day, weekKeys.first ?? day, day.adding(days: -27, calendar: calendar))
+        let start = min(windowKeys.first ?? day, weekKeys.first ?? day, day.adding(days: -28, calendar: calendar))
         let totals = CoachContext.totals(store: store, from: start, through: day)
-        let maintenance = Insights.maintenance(totals: totals.values.sorted { $0.day < $1.day }, weights: signal.morningWeights,
-                                               today: day, calendar: calendar)
-        input.maintenance = maintenance
-
         let done = store.doneChecks(from: start, through: day)
         let incomplete = store.incompleteDays(from: start, through: day)
+        let maintenance = CoachMaintenance.measured(totals: Array(totals.values), weights: signal.morningWeights,
+                                                    through: day.adding(days: -1, calendar: calendar), today: today,
+                                                    incomplete: incomplete, plan: plan, calendar: calendar)
+        input.maintenance = maintenance
+
         let marks = settings.dayTypeMarks
         let weightKg = input.weightKg
         let mealSlots = settings.meals.count

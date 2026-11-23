@@ -93,6 +93,24 @@ struct CheckInSheetFacts {
         return options.sorted()
     }
 
+    /// The rate is still gathering although its window is long enough: morning weigh-ins are
+    /// missing. On a Mac that usually means they come from Apple Health, which only the iPhone
+    /// and iPad read – the check-in belongs there.
+    var missesWeighIns: Bool {
+        let rate = summary.rate
+        return result.rule == .gathering && rate.window.days() >= plan.adjust.windowMinDays && rate.weighIns < rate.minimumWeighIns
+    }
+
+    /// The Mac can't see the Apple Health weigh-ins this check-in is missing: it asks for the
+    /// iPhone instead of saving a "Gathering data" week (that would break the "in a row" count).
+    var needsPhoneForWeighIns: Bool {
+        #if os(macOS)
+        return missesWeighIns
+        #else
+        return false
+        #endif
+    }
+
     /// "Gathering data – first adjustment check on Mon 21 Jan" while the rate window is too short.
     var gatheringLine: String? {
         guard result.rule == .gathering, let first = result.firstAdjustmentCheck else { return nil }
@@ -243,29 +261,34 @@ enum CheckInSheetText {
         sign(unit.value(fromKilocalories: kilocalories)) + Fmt.energy(abs(kilocalories), unit: unit)
     }
 
-    /// "+0.4 kg", "−1.2 kg", "±0 kg"
+    /// "+0.4 kg", "−1.2 kg", "0.0 kg": the app's one sign style (`DisplayNumber.signed`).
     static func signedKg(_ value: Double, decimals: Int = 1) -> String {
-        sign(value, decimals: decimals) + Fmt.number(abs(value), decimals: decimals) + " kg"
+        DisplayNumber.signed(value, decimals: decimals) + " kg"
     }
 
-    /// "+0.5 %"
+    /// "+0.5 %", "0.0 %".
     static func signedPercent(_ value: Double) -> String {
-        sign(value, decimals: 1) + Fmt.number(abs(value), decimals: 1) + " %"
+        DisplayNumber.signed(value, decimals: 1) + " %"
+    }
+
+    /// "+0.4 kg (+0.5 %)", or "+0.01 kg" when the share rounds below 0.05 % (as on the Body page).
+    static func weightChange(_ change: WeightSignal.Change, decimals: Int = 1) -> String {
+        DisplayNumber.weightChange(kilograms: change.kilograms, percent: change.percent, decimals: decimals)
     }
 
     /// "+1.2 cm"
     static func signedCm(_ value: Double) -> String {
-        sign(value, decimals: 1) + Fmt.number(abs(value), decimals: 1) + " cm"
+        DisplayNumber.signed(value, decimals: 1) + " cm"
     }
 
     /// "+0.15" (two decimals, signed).
     static func signedNumber(_ value: Double, decimals: Int = 2) -> String {
-        sign(value, decimals: decimals) + Fmt.number(abs(value), decimals: decimals)
+        DisplayNumber.signed(value, decimals: decimals)
     }
 
-    /// "+0.15 kg/week"
+    /// "+0.15 kg a week" (the words of the Body page and Today).
     static func rate(_ value: Double) -> String {
-        sign(value, decimals: 2) + Fmt.number(abs(value), decimals: 2) + " kg/week"
+        DisplayNumber.signed(value, decimals: 2) + " kg a week"
     }
 
     /// "+0.15 to +0.25 kg a week", "−0.30 to −0.50 kg a week": the same order and words as the
@@ -338,9 +361,9 @@ enum CheckInSheetText {
 
 // MARK: - Draft
 
-/// What the person entered in a live check-in, kept in memory while they leave it to take a full
-/// measurement set (the sheet closes for that), so the ratings, note and page are back when they
-/// open the check-in again. Cleared when the check-in is saved.
+/// What the person entered in a live check-in, kept in memory when the sheet closes before it was
+/// saved (a full measurement set, Cancel, a swipe down), so the ratings, note and page are back
+/// when they open the check-in again. Cleared when the check-in is saved.
 struct CheckInSheetDraft {
     var ratings: CheckInRatings
     var note: String

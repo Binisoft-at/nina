@@ -109,14 +109,15 @@ struct TodayCoachChip: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .contentShape(.capsule)
+        // Content on the summary card: tinted capsules (glass is for floating controls).
         if chip.isManual {
             face
                 .foregroundStyle(Color.white)
-                .glassEffect(.regular.tint(Brand.accent).interactive(), in: .capsule)
+                .background(Brand.accent, in: .capsule)
         } else {
             face
                 .foregroundStyle(Brand.accent)
-                .glassEffect(.regular.interactive(), in: .capsule)
+                .background(Brand.accent.opacity(0.1), in: .capsule)
                 .overlay {
                     Capsule().strokeBorder(Brand.accent.opacity(0.5), lineWidth: 1)
                 }
@@ -171,6 +172,9 @@ struct TodayCoachStrip: View {
             .padding(.horizontal, 2)
             .padding(.vertical, 4)
         }
+        // No grey edge band behind the pills, and pills aren't cut off at the row's edges.
+        .scrollEdgeEffectHidden(true, for: .horizontal)
+        .scrollClipDisabled()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Checks")
     }
@@ -282,8 +286,8 @@ private struct TodayCoachPill: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .frame(minHeight: 36)
+        .background(Brand.accent.opacity(0.1), in: .capsule)
         .contentShape(.capsule)
-        .glassEffect(.regular.interactive(), in: .capsule)
     }
 
     @ViewBuilder
@@ -296,14 +300,16 @@ private struct TodayCoachPill: View {
         }
     }
 
+    /// A 36 pt circle with a 44 pt tap area.
     private func compactFace(symbol: String, tint: Color?) -> some View {
-        let glass: Glass = tint.map { Glass.regular.tint($0) } ?? .regular
+        let fill: Color = tint ?? Color.secondary.opacity(0.15)
         return Image(systemName: symbol)
             .font(.subheadline.weight(.bold))
             .foregroundStyle(tint == nil ? Color.secondary : Color.white)
             .frame(width: 36, height: 36)
-            .contentShape(.circle)
-            .glassEffect(glass.interactive(), in: .circle)
+            .background(fill, in: .circle)
+            .frame(width: 44, height: 44)
+            .contentShape(.rect)
     }
 
     private func savedFace(_ text: String) -> some View {
@@ -318,7 +324,7 @@ private struct TodayCoachPill: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .frame(minHeight: 36)
-        .glassEffect(.regular.tint(Brand.accent), in: .capsule)
+        .background(Brand.accent, in: .capsule)
     }
 
     @ViewBuilder
@@ -412,7 +418,7 @@ struct TodayCoachCard: View {
     /// The dialog's text for the picked reason (from the presented value, so it stays put while
     /// the dialog closes).
     private static func pauseMessage(_ reason: CoachPlan.PauseReason) -> String {
-        let details = "no check pills, check-ins or coach reminders, and paused days stay out of your averages. Meal reminders keep going."
+        let details = "no check pills, check-ins or coach reminders, and paused days stay out of your pace, check-ins and adherence. Meal reminders keep going."
         switch reason {
         case .holiday: return "For your holiday: " + details
         case .sick: return "While you're ill: " + details
@@ -420,23 +426,46 @@ struct TodayCoachCard: View {
         }
     }
 
+    /// The buttons in one row, or stacked when they don't fit (large text).
     private var buttons: some View {
-        HStack(spacing: 10) {
-            Button(card.primary.title) { act(card.primary) }
-                .primaryActionStyle()
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                choiceButtons
+                Spacer(minLength: 0)
+                trailingButtons
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                choiceButtons
+                HStack(spacing: 10) {
+                    Spacer(minLength: 0)
+                    trailingButtons
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var choiceButtons: some View {
+        Button(card.primary.title) { act(card.primary) }
+            .primaryActionStyle()
+            .lineLimit(1)
+        if let secondary = card.secondary {
+            Button(secondary.title) { act(secondary) }
+                .buttonStyle(.bordered)
                 .lineLimit(1)
-            if let secondary = card.secondary {
-                Button(secondary.title) { act(secondary) }
-                    .buttonStyle(.bordered)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 0)
-            if showsLaterButton {
-                Button("Later") { app.dismissCard(card.key) }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .accessibilityHint("Hides this card for now")
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var trailingButtons: some View {
+        if showsLaterButton {
+            Button("Later") { app.dismissCard(card.key) }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .accessibilityHint("Hides this card for now")
+        }
+        // "Still on a break?" comes while paused: nothing more to offer than Resume and Later.
+        if card.kind != .pauseCheck {
             moreMenu
         }
     }
@@ -576,21 +605,31 @@ private struct TodayCoachTargetList: View {
 // MARK: - Phase line
 
 /// Today's running phase above the summary card: "Lean gain · week 3 of 16", a thin progress
-/// capsule and the status pill. A tap opens Progress → Body.
+/// capsule and the status pill. A tap opens Progress → Body. While coaching is paused the pill
+/// says so ("Paused · until 12 Feb") and Resume sits next to it.
 struct TodayCoachPhaseLineView: View {
     let line: TodayCoachPhaseLine
 
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Button {
-            app.showProgress(.body)
-        } label: {
-            content
+        HStack(spacing: 8) {
+            Button {
+                app.showProgress(.body)
+            } label: {
+                content
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(line.accessibilityText)
+            .accessibilityHint("Opens your body progress")
+            if line.isPaused {
+                Button("Resume") { PlanEditorData.resume(app: app) }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.small)
+                    .accessibilityHint("Starts coaching again from today")
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(line.accessibilityText)
-        .accessibilityHint("Opens your body progress")
     }
 
     private var content: some View {

@@ -26,6 +26,8 @@ struct CheckInSheet: View {
     /// The waist typed on the Waist step (a second reading when the first moved more than 1 cm).
     @State private var waistFirst = ""
     @State private var waistSecond = ""
+    /// Saved, applied or left for a full set: closing keeps no draft of its own.
+    @State private var finished = false
     @AppStorage("nina.coach.copyIncludesHealth") private var copyIncludesHealth = false
 
     private var lastPage: Int { CheckInSheetFacts.pageTitles.count - 1 }
@@ -47,6 +49,8 @@ struct CheckInSheet: View {
                 }
         }
         .task(id: app.dataVersion) { load() }
+        // Closed before it was saved (Cancel, a swipe down): the answers wait for the next open.
+        .onDisappear(perform: keepDraft)
         // Saving the waist and Copy for My AI keep the sheet open: their messages show in the
         // sheet's toast host (SheetContent).
         .sheetFrame(minWidth: 520, minHeight: 680)
@@ -87,11 +91,14 @@ struct CheckInSheet: View {
         Form {
             CheckInStepHeader(page: page, note: headerNote(facts))
             pageContent(facts)
-            CheckInPager(page: page, lastPage: lastPage, onBack: back, onNext: { next(facts) })
         }
         .formStyle(.grouped)
         // A new step starts at its top.
         .id(page)
+        // Back and Next stay at the bottom edge, outside the scrolling steps.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            CheckInPager(page: page, lastPage: lastPage, onBack: back, onNext: { next(facts) })
+        }
     }
 
     @ViewBuilder
@@ -128,6 +135,7 @@ struct CheckInSheet: View {
     private func followUp(_ facts: CheckInSheetFacts) {
         guard let phase = facts.phase else { return }
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: nil, delta: 0)
+        finished = true
         CheckInSheetDraft.byWeek[week] = nil
         app.present(facts.result.rule == .checkpoint ? .phaseReview(phase.id) : .phase(phase.id))
     }
@@ -149,9 +157,10 @@ struct CheckInSheet: View {
     }
 
     /// Without a proposal the toolbar saves on the last step; with one the decision buttons do.
+    /// Not on a Mac that misses the Apple Health weigh-ins (the check-in belongs on the iPhone).
     private var canSaveFromToolbar: Bool {
         guard isEditing, page == lastPage, let facts else { return false }
-        return !facts.result.hasProposal
+        return !facts.result.hasProposal && !facts.needsPhoneForWeighIns
     }
 
     private func load() {
@@ -214,6 +223,7 @@ struct CheckInSheet: View {
         let decision: CheckInDecision = abs(delta - facts.result.delta) < 0.5 ? .applied : .edited
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: decision,
                           delta: delta)
+        finished = true
         CheckInSheetDraft.byWeek[week] = nil
         dismiss()
     }
@@ -221,6 +231,7 @@ struct CheckInSheet: View {
     private func commit(_ facts: CheckInSheetFacts, decision: CheckInDecision?) {
         app.checkInCommit(facts.evaluation, ratings: ratings, note: note, waist: facts.waist?.value, decision: decision,
                           delta: 0)
+        finished = true
         CheckInSheetDraft.byWeek[week] = nil
         dismiss()
     }
@@ -230,10 +241,22 @@ struct CheckInSheet: View {
         commit(facts, decision: nil)
     }
 
-    /// Cancel drops what was entered; Close leaves a saved week as it is.
+    /// Cancel keeps what was entered for the next open (`keepDraft`); Close leaves a saved week
+    /// as it is.
     private func close() {
-        CheckInSheetDraft.byWeek[week] = nil
         dismiss()
+    }
+
+    /// A live check-in closed before it was saved keeps its answers in memory (ratings, note,
+    /// step) when any were given or a step was left, so the next open resumes there.
+    private func keepDraft() {
+        guard !finished else { return }
+        guard isEditing, let facts else {
+            CheckInSheetDraft.byWeek[week] = nil
+            return
+        }
+        let changed = page > 0 || ratings != (facts.saved?.ratings ?? CheckInRatings()) || note != facts.savedNote
+        CheckInSheetDraft.byWeek[week] = changed ? CheckInSheetDraft(ratings: ratings, note: note, page: page, redo: redo) : nil
     }
 
     private func openPlan() {
@@ -251,6 +274,7 @@ struct CheckInSheet: View {
 
     /// The full set closes this sheet: the answers so far wait in memory until it opens again.
     private func measureFullSet() {
+        finished = true
         CheckInSheetDraft.byWeek[week] = CheckInSheetDraft(ratings: ratings, note: note, page: page, redo: redo)
         app.present(.measure(.full, nil))
     }
@@ -304,7 +328,7 @@ private struct CheckInStepHeader: View {
     }
 }
 
-/// Back and Next under each step.
+/// Back and Next, pinned under the steps (the last step's decision buttons stay in it).
 private struct CheckInPager: View {
     let page: Int
     let lastPage: Int
@@ -312,7 +336,7 @@ private struct CheckInPager: View {
     let onNext: () -> Void
 
     var body: some View {
-        Section {
+        if page > 0 || page < lastPage {
             HStack(spacing: 12) {
                 if page > 0 {
                     Button("Back", systemImage: "chevron.left", action: onBack)
@@ -320,13 +344,27 @@ private struct CheckInPager: View {
                 }
                 Spacer(minLength: 0)
                 if page < lastPage {
-                    Button("Next", systemImage: "chevron.right", action: onNext)
-                        .primaryActionStyle()
-                        .keyboardShortcut(.defaultAction)
+                    nextButton
                 }
             }
-            .listRowBackground(Color.clear)
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+            .background(.bar)
         }
+    }
+
+    /// "Next" with its chevron after the word, white on the green button.
+    private var nextButton: some View {
+        Button(action: onNext) {
+            HStack(spacing: 4) {
+                Text("Next")
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+            }
+            .foregroundStyle(Color.white)
+        }
+        .primaryActionStyle()
+        .keyboardShortcut(.defaultAction)
     }
 }
 
@@ -587,8 +625,17 @@ private struct CheckInWeightSection: View {
         } header: {
             Text("Weight")
         } footer: {
-            Text("A rate needs \(rate.minimumDays) days and \(rate.minimumWeighIns) morning weigh-ins. Weigh-ins with a reason tag stay out of it.")
+            Text(footer)
         }
+    }
+
+    private var footer: String {
+        let rule = "A rate needs \(rate.minimumDays) days and \(rate.minimumWeighIns) morning weigh-ins. Weigh-ins with a reason tag stay out of it."
+        #if os(macOS)
+        return rule + " Weigh-ins from Apple Health count on iPhone and iPad only."
+        #else
+        return rule
+        #endif
     }
 
     private var rateView: some View {
@@ -621,9 +668,9 @@ private struct CheckInWeightSection: View {
     }
 
     /// The week's change with two decimals, as the Body page shows it; the change since the phase
-    /// start with one.
+    /// start with one. The share of body weight is left out below 0.05 %.
     private func changeText(_ change: WeightSignal.Change, decimals: Int = 1) -> String {
-        "\(CheckInSheetText.signedKg(change.kilograms, decimals: decimals)) (\(CheckInSheetText.signedPercent(change.percent)))"
+        CheckInSheetText.weightChange(change, decimals: decimals)
     }
 }
 
@@ -797,12 +844,20 @@ private struct CheckInFeelings: View {
         } header: {
             Text("How you felt")
         } footer: {
-            Text("1 = very low, 5 = very high. All optional – tap a number again to clear it.")
+            Text(footer)
         }
     }
 
     private func binding(_ key: String) -> Binding<Int?> {
         Binding<Int?>(get: { ratings[key] }, set: { ratings[key] = $0 })
+    }
+
+    private var footer: String {
+        #if os(macOS)
+        "1 = very low, 5 = very high. All optional – click a number again to clear it."
+        #else
+        "1 = very low, 5 = very high. All optional – tap a number again to clear it."
+        #endif
     }
 }
 
@@ -814,14 +869,18 @@ private struct CheckInRatingRow: View {
         HStack {
             Text(title)
             Spacer(minLength: 8)
-            HStack(spacing: 6) {
+            HStack(spacing: 0) {
                 ForEach(1...5, id: \.self) { score in
                     scoreButton(score)
                 }
             }
         }
+        // Five circles in one row: the text grows only so far.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
+    /// A 30 pt circle with a 40 × 44 pt tap area (the circles stay 10 pt apart; five 44 pt
+    /// squares and the title don't fit an iPhone row).
     private func scoreButton(_ score: Int) -> some View {
         let isOn = value == score
         return Button {
@@ -832,6 +891,8 @@ private struct CheckInRatingRow: View {
                 .frame(width: 30, height: 30)
                 .foregroundStyle(isOn ? Color.white : Color.primary)
                 .background(isOn ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.secondary.opacity(0.12)), in: .circle)
+                .frame(width: 40, height: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(title) \(score) of 5")
@@ -875,17 +936,23 @@ private struct CheckInNextWeek: View {
             proposalSection
             decisionSection
         } else {
-            Section {
-                if let followUp {
-                    Button(followUp, systemImage: "arrow.right.circle.fill", action: onFollowUp)
-                        .primaryActionStyle()
-                    Button("Save Check-in", systemImage: "checkmark.circle", action: onSave)
-                } else {
-                    Button("Save Check-in", systemImage: "checkmark.circle.fill", action: onSave)
-                        .primaryActionStyle()
+            if facts.needsPhoneForWeighIns {
+                CheckInPhoneOnlySection()
+            } else {
+                Section {
+                    if let followUp {
+                        Button(followUp, systemImage: "arrow.right.circle.fill", action: onFollowUp)
+                            .primaryActionStyle()
+                            .labelStyle(.titleOnly)
+                        Button("Save Check-in", systemImage: "checkmark.circle", action: onSave)
+                    } else {
+                        Button("Save Check-in", systemImage: "checkmark.circle.fill", action: onSave)
+                            .primaryActionStyle()
+                            .labelStyle(.titleOnly)
+                    }
+                } footer: {
+                    Text("Your targets stay as they are.")
                 }
-            } footer: {
-                Text("Your targets stay as they are.")
             }
         }
         CheckInCopySection(onCopy: onCopy)
@@ -952,6 +1019,7 @@ private struct CheckInNextWeek: View {
         Section {
             Button("Apply from Tomorrow", systemImage: "checkmark.circle.fill", action: onApply)
                 .primaryActionStyle()
+                .labelStyle(.titleOnly)
             Button("Not Now", systemImage: "hand.raised", action: onKeep)
             if facts.stepOptions.count > 1 {
                 Button(editing ? "Keep This Step" : "Edit Step", systemImage: "slider.horizontal.3") {
@@ -959,7 +1027,29 @@ private struct CheckInNextWeek: View {
                 }
             }
         } footer: {
-            Text("Nothing changes until you tap. Undo puts your previous targets back.")
+            Text(decisionFooter)
+        }
+    }
+
+    private var decisionFooter: String {
+        #if os(macOS)
+        "Nothing changes until you click. Undo puts your previous targets back."
+        #else
+        "Nothing changes until you tap. Undo puts your previous targets back."
+        #endif
+    }
+}
+
+/// On a Mac whose check-in misses morning weigh-ins: they most likely come from Apple Health,
+/// which only the iPhone and iPad read. Saving here would record a "Gathering data" week.
+private struct CheckInPhoneOnlySection: View {
+    var body: some View {
+        Section {
+            Label("Do this check-in on your iPhone", systemImage: "iphone")
+                .font(.headline)
+            Text("Weigh-ins from Apple Health count on iPhone and iPad only, so this Mac sees too few of them to judge your week.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 }

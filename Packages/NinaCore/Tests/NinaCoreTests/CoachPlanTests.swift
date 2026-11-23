@@ -585,6 +585,23 @@ struct CoachPlanTests {
         #expect(live.map { "\($0.day) \($0.key) \($0.state)" } == ["2030-01-08 vitd skipped", "2030-01-09 creatine done"])
     }
 
+    /// Earlier plan versions: one per 10 minutes, the newest 30.
+    @Test func planHistoryKeepsOneVersionPerTenMinutes() {
+        let now = Date(timeIntervalSince1970: 1_894_006_800)
+        #expect(PlanHistory.records(newest: nil, now: now))
+        #expect(!PlanHistory.records(newest: now.addingTimeInterval(-599), now: now))
+        #expect(PlanHistory.records(newest: now.addingTimeInterval(-600), now: now))
+        // A version from a device whose clock runs ahead never blocks the history.
+        #expect(PlanHistory.records(newest: now.addingTimeInterval(3_600), now: now))
+        let times = (0..<33).map { now.addingTimeInterval(Double(-$0) * 3_600) }
+        let dropped = PlanHistory.dropped(times.shuffled()) { $0 }
+        #expect(dropped.count == 3)
+        #expect(Set(dropped) == Set(times.suffix(3)))
+        #expect(PlanHistory.key(now) == "2030-01-07T09:00:00Z")
+        #expect(PlanHistory.date(fromKey: PlanHistory.key(now)) == now)
+        #expect(DayMarkKind(rawValue: "planVersion") == .planVersion)
+    }
+
     /// A Nina one build behind saves the plan: the fields a newer build added stay in it.
     @Test func savingKeepsWhatANewerBuildAdded() throws {
         var newer = Self.plan

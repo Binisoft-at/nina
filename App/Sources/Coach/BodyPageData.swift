@@ -48,6 +48,9 @@ struct BodyPagePhaseHeader {
     let projectedEnd: Double?
     let checkpointLine: String?
     let isActive: Bool
+    /// Coaching is paused: the status reads "Paused · until 12 Feb" and a Resume button belongs
+    /// next to it (`PlanEditorData.resume`).
+    var isPaused: Bool = false
 }
 
 /// One weigh-in on the chart.
@@ -140,12 +143,40 @@ struct BodyPageWeight {
     let usesHealth: Bool
     /// The active phase's goal: "+0.15 to +0.25 kg a week".
     let goalText: String?
-    let charts: [BodyPageRange: BodyPageWeightChart]
+    /// The charts: the range shown last is built with the page, the others when picked.
+    let charts: BodyPageChartCache
     /// The chart's accessibility summary.
     let summaryText: String
     let hasWeighIns: Bool
 
-    func chart(_ range: BodyPageRange) -> BodyPageWeightChart? { charts[range] }
+    @MainActor
+    func chart(_ range: BodyPageRange) -> BodyPageWeightChart? { charts.chart(range) }
+}
+
+/// The weight chart of each range, built the first time it is asked for (one load of the page).
+@MainActor
+final class BodyPageChartCache {
+    private let context: CoachContext
+    private let events: [ProgressWeightEvent]
+    private var built: [BodyPageRange: BodyPageWeightChart] = [:]
+
+    init(context: CoachContext, events: [ProgressWeightEvent], first: BodyPageRange) {
+        self.context = context
+        self.events = events
+        built[first] = BodyPageData.chart(context, range: first, events: events)
+    }
+
+    func chart(_ range: BodyPageRange) -> BodyPageWeightChart {
+        if let chart = built[range] { return chart }
+        let chart = BodyPageData.chart(context, range: range, events: events)
+        built[range] = chart
+        return chart
+    }
+
+    /// The range the weight card showed last (its `@AppStorage`), built first.
+    static var shownRange: BodyPageRange {
+        BodyPageRange(rawValue: UserDefaults.standard.string(forKey: "nina.body.weightRange") ?? "") ?? .month
+    }
 }
 
 /// The long-term body goal card.
@@ -415,7 +446,8 @@ extension BodyPageData {
             }
             return BodyPageDue(id: item.id, title: item.title, detail: detail, symbol: symbol, action: action)
         }
-        if let card = context.board.card, card.kind == .checkIn || card.kind == .review {
+        // The review and the week's check-in whenever they are due, whichever card Today shows.
+        for card in context.board.dueCards {
             items.append(BodyPageDue(id: card.key, title: card.title, detail: card.message,
                                      symbol: card.kind == .checkIn ? "checklist" : "flag.checkered", action: card.primary.action))
         }
@@ -453,12 +485,16 @@ extension BodyPageData {
             let gone = Double(start.days(to: today, calendar: calendar) + 1)
             progress = min(1, max(0, gone / total))
         }
-        let (status, tone) = statusWords(context, phase: phase)
+        let line = statusLine(context)
+        let (status, tone) = statusWords(context)
         var checkpointLine: String?
         if let reached = summary.checkpointReached {
             checkpointLine = "Review weight reached on \(Fmt.shortDay(reached, calendar: calendar))"
         } else if let checkpoint = summary.checkpoint {
-            if let weeks = summary.weeksToCheckpoint, weeks >= 0.5 {
+            if WeightSignal.reachesCheckpointAfterEnd(weeks: summary.weeksToCheckpoint, from: summary.day, phase: phase,
+                                                      calendar: calendar) {
+                checkpointLine = "Review at \(Fmt.kilograms(checkpoint)) – not reached by the planned end at this pace"
+            } else if let weeks = summary.weeksToCheckpoint, weeks >= 0.5 {
                 let rounded = Int(weeks.rounded())
                 checkpointLine = "Review at \(Fmt.kilograms(checkpoint)) in about \(rounded) \(rounded == 1 ? "week" : "weeks")"
             } else {
@@ -467,19 +503,35 @@ extension BodyPageData {
         }
         return BodyPagePhaseHeader(
             phaseID: phase.id, title: title, dates: phaseDates(phase, today: today), rate: rateText(phase), status: status, tone: tone,
-            progress: progress, projectedEnd: summary.projectedEnd, checkpointLine: checkpointLine, isActive: true)
+            progress: progress, projectedEnd: line?.isPaused == true ? nil : summary.projectedEnd, checkpointLine: checkpointLine,
+            isActive: true, isPaused: line?.isPaused ?? false)
     }
 
-    /// The status words of the active phase: the weight signal's, "Off track" only after the
-    /// check-ins in a row outside the range on the same side.
-    static func statusWords(_ context: CoachContext, phase: CoachPlan.Phase) -> (String, BodyPageTone) {
-        guard let status = context.summary.status else { return ("No rate set", .neutral) }
-        let deviations: [CheckInEngine.Deviation?] = context.checkIns.filter { $0.phaseID == phase.id }.map(\.deviation)
-        let inARow = max(2, context.plan.adjust.confirmChecks)
-        if status.isOutside, WeightSignal.Status.isOffTrack(deviations: deviations, inARow: inARow) {
-            return (CheckInVerdict.offTarget.title, .alert)
+    /// The status line of the active phase on the context's day, by the check-in's rules
+    /// (`WeightSignal.statusLine`; Today and the watch say the same).
+    static func statusLine(_ context: CoachContext) -> WeightSignal.StatusLine? {
+        WeightSignal.statusLine(on: context.summary.day, plan: context.plan, rate: context.summary.rate, checkIns: context.checkIns,
+                                calendar: context.calendar)
+    }
+
+    /// The status words of the active phase: the weight signal's; "Off track" only after the
+    /// check-ins since the last calorie change were outside on the live side as often as the
+    /// check-in asks; "New targets since Tue · first look Mon 21 Jan" while the rate restarts
+    /// after a change; "Paused · until 12 Feb".
+    static func statusWords(_ context: CoachContext) -> (String, BodyPageTone) {
+        guard let line = statusLine(context) else { return ("No rate set", .neutral) }
+        let calendar = context.calendar
+        let text = line.text(date: { Fmt.shortDay($0, calendar: calendar) }, calendar: calendar)
+        return (text, tone(of: line.tone))
+    }
+
+    static func tone(of tone: WeightSignal.StatusLine.Tone) -> BodyPageTone {
+        switch tone {
+        case .good: .good
+        case .watch: .watch
+        case .alert: .alert
+        case .neutral: .neutral
         }
-        return (status.title, tone(of: status))
     }
 
     static func tone(of status: WeightSignal.Status) -> BodyPageTone {
@@ -522,11 +574,17 @@ extension BodyPageData {
         let average = summary.average.value
         var rateNote: String?
         if summary.rate.value == nil, hasWeighIns {
-            rateNote = "The rate needs \(summary.rate.minimumWeighIns) morning weigh-ins over \(summary.rate.minimumDays / 7) weeks (\(summary.rate.weighIns) so far)."
+            if let line = statusLine(context), case .newTargets = line.state {
+                // The rate restarts at every calorie change: say so, not that data is missing.
+                let calendar = context.calendar
+                rateNote = line.text(date: { Fmt.shortDay($0, calendar: calendar) }, calendar: calendar)
+                    + ": the rate starts again with the new targets (\(summary.rate.weighIns) morning weigh-ins so far)."
+            } else {
+                rateNote = "The rate needs \(summary.rate.minimumWeighIns) morning weigh-ins over \(summary.rate.minimumDays / 7) weeks (\(summary.rate.weighIns) so far)."
+            }
         }
         let goalText = phase.flatMap { rateText($0) }
-        var charts: [BodyPageRange: BodyPageWeightChart] = [:]
-        for range in BodyPageRange.allCases { charts[range] = chart(context, range: range, events: events) }
+        let charts = BodyPageChartCache(context: context, events: events, first: BodyPageChartCache.shownRange)
         let eventNotes: [String] = events.compactMap { $0.note(on: context.today, calendar: context.calendar) }
         return BodyPageWeight(
             average: average,
@@ -858,7 +916,7 @@ extension BodyPageData {
             let monday = snapshot.day.startOfWeek(calendar: calendar)
             let weight = ProgressCheckIns.weight(of: snapshot, signal: signal, plan: plan)
             let average: String? = weight.average.map { "avg " + Fmt.kilograms($0) }
-            let rate: String? = weight.rate.map { BodyPageText.signed($0, decimals: 2) + " kg/wk" }
+            let rate: String? = weight.rate.map { BodyPageText.signed($0, decimals: 2) + " kg a week" }
             var delta: String?
             if let kcal = snapshot.deltaKcal, kcal != 0 {
                 delta = BodyPageText.signed(unit.value(fromKilocalories: kcal).rounded(), decimals: 0) + " " + unit.symbol
@@ -908,12 +966,16 @@ enum BodyPageKeys {
 
 /// Number and date pieces for the body page.
 enum BodyPageText {
-    /// "+0.15", "−0.30" (a real minus), "0" for zero.
+    /// "+0.15", "−0.30" (a real minus), "0.00" for zero: the one sign style of the app
+    /// (`DisplayNumber.signed`, the person's number format).
     static func signed(_ value: Double, decimals: Int) -> String {
-        let text = abs(value).formatted(.number.precision(.fractionLength(decimals)))
-        let zero = 0.0.formatted(.number.precision(.fractionLength(decimals)))
-        if text == zero { return zero }
-        return (value < 0 ? "−" : "+") + text
+        DisplayNumber.signed(value, decimals: decimals)
+    }
+
+    /// "+0.5 %" next to a weight change; nil when it rounds below 0.05 % (a "0.0 %" under a
+    /// change in kg looks unfinished).
+    static func signedPercent(_ percent: Double) -> String? {
+        DisplayNumber.signedPercent(percent)
     }
 
     /// "+0.15 to +0.25", "−0.30 to −0.50", "±0.10".

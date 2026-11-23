@@ -7,9 +7,11 @@ import NinaCore
 // (CoachContext and PlanEditorData read the mark). No SwiftUI here.
 
 extension NinaStore {
-    /// Whether `day` has a live event mark with this key ("incompleteLog", "ill", "travel", "period").
+    /// Whether `day` has an event mark with this key ("incompleteLog", "ill", "travel", "period"):
+    /// the newest mark decides, so "Log Is Complete" on one device beats an older mark from
+    /// another (`DayMarks.newest`).
     func hasDayEvent(_ key: String, on day: DayKey) -> Bool {
-        dayMarks(.event, on: day).contains { $0.key == key }
+        dayMarksIncludingCleared(.event, from: day, through: day).eventDays(key).contains(day)
     }
 
     /// Marks `day` with an event, or takes the mark off (soft delete: the marks go to the trash).

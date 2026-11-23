@@ -997,13 +997,22 @@ public enum BodyCeiling: String, Codable, Sendable, CaseIterable {
     public static func reached(in plan: CoachPlan, on day: DayKey, tape: [BodyTapeRecord], fatReadings: [BodyFatReading],
                                sex: Sex, heightCm: Double, formula: NavyBodyFat.Formula?,
                                calendar: Calendar = .current) -> [BodyCeiling] {
-        guard let phase = plan.activePhase(on: day), phase.goal == .gain else { return [] }
+        reached(phase: plan.activePhase(on: day), bodyFatMethod: plan.routine.bodyFatMethod, on: day, tape: tape,
+                fatReadings: fatReadings, sex: sex, heightCm: heightCm, formula: formula, calendar: calendar)
+    }
+
+    /// The same for a given phase (a review decision records them for its own phase, also when
+    /// the decision ends it). `bodyFatMethod`: the routine's tracking method.
+    public static func reached(phase: CoachPlan.Phase?, bodyFatMethod: BodyMethod?, on day: DayKey, tape: [BodyTapeRecord],
+                               fatReadings: [BodyFatReading], sex: Sex, heightCm: Double, formula: NavyBodyFat.Formula?,
+                               calendar: Calendar = .current) -> [BodyCeiling] {
+        guard let phase, phase.goal == .gain else { return [] }
         var waists: [(day: DayKey, cm: Double)] = []
         for record in tape where record.isStandard && record.day <= day {
             if let cm = BodyComposition.waist(in: record.values, sex: sex) { waists.append((day: record.day, cm: cm)) }
         }
         let bodyFat = phase.bodyFatCeiling > 0
-            ? latestBodyFat(fatReadings, tape: tape, formula: formula, heightCm: heightCm, method: plan.routine.bodyFatMethod,
+            ? latestBodyFat(fatReadings, tape: tape, formula: formula, heightCm: heightCm, method: bodyFatMethod,
                             on: day, calendar: calendar)
             : nil
         return reached(phase: phase, waists: waists, heightCm: heightCm, bodyFat: bodyFat, bodyFatCeiling: phase.bodyFatCeiling,
