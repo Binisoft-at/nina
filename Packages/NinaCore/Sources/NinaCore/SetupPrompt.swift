@@ -9,13 +9,94 @@ public enum ImportBundle {
         public let text: String
     }
 
+    /// The parts of an answer, and a line for each block that wasn't recognised.
+    public struct Split: Equatable, Sendable {
+        public var parts: [Part]
+        /// "Block 3, starting “…”, wasn't recognised – it was left out."
+        public var unrecognised: [String]
+    }
+
     public static func parts(_ text: String) -> [Part] {
-        let blocks = fencedBlocks(text) ?? headerBlocks(text)
-        return blocks.compactMap { block in
-            let trimmed = block.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty, let kind = ImportKind.detect(trimmed) else { return nil }
-            return Part(kind: kind, text: trimmed + "\n")
+        split(text).parts
+    }
+
+    /// Splits an answer into its parts. In each block, lines before the first header ("# 2. Foods",
+    /// "csv", "Copy code", a label) are skipped, a blank line followed by another header starts a
+    /// new part, and settings rows without a `setting,value` line count as settings.
+    public static func split(_ text: String) -> Split {
+        let text = text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
+        var result = Split(parts: [], unrecognised: [])
+        var number = 0
+        for block in fencedBlocks(text) ?? headerBlocks(text) {
+            let lines = block.components(separatedBy: .newlines)
+            guard let first = lines.first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else { continue }
+            number += 1
+            let found = blockParts(lines)
+            if found.isEmpty {
+                let start = first.trimmingCharacters(in: .whitespaces)
+                let shown = start.count > 40 ? String(start.prefix(40)) + "…" : start
+                result.unrecognised.append("Block \(number), starting \u{201C}\(shown)\u{201D}, wasn't recognised – it was left out.")
+            }
+            result.parts += found
         }
+        return result
+    }
+
+    /// What to read when no part is recognised: the code blocks' contents, else the whole text.
+    public static func fallbackText(_ text: String) -> String {
+        guard let blocks = fencedBlocks(text), !blocks.isEmpty else { return text }
+        return blocks.joined(separator: "\n\n")
+    }
+
+    /// The parts of one block.
+    static func blockParts(_ lines: [String]) -> [Part] {
+        let trimmed = lines.map { $0.trimmingCharacters(in: .whitespaces) }
+        guard let start = firstHeader(trimmed, from: 0, settingsWithoutHeader: true) else { return [] }
+        var chunks: [Range<Int>] = []
+        var chunkStart = start
+        var afterBlank = false
+        var index = start + 1
+        while index < trimmed.count {
+            if trimmed[index].isEmpty {
+                afterBlank = true
+                index += 1
+                continue
+            }
+            if afterBlank, let next = firstHeader(trimmed, from: index, settingsWithoutHeader: false, look: 3) {
+                // A blank line, maybe a title, then another header: a new part.
+                chunks.append(chunkStart..<index)
+                chunkStart = next
+                index = next
+            }
+            afterBlank = false
+            index += 1
+        }
+        chunks.append(chunkStart..<trimmed.count)
+        return chunks.compactMap { range in
+            let text = lines[range].joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty, let kind = ImportKind.detect(text) else { return nil }
+            return Part(kind: kind, text: text + "\n")
+        }
+    }
+
+    /// The first line (of the next `look` non-empty ones from `from`) that starts a part: a header,
+    /// or – with `settingsWithoutHeader` – settings rows without one.
+    static func firstHeader(_ lines: [String], from: Int, settingsWithoutHeader: Bool, look: Int = 10) -> Int? {
+        func nonEmpty(after start: Int, count: Int) -> [Int] {
+            var found: [Int] = []
+            var index = start
+            while index < lines.count, found.count < count {
+                if !lines[index].isEmpty { found.append(index) }
+                index += 1
+            }
+            return found
+        }
+        for index in nonEmpty(after: from, count: look) {
+            let next = nonEmpty(after: index + 1, count: 11).map { lines[$0] }
+            if ImportKind.detectHeader(lines[index], following: Array(next.prefix(4))) != nil { return index }
+            if settingsWithoutHeader, SettingsCSV.looksLikeSettings([lines[index]] + next) { return index }
+        }
+        return nil
     }
 
     /// The contents of ``` code blocks, or nil when there are none.
@@ -63,9 +144,10 @@ public enum ImportBundle {
 /// meals and recipes, and (optional) my weight and body history – up to four ```csv blocks that are
 /// pasted back in one go.
 public enum SetupPrompt {
+    /// `existingFoods`: the names of the person's own foods (the AI doesn't write them again).
     public static func text(appName: String, currentSettings: String = "", existingTags: [String] = [],
-                            existingRecipes: [String] = []) -> String {
-        let foods = FoodCSV.prompt(appName: appName, existingTags: existingTags)
+                            existingRecipes: [String] = [], existingFoods: [String] = []) -> String {
+        let foods = FoodCSV.prompt(appName: appName, existingTags: existingTags, existingFoods: existingFoods)
         let recipes = RecipeCSV.prompt(appName: appName, existingNames: existingRecipes)
         let history = BodyHistoryCSV.prompt(appName: appName)
         var lines: [String] = []
@@ -89,7 +171,7 @@ public enum SetupPrompt {
         lines.append(contentsOf: SettingsCSV.planSection(heading: "### Coach plan (in block 1, only if my notes describe one)"))
         if !currentSettings.isEmpty {
             lines.append("")
-            lines.append("My current settings (change only what my notes say):")
+            lines.append("My current settings (change only what my notes say). \(SettingsCSV.currentSettingsNote)")
             lines.append("```csv")
             lines.append(currentSettings.trimmingCharacters(in: .whitespacesAndNewlines))
             lines.append("```")

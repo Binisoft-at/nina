@@ -12,7 +12,13 @@ Packages/NinaCore      logic without Apple UI frameworks (Swift Testing, runs on
   Insights             period stats, streaks, top foods, weight trend, measured maintenance
   Plan                 weekday rules, materialisation keys, multi-device duplicate convergence
   FoodCSV, DiaryCSV,   the three import/export formats and their AI prompts; header aliases
-  Recipes, ImportColumns  (German labels, kJ, salt), lookups for rows without nutrition
+  Recipes, ImportColumns  (German labels, kJ, salt), forgiving cells (~52, <0.5, 1 234, "40 g"),
+  RecipeCSV+RoundTrip  exports with every nutrient at full precision, re-imports merged over the
+                       stored records (only what the file changed; an untouched export changes
+                       nothing), ids only Nina's own (UUIDs; an AI's 1, 2, 3 use the content key)
+  Backup, BackupRestore  "Back Up Everything": the folder format (manifest.json, records.jsonl,
+                       photos/), generic records (type, uuid, fields), the restore plan (match by
+                       uuid per type, add only what is missing)
   SettingsCSV(+Plan)   the goals & settings format, including the whole coach plan, the preview
                        groups and the export; SetupPrompt is the combined prompt for an AI
   OpenFoodFacts        barcode product JSON → food draft
@@ -73,6 +79,8 @@ Shared/                compiled into the app, the Mac app and the watch app
   Store/NinaStore+History  the weight & body history: Nina's own weigh-ins and measurements as
                        BodyHistoryRecord, the import plan and the import (imported weigh-ins get
                        the #import tag), the export – never Apple Health values
+  Store/NinaStore+Backup  every synced model as backup records and back (uuid and dates kept),
+                       writing the backup folder, the restore in one save and its Undo (app only)
   Store/FoodLibrary    catalog + own foods + recipes merged, search index, usage ranking, quick add
   Store/Persistence    opens the store via BinisoftKit ModelStore (+ the tour's practice store)
   Store/DemoData       sample data for -Demo launches and the tour (in memory, never synced)
@@ -95,8 +103,12 @@ App/Sources            iOS + macOS app (targets Nina and NinaMac, one source tre
                        store helpers, demo); HealthBodyPage/HealthBodyViews (Health on the body
                        page, the workout hint under Today's chip, the height hint)
   Settings, Import     goals, meals, Health (incl. the Body switches), reminders (incl. Coach),
-                       data; import/export with the settings preview; ImportHistory (the history
-                       preview lines and the Import & Export menu of All measurements)
+                       data; ImportView (Import & Export: back up & restore, prompts, paste, drop,
+                       previews, export menus), ImportPreview (reading and planning off the main
+                       thread, ImportApply writes only what changed, the Undo states),
+                       ImportBackup (the backup and restore sections, reading a backup folder),
+                       ImportTransfer (export texts with a byte order mark, share and drop types),
+                       ImportHistory (the history preview lines and the menu of All measurements)
   Services             Apple Health (HealthService; HealthService+Body reads body fat, lean mass,
                        waist, height and today's workouts live), notifications (meal and coach,
                        with banner actions), App Intents, ThaliaExchange (the App Group folder,
@@ -225,6 +237,19 @@ them when it opens there.
   (weigh-in, tape, body fat). Measurements keep an import key, and a record of the same kind on the
   same day with the same values counts as already saved, so importing again adds nothing. One Undo
   trashes what the import added.
+- **CSV round trip** (`FoodCSV`, `DiaryCSV`, `RecipeCSV+RoundTrip`): exports write each record's
+  uuid as its id and every nutrient it has. On import a row is merged over the record it matches:
+  a field changes only when the file has the column and the value differs from what an export of
+  the stored record shows, so rounding, columns the file leaves out and empty nutrient cells never
+  change anything. An entry keeps its portion, food link and source; a recipe keeps unchanged
+  ingredients, its emoji and usual meal. Diary rows an import adds with "Also write these to Apple
+  Health" off get the source `import-skiphealth`.
+- **Backup** (`NinaBackup`, `BackupRestorePlan`, `NinaStore+Backup`): one folder with every synced
+  model (live and in Recently Deleted) and the photos as JPEG files; no Health data (Nina stores
+  none) and nothing device-only. A restore matches by uuid per type, adds what is missing with its
+  uuid and dates in one save (records deleted longer ago than 30 days stay out), replaces the goals
+  & plan only when switched on, and one Undo moves what it added to Recently Deleted. When this
+  device last saved one is `nina.backup.last` (device-only).
 - **Device-only settings** (UserDefaults, never synced): `nina.coach.later` (Later taps),
   `nina.coach.reminders.device|off|asked|review` (coach reminders on this device, kinds turned off,
   the one-time question, review times), `nina.coach.measureGuideSeen`, `nina.coach.navyFormula`,
@@ -232,7 +257,8 @@ them when it opens there.
   `nina.body.tip.glycogen`, `nina.health.body.bodyFat|waist|workouts` (the Body switches),
   `nina.health.body.labels` (the method per Health app), `nina.photos.lock`,
   `nina.photos.afterFullSet`, `nina.thalia.deliver|lastWritten|cleared` (Send to Thalia, the last
-  write, the day files emptied after switching off).
+  write, the day files emptied after switching off), `nina.backup.last|includePhotos` (when this
+  device last saved a backup, the photos switch).
 
 ## Decisions
 
@@ -254,3 +280,4 @@ them when it opens there.
 | Health body data | Read live as series of their own, never stored | Guideline 5.1.3(ii); methods and devices disagree, so they are never mixed with Nina's own values |
 | Progress photos | A SwiftData model with external storage, app only | Private iCloud only (not the photo library); the watch doesn't need them |
 | Weigh-ins from other devices to Health | The iPhone writes them on its sync, imported ones never | One device writes, so nothing reaches Health twice; history may already be in Health from the scale |
+| Backup | A folder (manifest, JSON Lines, JPEG files) made by hand; restore adds only what is missing | iCloud sync isn't a backup (a deletion reaches every device); a folder needs no new file type, photos stay files instead of base64, and nothing is overwritten |

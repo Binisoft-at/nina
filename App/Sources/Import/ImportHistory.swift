@@ -121,7 +121,7 @@ struct BodyHistoryShareFile: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .commaSeparatedText) { (file: BodyHistoryShareFile) in
-            Data(file.text.utf8)
+            ImportExports.fileData(file.text)
         }
         .suggestedFileName("Weight and Body.csv")
     }

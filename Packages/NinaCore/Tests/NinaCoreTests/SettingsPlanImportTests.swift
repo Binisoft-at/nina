@@ -279,6 +279,43 @@ struct SettingsPlanImportTests {
         #expect(result.state.trainingDays == Weekdays([1, 4]))
     }
 
+    @Test func aStartedPhaseTheFileLeavesOutStays() throws {
+        let first = Self.imported()
+        let before = try #require(first.plan?.phase(id: "1"))
+        #expect(before.isStarted)
+        // An AI plans the next cut and writes only that phase.
+        let text = """
+        setting,value
+        phase.3.name,Cut
+        phase.3.goal,lose
+        phase.3.start,2030-09-01
+        phase.3.target_weight_kg,79
+        """
+        let result = Self.imported(text, to: first.state, today: planImportDay("2030-01-20"))
+        let plan = try #require(result.plan)
+        #expect(plan.phases.map(\.id) == ["1", "3"]) // the planned phase 2 is replaced, the running one stays
+        #expect(plan.phase(id: "1") == before)
+        #expect(plan.activePhase(on: planImportDay("2030-01-20"))?.id == "1")
+        #expect(result.notes.contains("phase.1 (Lean gain) isn't in the file – kept because it has history. Write phase.1.remove,yes to delete it."),
+                "\(result.notes)")
+        #expect(!result.changes.contains { $0.isRemoval && $0.key == "1" })
+        #expect(result.changes.contains { $0.group == .phases && $0.isRemoval && $0.key == "2" })
+    }
+
+    @Test func aRemoveRowDeletesAStartedPhase() throws {
+        let first = Self.imported()
+        let result = Self.imported("setting,value\nphase.1.remove,yes\n", to: first.state, today: planImportDay("2030-01-20"))
+        let plan = try #require(result.plan)
+        // Only removals: the other phases stay as they are.
+        #expect(plan.phases.map(\.id) == ["2"])
+        #expect(result.changes.contains { $0.group == .phases && $0.isRemoval && $0.key == "1" })
+        let both = Self.imported("setting,value\nphase.1.remove,yes\nphase.2.name,Fat loss\nphase.2.goal,lose\nphase.2.start,~2030-06\n",
+                                 to: first.state, today: planImportDay("2030-01-20"))
+        #expect(both.plan?.phases.map(\.id) == ["2"])
+        #expect(!both.notes.contains { $0.contains("kept because") })
+        #expect(SettingsCSV.parse("phase.1.remove,maybe").skipped.count == 1)
+    }
+
     @Test func flatTargetsGoToTheActivePhaseFromToday() throws {
         let first = Self.imported()
         let nextWeek = planImportDay("2030-01-14")

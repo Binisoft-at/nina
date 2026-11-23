@@ -74,6 +74,9 @@ public struct MealSlot: Codable, Hashable, Sendable, Identifiable {
 
     /// Meal names in CSV files and dictation ("Frühstück", "Jause", "Abendessen").
     public static func matching(_ text: String, in slots: [MealSlot]) -> MealSlot? {
+        // A meal's own id as stored ("meal-jause", "meal-3f2a1b9c") – normalising would split it.
+        let raw = text.trimmingCharacters(in: .whitespaces).lowercased()
+        if let byID = slots.first(where: { $0.id.lowercased() == raw }), !raw.isEmpty { return byID }
         let key = SearchText.normalize(text)
         guard !key.isEmpty else { return nil }
         if let exact = slots.first(where: { SearchText.normalize($0.name) == key || $0.id == key }) { return exact }

@@ -38,12 +38,20 @@ public enum ImportKind: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Guesses the format from the header line.
+    /// Guesses the format from the header line (or, for goals & settings, from rows without one).
     public static func detect(_ text: String) -> ImportKind? {
-        let firstLine = text.split(whereSeparator: \.isNewline).first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.map(String.init) ?? ""
-        let firstCell = firstLine.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "\t" }).first.map(String.init) ?? ""
+        let lines = text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard let first = lines.first else { return nil }
+        if let kind = detectHeader(first, following: Array(lines.dropFirst().prefix(4))) { return kind }
+        return SettingsCSV.looksLikeSettings(Array(lines.prefix(12))) ? .settings : nil
+    }
+
+    /// The format whose header this line is (`setting,value`, or a header with the columns of the
+    /// other formats); nil for anything else. `following`: the next few lines, for the delimiter.
+    public static func detectHeader(_ line: String, following: [String] = []) -> ImportKind? {
+        let firstCell = line.split(whereSeparator: { $0 == "," || $0 == ";" || $0 == "\t" }).first.map(String.init) ?? ""
         if SettingsCSV.isHeader([firstCell]) { return .settings }
-        let cells = CSV.records(text).header
+        let cells = CSV.parse(([line] + following).joined(separator: "\n")).first ?? []
         let header = cells.map(ImportColumns.canonical)
         let set = Set(header)
         if set.contains("recipe") || set.contains("ingredient") { return .recipes }
@@ -72,7 +80,8 @@ public enum ImportColumns {
         var map: [String: String] = [:]
         let groups: [String: [String]] = [
             "id": ["id", "key", "nr", "number", "row_id"],
-            "name": ["name", "food_name", "product", "product_name", "lebensmittel", "bezeichnung", "title"],
+            "name": ["name", "food_name", "product", "product_name", "lebensmittel", "bezeichnung", "title", "produkt", "artikel",
+                     "lebensmittelname", "nahrungsmittel", "produktname"],
             "name_de": ["name_de", "german_name", "name_german", "deutsch", "name_deutsch"],
             "food": ["food", "item", "food_item", "speise"],
             "brand": ["brand", "brands", "marke", "hersteller", "manufacturer"],
@@ -135,7 +144,8 @@ public enum ImportColumns {
         return aliases[key] ?? key
     }
 
-    /// CSV rows with canonical keys.
+    /// CSV rows with canonical keys. An amount with its unit glued on ("40.00 g", "2 slices") is
+    /// split into amount and unit when the row's unit cell is empty.
     public static func records(_ text: String) -> (header: [String], rows: [[String: String]]) {
         let table = CSV.parse(text)
         guard let first = table.first else { return ([], []) }
@@ -147,9 +157,23 @@ public enum ImportColumns {
                 // The first non-empty column wins when two headers map to the same key.
                 if record[key]?.isEmpty ?? true { record[key] = value }
             }
+            if (record["unit"] ?? "").isEmpty, let amount = record["amount"], let split = splitAmount(amount) {
+                record["amount"] = split.number
+                record["unit"] = split.unit
+            }
             return record
         }
         return (keys, Array(rows))
+    }
+
+    /// "40.00 g" → ("40.00", "g"), "2 slices" → ("2", "slices"); nil without a number or a unit.
+    static func splitAmount(_ raw: String) -> (number: String, unit: String)? {
+        let text = raw.trimmingCharacters(in: .whitespaces)
+        guard let index = text.firstIndex(where: { $0.isLetter }), index > text.startIndex else { return nil }
+        let number = String(text[..<index]).trimmingCharacters(in: .whitespaces)
+        let unit = String(text[index...]).trimmingCharacters(in: .whitespaces)
+        guard !unit.isEmpty, self.number(number) != nil else { return nil }
+        return (number, unit)
     }
 
     /// Nutrient columns shared by every format (energy handled separately: kcal or kJ).
@@ -182,21 +206,87 @@ public enum ImportColumns {
         return values
     }
 
-    /// The nutrient cells written by every export, in this order.
+    /// The eight nutrient cells of the fixed-header exports, in this order.
     static let exportNutrients: [(column: String, value: (NutrientValues) -> Double?)] = [
         ("kcal", { $0[.energy] }), ("protein", { $0[.protein] }), ("carbs", { $0[.carbs] }), ("fat", { $0[.fat] }),
         ("fiber", { $0[.fiber] }), ("sugar", { $0[.sugar] }), ("saturated_fat", { $0[.saturatedFat] }), ("salt", { $0.salt }),
     ]
 
     static func exportCells(_ values: NutrientValues) -> [String] {
-        exportNutrients.map { item in item.value(values).map { NumberText.plain($0, decimals: 2) } ?? "" }
+        exportNutrients.map { item in item.value(values).map { NumberText.plain($0, decimals: 4) } ?? "" }
     }
 
-    /// "1,5" and "1.5" and "1.234,5"; units glued to the number are ignored ("120 kcal", "4,5g").
+    /// Every nutrient column an export can write, in order: kcal and the seven label columns, the
+    /// other nutrients, sodium_mg.
+    static let allExportColumns: [String] = exportNutrients.map(\.column)
+        + nutrientColumns.map(\.column).filter { !["protein", "carbs", "fat", "fiber", "sugar", "saturated_fat"].contains($0) }
+        + ["sodium_mg"]
+
+    /// The nutrient columns of an export: kcal, protein, carbs, fat, fiber, sugar, saturated fat and
+    /// salt always, every other nutrient (and sodium_mg) when a row has it – so nothing a record
+    /// stores is lost, and importing the file again changes nothing.
+    public static func exportColumns(_ rows: [NutrientValues]) -> [String] {
+        let fixed = Set(exportNutrients.map(\.column))
+        return allExportColumns.filter { column in
+            fixed.contains(column) || rows.contains { exportValue(column, $0) != nil }
+        }
+    }
+
+    /// The value an export writes in a nutrient column.
+    static func exportValue(_ column: String, _ values: NutrientValues) -> Double? {
+        switch column {
+        case "kcal": return values[.energy]
+        case "salt": return values.salt
+        case "sodium_mg": return values[.sodium]
+        default: return nutrientColumns.first { $0.column == column }.flatMap { values[$0.nutrient] }
+        }
+    }
+
+    /// The cells of these columns, at up to 4 decimals (the precision Nina stores).
+    public static func exportCells(_ values: NutrientValues, columns: [String]) -> [String] {
+        columns.map { column in exportValue(column, values).map { NumberText.plain($0, decimals: 4) } ?? "" }
+    }
+
+    /// The nutrients a row's cells give (energy from kcal or kJ, sodium from sodium_mg or salt). An
+    /// empty cell gives nothing, so importing keeps the value Nina has.
+    static func givenNutrients(_ record: [String: String]) -> Set<Nutrient> {
+        Set(nutrients(record).known)
+    }
+
+    /// Whether two values are the same once written to a file: equal at 4 decimals, or within the
+    /// 2-decimal rounding of files exported by earlier versions.
+    static func sameValue(_ a: Double?, _ b: Double?) -> Bool {
+        switch (a, b) {
+        case (nil, nil): return true
+        case let (a?, b?): return abs(a - b) < 0.0051
+        default: return false
+        }
+    }
+
+    /// `incoming` over `stored`: a nutrient the row gives replaces the stored value when it differs
+    /// from what the export shows (`shown`); everything else keeps the stored value.
+    static func mergeNutrients(_ incoming: NutrientValues, over stored: NutrientValues, shown: NutrientValues,
+                               given: Set<Nutrient>) -> NutrientValues {
+        var result = stored
+        for nutrient in given where !sameValue(incoming[nutrient], shown[nutrient]) {
+            result[nutrient] = incoming[nutrient]
+        }
+        return result
+    }
+
+    /// "1,5" and "1.5" and "1.234,5" and "1 234"; units glued to the number are ignored ("120 kcal",
+    /// "4,5g"), and so are approximations, limits and footnotes ("~52", "ca. 52", "<0.5",
+    /// "12.5 (est.)", "3*").
     static func number(_ raw: String?) -> Double? {
         guard var text = raw?.trimmingCharacters(in: .whitespaces), !text.isEmpty else { return nil }
-        text = text.trimmingCharacters(in: CharacterSet.letters.union(.whitespaces).union(CharacterSet(charactersIn: "µ%")))
+        // A remark in brackets after the number: "12.5 (est.)", "52 (approx)".
+        if text.hasSuffix(")"), let open = text.lastIndex(of: "("), open > text.startIndex {
+            text = String(text[..<open]).trimmingCharacters(in: .whitespaces)
+        }
+        text = withoutApproximation(text)
+        text = text.trimmingCharacters(in: CharacterSet.letters.union(.whitespaces).union(CharacterSet(charactersIn: "µ%*")))
         guard !text.isEmpty, text != "-", text != "–" else { return nil }
+        text = withoutThousandsSpaces(text)
         if text.contains(","), text.contains(".") {
             // 1.234,5 (German) or 1,234.5 (English)
             if let comma = text.lastIndex(of: ","), let dot = text.lastIndex(of: "."), comma > dot {
@@ -207,6 +297,42 @@ public enum ImportColumns {
         }
         guard let value = NumberText.parse(text), value >= 0 else { return nil }
         return value
+    }
+
+    /// What people and AIs put in front of a number they aren't sure of, or of a value under or
+    /// over a limit (EU labels print "<0.5 g").
+    static let approximationPrefixes = ["~", "≈", "<", "≤", ">", "≥", "*", "ca.", "ca", "circa", "approx.", "approx", "about", "etwa", "rund"]
+
+    /// The text without an approximation in front ("~52" → "52", "ca. 80" → "80", "< 0.5" → "0.5").
+    /// A word ("ca", "about") counts only when no letter follows it.
+    static func withoutApproximation(_ raw: String) -> String {
+        var text = raw.trimmingCharacters(in: .whitespaces)
+        var changed = true
+        while changed {
+            changed = false
+            for prefix in approximationPrefixes where text.lowercased().hasPrefix(prefix) {
+                let rest = text.dropFirst(prefix.count)
+                if prefix.last?.isLetter == true, let next = rest.first, next.isLetter { continue }
+                text = String(rest).trimmingCharacters(in: .whitespaces)
+                changed = true
+                break
+            }
+        }
+        return text
+    }
+
+    /// "1 234" and "12 345,5" (a space before each group of exactly three digits) → "1234", "12345,5".
+    static func withoutThousandsSpaces(_ text: String) -> String {
+        let spaces: Set<Character> = [" ", "\u{00A0}", "\u{202F}"]
+        let parts = text.split(whereSeparator: { spaces.contains($0) }).map(String.init)
+        guard parts.count > 1, let head = parts.first, (1...3).contains(head.count), head.allSatisfy(\.isNumber) else { return text }
+        for (index, part) in parts.enumerated().dropFirst() {
+            let isLast = index == parts.count - 1
+            let digits = isLast ? String(part.prefix { $0.isNumber }) : part
+            guard digits.count == 3, digits.allSatisfy(\.isNumber) else { return text }
+            if isLast, let next = part.dropFirst(3).first, next != ",", next != "." { return text }
+        }
+        return parts.joined()
     }
 
     static func isYes(_ raw: String?) -> Bool {
@@ -229,5 +355,25 @@ public enum ImportColumns {
     public static func lookupKeys(forKey key: String) -> [String] {
         let exported = "id:" + exportID(forKey: key)
         return exported == key ? [key] : [key, exported]
+    }
+
+    /// Every key a stored record answers to: "id:<uuid>" (what the exports write) and the key it
+    /// was imported with.
+    public static func lookupKeys(uuid: UUID, importKey: String) -> [String] {
+        let own = idKey(uuid)
+        return importKey.isEmpty || importKey == own ? [own] : [own, importKey]
+    }
+
+    /// "id:<UUID>" – the key of an exported row.
+    public static func idKey(_ uuid: UUID) -> String {
+        "id:" + uuid.uuidString
+    }
+
+    /// The key a row is matched by: its id when that is one of Nina's own (a UUID, which the exports
+    /// write), else the content key. Ids an AI numbers 1, 2, 3 … start again in every conversation,
+    /// so they never match anything by themselves.
+    public static func rowKey(id: String, content: [String]) -> String {
+        if let uuid = UUID(uuidString: id.trimmingCharacters(in: .whitespaces)) { return idKey(uuid) }
+        return ImportPlan<String>.contentKey(content)
     }
 }

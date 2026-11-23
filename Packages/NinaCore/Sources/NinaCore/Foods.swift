@@ -66,11 +66,17 @@ public enum BaseUnit: String, Codable, Sendable, CaseIterable {
     /// 100 for g and ml, 1 for servings.
     public var basis: Double { self == .serving ? 1 : 100 }
 
+    /// "ml", "100 ml", "per 100 ml", "l" → milliliter; "serving", "1 portion" → serving; anything else gram.
     public init(text: String) {
-        switch text.trimmingCharacters(in: .whitespaces).lowercased() {
-        case "ml", "milliliter", "millilitre", "l", "cl", "dl", "liquid": self = .milliliter
-        case "serving", "servings", "portion", "portions": self = .serving
-        default: self = .gram
+        let words = text.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init)
+        let liquid: Set<String> = ["ml", "milliliter", "millilitre", "milliliters", "millilitres", "l", "liter", "litre", "cl", "dl", "liquid"]
+        let serving: Set<String> = ["serving", "servings", "portion", "portions"]
+        if words.contains(where: liquid.contains) {
+            self = .milliliter
+        } else if words.contains(where: serving.contains) {
+            self = .serving
+        } else {
+            self = .gram
         }
     }
 }
