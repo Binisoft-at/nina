@@ -164,9 +164,10 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
         // routines that are on and ask (not of a paused or deleted one).
         var prompted: Set<String> = []
         if plannedEnabled {
-            let rules = Dictionary(store.planRules().map { ($0.uuid.uuidString, $0.isActive && $0.notify) },
-                                   uniquingKeysWith: { first, _ in first })
-            let planned = store.entries(from: today, through: today.adding(days: 2)).filter { $0.isPlanned && Self.asks($0, rules: rules) }
+            let asking = Set(store.planRules().filter { $0.isActive && $0.notify }.map(\.uuid.uuidString))
+            let planned = store.entries(from: today, through: today.adding(days: 2)).filter { entry in
+                entry.isPlanned && MealPromptRules.asks(planKey: entry.planKey, asking: asking)
+            }
             prompted = Set(planned.map { Self.slotKey(day: $0.day, meal: $0.meal) })
             let groups = Dictionary(grouping: planned) { entry -> String in
                 entry.groupID.isEmpty ? (entry.planKey.isEmpty ? entry.uuid.uuidString : entry.planKey) : entry.groupID
@@ -187,8 +188,9 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
             for offset in 0..<3 {
                 let day = today.adding(days: offset)
                 let eaten = Set(store.entries(on: day).filter(\.isEaten).map(\.meal))
-                for slot in settings.meals where meals.contains(slot.id) && !eaten.contains(slot.id) {
-                    guard !prompted.contains(Self.slotKey(day: day.rawValue, meal: slot.id)) else { continue }
+                let promptedToday = Set(settings.meals.map(\.id).filter { prompted.contains(Self.slotKey(day: day.rawValue, meal: $0)) })
+                for slot in settings.meals where meals.contains(slot.id) {
+                    guard MealPromptRules.remindsAbout(meal: slot.id, eaten: eaten, prompted: promptedToday) else { continue }
                     let id = "\(Self.reminderPrefix)\(slot.id).\(day.rawValue)"
                     if offset == 0 { open.insert(id) }
                     let date = day.date(minutes: slot.minutes + reminderDelay)
@@ -208,13 +210,6 @@ final class NotificationScheduler: NSObject, UNUserNotificationCenterDelegate {
 
         replacePending(with: requests)
         removeDelivered(prefixes: [CoachReminders.idPrefix, Self.plannedPrefix, Self.reminderPrefix], keeping: coach.ids.union(open))
-    }
-
-    /// A planned entry asks "eaten?": planned by hand, or by a routine that is on and asks.
-    private static func asks(_ entry: LogEntry, rules: [String: Bool]) -> Bool {
-        guard entry.planKey.hasPrefix("rule:") else { return true }
-        let ruleID = entry.planKey.split(separator: ":").dropFirst().first.map(String.init) ?? ""
-        return rules[ruleID] == true
     }
 
     private static func slotKey(day: String, meal: String) -> String { day + "|" + meal }
