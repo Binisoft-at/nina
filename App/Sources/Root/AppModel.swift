@@ -165,7 +165,16 @@ final class AppModel {
         let readings = healthWeightReadings
         let (newSettings, signal) = store.coachSettingsAndSignal(adding: readings)
         if newSettings != settings { settings = newSettings }
-        health.dayStartHour = newSettings.dayStartHour
+        if health.dayStartHour != newSettings.dayStartHour {
+            // Today's active energy counts from the diary day start: read it again from the new one
+            // (and give the widget the new budget).
+            health.dayStartHour = newSettings.dayStartHour
+            let health = self.health
+            Task { @MainActor [weak self] in
+                await health.refreshReadings()
+                self?.scheduleRefresh()
+            }
+        }
         // A changed day start can make it another day.
         rollDay()
         library.rebuild(context: container.mainContext, language: settings.language)
@@ -459,9 +468,7 @@ final class AppModel {
             return
         }
         let what = created.count == 1 ? "1 food" : "\(created.count) foods"
-        toasts.show("Planned \(what) like last week", symbol: "calendar.badge.plus") { [weak self] in
-            self?.store.purge(created)
-        }
+        toasts.show("Planned \(what) like last week", symbol: "calendar.badge.plus", undo: undoAdding(created))
     }
 
     func confirm(_ entries: [LogEntry]) {
