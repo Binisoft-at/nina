@@ -6,7 +6,7 @@ a coach card on top. Each step ticks itself off once the practice page shows it 
 - Opens by itself **once after install**; after an update that added steps it shows only those as
   **"What's new"**; otherwise never by itself.
 - Replay: Settings → Replay the Tour, the ••• menu on iPhone, Help → Nina Tour on the Mac.
-- While it is open, Mac menu commands (⌘N, ⌥⌘M …) act on the practice page.
+- While it is open, Mac menu commands (⌘N, ⇧⌘M …) act on the practice page.
 - The practice day has a small made-up plan a week in (Gym on Monday, Wednesday and Friday, Tennis
   twice a week, Rest otherwise, creatine as a daily check, weighed in this morning), so the
   day-type chip, the week strip's menu and the checks strip can be tried. Nothing there touches
@@ -14,7 +14,7 @@ a coach card on top. Each step ticks itself off once the practice page shows it 
 
 ## Steps
 
-The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 5). Every step has its
+The catalog is `Packages/NinaCore/Sources/NinaCore/NinaTour.swift` (version 6). Every step has its
 own Mac text (click, right-click, menus and shortcuts instead of tap and touch and hold).
 
 | id | Since | Teaches | Ticks off when |
@@ -33,20 +33,22 @@ own Mac text (click, right-click, menus and shortcuts instead of tap and touch a
 | checks | 3 | the daily checks strip: tap to tick off, touch and hold for Not Today | a check is ticked done |
 | protein | 3 | the protein pill in the meal headers and the "+8 g protein to reach 25" hint in search | – (Continue) |
 | weigh-in | 3 | the weigh-in sheet from the strip or ⋯ → Create… → Weight (Mac: File → Log Weight…), a reason under More | a weigh-in is saved |
-| measure | 3 | ⋯ → Create… → Measurements (Mac: File → Log Measurements…, ⌥⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
+| measure | 3 | ⋯ → Create… → Measurements (Mac: File → Log Measurements…, ⇧⌘M): one site per page, last time's value already there, −/+ by 0.1 cm, Done | a measurement is saved |
 | progress | 3 | Progress → Body (Mac: Body in the sidebar, ⌘6) | – (Continue) |
 | checkin | 3 | the weekly check-in card and its four steps (your week, waist, how it went, next week), Apply and Undo | – (Continue) |
 | photos | 4 | progress photos: Progress → Body → Photos → Take Photos (Mac: Body → Photos → Add Photos), the last photo faintly over the camera, Compare, the Face ID lock in the card's ⋯ menu | – (Continue) |
 | watchCoach | 4 | the coach on Apple Watch: today's day type under the ring, weigh-in and waist with the Digital Crown, daily checks, the weight status | – (Continue) |
 | healthBody | 4 | Settings → Apple Health → Body: body fat, lean mass and waist from Health as their own series, and "Make it a tennis day?" after a workout (Mac: the workouts of a day type in My Plan) | – (Continue) |
-| history | 4 | importing old weigh-ins, tape logs and scan reports: ⋯ → Create… → Import My Data → Body (Mac: File → Import My Data…, ⇧⌘I), only what's new, one Undo | – (Continue) |
+| history | 4 | importing old weigh-ins, tape logs and scan reports: ⋯ → Create… → Import My Data → Body (Mac: File → Import & Export…, ⇧⌘I), only what's new, one Undo | – (Continue) |
 | thalia | 5 | Nina hands Thalia the day's calories, protein, carbs, fat and water on this device; off in Settings → Thalia (Mac: Settings, ⌘, → General → Thalia) | – (Continue) |
+| backup | 6 | Settings → Import & Export → Back Up Everything (one file with all of Nina's data, nothing from Apple Health) and Move to Day… on an entry (Mac: File → Back Up Nina…, ⇧⌘B; Search in the sidebar, ⇧⌘F; ⌫ deletes the selected entries; ⌘C, then ⌘V on another day copies them; right-click → Move to Day…) | – (Continue) |
 | everywhere | 1 | sync, watch, widgets, Health | – (Continue) |
 | finish | 1 | where to replay | – (Done) |
 
-People who finished version 4 (on TestFlight) get "What's new" with the thalia step. People who
-finished version 3 get the four version 4 steps (photos, watchCoach, healthBody, history) and
-thalia; people who finished version 2 also get the eight coach steps (daytype … checkin).
+People who finished version 5 (on TestFlight) get "What's new" with the backup step; version 4
+gets thalia and backup. People who finished version 3 get the four version 4 steps (photos,
+watchCoach, healthBody, history), thalia and backup; people who finished version 2 also get the
+eight coach steps (daytype … checkin).
 
 ## Coach parts without their own step
 

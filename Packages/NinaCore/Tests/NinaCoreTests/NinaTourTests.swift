@@ -4,13 +4,15 @@ import BinisoftKitCore
 
 /// The coach steps of tour version 3 (day types, daily checks, protein per meal, weigh-in,
 /// measurements, Progress, check-in), the steps of version 4 (progress photos, the coach on the
-/// watch, body data from Apple Health, importing the weight & body history) and version 5 (Nina
-/// hands its day values to Thalia).
+/// watch, body data from Apple Health, importing the weight & body history), version 5 (Nina
+/// hands its day values to Thalia) and version 6 (backing up everything, moving entries to another
+/// day; on the Mac search in the sidebar, ⌫ and copy and paste in the diary).
 @Suite("Coach tour")
 struct CoachTourTests {
     static let coachSteps = ["daytype", "plan-ahead", "checks", "protein", "weigh-in", "measure", "progress", "checkin"]
     static let versionFourSteps = ["photos", "watchCoach", "healthBody", "history"]
     static let versionFiveSteps = ["thalia"]
+    static let versionSixSteps = ["backup"]
 
     @Test func versionThreeAddsTheCoachSteps() {
         let ids = NinaTour.catalog.steps.filter { $0.since == 3 }.map(\.id)
@@ -33,7 +35,6 @@ struct CoachTourTests {
 
     /// Version 5: Nina hands Thalia the day's calories, macros and water (Settings → Thalia).
     @Test func versionFiveAddsThalia() throws {
-        #expect(NinaTour.version == 5)
         let ids = NinaTour.catalog.steps.filter { $0.since == 5 }.map(\.id)
         #expect(ids == Self.versionFiveSteps)
         let step = try #require(NinaTour.catalog.steps.first { $0.id == "thalia" })
@@ -43,23 +44,46 @@ struct CoachTourTests {
         #expect(step.macBody.contains("Settings (⌘,) → General → Thalia"))
     }
 
+    /// Version 6: Back Up Everything and Move to Day…; on the Mac also Search in the sidebar,
+    /// ⌫ for the selected entries and ⌘C / ⌘V. One read-only step with its own Mac text.
+    @Test func versionSixAddsBackupMoveAndFind() throws {
+        #expect(NinaTour.version == 6)
+        let ids = NinaTour.catalog.steps.filter { $0.since == 6 }.map(\.id)
+        #expect(ids == Self.versionSixSteps)
+        let step = try #require(NinaTour.catalog.steps.first { $0.id == "backup" })
+        #expect(step.goal.isManual, "read-only: the practice page has no backup")
+        #expect(step.macBody != step.body)
+        #expect(step.body.contains("Settings → Import & Export → Back Up Everything"))
+        #expect(step.body.contains("Move to Day…"))
+        #expect(step.macBody.contains("File → Back Up Nina… (⇧⌘B)"))
+        #expect(step.macBody.contains("Search in the sidebar (⇧⌘F)"))
+        #expect(step.macBody.contains("⌫"))
+        #expect(step.macBody.contains("⌘C"))
+        #expect(step.macBody.contains("Move to Day…"))
+    }
+
     @Test func peopleWhoTookVersionTwoSeeTheCoachAndTheNewerSteps() {
         let ids = NinaTour.catalog.steps(newerThan: 2).map(\.id)
-        let newer: [String] = Self.coachSteps + Self.versionFourSteps + Self.versionFiveSteps
+        let newer: [String] = Self.coachSteps + Self.versionFourSteps + Self.versionFiveSteps + Self.versionSixSteps
         #expect(ids == ["whats-new"] + newer + ["finish"])
     }
 
-    @Test func peopleWhoTookVersionThreeSeeTheVersionFourAndFiveSteps() {
+    @Test func peopleWhoTookVersionThreeSeeTheVersionFourFiveAndSixSteps() {
         let ids = NinaTour.catalog.steps(newerThan: 3).map(\.id)
-        let newer: [String] = Self.versionFourSteps + Self.versionFiveSteps
+        let newer: [String] = Self.versionFourSteps + Self.versionFiveSteps + Self.versionSixSteps
         #expect(ids == ["whats-new"] + newer + ["finish"])
     }
 
-    /// Version 4 is on TestFlight: those testers get only the Thalia step as "What's new".
-    @Test func peopleWhoTookVersionFourSeeOnlyTheThaliaStep() {
+    @Test func peopleWhoTookVersionFourSeeTheThaliaAndBackupSteps() {
         let ids = NinaTour.catalog.steps(newerThan: 4).map(\.id)
-        #expect(ids == ["whats-new"] + Self.versionFiveSteps + ["finish"])
-        #expect(NinaTour.catalog.steps(newerThan: 5).isEmpty)
+        #expect(ids == ["whats-new"] + Self.versionFiveSteps + Self.versionSixSteps + ["finish"])
+    }
+
+    /// Version 5 is on TestFlight: those testers get only the backup step as "What's new".
+    @Test func peopleWhoTookVersionFiveSeeOnlyTheBackupStep() {
+        let ids = NinaTour.catalog.steps(newerThan: 5).map(\.id)
+        #expect(ids == ["whats-new"] + Self.versionSixSteps + ["finish"])
+        #expect(NinaTour.catalog.steps(newerThan: 6).isEmpty)
     }
 
     @Test func firstRunHasEverythingInOrder() {
@@ -76,13 +100,15 @@ struct CoachTourTests {
         let photos = everything.firstIndex(of: "photos") ?? 0
         let history = everything.firstIndex(of: "history") ?? 0
         let thalia = everything.firstIndex(of: "thalia") ?? 0
+        let backup = everything.firstIndex(of: "backup") ?? 0
         let everywhere = everything.firstIndex(of: "everywhere") ?? 0
         #expect(water < daytype)
         #expect(daytype < checkin)
         #expect(checkin < photos)
         #expect(photos < history)
         #expect(history < thalia)
-        #expect(thalia < everywhere)
+        #expect(thalia < backup)
+        #expect(backup < everywhere)
     }
 
     @Test func coachStepsTickOff() {
@@ -133,16 +159,18 @@ struct CoachTourTests {
         // The Mac has its own Create button in the toolbar and the File menu.
         #expect(byID["create"]?.macBody.contains("Click Create in the toolbar") == true)
         #expect(byID["setup-ai"]?.macBody.contains("Create → Import My Data") == true)
-        #expect(byID["measure"]?.macBody.contains("File → Log Measurements…") == true)
+        #expect(byID["measure"]?.macBody.contains("File → Log Measurements… (⇧⌘M)") == true)
+        // ⌥⌘M is the Mac's Minimize All.
+        for step in NinaTour.catalog.allSteps { #expect(!step.macBody.contains("⌥⌘M"), "\(step.id) names ⌥⌘M") }
         // Version 4: the history import sits under Import My Data's Body format, photos on the body page.
         #expect(byID["history"]?.body.contains("⋯ → Create… → Import My Data → Body") == true)
-        #expect(byID["history"]?.macBody.contains("File → Import My Data… (⇧⌘I) → Body") == true)
+        #expect(byID["history"]?.macBody.contains("File → Import & Export… (⇧⌘I) → Body") == true)
         #expect(byID["photos"]?.body.contains("Progress → Body → Photos") == true)
         #expect(byID["photos"]?.macBody.contains("Body → Photos → Add Photos") == true)
     }
 
     @Test func readOnlyStepsSayContinue() {
-        for id in ["protein", "progress", "checkin"] + Self.versionFourSteps + Self.versionFiveSteps {
+        for id in ["protein", "progress", "checkin"] + Self.versionFourSteps + Self.versionFiveSteps + Self.versionSixSteps {
             let progress = TourProgress(steps: NinaTour.catalog.allSteps, start: NinaTourSnapshot(), startAt: id)
             #expect(progress.step?.id == id)
             #expect(progress.primaryTitle == "Continue")
