@@ -105,11 +105,12 @@ final class MacWindowState {
         if isKey != settingsIsKey { settingsIsKey = isKey }
     }
 
-    /// No window at all: open the main window. Right after launch `MainWindowGuard` does that.
+    /// No window at all: open the main window. Right after launch `MainWindowGuard` does that,
+    /// and a Dock click opens one by itself (hence the wait before looking).
     private func becameActive() {
         guard Date().timeIntervalSince(started) > 5 else { return }
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(400))
+            try? await Task.sleep(for: .milliseconds(700))
             guard NSApp.isActive, !MainWindowGuard.hasVisibleWindow, MainWindow.existing == nil else { return }
             AppLog.info("Active without a window – opening the main window", category: "launch")
             MainWindow.bringForward()
