@@ -8,7 +8,8 @@ import Foundation
 public enum DisplayNumber {
     /// A whole number with grouping: "2,150" (the sign as given: "-150").
     public static func grouped(_ value: Double) -> String {
-        guard value.isFinite else { return "0" }
+        // Display numbers are kcal, grams and the like; a broken huge value must not trap in Int().
+        guard value.isFinite, abs(value) < 1e15 else { return "0" }
         #if canImport(Darwin)
         return Int(value.rounded()).formatted(.number)
         #else

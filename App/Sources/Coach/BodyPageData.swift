@@ -578,7 +578,7 @@ extension BodyPageData {
                 // The rate restarts at every calorie change: say so, not that data is missing.
                 let calendar = context.calendar
                 rateNote = line.text(date: { Fmt.shortDay($0, calendar: calendar) }, calendar: calendar)
-                    + ": the rate starts again with the new targets (\(summary.rate.weighIns) morning weigh-ins so far)."
+                    + ". The pace starts again after every calorie change (\(summary.rate.weighIns) morning weigh-ins so far)."
             } else {
                 rateNote = "The rate needs \(summary.rate.minimumWeighIns) morning weigh-ins over \(summary.rate.minimumDays / 7) weeks (\(summary.rate.weighIns) so far)."
             }

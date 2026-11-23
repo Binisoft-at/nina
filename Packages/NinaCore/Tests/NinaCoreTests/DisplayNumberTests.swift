@@ -10,6 +10,9 @@ struct DisplayNumberTests {
     @Test func plainFormatsOffApplePlatforms() {
         #expect(DisplayNumber.grouped(2150) == "2,150")
         #expect(DisplayNumber.grouped(999.6) == "1,000")
+        // A broken value never traps.
+        #expect(DisplayNumber.grouped(1e20) == "0")
+        #expect(DisplayNumber.grouped(.nan) == "0")
         #expect(DisplayNumber.fixed(74.62, decimals: 1) == "74.6")
         #expect(DisplayNumber.fixed(2, decimals: 1) == "2.0")
         #expect(DisplayNumber.fixed(-0.04, decimals: 1) == "0.0")

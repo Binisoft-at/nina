@@ -128,7 +128,7 @@ struct TodayCoachChip: View {
 // MARK: - Checks strip
 
 /// The checks strip under the summary card: the weigh-in, due measurements and the plan's daily
-/// checks as glass pills, shown only while something is open. A tap acts (a sheet, or a tick with
+/// checks as tinted pills, shown only while something is open. A tap acts (a sheet, or a tick with
 /// Undo); touch and hold a check for "Not Today". Right after a weigh-in the weigh-in pill shows
 /// the weight and the 7-day average for 2 seconds, then the strip moves on or collapses.
 struct TodayCoachStrip: View {
@@ -632,7 +632,27 @@ struct TodayCoachPhaseLineView: View {
         }
     }
 
+    /// The title and the status side by side, or the status under the title when they don't fit
+    /// ("New targets since Tue · first look Mon 21 Jan" is long, and Resume takes room too).
     private var content: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                titleRow
+                Spacer(minLength: 4)
+                statusChip
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                titleRow
+                statusChip
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 6)
+        .contentShape(.rect)
+    }
+
+    /// "Lean gain · week 3 of 16" and the thin progress capsule.
+    private var titleRow: some View {
         HStack(spacing: 8) {
             Text(line.title)
                 .font(.subheadline.weight(.semibold))
@@ -643,11 +663,11 @@ struct TodayCoachPhaseLineView: View {
                 BodyPageCapsule(progress: progress)
                     .frame(width: 44)
             }
-            Spacer(minLength: 4)
-            Chip(text: line.status, tint: BodyPageStyle.color(line.tone), isSelected: line.tone == .alert)
         }
-        .padding(.horizontal, 6)
-        .contentShape(.rect)
+    }
+
+    private var statusChip: some View {
+        Chip(text: line.status, tint: BodyPageStyle.color(line.tone), isSelected: line.tone == .alert)
     }
 }
 

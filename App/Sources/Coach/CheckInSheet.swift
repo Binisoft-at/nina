@@ -171,8 +171,8 @@ struct CheckInSheet: View {
         prefilled = true
         step = abs(loaded.result.delta)
         if let draft = CheckInSheetDraft.byWeek[week] {
-            // Back from a full measurement set: the answers so far. Used once: a sheet swiped away
-            // after this must not bring these older answers back next time.
+            // Back from a full measurement set, Cancel or a swipe down: the answers so far. Used
+            // once; closing again keeps what the sheet holds then (`keepDraft`).
             CheckInSheetDraft.byWeek[week] = nil
             ratings = draft.ratings
             note = draft.note

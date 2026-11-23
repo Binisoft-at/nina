@@ -16,13 +16,14 @@ extension NinaStore {
 
     /// Marks `day` with an event, or takes the mark off (soft delete: the marks go to the trash).
     /// Saves; `undo(result)` puts it back. Nothing changes (an empty result) when the day is
-    /// already that way.
+    /// already that way – as `hasDayEvent` reads it: a live mark from another device that a newer
+    /// clear outranks doesn't count, so turning it on adds a new mark that wins.
     @discardableResult
     func setDayEvent(_ key: String, on day: DayKey, isOn: Bool) -> CoachUndo {
         let live = dayMarks(.event, on: day).filter { $0.key == key }
         var undo = CoachUndo()
         if isOn {
-            guard live.isEmpty else { return undo }
+            guard !hasDayEvent(key, on: day) else { return undo }
             let mark = DayMark(day: day, kind: .event, key: key)
             context.insert(mark)
             undo.inserted.append(mark)

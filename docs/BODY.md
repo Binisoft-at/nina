@@ -238,7 +238,8 @@ Today's strip shows what is due, so you never have to remember it:
   switch day and moves the loss phase to start right after it – one message with Undo.
 - **Pause** (holiday, ill): no checks, check-ins or coach reminders, and the paused days stay out of
   your pace, check-ins and adherence (and out of measured maintenance). Today and the Body page say
-  *Paused · until 12 Feb* with **Resume**; after two weeks of a pause without an end a calm card asks
+  *Paused · until 12 Feb* (or *since 3 Feb*), and **Resume** next to it on Today starts coaching
+  again from that day; after two weeks of a pause without an end a calm card asks
   "Still on a break?" (**Later** asks again in a week). Afterwards "Welcome back – weigh in tomorrow
   morning" restarts your average.
 
