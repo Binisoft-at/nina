@@ -313,4 +313,28 @@ struct CoachWidgetSnapshotTests {
         #expect(snapshot.unit == .kcal)
         #expect(snapshot.energyUnit == "kJ")
     }
+
+    @Test func siriNames() {
+        #expect(CoachSiriNames.dayTypeSynonyms("Tennis") == ["Tennis day", "Tennistag", "Tennis Tag"])
+        #expect(CoachSiriNames.dayTypeSynonyms("Ruhetag").isEmpty)
+        #expect(CoachSiriNames.dayTypeSynonyms("Rest day").isEmpty)
+        #expect(CoachSiriNames.dayTypeSynonyms("  ").isEmpty)
+
+        #expect(CoachSiriNames.key("Tennistag") == "tennis")
+        #expect(CoachSiriNames.key(" Rest Day ") == "rest")
+        #expect(CoachSiriNames.key("Kraft-Tag") == "kraft")
+        #expect(CoachSiriNames.key("Day") == "day")
+
+        #expect(CoachSiriNames.matches("tennistag", name: "Tennis"))
+        #expect(CoachSiriNames.matches("Tennis day", name: "Tennis"))
+        #expect(CoachSiriNames.matches("ten", name: "Tennis"))
+        #expect(CoachSiriNames.matches("Kreatin", name: "Kreatin"))
+        #expect(CoachSiriNames.key("Omega-3") == "omega3")
+        #expect(CoachSiriNames.matches("Omega 3", name: "Omega-3"))
+        #expect(CoachSiriNames.matches("omega", name: "Omega-3"))
+        #expect(CoachSiriNames.matches("Vitamin-D", name: "Vitamin D"))
+        #expect(CoachSiriNames.matches("Ruhetag", name: "Ruhetag"))
+        #expect(CoachSiriNames.matches("Gym", name: "Tennis") == false)
+        #expect(CoachSiriNames.matches("", name: "Tennis") == false)
+    }
 }

@@ -542,3 +542,40 @@ extension CoachSnapshot {
                      measurement: snapshot.measurement)
     }
 }
+
+// MARK: - Spoken names (Siri)
+
+/// How Siri hears the plan's day types and checks. "Today is a Tennis day in Nina" and the German
+/// "Heute ist ein Tennistag in Nina" name the day type "Tennis": its synonyms say the compound
+/// forms, and `matches` finds a type or check by what was said or typed, whatever the case, the
+/// accents or a trailing "day"/"Tag".
+public enum CoachSiriNames {
+    /// The other ways to say a day type: "Tennis day", "Tennistag", "Tennis Tag"; none for a name
+    /// that already ends in "day" or "Tag" ("Rest day", "Ruhetag").
+    public static func dayTypeSynonyms(_ name: String) -> [String] {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+        guard !trimmed.isEmpty, !lower.hasSuffix("day"), !lower.hasSuffix("tag") else { return [] }
+        return ["\(trimmed) day", "\(trimmed)tag", "\(trimmed) Tag"]
+    }
+
+    /// What is compared: lowercased letters and digits only (no accents, spaces or dashes), without
+    /// a trailing "day" or "Tag" ("Tennistag" → "tennis", "Rest day" → "rest", "Omega-3" → "omega3").
+    public static func key(_ text: String) -> String {
+        var folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        for suffix in ["-tag", " tag", "tag", " day", "day"] where folded.hasSuffix(suffix) && folded.count > suffix.count {
+            folded = String(folded.dropLast(suffix.count))
+            break
+        }
+        return String(folded.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init))
+    }
+
+    /// `query` names `name`: the same key, or one begins with the other ("Ten" finds "Tennis",
+    /// "Creatine 5 g" finds "Creatine").
+    public static func matches(_ query: String, name: String) -> Bool {
+        let wanted = key(query), candidate = key(name)
+        guard !wanted.isEmpty, !candidate.isEmpty else { return false }
+        return wanted == candidate || candidate.hasPrefix(wanted) || wanted.hasPrefix(candidate)
+    }
+}
