@@ -22,8 +22,8 @@ extension EnvironmentValues {
     }
 }
 
-/// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, help,
-/// iCloud & data, import/export, the app log, about.
+/// Settings: goals & plan, diary preferences, Apple Health, reminders, Thalia, appearance, the
+/// menu bar (Mac), help, iCloud & data, import/export, the app log, about.
 struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
@@ -95,15 +95,16 @@ struct SettingsView: View {
             }
             #endif
 
-            #if os(macOS)
-            NinaMenuBarSettingsSection()
-            #endif
-
             ThaliaSection()
 
             Section {
                 AppearancePicker()
             }
+
+            #if os(macOS)
+            // Settings → Menu Bar (MenuBar.swift): Nina's menu bar extra on this Mac.
+            NinaMenuBarSettingsSection()
+            #endif
 
             Section {
                 Button("Replay the Tour", systemImage: "graduationcap", action: replayTour)
@@ -227,7 +228,7 @@ struct SettingsView: View {
     /// The backup: by hand (Import & Export, on the Mac also File → Back Up Nina…) or every week.
     private static let backupFact = DataFact(
         "externaldrive", "Back up",
-        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – photos included, nothing from Apple Health – where you choose. With \u{201C}Back up automatically every week\u{201D} on, \(AppInfo.name) does that by itself once a week and keeps the last four. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
+        "iCloud sync isn't a backup: a deletion reaches every device. Import & Export → Back Up Everything saves one folder with all your \(AppInfo.name) data – your progress photos too if you like, nothing from Apple Health – where you choose. With \u{201C}Back Up Automatically Every Week\u{201D} on, \(AppInfo.name) saves one by itself once a week and keeps the last four. The CSV exports cover goals & plan, foods, diary, meals & recipes and weight & body."
     )
 }
 

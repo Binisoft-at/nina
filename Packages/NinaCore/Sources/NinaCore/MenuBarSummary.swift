@@ -2,8 +2,8 @@ import Foundation
 
 /// What Nina's menu bar extra on the Mac shows for the diary day (Settings → "Show in menu bar"):
 /// the calories left or over, protein against its target and the water. Built from `DayProgress`,
-/// so it says what Today says – eaten food only, planned food doesn't count yet. (The Mac reads
-/// nothing from Apple Health, so there is no activity bonus in it.)
+/// so it says what Today says – eaten food only, planned food doesn't count yet, and the same
+/// activity bonus as Today's ring (none on the Mac, which reads nothing from Apple Health).
 public struct NinaMenuBarSummary: Equatable, Sendable {
     /// Whole kcal left; negative when over. Without a calorie target: what was eaten, negative.
     public var energyLeft: Double

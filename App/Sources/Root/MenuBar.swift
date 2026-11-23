@@ -22,7 +22,8 @@ enum NinaMenuBar {
     static let symbol = "fork.knife"
 
     /// Today's numbers, read again whenever data, the day or the settings change (the views read
-    /// `dataVersion`, `today` and `settings` through this).
+    /// `dataVersion`, `today` and `settings` through this). The same sum as Today's ring
+    /// (TodayView `progress`), so both always say the same.
     @MainActor
     static func summary(_ app: AppModel) -> NinaMenuBarSummary {
         _ = app.dataVersion
@@ -31,7 +32,9 @@ enum NinaMenuBar {
         let store = app.store
         let water: Double = store.water(on: day).map(\.amount).reduce(0, +)
         let totals = DayTotals(day: day, entries: store.entries(on: day).map(\.facts), water: water)
-        let progress = DayProgress(totals: totals, targets: settings.targets(for: day))
+        // Read live like Today does (never stored); the Mac has no Apple Health, so this is 0 there.
+        let bonus: Double = app.health.activeEnergyToday * settings.activityBonusShare
+        let progress = DayProgress(totals: totals, targets: settings.targets(for: day), activityBonus: bonus)
         return NinaMenuBarSummary(progress: progress, emoji: settings.todayCoachEmoji(for: day))
     }
 }

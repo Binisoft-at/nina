@@ -102,8 +102,8 @@ Progress → Body), Search and Recently Deleted. Nina opens on the page you used
 - **Window → Nina** ⌘0 brings the main window back, also after closing it. **Help → Nina Tour**.
 - Commands that open a sheet are off while one is open, so a shortcut never replaces a half-filled
   editor. While the tour is open, they act on its practice day.
-- **Settings** (⌘,) has two tabs: General (Goals, meals, reminders, menu bar, Thalia, iCloud & data,
-  Import & Export) and My Plan.
+- **Settings** (⌘,) has two tabs: General (Goals, meals, reminders, Thalia, appearance, menu bar,
+  iCloud & data, Import & Export) and My Plan.
 - **Menu bar**: the fork-and-knife icon with the calories left today next to it. Its menu shows
   calories left (or over), protein and water against your targets, and has **Add a Glass of
   Water**, **Log Food…**, **Weigh In…** and **Open Nina**. Log Food and Weigh In bring Nina's window
