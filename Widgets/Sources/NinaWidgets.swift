@@ -23,25 +23,25 @@ struct TodayProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) {
-        let snapshot = context.isPreview ? TodaySnapshot.placeholder : current()
-        completion(TodayEntry(date: Date(), snapshot: snapshot))
+        let now = Date()
+        let snapshot = context.isPreview ? TodaySnapshot.placeholder : stored.current(now: now)
+        completion(TodayEntry(date: now, snapshot: snapshot))
     }
 
+    /// The app reloads timelines when the numbers change. In between, the "next planned" line moves
+    /// on at each planned time, and the day changes when the diary's day starts (Settings → Day
+    /// starts at), not at midnight (`TodaySnapshot.timeline`).
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
         let now = Date()
-        // The app reloads timelines when the numbers change; after midnight the day starts empty.
-        let midnight = Calendar.current.startOfDay(for: now.addingTimeInterval(86_400))
-        let entries = [
-            TodayEntry(date: now, snapshot: current(now: now)),
-            TodayEntry(date: midnight, snapshot: current(now: midnight)),
-        ]
-        completion(Timeline(entries: entries, policy: .after(midnight.addingTimeInterval(60))))
+        let snapshot = stored
+        let entries = snapshot.timeline(now: now).map { TodayEntry(date: $0.date, snapshot: $0.snapshot) }
+        let reload = snapshot.nextDayStart(after: now).addingTimeInterval(60)
+        completion(Timeline(entries: entries, policy: .after(reload)))
     }
 
-    private func current(now: Date = Date()) -> TodaySnapshot {
-        let today = DayKey(date: now)
-        guard let stored = WidgetBridge.read() else { return TodaySnapshot.placeholder.emptied(for: today) }
-        return stored.current(today: today)
+    /// What the app wrote last; before its first write an empty day with sample goals.
+    private var stored: TodaySnapshot {
+        WidgetBridge.read() ?? TodaySnapshot.placeholder
     }
 }
 
@@ -72,20 +72,25 @@ struct TodayWidgetView: View {
     private var snapshot: TodaySnapshot { entry.snapshot }
     private var unit: EnergyUnit { snapshot.unit }
     private var remaining: Double { snapshot.remaining }
-    private var leftText: String {
-        remaining >= 0 ? Fmt.energy(remaining, unit: unit, showUnit: false) : "+" + Fmt.energy(-remaining, unit: unit, showUnit: false)
+    /// "1,240" left or "120" over – the word next to it says which.
+    private var amountText: String {
+        Fmt.energy(abs(remaining), unit: unit, showUnit: false)
+    }
+    /// For faces without a word: "+120" when over.
+    private var signedText: String {
+        remaining >= 0 ? amountText : "+" + amountText
     }
     /// The plan's day type in front of the numbers ("🏋️ "); "" without day types.
     private var dayPrefix: String { snapshot.dayTypePrefix }
     /// "🏋️ 1,240 kcal left" / "🏋️ 120 kcal over".
     private var leftLine: String {
-        remaining >= 0 ? "\(dayPrefix)\(leftText) \(unit.symbol) left" : "\(dayPrefix)\(leftText) \(unit.symbol) over"
+        remaining >= 0 ? "\(dayPrefix)\(amountText) \(unit.symbol) left" : "\(dayPrefix)\(amountText) \(unit.symbol) over"
     }
 
     var body: some View {
         #if os(watchOS)
         if family == .accessoryCorner {
-            Text(dayPrefix + leftText)
+            Text(dayPrefix + signedText)
                 .widgetCurvesContent()
                 .widgetLabel {
                     Gauge(value: min(snapshot.fraction, 1)) { Text(unit.symbol) }
@@ -106,7 +111,7 @@ struct TodayWidgetView: View {
             Gauge(value: min(snapshot.fraction, 1)) {
                 circularLabel
             } currentValueLabel: {
-                Text(leftText).minimumScaleFactor(0.5)
+                Text(signedText).minimumScaleFactor(0.5)
             }
             .gaugeStyle(.accessoryCircular)
             .widgetAccentable()
@@ -171,7 +176,8 @@ struct TodayWidgetView: View {
                         .foregroundStyle(NutrientStyle.water)
                     Spacer()
                     #if os(iOS)
-                    Link(destination: URL(string: "\(AppInfo.urlScheme)://water?ml=250")!) {
+                    // No amount: the app adds the glass size from Settings.
+                    Link(destination: URL(string: "\(AppInfo.urlScheme)://water")!) {
                         Image(systemName: "plus.circle.fill").foregroundStyle(NutrientStyle.water)
                     }
                     Link(destination: URL(string: "\(AppInfo.urlScheme)://add")!) {
@@ -192,7 +198,7 @@ struct TodayWidgetView: View {
                 if let emoji = snapshot.dayTypeEmoji, !emoji.isEmpty {
                     Text(emoji).font(.caption)
                 }
-                Text(leftText)
+                Text(amountText)
                     .font(.system(.title3, design: .rounded, weight: .bold).monospacedDigit())
                     .minimumScaleFactor(0.5)
                 Text(remaining >= 0 ? "\(unit.symbol) left" : "\(unit.symbol) over")

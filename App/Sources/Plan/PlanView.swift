@@ -5,74 +5,39 @@ import NinaCore
 
 /// The week ahead: planned meals per day, routines that plan themselves, and quick ways to plan.
 /// Planned food shows dimmed in the diary and counts once confirmed – logging becomes one tap.
+/// Built from `app.today` (with "Day starts at"), so its seven days move on with the day.
 struct PlanView: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        PlanWeekView(today: app.today)
+            .id(app.today)
+    }
+}
+
+/// The Plan page for one diary day: its seven days and their planned foods are fetched for it.
+private struct PlanWeekView: View {
     @Environment(AppModel.self) private var app
     @Query(filter: #Predicate<PlanRule> { $0.deletedAt == nil }, sort: \PlanRule.minutes) private var rules: [PlanRule]
     @Query private var planned: [LogEntry]
+    private let today: DayKey
     private let days: [DayKey]
 
-    init() {
-        let today = DayKey.today()
+    init(today: DayKey) {
+        self.today = today
         let end = today.adding(days: 6)
         days = DayKey.range(today, through: end)
         let first = today.rawValue, last = end.rawValue
         _planned = Query(filter: #Predicate<LogEntry> { $0.day >= first && $0.day <= last && $0.deletedAt == nil && $0.status == "planned" },
-                         sort: [SortDescriptor(\LogEntry.day), SortDescriptor(\LogEntry.time)])
+                         sort: [SortDescriptor(\LogEntry.day), SortDescriptor(\LogEntry.time), SortDescriptor(\LogEntry.sortOrder)])
     }
 
     var body: some View {
         List {
-            Section {
-                ForEach(days) { day in
-                    let entries = planned.filter { $0.day == day.rawValue }
-                    Button {
-                        app.show(day: day)
-                    } label: {
-                        DayPlanRow(day: day, entries: entries)
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu {
-                        if !entries.isEmpty {
-                            Button("Confirm All as Eaten", systemImage: "checkmark.circle") { app.confirm(entries) }
-                            Button("Remove Plan", systemImage: "trash", role: .destructive) { app.trash(entries) }
-                        }
-                    }
-                }
-            } header: {
-                Text("Next 7 days")
-            } footer: {
-                Text("Tap a day to open it. Planned foods count once you tap ✓ next to them – or answer the reminder.")
-            }
-
-            Section {
-                ForEach(rules) { rule in
-                    RoutineRow(rule: rule)
-                        .contentShape(.rect)
-                        .onTapGesture { app.sheet = .planRule(rule, recipe: nil) }
-                        .swipeActions {
-                            Button("Delete", systemImage: "trash", role: .destructive) { app.trash(rule) }
-                        }
-                }
-                Button("New Routine", systemImage: "plus.circle") { app.sheet = .planRule(nil, recipe: nil) }
-            } header: {
-                Text("Routines")
-            } footer: {
-                Text("A routine plans a saved meal on chosen weekdays, e.g. your usual breakfast Mon–Fri at 7:30.")
-            }
-
-            Section("Plan quickly") {
-                Button("Plan Tomorrow Like Today", systemImage: "calendar.badge.plus") {
-                    let todays = app.store.entries(on: app.today).filter { $0.entryStatus != .skipped }
-                    guard !todays.isEmpty else {
-                        app.toasts.show("Nothing logged today yet", symbol: "info.circle")
-                        return
-                    }
-                    app.copy(todays, to: app.today.adding(days: 1), status: .planned)
-                }
-                Button("Plan the Week Like Last Week", systemImage: "calendar") {
-                    planWeekLikeLastWeek()
-                }
-            }
+            if app.settings.plan.isSetUp { myPlanSection }
+            daysSection
+            routinesSection
+            quickSection
         }
         .navigationTitle("Plan")
         .toolbar {
@@ -86,44 +51,165 @@ struct PlanView: View {
         }
     }
 
-    /// Copies what was eaten 7 days earlier to each of the next 7 days that has nothing planned yet.
-    private func planWeekLikeLastWeek() {
-        var created = 0
-        for day in days.dropFirst() where !planned.contains(where: { $0.day == day.rawValue }) {
-            let source = app.store.entries(on: day.adding(days: -7)).filter(\.isEaten)
-            guard !source.isEmpty else { continue }
-            created += app.store.copy(source, to: day, status: .planned).count
+    // MARK: My Plan
+
+    /// The coach plan (phases, day types, checks) from the tab named Plan.
+    private var myPlanSection: some View {
+        Section {
+            Button {
+                app.sheet = .plan
+            } label: {
+                PlanMyPlanRow(detail: planLine)
+            }
+            .buttonStyle(.plain)
         }
-        app.toasts.show(created > 0 ? "Planned \(created) foods" : "Nothing to copy from last week", symbol: "calendar.badge.plus")
+    }
+
+    /// "Lean gain · week 4 of 15" – the running phase, else what the plan holds.
+    private var planLine: String {
+        let plan = app.settings.plan
+        if let running = plan.activePhase(on: today) {
+            let status = PlanEditorData.phaseStatus(running, plan: plan, today: today).lowercased()
+            return "\(PlanEditorData.phaseName(running)) · \(status)"
+        }
+        return "Phases, day types and daily checks"
+    }
+
+    // MARK: The next 7 days
+
+    private var daysSection: some View {
+        Section {
+            ForEach(days) { day in
+                dayRow(day)
+            }
+        } header: {
+            Text("Next 7 days")
+        } footer: {
+            Text(daysFooter)
+        }
+    }
+
+    private func dayRow(_ day: DayKey) -> some View {
+        let entries = planned.filter { $0.day == day.rawValue }
+        return Button {
+            app.show(day: day)
+        } label: {
+            DayPlanRow(day: day, today: today, entries: entries)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            if !entries.isEmpty {
+                Button("Confirm All as Eaten", systemImage: "checkmark.circle") { app.confirm(entries) }
+                Button("Remove Plan", systemImage: "trash", role: .destructive) { app.trash(entries) }
+            }
+        }
+    }
+
+    private var daysFooter: String {
+        #if os(macOS)
+        return "Click a day to open it. Planned foods count once you click ✓ next to them – or answer the reminder."
+        #else
+        return "Tap a day to open it. Planned foods count once you tap ✓ next to them – or answer the reminder."
+        #endif
+    }
+
+    // MARK: Routines
+
+    private var routinesSection: some View {
+        Section {
+            ForEach(rules) { rule in
+                routineRow(rule)
+            }
+            Button("New Routine", systemImage: "plus.circle") { app.sheet = .planRule(nil, recipe: nil) }
+        } header: {
+            Text("Routines")
+        } footer: {
+            Text("A routine plans a saved meal on chosen weekdays, e.g. your usual breakfast Mon–Fri at 7:30.")
+        }
+    }
+
+    private func routineRow(_ rule: PlanRule) -> some View {
+        RoutineRow(rule: rule)
+            .contentShape(.rect)
+            .onTapGesture { app.sheet = .planRule(rule, recipe: nil) }
+            .contextMenu {
+                Button("Edit…", systemImage: "pencil") { app.sheet = .planRule(rule, recipe: nil) }
+                Button("Delete", systemImage: "trash", role: .destructive) { app.trash(rule) }
+            }
+            .swipeActions {
+                Button("Delete", systemImage: "trash", role: .destructive) { app.trash(rule) }
+            }
+    }
+
+    // MARK: Plan quickly
+
+    private var quickSection: some View {
+        Section("Plan quickly") {
+            Button("Plan Tomorrow Like Today", systemImage: "calendar.badge.plus") {
+                planTomorrowLikeToday()
+            }
+            Button("Plan the Week Like Last Week", systemImage: "calendar") {
+                app.planLikeLastWeek(Array(days.dropFirst()))
+            }
+        }
+    }
+
+    /// Today's foods (not the skipped ones) planned for tomorrow; a routine's meal that tomorrow
+    /// already has stays out.
+    private func planTomorrowLikeToday() {
+        let todays = app.store.entries(on: today).filter { $0.entryStatus != .skipped }
+        guard !todays.isEmpty else {
+            app.toasts.show("Nothing logged today yet", symbol: "info.circle")
+            return
+        }
+        app.copy(todays, to: today.adding(days: 1), status: .planned)
+    }
+}
+
+/// "My Plan" with the running phase, at the top of the Plan tab.
+private struct PlanMyPlanRow: View {
+    let detail: String
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.title2)
+                .foregroundStyle(Brand.accent)
+                .frame(width: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("My Plan")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
+        .contentShape(.rect)
     }
 }
 
 private struct DayPlanRow: View {
     let day: DayKey
+    let today: DayKey
     let entries: [LogEntry]
     @Environment(AppModel.self) private var app
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 0) {
-                Text(Fmt.weekdayLetter(day)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text("\(day.day)").font(.title3.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(day == app.today ? Brand.accent : .primary)
-            }
-            .frame(width: 36)
+            dateColumn
             VStack(alignment: .leading, spacing: 4) {
-                Text(Fmt.dayTitle(day, today: app.today)).font(.subheadline.weight(.semibold))
+                Text(Fmt.dayTitle(day, today: today)).font(.subheadline.weight(.semibold))
                 if entries.isEmpty {
                     Text("Nothing planned").font(.caption).foregroundStyle(.secondary)
                 } else {
-                    ForEach(app.settings.meals) { slot in
-                        let items = entries.filter { $0.meal == slot.id }
-                        if !items.isEmpty {
-                            Text("\(slot.emoji) \(items.map(\.displayName).joined(separator: ", "))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
+                    ForEach(slots) { slot in
+                        mealLine(slot)
                     }
                 }
             }
@@ -136,6 +222,33 @@ private struct DayPlanRow: View {
         }
         .padding(.vertical, 2)
         .contentShape(.rect)
+    }
+
+    private var dateColumn: some View {
+        VStack(spacing: 0) {
+            Text(Fmt.weekdayLetter(day)).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text("\(day.day)").font(.title3.weight(.semibold).monospacedDigit())
+                .foregroundStyle(day == today ? Brand.accent : .primary)
+        }
+        .frame(width: 36)
+    }
+
+    /// The meals with something planned, in the order the day runs (from "Day starts at").
+    private var slots: [MealSlot] {
+        let start = app.settings.dayStartHour
+        let used = Set(entries.map(\.meal))
+        return app.settings.meals.filter { used.contains($0.id) }.sorted { a, b in
+            ClockTime.diaryMinutes(a.minutes, dayStartHour: start) < ClockTime.diaryMinutes(b.minutes, dayStartHour: start)
+        }
+    }
+
+    /// "🍳 Oat porridge · Blueberries" – names with commas stay readable.
+    private func mealLine(_ slot: MealSlot) -> some View {
+        let names = entries.filter { $0.meal == slot.id }.map(\.displayName).joined(separator: " · ")
+        return Text("\(slot.emoji) \(names)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 
@@ -154,7 +267,7 @@ private struct RoutineRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("Active", isOn: Binding(get: { rule.isActive }, set: { app.store.setActive(rule, $0) }))
+            Toggle("Active", isOn: Binding(get: { rule.isActive }, set: { app.setActive(rule, $0) }))
                 .labelsHidden()
         }
     }
@@ -223,7 +336,7 @@ struct PlanRuleEditor: View {
                     }
                     Toggle("Remind me to confirm", isOn: $notify)
                 } footer: {
-                    Text("\(weekdays.summary). The plan appears in your diary a few days ahead; changes to the meal apply to new days.")
+                    Text(footer)
                 }
                 if let rule {
                     Section {
@@ -248,14 +361,15 @@ struct PlanRuleEditor: View {
         .sheetFrame(minWidth: 480, minHeight: 520)
     }
 
+    private var footer: String {
+        let ahead = "\(weekdays.summary). The plan appears in your diary a few days ahead."
+        guard rule != nil else { return ahead }
+        return ahead + " Saving a change to the meal, time or days replaces the planned meals you haven't confirmed yet."
+    }
+
     private func save() {
         guard let recipeID, let recipe = recipes.first(where: { $0.uuid == recipeID }) else { return }
-        let store = app.store
-        store.savePlanRule(rule, recipe: recipe, meal: meal, minutes: ClockTime.minutes(of: time), weekdays: weekdays,
-                           notify: notify, startDay: rule?.start ?? app.today)
-        store.materializePlans(today: app.today)
-        app.toasts.show("Routine saved · \(weekdays.summary)", symbol: "calendar.badge.clock")
-        if notify { Task { _ = await NotificationScheduler.shared.requestAuthorization() } }
+        app.saveRoutine(rule, recipe: recipe, meal: meal, minutes: ClockTime.minutes(of: time), weekdays: weekdays, notify: notify)
         dismiss()
     }
 }
