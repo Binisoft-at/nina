@@ -5,8 +5,11 @@ morning weigh-in, the tape once a week, body fat every few weeks, and a short ch
 that looks at the numbers and – only when they call for it – proposes a small calorie change.
 Training itself stays in your training app; Nina only needs to know what kind of day it is.
 
-Everything here starts once a plan is set up (Settings → Goals & Plan → My Plan, or an import from
-your AI, see [IMPORT.md](IMPORT.md)). Without a plan Nina is the diary it always was.
+Everything here starts once a plan is set up (Settings → Goals & Plan → My Plan, the My Plan row at
+the top of the Plan tab, or an import from your AI, see [IMPORT.md](IMPORT.md)). Without a plan Nina
+is the diary it always was – and until you've set your goal, Today shows a small "Set your goal"
+card that opens Goals & Plan ("Not Now" hides it for a week, "Don't Show Again" for good on that
+device).
 
 ## What Nina never does
 
@@ -167,7 +170,9 @@ Today's strip shows what is due, so you never have to remember it:
 - **Day types** give each kind of day its own targets (calorie cycling): Gym on fixed weekdays,
   Tennis when you pick it (with "1 of 2 this week" as a hint, never a nag), Rest on every other
   day. Tap the chip on Today's summary to change today's type, or touch and hold a day in the week
-  strip to plan ahead. Back to Schedule undoes a pick.
+  strip to plan ahead. In the Plan tab each of the next 7 days shows its type's emoji on the
+  right: tap it to change that day's type (filled = picked by hand). Back to Schedule undoes a pick,
+  and every change shows Undo.
 - **Daily checks** are what your plan names – a supplement, for example. They sit in the strip on
   Today: a tap ticks one off, touch and hold gives Not Today. Nina never suggests one.
 - **Protein per meal**: with a minimum per meal set (or 0.4 g per kg of body weight), each meal

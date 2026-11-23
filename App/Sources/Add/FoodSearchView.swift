@@ -21,6 +21,9 @@ struct FoodSearchView: View {
     @State private var matchedText = ""
     /// The list below the search field, worked out once per search (not on every redraw).
     @State private var results: [FoodRecord] = []
+    /// How many of `results` lead as "Mostly at breakfast" (the Recent list for the meal being
+    /// logged); 0 = one plain list.
+    @State private var mealFirst = 0
     @State private var isQuick = false
     /// The search the shown results belong to (`searchKey`).
     @State private var shownKey = ""
@@ -59,9 +62,10 @@ struct FoodSearchView: View {
 
     private var library: FoodLibrary { app.library }
 
-    /// Everything the results depend on.
+    /// Everything the results depend on (the meal only while the Recent list shows: it sorts it).
     private var searchKey: String {
-        "\(text)\u{1}\(scope.rawValue)\u{1}\(library.version)\u{1}\(app.language.rawValue)"
+        let recentsMeal = text.trimmingCharacters(in: .whitespaces).isEmpty ? meal : ""
+        return "\(text)\u{1}\(scope.rawValue)\u{1}\(library.version)\u{1}\(app.language.rawValue)\u{1}\(recentsMeal)"
     }
 
     var body: some View {
@@ -204,29 +208,48 @@ struct FoodSearchView: View {
             matchedText = text
         }
         isQuick = quick
-        results = currentResults()
+        let current = currentResults()
+        results = current.records
+        mealFirst = current.forMeal
         shownKey = key
         highlighted = results.first?.ref
     }
 
-    private func currentResults() -> [FoodRecord] {
+    /// The list for the current search and scope, and how many of it lead as "Mostly at …".
+    private func currentResults() -> (records: [FoodRecord], forMeal: Int) {
         let query = text.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty else {
             switch scope {
-            case .all, .recent: return library.recents(limit: 40)
-            case .favorites: return library.favorites
-            case .mine: return library.records.filter { $0.recordID != nil && $0.ref.kind != .recipe }
-            case .meals: return library.records.filter { $0.ref.kind == .recipe }
+            case .all, .recent: return recentResults()
+            case .favorites: return (library.favorites, 0)
+            case .mine: return (library.records.filter { $0.recordID != nil && $0.ref.kind != .recipe }, 0)
+            case .meals: return (library.records.filter { $0.ref.kind == .recipe }, 0)
             }
         }
         let list = library.search(query, limit: 80)
         switch scope {
-        case .all: return list
-        case .favorites: return list.filter(\.isFavorite)
-        case .recent: return list.filter { library.usage(of: $0.ref) != nil }
-        case .mine: return list.filter { $0.recordID != nil && $0.ref.kind != .recipe }
-        case .meals: return list.filter { $0.ref.kind == .recipe }
+        case .all: return (list, 0)
+        case .favorites: return (list.filter(\.isFavorite), 0)
+        case .recent: return (list.filter { library.usage(of: $0.ref) != nil }, 0)
+        case .mine: return (list.filter { $0.recordID != nil && $0.ref.kind != .recipe }, 0)
+        case .meals: return (list.filter { $0.ref.kind == .recipe }, 0)
         }
+    }
+
+    /// Logging: the foods mostly logged at this meal first, then the rest by recency. Picking an
+    /// ingredient: the most recent first.
+    private func recentResults() -> (records: [FoodRecord], forMeal: Int) {
+        guard mode.isLogging, !meal.isEmpty else { return (library.recents(limit: 40), 0) }
+        let recents = library.recents(for: meal, limit: 40)
+        return (recents.all, recents.forMeal.count)
+    }
+
+    /// The leading "Mostly at …" part of `results` (never more than there are).
+    private var leadCount: Int { min(mealFirst, results.count) }
+
+    /// "Mostly at breakfast" over the leading part ("Mostly at this meal" for a removed own meal).
+    private var mealHint: String {
+        RecentFoods.hint(forMeal: meal, in: app.settings.meals)
     }
 
     private var highlightedRecord: FoodRecord? {
@@ -235,13 +258,32 @@ struct FoodSearchView: View {
 
     // MARK: Sections
 
+    @ViewBuilder
     private var resultsSection: some View {
-        Section {
-            ForEach(results) { record in
-                resultRow(record)
+        let lead = leadCount
+        if lead > 0 {
+            Section {
+                ForEach(results.prefix(lead)) { record in
+                    resultRow(record)
+                }
+            } header: {
+                Text(mealHint)
             }
-        } header: {
-            if !results.isEmpty { Text(resultsTitle) }
+            Section {
+                ForEach(results.dropFirst(lead)) { record in
+                    resultRow(record)
+                }
+            } header: {
+                if results.count > lead { Text(resultsTitle) }
+            }
+        } else {
+            Section {
+                ForEach(results) { record in
+                    resultRow(record)
+                }
+            } header: {
+                if !results.isEmpty { Text(resultsTitle) }
+            }
         }
     }
 
@@ -292,9 +334,18 @@ struct FoodSearchView: View {
         }
     }
 
+    /// Saved meals and recipes that are favourites or were logged lately; the ones mostly logged at
+    /// this meal first.
+    private var savedMeals: [FoodRecord] {
+        let saved = library.records.filter { $0.ref.kind == .recipe && ($0.isFavorite || library.usage(of: $0.ref) != nil) }
+        guard !meal.isEmpty, saved.count > 1 else { return saved }
+        let order = RecentFoods.sortedForMeal(saved.map(\.ref), usage: library.usage, meal: meal)
+        return order.compactMap { library.record($0) }
+    }
+
     @ViewBuilder
     private var savedMealsRow: some View {
-        let meals = library.records.filter { $0.ref.kind == .recipe && ($0.isFavorite || library.usage(of: $0.ref) != nil) }
+        let meals = savedMeals
         if !meals.isEmpty {
             Section("Your meals") {
                 ScrollView(.horizontal, showsIndicators: false) {

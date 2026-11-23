@@ -136,7 +136,8 @@ final class FoodLibrary {
         return merged
     }
 
-    /// Usage from the diary: how often, how recently and how much.
+    /// Usage from the diary: how often, how recently and how much – overall and per meal (the
+    /// log sheet's Recent list leads with the foods mostly logged at the meal being logged).
     private func readUsage(context: ModelContext, since: String) -> [FoodRef: FoodUsage] {
         let descriptor = FetchDescriptor<LogEntry>(
             predicate: #Predicate<LogEntry> { $0.day >= since && $0.deletedAt == nil && $0.foodRef != "" },
@@ -145,9 +146,7 @@ final class FoodLibrary {
         var counts: [FoodRef: FoodUsage] = [:]
         for entry in (try? context.fetch(descriptor)) ?? [] where entry.isEaten {
             var use = counts[entry.ref] ?? FoodUsage()
-            use.count += 1
-            use.lastUsed = entry.time
-            use.lastAmount = entry.totalAmount
+            use.record(meal: entry.meal, at: entry.time, amount: entry.totalAmount)
             counts[entry.ref] = use
         }
         return counts
@@ -172,6 +171,27 @@ final class FoodLibrary {
         usage.sorted { ($0.value.lastUsed ?? .distantPast) > ($1.value.lastUsed ?? .distantPast) }
             .prefix(limit)
             .compactMap { byRef[$0.key] }
+    }
+
+    /// The log sheet's Recent list for `meal`: the foods mostly logged at that meal first (the
+    /// most often logged there first, at most 12), then the rest, the most recent first
+    /// (`RecentFoods`). An empty meal id gives just the most recent first.
+    func recents(for meal: String, limit: Int = 40, now: Date = Date()) -> MealRecents {
+        let known: [FoodRef: FoodRecord] = byRef
+        let split = RecentFoods.split(usage, meal: meal, now: now, limit: limit) { (ref: FoodRef) -> Bool in
+            known[ref] != nil
+        }
+        return MealRecents(forMeal: split.forMeal.compactMap { known[$0] }, others: split.others.compactMap { known[$0] })
+    }
+
+    /// The Recent list for a meal in two parts (`recents(for:limit:now:)`).
+    struct MealRecents: Equatable {
+        /// Mostly logged at the meal ("Mostly at breakfast").
+        var forMeal: [FoodRecord] = []
+        /// Everything else logged lately, the most recent first.
+        var others: [FoodRecord] = []
+
+        var all: [FoodRecord] { forMeal + others }
     }
 
     /// Logged most often first.

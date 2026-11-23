@@ -29,6 +29,8 @@ struct DayView: View {
     /// Ticks every few minutes so time-bound coach parts (the weigh-in until the morning cutoff,
     /// the check-in card from it) update without a data change.
     @State private var clock = 0
+    /// "Not now" / "Don't show again" on the "Set your goal" card (device-only).
+    @AppStorage(TodayGoalCard.storageKey) private var goalCardChoice = ""
     #if os(iOS)
     @State private var editMode: EditMode = .inactive
     #else
@@ -267,7 +269,8 @@ struct DayView: View {
         )
     }
 
-    /// At most one coach card above the meals (only on today).
+    /// At most one coach card above the meals (only on today); without a plan, "Set your goal"
+    /// while the goal isn't set.
     @ViewBuilder
     private var coachCardSection: some View {
         if let card = coach.board.card {
@@ -278,7 +281,20 @@ struct DayView: View {
                     .listRowSeparator(.hidden)
             }
             .listSectionSeparator(.hidden)
+        } else if let reason = goalCardReason {
+            Section {
+                TodayGoalCard(reason: reason, choice: $goalCardChoice)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+            .listSectionSeparator(.hidden)
         }
+    }
+
+    /// Why "Set your goal" shows today; nil when it doesn't.
+    private var goalCardReason: GoalSetupPrompt.Reason? {
+        TodayGoalCard.reason(settings: settings, choice: goalCardChoice, day: day, today: app.today, isSandbox: app.isSandbox)
     }
 
     /// Bumps `clock` every 5 minutes while the day is shown.

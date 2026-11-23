@@ -47,8 +47,9 @@ itself stays in your training app.
   meals with their totals, water in one tap. Planned food shows dimmed; tap ✓ when you've eaten it.
 - **Log in seconds** – search ~1,000 foods (USDA data, names in English and German, "Paradeiser",
   "Topfen", "Erdäpfel" welcome) or type `2 eggs, 1 toast and 200 ml milk`, `10 dag Extrawurst`,
-  `ein Achtel Rotwein` – Nina understands amounts and units and logs everything at once. Recents,
-  favourites, saved meals, quick calories, barcode scan (Open Food Facts).
+  `ein Achtel Rotwein` – Nina understands amounts and units and logs everything at once. Recents
+  sorted for the meal you're logging ("Mostly at breakfast" first), favourites, saved meals, quick
+  calories, barcode scan (Open Food Facts).
 - **Gestures everywhere** – swipe right to log again or confirm, left to delete (with Undo), drag
   entries between meals, select many and move, copy or save them as a meal; ⌘Z and shake to undo.
 - **Foods, your way** – group by category, brand, tag or letter; sort by most logged, recent,
