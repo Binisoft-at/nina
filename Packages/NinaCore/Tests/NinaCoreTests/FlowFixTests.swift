@@ -218,6 +218,34 @@ struct DayStartTests {
         #expect(day.start(dayStartHour: 3, calendar: vienna) == day.date(minutes: 180, calendar: vienna))
         #expect(day.start(dayStartHour: 0, calendar: vienna) == day.date(calendar: vienna))
     }
+
+    /// Daylight-saving nights in Vienna (made-up year 2030): the day start is where the diary's
+    /// day changes, so a widget or the app's wake-up at that moment always finds the new day.
+    @Test func theStartMatchesTheDayChangeOnClockChangeNights() {
+        let spring = DayKey(year: 2030, month: 3, day: 31)
+        let autumn = DayKey(year: 2030, month: 10, day: 27)
+        for changeDay in [spring, autumn] {
+            for hour in [0, 1, 2, 3, 5] {
+                let start = changeDay.start(dayStartHour: hour, calendar: vienna)
+                #expect(DayKey(date: start, calendar: vienna, dayStartHour: hour) == changeDay)
+                #expect(DayKey(date: start.addingTimeInterval(-1), calendar: vienna, dayStartHour: hour)
+                        == changeDay.adding(days: -1, calendar: vienna))
+            }
+        }
+        // Every moment of those nights: the next day start lies ahead, and it is a day change.
+        var snapshot = TodaySnapshot(day: spring.rawValue, energy: 0, energyGoal: 2000, protein: 0, proteinGoal: 100,
+                                     carbs: 0, carbsGoal: 250, fat: 0, fatGoal: 70, water: 0, waterGoal: 2000)
+        snapshot.dayStartHour = 3
+        for changeDay in [spring, autumn] {
+            let midnight = changeDay.date(calendar: vienna)
+            for step in 0..<(6 * 12) {
+                let now = midnight.addingTimeInterval(Double(step) * 300)
+                let next = snapshot.nextDayStart(after: now, calendar: vienna)
+                #expect(next > now)
+                #expect(snapshot.today(now: next, calendar: vienna) == snapshot.today(now: now, calendar: vienna).adding(days: 1, calendar: vienna))
+            }
+        }
+    }
 }
 
 @Suite("Widget timeline")
@@ -256,6 +284,16 @@ struct WidgetTimelineTests {
         #expect(points.map(\.date) == [at(next, 0, 30), at(next, 3)])
         #expect(points[0].snapshot.energy == 1800)
         #expect(points[1].snapshot.day == next.rawValue && points[1].snapshot.energy == 0)
+    }
+
+    @Test func theDayStartAndPlannedMealsReachTheWidget() throws {
+        let planned = [TodaySnapshot.PlannedItem(day: next, time: at(next, 7, 30), text: "Breakfast · 7:30")]
+        let written = snapshot(planned: planned)
+        let read = try JSONDecoder().decode(TodaySnapshot.self, from: JSONEncoder().encode(written))
+        #expect(read == written)
+        #expect(read.dayStartHour == 3 && read.planned == planned)
+        // A new planned meal is new content, so the app writes the file again.
+        #expect(!written.hasSameContent(as: snapshot(planned: [])))
     }
 
     @Test func olderFilesMeanMidnight() throws {

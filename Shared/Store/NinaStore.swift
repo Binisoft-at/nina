@@ -815,10 +815,11 @@ struct NinaStore {
             startDay = rule.startDay
         }
 
-        /// What decides the planned entries changed (not just the reminder).
+        /// What decides the planned entries changed (not just the reminder or the title). The
+        /// start day isn't compared: the editor only fills in a missing one with today, which
+        /// changes nothing from today on.
         func plansDiffer(from other: RoutineFields) -> Bool {
-            recipeID != other.recipeID || meal != other.meal || minutes != other.minutes
-                || weekdays != other.weekdays || startDay != other.startDay
+            recipeID != other.recipeID || meal != other.meal || minutes != other.minutes || weekdays != other.weekdays
         }
 
         func write(to rule: PlanRule) {

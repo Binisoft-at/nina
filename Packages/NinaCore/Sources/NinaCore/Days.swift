@@ -73,9 +73,11 @@ public struct DayKey: Hashable, Comparable, Sendable, Codable, CustomStringConve
         date(minutes: ClockTime.diaryMinutes(minutes, dayStartHour: dayStartHour), calendar: calendar)
     }
 
-    /// When this diary day starts (`dayStartHour` on its date).
+    /// When this diary day starts: `dayStartHour` hours after its midnight, the moment
+    /// `DayKey(date:dayStartHour:)` moves on to it. On a daylight-saving night that is an hour off
+    /// the wall clock (03:00 becomes 04:00 in spring), so the two always agree.
     public func start(dayStartHour: Int, calendar: Calendar = .current) -> Date {
-        date(minutes: DayKey.clampedStartHour(dayStartHour) * 60, calendar: calendar)
+        date(calendar: calendar).addingTimeInterval(Double(DayKey.clampedStartHour(dayStartHour)) * 3600)
     }
 
     /// The day start hour as `DayKey(date:dayStartHour:)` uses it (0…12).

@@ -69,8 +69,11 @@ private struct PlanWeekView: View {
     private var planLine: String {
         let plan = app.settings.plan
         if let running = plan.activePhase(on: today) {
-            let status = PlanEditorData.phaseStatus(running, plan: plan, today: today).lowercased()
-            return "\(PlanEditorData.phaseName(running)) · \(status)"
+            // "Running · week 4 of 15" → "week 4 of 15"; without weeks just "running".
+            let status: String = PlanEditorData.phaseStatus(running, plan: plan, today: today)
+            let prefix = "Running · "
+            let detail: String = status.hasPrefix(prefix) ? String(status.dropFirst(prefix.count)) : status.lowercased()
+            return "\(PlanEditorData.phaseName(running)) · \(detail)"
         }
         return "Phases, day types and daily checks"
     }
