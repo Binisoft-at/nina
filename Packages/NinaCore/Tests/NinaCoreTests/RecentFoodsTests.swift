@@ -202,4 +202,28 @@ struct RecentFoodsTests {
                 == "Mostly at Frühstück")
         #expect(RecentFoods.hint(for: MealSlot(id: "meal-x", name: "  ", emoji: "🍽️", minutes: 600)) == "Mostly at this meal")
     }
+
+    @Test func hintLooksTheMealUp() {
+        let own = MealSlot(id: "meal-1a2b3c4d", name: "Second Breakfast", emoji: "🥨", minutes: 600)
+        let meals = MealSlot.defaults + [own]
+        #expect(RecentFoods.hint(forMeal: "breakfast", in: meals) == "Mostly at breakfast")
+        #expect(RecentFoods.hint(forMeal: "snack", in: meals) == "Mostly as a snack")
+        #expect(RecentFoods.hint(forMeal: "meal-1a2b3c4d", in: meals) == "Mostly at Second Breakfast")
+        // An own meal removed in Settings (still on older entries): no stand-in name.
+        #expect(RecentFoods.hint(forMeal: "meal-99887766", in: meals) == "Mostly at this meal")
+        #expect(RecentFoods.hint(forMeal: "", in: meals) == "Mostly at this meal")
+    }
+
+    @Test func entriesWithoutAMealStillCountInTheShare() {
+        // 2 of 6 logs at breakfast (the other 4 have no meal): 33 %, not mostly at breakfast.
+        var use = FoodUsage()
+        use.record(meal: "breakfast", at: daysAgo(1), amount: 50)
+        use.record(meal: "breakfast", at: daysAgo(2), amount: 50)
+        for day in 3...6 {
+            use.record(meal: "", at: daysAgo(Double(day)), amount: 50)
+        }
+        #expect(use.count == 6)
+        #expect(abs(use.share(at: "breakfast") - 1.0 / 3.0) < 1e-9)
+        #expect(!RecentFoods.isMostlyAt("breakfast", use, now: now))
+    }
 }

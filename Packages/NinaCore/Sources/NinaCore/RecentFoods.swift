@@ -119,6 +119,14 @@ public enum RecentFoods {
         return name.isEmpty ? "Mostly at this meal" : "Mostly at \(name)"
     }
 
+    /// The header for the meal id being logged, looked up in the person's meals; a meal that is no
+    /// longer one of them (an own meal removed in Settings, still on older entries) reads "Mostly at
+    /// this meal" rather than a stand-in name.
+    public static func hint(forMeal id: String, in meals: [MealSlot]) -> String {
+        guard let slot = meals.first(where: { $0.id == id }) else { return "Mostly at this meal" }
+        return hint(for: slot)
+    }
+
     // MARK: Order
 
     /// Most often at the meal first, then the latest there, then by reference (a stable order).

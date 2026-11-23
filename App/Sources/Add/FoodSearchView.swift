@@ -247,9 +247,9 @@ struct FoodSearchView: View {
     /// The leading "Mostly at …" part of `results` (never more than there are).
     private var leadCount: Int { min(mealFirst, results.count) }
 
-    /// "Mostly at breakfast" over the leading part.
+    /// "Mostly at breakfast" over the leading part ("Mostly at this meal" for a removed own meal).
     private var mealHint: String {
-        RecentFoods.hint(for: app.settings.meal(meal))
+        RecentFoods.hint(forMeal: meal, in: app.settings.meals)
     }
 
     private var highlightedRecord: FoodRecord? {

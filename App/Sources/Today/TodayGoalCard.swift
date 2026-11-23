@@ -53,7 +53,7 @@ struct TodayGoalCard: View {
         switch reason {
         case .standardTargets:
             let standard = Fmt.energy(DailyTargets.standard.energy, unit: .kcal)
-            return "Nina uses standard targets (\(standard)) for now. Tell her about you and your goal, and she works out your own."
+            return "Nina uses standard targets (\(standard)) for now. Tell Nina about you and your goal to get your own."
         case .missingBody:
             return "Add your height and birth year, so Nina can check your targets and work out your body numbers."
         }
