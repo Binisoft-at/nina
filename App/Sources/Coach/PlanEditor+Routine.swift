@@ -100,8 +100,11 @@ struct PlanEditorMeasuringView: View {
         }
     }
 
-    private var fullEveryTitle: String { "Every \(routine.fullEveryWeeks) weeks" }
-    private var bodyFatEveryTitle: String { "Every \(routine.bodyFatEveryWeeks) weeks" }
+    private var fullEveryTitle: String { PlanEditorMeasuringView.everyTitle(routine.fullEveryWeeks) }
+    private var bodyFatEveryTitle: String { PlanEditorMeasuringView.everyTitle(routine.bodyFatEveryWeeks) }
+
+    /// "Every week", "Every 4 weeks".
+    static func everyTitle(_ weeks: Int) -> String { weeks == 1 ? "Every week" : "Every \(weeks) weeks" }
 
     static let weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -240,7 +243,7 @@ struct PlanEditorProteinView: View {
     }
 
     private var countTitle: String {
-        protein.count > 0 ? "\(protein.count) protein meals a day" : "One per meal that counts"
+        protein.count > 0 ? "\(protein.count) protein meal\(protein.count == 1 ? "" : "s") a day" : "One per meal that counts"
     }
 
     private var automaticHint: String {

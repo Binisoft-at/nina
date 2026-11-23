@@ -202,6 +202,67 @@ struct PhotoCompareWeightTests {
     }
 }
 
+@Suite("Phase sheet edits")
+struct PhaseSheetEditsTests {
+    private var opened: CoachPlan.Phase {
+        CoachPlan.Phase(id: "2", name: "Lean gain", goal: .gain, start: fixDay("2030-05-06"), end: fixDay("2030-08-26"),
+                        rateMin: 0.15, rateMax: 0.25, reviewMin: 76, reviewMax: 77, targetWeight: 77,
+                        revisions: [CoachPlan.Revision(from: fixDay("2030-05-06"),
+                                                       baseline: DailyTargets(energy: 2500, protein: 140, carbs: 300, fat: 75),
+                                                       reason: "start")])
+    }
+
+    /// The phase as stored after the sheet opened: a check-in applied a new revision and it started.
+    private var storedMeanwhile: CoachPlan.Phase {
+        var phase = opened
+        phase.status = .active
+        phase.startedAt = Date(timeIntervalSince1970: 1_904_000_000)
+        phase.revisions.append(CoachPlan.Revision(from: fixDay("2030-06-03"),
+                                                  baseline: DailyTargets(energy: 2600, protein: 140, carbs: 325, fat: 75),
+                                                  reason: "checkIn"))
+        return phase
+    }
+
+    @Test func anUntouchedSheetChangesNothing() {
+        let result = storedMeanwhile.applyingPhaseSheetEdits(original: opened, edited: opened)
+        #expect(result == storedMeanwhile)
+    }
+
+    @Test func onlyTheEditedFieldsMove() {
+        var edited = opened
+        edited.name = "Slow gain"
+        edited.note = "Made-up note"
+        edited.rateMax = 0.3
+        let result = storedMeanwhile.applyingPhaseSheetEdits(original: opened, edited: edited)
+        #expect(result.name == "Slow gain" && result.note == "Made-up note")
+        #expect(result.rateMin == 0.15 && result.rateMax == 0.3)
+        // The check-in's revision and the start stay.
+        #expect(result.revisions.count == 2)
+        #expect(result.status == .active && result.startedAt != nil)
+        #expect(result.end == opened.end && result.targetWeight == 77)
+    }
+
+    @Test func anotherDevicesEditOfAnUntouchedFieldStays() {
+        var stored = storedMeanwhile
+        stored.end = fixDay("2030-09-30")
+        var edited = opened
+        edited.targetWeight = 78
+        let result = stored.applyingPhaseSheetEdits(original: opened, edited: edited)
+        #expect(result.end == fixDay("2030-09-30"))
+        #expect(result.targetWeight == 78)
+    }
+
+    @Test func theReviewMovesAsAPair() {
+        var stored = storedMeanwhile
+        stored.reviewMin = 75
+        stored.reviewMax = 76
+        var edited = opened
+        edited.reviewMax = 78
+        let result = stored.applyingPhaseSheetEdits(original: opened, edited: edited)
+        #expect(result.reviewMin == 76 && result.reviewMax == 78)
+    }
+}
+
 @Suite("Weigh-in rules")
 struct WeighInRulesTests {
     @Test func afterTheCutoff() {

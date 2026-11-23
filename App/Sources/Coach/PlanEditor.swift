@@ -31,6 +31,8 @@ struct PlanEditorView: View {
     @State private var askReminders = false
     /// The plan when the phase sheet opened: closing it may have set the plan up.
     @State private var planBeforeSheet: CoachPlan?
+    /// A started phase about to be deleted ("Delete Lean Gain?").
+    @State private var deletingPhase: CoachPlan.Phase?
     @AppStorage("nina.coach.copyIncludesHealth") private var copyIncludesHealth = false
 
     private var plan: CoachPlan { app.settings.plan }
@@ -59,14 +61,25 @@ struct PlanEditorView: View {
                 setUpSection
             }
             aiSection
+            historySection
         }
         .formStyle(.grouped)
         .navigationTitle("My Plan")
         .inlineNavigationTitle()
         .toolbar {
             if showsDone {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                // Every change is saved as it is made: Esc closes it on the Mac.
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                }
             }
+        }
+        .confirmationDialog(deleteTitle, isPresented: deleteBinding, titleVisibility: .visible, presenting: deletingPhase) { phase in
+            Button("Delete Phase", role: .destructive) { PlanEditorData.deletePhase(phase.id, app: app) }
+            Button("Cancel", role: .cancel) {}
+        } message: { phase in
+            Text(PlanEditorData.deleteMessage(for: phase))
         }
         .navigationDestination(item: $pushed) { (route: PlanEditorRoute) in
             destination(route)
@@ -132,7 +145,9 @@ struct PlanEditorView: View {
             Text("A plan adds phases with dates, day types with their own calories, daily checks, a measuring routine and a weekly check-in. Without one, Nina works as before.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            // Title only: in a form row the icon would take the button's own colour.
             Button("Set Up My Plan", systemImage: "sparkles", action: setUp)
+                .labelStyle(.titleOnly)
                 .primaryActionStyle()
             Button("Add a Phase", systemImage: "flag") { openPhase(nil) }
         } header: {
@@ -151,7 +166,7 @@ struct PlanEditorView: View {
         } header: {
             Text("Phases")
         } footer: {
-            Text("Nothing switches by itself: a phase starts when you tap Start on its card. Swipe a phase to delete it.")
+            Text(PlanEditorWording.phasesFooter)
         }
     }
 
@@ -170,12 +185,42 @@ struct PlanEditorView: View {
                                detail: PlanEditorData.phaseDetail(phase), isActive: isActive)
         }
         .buttonStyle(.plain)
-        .swipeActions(edge: .trailing) {
-            Button("Delete", systemImage: "trash", role: .destructive) { PlanEditorData.deletePhase(phase.id, app: app) }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Delete", systemImage: "trash", role: .destructive) { requestDelete(phase) }
         }
         .contextMenu {
             Button("Edit…", systemImage: "pencil") { openPhase(phase.id) }
-            Button("Delete", systemImage: "trash", role: .destructive) { PlanEditorData.deletePhase(phase.id, app: app) }
+            Button("Delete…", systemImage: "trash", role: .destructive) { requestDelete(phase) }
+        }
+    }
+
+    /// A phase that has started asks first (its targets go with it); a planned one goes with Undo.
+    private func requestDelete(_ phase: CoachPlan.Phase) {
+        if phase.isStarted {
+            deletingPhase = phase
+        } else {
+            PlanEditorData.deletePhase(phase.id, app: app)
+        }
+    }
+
+    private var deleteBinding: Binding<Bool> {
+        Binding<Bool>(get: { deletingPhase != nil }, set: { (shown: Bool) in if !shown { deletingPhase = nil } })
+    }
+
+    private var deleteTitle: String {
+        "Delete \(deletingPhase.map { PlanEditorData.phaseName($0) } ?? "this phase")?"
+    }
+
+    /// The plan as it was before each change, to restore one.
+    private var historySection: some View {
+        Section {
+            NavigationLink {
+                PlanEditorHistoryView()
+            } label: {
+                Label("Earlier Versions", systemImage: "clock.arrow.circlepath")
+            }
+        } footer: {
+            Text("Nina keeps the plan as it was before a change (up to 30 versions), so you can go back.")
         }
     }
 
@@ -281,7 +326,7 @@ struct PlanEditorView: View {
             } header: {
                 Text("Notes from My Plan")
             } footer: {
-                Text("Advice from your plan that isn't a setting. Swipe a note to delete it.")
+                Text(PlanEditorWording.notesFooter)
             }
         }
     }
