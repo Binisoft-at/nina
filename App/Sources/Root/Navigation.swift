@@ -73,14 +73,16 @@ enum FoodsPage: String, CaseIterable, Identifiable {
     var title: String { self == .foods ? "Foods" : "Meals & Recipes" }
 }
 
-/// Mac (and iPad sidebar) sections.
-enum SidebarItem: Hashable, CaseIterable, Identifiable {
-    case today, foods, recipes, plan, insights, body, trash
+/// The Mac sidebar's sections (iPhone and iPad use the tabs, `AppTab`). The raw value is what
+/// RootView remembers between launches.
+enum SidebarItem: String, Hashable, CaseIterable, Identifiable {
+    case search, today, foods, recipes, plan, insights, body, trash
 
     var id: Self { self }
 
     var title: String {
         switch self {
+        case .search: "Search"
         case .today: "Diary"
         case .foods: "Foods"
         case .recipes: "Meals & Recipes"
@@ -93,6 +95,7 @@ enum SidebarItem: Hashable, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .search: "magnifyingglass"
         case .today: "fork.knife"
         case .foods: "carrot"
         case .recipes: "frying.pan"

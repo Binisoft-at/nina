@@ -31,7 +31,7 @@ public struct NinaTourSnapshot: Equatable, Sendable {
 /// `version`; people who already took the tour then get just the new steps as "What's new".
 /// `swift test` checks the catalog.
 public enum NinaTour {
-    public static let version = 5
+    public static let version = 6
 
     public static let catalog = TourCatalog<NinaTourSnapshot>.standard(
         appName: "Nina",
@@ -120,7 +120,7 @@ public enum NinaTour {
             TourStep(
                 id: "measure", since: 3, symbol: "ruler", title: "Measure in seconds",
                 body: "Tap ⋯ → Create… → Measurements. One site per page, with last time's value already there: type your waist – or nudge it with − and + – and tap Done. The strip tells you when the next measurement is due.",
-                macBody: "Choose File → Log Measurements… (⌥⌘M). One site per page, with last time's value already there: type your waist and click Done. The strip tells you when the next measurement is due.",
+                macBody: "Choose File → Log Measurements… (⇧⌘M). One site per page, with last time's value already there: type your waist and click Done. The strip tells you when the next measurement is due.",
                 goal: .increased(\.measureCount)
             ),
             TourStep(
@@ -156,7 +156,7 @@ public enum NinaTour {
             TourStep(
                 id: "history", since: 4, symbol: "clock.arrow.circlepath", title: "Bring your history",
                 body: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? ⋯ → Create… → Import My Data → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
-                macBody: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? File → Import My Data… (⇧⌘I) → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
+                macBody: "Old weigh-ins, tape logs or a DEXA, InBody or 3D-scan report? File → Import & Export… (⇧⌘I) → Body: copy the prompt, give it to your AI with your data and paste its answer back. Nina adds only what's new, and Undo takes it all back.",
                 goal: .none
             ),
             TourStep(
@@ -166,9 +166,15 @@ public enum NinaTour {
                 goal: .none
             ),
             TourStep(
+                id: "backup", since: 6, symbol: "externaldrive", title: "Back up, move, find",
+                body: "Settings → Import & Export → Back Up Everything saves all your Nina data in one file – photos and check-ins too, nothing from Apple Health. Logged something on the wrong day? Touch and hold the entry → Move to Day…",
+                macBody: "File → Back Up Nina… (⇧⌘B) saves all your Nina data in one file – photos and check-ins too. Search in the sidebar (⇧⌘F) finds any food or day. In the diary, ⌫ deletes the selected entries, ⌘C and then ⌘V on another day copies them, and right-click → Move to Day… moves them.",
+                goal: .none
+            ),
+            TourStep(
                 id: "everywhere", symbol: "applewatch", title: "Everywhere you are",
                 body: "Nina syncs through your iCloud with your Mac and Apple Watch. Log from the watch, see what's left in widgets, and send everything to Apple Health in Settings.",
-                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals & Plan, My Plan, Apple Health, meals and the import.",
+                macBody: "Nina syncs through your iCloud with your iPhone and Apple Watch. Settings (⌘,) has Goals, My Plan, meals, reminders and Import & Export.",
                 goal: .none
             ),
         ]
