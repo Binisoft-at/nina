@@ -190,8 +190,13 @@ struct PlanEditorView: View {
         }
         .contextMenu {
             Button("Edit…", systemImage: "pencil") { openPhase(phase.id) }
-            Button("Delete…", systemImage: "trash", role: .destructive) { requestDelete(phase) }
+            Button(PlanEditorView.deleteLabel(phase), systemImage: "trash", role: .destructive) { requestDelete(phase) }
         }
+    }
+
+    /// "Delete…" where a question follows (a started phase), else "Delete".
+    private static func deleteLabel(_ phase: CoachPlan.Phase) -> String {
+        phase.isStarted ? "Delete…" : "Delete"
     }
 
     /// A phase that has started asks first (its targets go with it); a planned one goes with Undo.

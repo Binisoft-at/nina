@@ -45,8 +45,25 @@ struct BodyPageWeightCard: View {
                 Button("Log Weight", systemImage: "plus") {
                     app.sheet = .weight(nil)
                 }
+                if let note = macHealthNote {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
+    }
+
+    /// Mac: a scale's weigh-ins reach Apple Health on the iPhone only (Health isn't on the Mac,
+    /// and Health data never goes to iCloud), so the Mac says so while its typed weigh-ins don't
+    /// make a 7-day average.
+    private var macHealthNote: String? {
+        #if os(macOS)
+        weight.average == nil ? "Weigh-ins from Apple Health count on iPhone and iPad only." : nil
+        #else
+        nil
+        #endif
     }
 
     /// The newest weigh-in when it is from today or yesterday (the average is in the tile).
@@ -89,10 +106,7 @@ struct BodyPageWeightCard: View {
         if weight.usesHealth {
             lines.append("Includes weigh-ins from Apple Health, read on this device and never stored by Nina.")
         }
-        #if os(macOS)
-        // Apple Health isn't on the Mac, and its weigh-ins never go to iCloud.
-        lines.append("Weigh-ins from Apple Health count on iPhone and iPad only.")
-        #endif
+        if let note = macHealthNote { lines.append(note) }
         return lines
     }
 }

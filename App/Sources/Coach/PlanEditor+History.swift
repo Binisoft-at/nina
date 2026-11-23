@@ -23,6 +23,8 @@ struct PlanEditorHistoryView: View {
     }
 
     var body: some View {
+        // Decoded once per update (each version is a whole plan).
+        let versions = self.versions
         Form {
             if versions.isEmpty {
                 Section {
@@ -88,7 +90,8 @@ struct PlanEditorVersion: Identifiable {
     let id: UUID
     let time: Date
     let plan: CoachPlan
-    /// What changed the plan next: "checkIn", "editor", "import" (meta "reason").
+    /// What changed the plan next (meta "reason", as the store writes it): "edit", "checkIn",
+    /// "import", "restore" …
     let reason: String
 
     init?(_ mark: DayMark) {
@@ -123,8 +126,9 @@ struct PlanEditorVersion: Identifiable {
     static func sourceTitle(_ reason: String) -> String? {
         switch reason {
         case "checkIn": "Then changed by a check-in"
-        case "editor": "Then edited"
+        case "edit", "editor": "Then edited"
         case "import": "Then imported"
+        case "restore": "Then an earlier version was restored"
         case "": nil
         default: "Then changed"
         }

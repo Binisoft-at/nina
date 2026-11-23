@@ -48,12 +48,13 @@ struct PhaseSheet: View {
                     Button("Discard Changes", role: .destructive) { dismiss() }
                     Button("Keep Editing", role: .cancel) {}
                 }
-                .confirmationDialog(deleteTitle, isPresented: $confirmsDelete, titleVisibility: .visible) {
-                    Button("Delete Phase", role: .destructive, action: delete)
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text(deleteMessage)
-                }
+        }
+        // On its own view: one dialog per view.
+        .confirmationDialog(deleteTitle, isPresented: $confirmsDelete, titleVisibility: .visible) {
+            Button("Delete Phase", role: .destructive, action: delete)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(deleteMessage)
         }
         .task(id: app.dataVersion) { load() }
         .onChange(of: calculationKey) { calculation = nil }
