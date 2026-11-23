@@ -178,11 +178,13 @@ private struct NinaGoCommands: View {
 }
 
 #if os(macOS)
-/// Window → Nina (⌘0): the main window back, also after ⌘W.
+/// Window → Nina (⌘0): the main window back, also after ⌘W. Its `openWindow` works with no window
+/// open, so it is kept for the menu bar item (MainWindow.swift).
 private struct NinaWindowCommand: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
+        let _ = MainWindow.keepAppOpenWindow(openWindow)
         Button(AppInfo.name) { MainWindow.bringForward(openWindow: openWindow) }
             .keyboardShortcut("0")
     }

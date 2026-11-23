@@ -43,10 +43,11 @@ enum NinaMenuBar {
     }
 }
 
-/// The menu bar item: an `NSStatusItem` with the icon and the calories left, and its menu, built
-/// again each time it opens. Started once from `NinaApp.init`; the item itself is made once
-/// launching is done, so it never stands in the way of the main window. The title follows the
-/// data (`AppModel.dataVersion`, the day, the settings) and the two switches in Settings.
+/// The menu bar item: an `NSStatusItem` with the icon and the calories left, and its menu, filled
+/// again each time it opens. Started once from `NinaApp.init`; the item itself is made after
+/// launch, once the main window is up (3 s at most), so it never stands in the way of that window.
+/// The title follows the data (`AppModel.dataVersion`, the day, the settings) and the two switches
+/// in Settings.
 @MainActor
 final class NinaMenuBarController: NSObject, NSMenuDelegate {
     static let shared = NinaMenuBarController()
@@ -68,29 +69,42 @@ final class NinaMenuBarController: NSObject, NSMenuDelegate {
     private var switches = Switches(shows: true, showsTitle: true)
     private var visibility: NSKeyValueObservation?
     private var observers: [NSObjectProtocol] = []
+    private var isInstalled = false
     private var updateQueued = false
 
     /// Where the item sits in the menu bar (and whether macOS shows it) is remembered under this.
-    private static let autosaveName = "nina.menuBar"
+    private static let autosaveName = NSStatusItem.AutosaveName("nina.menuBar")
 
     func start(app: AppModel) {
         guard self.app == nil else { return }
         self.app = app
         if NSRunningApplication.current.isFinishedLaunching {
-            install()
+            installAfterMainWindow()
             return
         }
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main) { [weak self] _ in
-            // A turn later: the main window comes first.
-            Task { @MainActor [weak self] in self?.install() }
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didFinishLaunchingNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.installAfterMainWindow() }
         })
     }
 
-    private func install() {
-        guard app != nil else { return }
+    /// Waits for the main window macOS opens at launch (or `MainWindowGuard`'s reopen event opens
+    /// 1.5 s later), then makes the item – after 3 s at most, as Nina may start hidden.
+    private func installAfterMainWindow() {
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers = []
+        Task { @MainActor [weak self] in
+            var waited = 0
+            while MainWindow.existing == nil, waited < 30 {
+                try? await Task.sleep(for: .milliseconds(100))
+                waited += 1
+            }
+            self?.install()
+        }
+    }
+
+    private func install() {
+        guard !isInstalled, app != nil else { return }
+        isInstalled = true
         // The switches in Settings (any change of the defaults; only these two count).
         observers.append(NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.switchesMayHaveChanged() }
@@ -143,9 +157,21 @@ final class NinaMenuBarController: NSObject, NSMenuDelegate {
             removeItem()
             return
         }
-        let item = self.item ?? makeItem()
-        guard let button = item.button else { return }
         let summary = NinaMenuBar.summary(app)
+        let item: NSStatusItem
+        if let existing = self.item {
+            item = existing
+        } else {
+            item = makeItem()
+            // Filled right away as well, so the menu is never empty; it is filled again on opening.
+            if let menu = item.menu { fill(menu, summary: summary, app: app) }
+        }
+        showTitle(summary, on: item)
+    }
+
+    /// The calories left next to the icon (unless that switch is off).
+    private func showTitle(_ summary: NinaMenuBarSummary, on item: NSStatusItem) {
+        guard let button = item.button else { return }
         let title = switches.showsTitle ? summary.title : ""
         if button.title != title { button.title = title }
         button.imagePosition = title.isEmpty ? .imageOnly : .imageLeading
@@ -157,6 +183,7 @@ final class NinaMenuBarController: NSObject, NSMenuDelegate {
         item.autosaveName = Self.autosaveName
         // ⌘-drag out of the menu bar: allowed, and it turns the switch off (`removedByUser`).
         item.behavior = .removalAllowed
+        // Switched on again after a ⌘-drag: macOS remembers the item as hidden under its name.
         if !item.isVisible { item.isVisible = true }
         if let button = item.button {
             let image = NSImage(systemSymbolName: NinaMenuBar.symbol, accessibilityDescription: AppInfo.name)
@@ -195,14 +222,21 @@ final class NinaMenuBarController: NSObject, NSMenuDelegate {
     // MARK: The menu
 
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
-        MainActor.assumeIsolated { self.rebuild(menu) }
+        MainActor.assumeIsolated { self.refreshMenu(menu) }
+    }
+
+    /// The menu opens: today's numbers again, and the title says the same. Never removes the
+    /// item (that waits for `update`), so nothing changes under the open menu but its text.
+    private func refreshMenu(_ menu: NSMenu) {
+        guard let app else { return }
+        let summary = NinaMenuBar.summary(app)
+        fill(menu, summary: summary, app: app)
+        if let item { showTitle(summary, on: item) }
     }
 
     /// Today's numbers (grey, not clickable), then the actions.
-    private func rebuild(_ menu: NSMenu) {
+    private func fill(_ menu: NSMenu, summary: NinaMenuBarSummary, app: AppModel) {
         menu.removeAllItems()
-        guard let app else { return }
-        let summary = NinaMenuBar.summary(app)
         for line in [summary.energyLine, summary.proteinLine, summary.waterLine] {
             let row = NSMenuItem(title: line, action: nil, keyEquivalent: "")
             row.isEnabled = false
@@ -215,8 +249,6 @@ final class NinaMenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(NSMenuItem.separator())
         menu.addItem(actionItem("Open \(AppInfo.name)", #selector(openNina)))
         menu.addItem(actionItem("Settings…", #selector(showSettings)))
-        // The title says the same as the menu.
-        update()
     }
 
     private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {

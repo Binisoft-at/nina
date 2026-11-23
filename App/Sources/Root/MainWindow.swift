@@ -16,6 +16,10 @@ enum MainWindow {
     static weak var window: NSWindow?
     /// The Settings window (⌘,).
     static weak var settingsWindow: NSWindow?
+    /// The app menu's `openWindow` (Window → Nina hands it over): the menu is there with or
+    /// without a window, so it opens the main window for callers without a view of their own –
+    /// the menu bar item, Nina becoming active without a window.
+    private static var appOpenWindow: OpenWindowAction?
 
     /// A main window that is still open: shown, minimized, or in a hidden app.
     static var existing: NSWindow? {
@@ -25,9 +29,15 @@ enum MainWindow {
         return candidates.first { $0.isVisible || $0.isMiniaturized }
     }
 
+    /// Kept from the app menu (`NinaWindowCommand`).
+    static func keepAppOpenWindow(_ openWindow: OpenWindowAction) {
+        appOpenWindow = openWindow
+    }
+
     /// Shows the main window in front and key, or opens a new one when it was closed. `openWindow`
-    /// comes from the caller's environment; without one the app sends itself the Dock's "reopen"
-    /// event, which makes SwiftUI open the window (as `MainWindowGuard` does after launch).
+    /// comes from the caller's environment; without one the app menu's is used, and should that
+    /// not have opened the window a second later (or there is none yet), the app sends itself the
+    /// Dock's "reopen" event, which makes SwiftUI open it (as `MainWindowGuard` does after launch).
     static func bringForward(openWindow: OpenWindowAction? = nil) {
         if NSApp.isHidden { NSApp.unhide(nil) }
         NSApp.activate()
@@ -49,8 +59,20 @@ enum MainWindow {
         }
         if let openWindow {
             openWindow(id: "main")
+        } else if let appOpenWindow {
+            appOpenWindow(id: "main")
+            reopenIfStillClosed()
         } else {
             sendReopenEvent()
+        }
+    }
+
+    /// The app menu's action normally opens the window at once; if not, the reopen event does.
+    private static func reopenIfStillClosed() {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1))
+            guard MainWindow.existing == nil else { return }
+            MainWindow.sendReopenEvent()
         }
     }
 
