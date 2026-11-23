@@ -114,7 +114,12 @@ struct FoodLibraryView: View {
     private func sorted(_ records: [FoodRecord], order: [FoodRef: Int]) -> [FoodRecord] {
         switch sorting {
         case .name:
-            return query.isEmpty ? records.sorted { (order[$0.ref] ?? Int.max) < (order[$1.ref] ?? Int.max) } : records
+            guard query.isEmpty else { return records }
+            return records.sorted { (lhs: FoodRecord, rhs: FoodRecord) -> Bool in
+                let left: Int = order[lhs.ref] ?? Int.max
+                let right: Int = order[rhs.ref] ?? Int.max
+                return left < right
+            }
         case .mostUsed:
             return records.sorted { (library.usage(of: $0.ref)?.count ?? 0) > (library.usage(of: $1.ref)?.count ?? 0) }
         case .recent:

@@ -324,6 +324,14 @@ public enum QuickParser {
                 }
                 return defaultPortion(food, count: 1)
             }
+            // "ein halbes Hendl", "eine halbe Marille", "½ avocado": a food with its own half portion
+            // ("half chicken", "Hälfte", "halbe") logs that portion once – half of a "half chicken"
+            // would be a quarter. A half that is bigger than the usual portion is a drink measure
+            // ("Halbe (0,5 l)"), not half of something, so it doesn't count here.
+            if quantity == 0.5, let half = halfServing(food),
+               half.amount <= (countServing(food) ?? food.servings.first)?.amount ?? half.amount {
+                return QuickAmount(amount: half.amount, serving: half, count: 1)
+            }
             // "2 eggs", "12 almonds", "1 Semmel": a count of pieces. "chicken 200": grams, because
             // nobody eats 200 fillets – a big bare number on a food with big portions is a weight.
             if let piece = countServing(food) {
@@ -358,6 +366,16 @@ public enum QuickParser {
             return tokens.contains { countWords.contains($0) }
         }
     }
+
+    /// A portion that is half of something: "half chicken", "halbes Hendl", "Hälfte", "halbe".
+    static func halfServing(_ food: FoodRecord) -> Serving? {
+        food.servings.first { serving in
+            let tokens = SearchText.normalize(serving.en).split(separator: " ") + SearchText.normalize(serving.de).split(separator: " ")
+            return tokens.contains { halfPortionWords.contains(String($0)) }
+        }
+    }
+
+    static let halfPortionWords: Set<String> = ["half", "halb", "halbe", "halber", "halbes", "halben", "halfte"]
 
     static let countWords: Set<String> = [
         "piece", "pieces", "stuck", "stk", "medium", "mittelgross", "mittel", "egg", "ei", "slice", "scheibe",

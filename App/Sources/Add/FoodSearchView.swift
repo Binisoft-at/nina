@@ -254,6 +254,9 @@ struct FoodSearchView: View {
             }
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .pointerStyle(.link)
+        #endif
         .listRowBackground(rowBackground(record))
         .id(record.ref)
         .swipeActions(edge: .leading, allowsFullSwipe: true) {

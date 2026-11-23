@@ -77,7 +77,7 @@ public struct AmountText: Equatable, Sendable {
         let whole = value.rounded(.down)
         let rest = value - whole
         let fractions: [(Double, String)] = [(0.25, "¼"), (0.5, "½"), (0.75, "¾")]
-        for (fraction, glyph) in fractions where abs(rest - fraction) < 0.000_1 && value < 10 {
+        for (fraction, glyph) in fractions where abs(rest - fraction) < 0.000_1 && value >= 0 && value < 10 {
             return whole == 0 ? glyph : "\(Int(whole))\(glyph)"
         }
         let text = NumberText.plain(value, decimals: 2)

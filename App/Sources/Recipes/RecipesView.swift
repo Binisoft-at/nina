@@ -174,19 +174,28 @@ struct RecipeEditor: View {
 
     init(recipe: Recipe?, kind: RecipeKind) {
         self.recipe = recipe
-        _name = State(initialValue: recipe?.name ?? "")
-        _emoji = State(initialValue: recipe?.emoji ?? "")
-        _kind = State(initialValue: recipe?.recipeKind ?? kind)
-        let initialLines = recipe?.sortedItems.map(RecipeLine.init(item:)) ?? []
+        // One value per field, used for the field and for the snapshot (one plain expression each).
+        let initialName: String = recipe?.name ?? ""
+        let initialEmoji: String = recipe?.emoji ?? ""
+        let initialKind: RecipeKind = recipe?.recipeKind ?? kind
+        let initialLines: [RecipeLine] = recipe?.sortedItems.map(RecipeLine.init(item:)) ?? []
+        let defaultServings: Double = kind == .recipe ? 4 : 1
+        let initialServings: Double = recipe?.servings ?? defaultServings
+        let totalWeight: Double = recipe?.totalWeight ?? 0
+        let initialCooked: String = totalWeight > 0 ? NumberText.plain(totalWeight, decimals: 0) : ""
+        let initialNotes: String = recipe?.notes ?? ""
+        let initialMeal: String = recipe?.defaultMeal ?? ""
+        _name = State(initialValue: initialName)
+        _emoji = State(initialValue: initialEmoji)
+        _kind = State(initialValue: initialKind)
         _lines = State(initialValue: initialLines)
-        _servings = State(initialValue: recipe?.servings ?? (kind == .recipe ? 4 : 1))
-        _cookedWeight = State(initialValue: (recipe?.totalWeight ?? 0) > 0 ? NumberText.plain(recipe?.totalWeight ?? 0, decimals: 0) : "")
-        _notes = State(initialValue: recipe?.notes ?? "")
-        _defaultMeal = State(initialValue: recipe?.defaultMeal ?? "")
-        let opened = RecipeEditorSnapshot(name: recipe?.name ?? "", emoji: recipe?.emoji ?? "", kind: recipe?.recipeKind ?? kind,
-                                          lines: initialLines, servings: recipe?.servings ?? (kind == .recipe ? 4 : 1),
-                                          cookedWeight: (recipe?.totalWeight ?? 0) > 0 ? NumberText.plain(recipe?.totalWeight ?? 0, decimals: 0) : "",
-                                          notes: recipe?.notes ?? "", defaultMeal: recipe?.defaultMeal ?? "")
+        _servings = State(initialValue: initialServings)
+        _cookedWeight = State(initialValue: initialCooked)
+        _notes = State(initialValue: initialNotes)
+        _defaultMeal = State(initialValue: initialMeal)
+        let opened = RecipeEditorSnapshot(name: initialName, emoji: initialEmoji, kind: initialKind, lines: initialLines,
+                                          servings: initialServings, cookedWeight: initialCooked, notes: initialNotes,
+                                          defaultMeal: initialMeal)
         _original = State(initialValue: opened)
     }
 

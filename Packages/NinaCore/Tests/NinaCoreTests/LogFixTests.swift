@@ -50,6 +50,34 @@ struct QuickAddPhrasingTests {
         #expect(QuickParser.parse("½ Semmel").first?.quantity == 0.5)
     }
 
+    @Test func aHalfOfAFoodWithAHalfPortionIsThatPortion() throws {
+        let catalog = FoodCatalog.bundled
+        // Roast chicken's first portion is "half chicken" (300 g): half of it would be a quarter.
+        let chicken = try #require(catalog[FoodRef("usda:05009")])
+        let hendl = try #require(QuickParser.parse("ein halbes Hendl").first)
+        let halfChicken = QuickParser.amount(for: hendl, food: chicken)
+        #expect(halfChicken.amount == 300)
+        #expect(halfChicken.count == 1)
+        #expect(halfChicken.serving?.en == "half chicken")
+
+        let avocado = try #require(catalog[FoodRef("usda:09037")])
+        let halfAvocado = QuickParser.amount(for: try #require(QuickParser.parse("eine halbe Avocado").first), food: avocado)
+        #expect(halfAvocado.amount == 75)
+        let wholeAvocado = QuickParser.amount(for: try #require(QuickParser.parse("1 Avocado").first), food: avocado)
+        #expect(wholeAvocado.amount == 150)
+
+        // No half portion: half of a piece.
+        let roll = try #require(catalog[FoodRef("usda:18353")])
+        let halfRoll = QuickParser.amount(for: try #require(QuickParser.parse("eine halbe Semmel").first), food: roll)
+        #expect(halfRoll.amount == 28.5)
+        #expect(halfRoll.count == 0.5)
+
+        // A drink's "Halbe (0,5 l)" is a measure, bigger than its glass: half a glass it is.
+        let spritzer = try #require(catalog[FoodRef("nina:spritzer")])
+        let halfSpritzer = QuickParser.amount(for: try #require(QuickParser.parse("½ Spritzer").first), food: spritzer)
+        #expect(halfSpritzer.amount == 125)
+    }
+
     @Test func twoAmountsWithoutASeparatorSplit() {
         let items = QuickParser.parse("3 eggs 2 toast")
         #expect(items.count == 2)

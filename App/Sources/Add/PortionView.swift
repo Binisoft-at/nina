@@ -123,7 +123,7 @@ struct PortionView: View {
         }
         .onAppear {
             amount = record.initialAmount(language: app.language)
-            moveTimeToMeal()
+            if !timeEdited { moveTimeToMeal() }
         }
         .onChange(of: meal) { _, _ in
             if !timeEdited { moveTimeToMeal() }

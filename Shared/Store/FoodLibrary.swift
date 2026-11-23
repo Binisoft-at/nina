@@ -96,10 +96,11 @@ final class FoodLibrary {
         if usageChanged { lastFullRead = started }
 
         // Assign only what changed: every assignment re-renders the views that read the library.
-        let changed = sorted != records || counts != usage || language != self.language
+        let indexIsCurrent = index.language == language && sorted == records
+        let changed = !indexIsCurrent || counts != usage || language != self.language
         guard changed else { return }
         if language != self.language { self.language = language }
-        if sorted != records {
+        if !indexIsCurrent {
             let reusable = index.language == language && index.count > 0 ? index : Self.sharedIndexes[language]
             index = FoodSearchIndex(sorted, language: language, reusing: reusable)
             Self.sharedIndexes[language] = index
