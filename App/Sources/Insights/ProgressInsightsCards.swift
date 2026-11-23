@@ -20,7 +20,7 @@ struct ProgressProteinMealsRow: View {
                     .foregroundStyle(.secondary)
             }
             BodyPageCapsule(progress: protein.period.share, tint: NutrientStyle.color(.protein))
-            Text("A meal counts from \(Fmt.grams(protein.minimum)) of protein. Logged days only.")
+            Text("A meal counts from \(Fmt.grams(protein.minimum)) of protein. Logged days up to yesterday.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -41,7 +41,7 @@ struct ProgressTypeAveragesCard: View {
             ForEach(rows) { row in
                 ProgressTypeAverageRow(row: row, unit: unit)
             }
-            Text("Average per logged day of each type, against that type's calorie target. Paused days are left out.")
+            Text("Average per logged day of each type up to yesterday, against that type's calorie target. Paused days and days marked incomplete are left out.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -657,9 +657,14 @@ struct DemoCoach {
                                  weightCheck: CheckInEngine.weightCheck(in: plan, ticks: done.map { (day: $0.day, checkID: $0.checkID) }),
                                  bmr: GoalCalculator.bmr(body), sex: .female)
         input.use(signal: signal)
-        let window = date.adding(days: -27, calendar: calendar)
-        let recent = totals.values.filter { $0.day >= window && $0.day <= date }.sorted { $0.day < $1.day }
-        input.maintenance = Insights.maintenance(totals: recent, weights: signal.morningWeights, today: date, calendar: calendar)
+        // Measured maintenance up to the day before (the check-in day is still being logged),
+        // without paused days, as the app's check-in reads it.
+        let end = date.adding(days: -1, calendar: calendar)
+        let window = end.adding(days: -27, calendar: calendar)
+        let recent = totals.values.filter { $0.day >= window && $0.day <= end }.sorted { $0.day < $1.day }
+        let paused = Set(recent.map(\.day).filter { plan.isPaused(on: $0) })
+        input.maintenance = Insights.maintenance(totals: recent, weights: signal.morningWeights, today: end, excluding: paused,
+                                                 calendar: calendar)
 
         var doneByDay: [DayKey: Set<String>] = [:]
         for tick in done { doneByDay[tick.day, default: []].insert(tick.checkID) }
