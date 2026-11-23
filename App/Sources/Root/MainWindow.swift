@@ -1,0 +1,219 @@
+#if os(macOS)
+import AppKit
+import CoreServices
+import SwiftUI
+import BinisoftKit
+
+// The Mac's windows. Sheets, the tour and the toasts show in the main window, so menu commands,
+// the Settings window and notification clicks bring it forward first – un-minimized, or opened
+// again after ⌘W. The Settings window shows the toasts while it is the key window; the main
+// window's stay silent then, so a toast never shows twice.
+
+/// The main window: found through the reader RootView carries, else by its scene id ("main-…").
+@MainActor
+enum MainWindow {
+    /// RootView's window (weak: SwiftUI lets it go on ⌘W).
+    static weak var window: NSWindow?
+    /// The Settings window (⌘,).
+    static weak var settingsWindow: NSWindow?
+
+    /// A main window that is still open: shown, minimized, or in a hidden app.
+    static var existing: NSWindow? {
+        var candidates: [NSWindow] = []
+        if let window { candidates.append(window) }
+        candidates += NSApp.windows.filter { $0.identifier?.rawValue.hasPrefix("main") == true }
+        return candidates.first { $0.isVisible || $0.isMiniaturized }
+    }
+
+    /// Shows the main window in front and key, or opens a new one when it was closed. `openWindow`
+    /// comes from the caller's environment; without one the app sends itself the Dock's "reopen"
+    /// event, which makes SwiftUI open the window (as `MainWindowGuard` does after launch).
+    static func bringForward(openWindow: OpenWindowAction? = nil) {
+        if NSApp.isHidden { NSApp.unhide(nil) }
+        NSApp.activate()
+        if let window = existing {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+        if let openWindow {
+            openWindow(id: "main")
+        } else {
+            sendReopenEvent()
+        }
+    }
+
+    /// The Settings window, or a sheet, popover or panel on it.
+    static func belongsToSettings(_ window: NSWindow) -> Bool {
+        var current: NSWindow? = window
+        while let candidate = current {
+            if let settingsWindow, candidate === settingsWindow { return true }
+            if candidate.identifier?.rawValue.localizedCaseInsensitiveContains("settings") == true { return true }
+            current = candidate.sheetParent ?? candidate.parent
+        }
+        return false
+    }
+
+    private static func sendReopenEvent() {
+        let target = NSAppleEventDescriptor(processIdentifier: ProcessInfo.processInfo.processIdentifier)
+        let event = NSAppleEventDescriptor(
+            eventClass: AEEventClass(kCoreEventClass),
+            eventID: AEEventID(kAEReopenApplication),
+            targetDescriptor: target,
+            returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID)
+        )
+        do {
+            _ = try event.sendEvent(options: [.noReply], timeout: 2)
+        } catch {
+            AppLog.warning("Reopen event failed: \(error.localizedDescription)", category: "launch")
+        }
+    }
+}
+
+/// Which window is key (for the toasts), and the main window when Nina becomes active without
+/// any window – e.g. a reminder clicked after ⌘W: its link waits for the window. Started once
+/// from `NinaApp.init`.
+@MainActor
+@Observable
+final class MacWindowState {
+    static let shared = MacWindowState()
+
+    /// The Settings window (or a sheet on it) is the key window: it shows the toasts.
+    private(set) var settingsIsKey = false
+
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// When the app started: right after launch `MainWindowGuard` looks after the window.
+    private let started = Date()
+
+    func start() {
+        guard observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.update() }
+            })
+        }
+        observers.append(center.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.becameActive() }
+        })
+    }
+
+    func update() {
+        var isKey = false
+        if let key = NSApp.keyWindow { isKey = MainWindow.belongsToSettings(key) }
+        if isKey != settingsIsKey { settingsIsKey = isKey }
+    }
+
+    /// No window at all: open the main window. Right after launch `MainWindowGuard` does that.
+    private func becameActive() {
+        guard Date().timeIntervalSince(started) > 5 else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard NSApp.isActive, !MainWindowGuard.hasVisibleWindow, MainWindow.existing == nil else { return }
+            AppLog.info("Active without a window – opening the main window", category: "launch")
+            MainWindow.bringForward()
+        }
+    }
+}
+
+/// Tells `MainWindow` which NSWindow a view is in (RootView: the main window; the Settings window).
+struct NinaWindowReader: NSViewRepresentable {
+    enum Role {
+        case main, settings
+    }
+
+    let role: Role
+
+    func makeNSView(context: Context) -> NinaWindowReaderView {
+        NinaWindowReaderView(role: role)
+    }
+
+    func updateNSView(_ nsView: NinaWindowReaderView, context: Context) {}
+}
+
+/// An invisible view that reports its window once it is in one.
+final class NinaWindowReaderView: NSView {
+    let role: NinaWindowReader.Role
+
+    init(role: NinaWindowReader.Role) {
+        self.role = role
+        super.init(frame: .zero)
+    }
+
+    required init?(coder: NSCoder) {
+        role = .main
+        super.init(coder: coder)
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let window else { return }
+        switch role {
+        case .main: MainWindow.window = window
+        case .settings: MainWindow.settingsWindow = window
+        }
+        MacWindowState.shared.update()
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// The Settings window (⌘,): General and My Plan as tabs. One toast host for the window, shown
+/// while it is the key window; Import & Export opens here as its own sheet, and Replay the Tour
+/// closes the window and starts the tour in the main window.
+struct SettingsWindowContent: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.openWindow) private var openWindow
+    @State private var showsImport = false
+
+    var body: some View {
+        tabs
+            .environment(\.settingsWindowActions, actions)
+            .sheet(isPresented: $showsImport) {
+                ImportView(initialKind: nil)
+                    .sheetToasts(app.toasts)
+                    .environment(app)
+                    .modelContainer(app.container)
+            }
+            .sheetToasts(windowToasts)
+            .background {
+                NinaWindowReader(role: .settings)
+                    .frame(width: 0, height: 0)
+            }
+    }
+
+    private var tabs: some View {
+        TabView {
+            Tab("General", systemImage: "gearshape") {
+                NavigationStack {
+                    SettingsView()
+                }
+            }
+            Tab("My Plan", systemImage: "list.bullet.clipboard") {
+                NavigationStack {
+                    PlanEditorView(showsDone: false)
+                }
+            }
+        }
+    }
+
+    /// Silent while the main window is key or the import sheet shows them.
+    private var windowToasts: ToastCenter {
+        MacWindowState.shared.settingsIsKey && !showsImport ? app.toasts : ToastCenter.silent
+    }
+
+    private var actions: SettingsWindowActions {
+        SettingsWindowActions(
+            importData: { showsImport = true },
+            replayTour: { replayTour() }
+        )
+    }
+
+    private func replayTour() {
+        (MainWindow.settingsWindow ?? NSApp.keyWindow)?.close()
+        MainWindow.bringForward(openWindow: openWindow)
+        app.startTour()
+    }
+}
+#endif

@@ -1,6 +1,9 @@
 import SwiftUI
 import SwiftData
 import BinisoftKit
+#if os(macOS)
+import AppKit
+#endif
 
 @main
 struct NinaApp: App {
@@ -14,11 +17,20 @@ struct NinaApp: App {
         AppLog.bootstrap(appName: AppInfo.name)
         BinisoftTips.configure()
         NotificationScheduler.shared.activate()
+        #if os(macOS)
+        // One window: no tab bar (and no tab "+" that would open a second window on the same state).
+        NSWindow.allowsAutomaticWindowTabbing = false
+        // Which window is key (toasts), and the main window when Nina becomes active without one.
+        MacWindowState.shared.start()
+        #endif
         let opened = Persistence.shared
         _app = State(initialValue: AppModel(container: opened.container, mode: opened.mode))
     }
 
     var body: some Scene {
+        // One main window: every window would share AppModel's sheet, tour and sidebar, so CSV
+        // files and nina:// links go to the open window (a new one only when none is open). iPad
+        // runs one scene (UIApplicationSupportsMultipleScenes is off).
         WindowGroup(id: "main") {
             RootView()
                 .environment(app)
@@ -33,30 +45,20 @@ struct NinaApp: App {
         // macOS may otherwise finish launching without the main window (see MainWindowGuard).
         .defaultLaunchBehavior(.presented)
         #endif
+        .handlesExternalEvents(matching: ["*"])
         .commands {
             NinaCommands(app: app)
         }
 
         #if os(macOS)
-        // Settings window: General, and the plan editor as its own "My Plan" tab (the plan
-        // editor and Goals show their own toasts, so changes made here can be undone here).
+        // Settings window: General, and the plan editor as its own "My Plan" tab
+        // (SettingsWindowContent in MainWindow.swift: its own toasts and Import & Export sheet).
         Settings {
-            TabView {
-                Tab("General", systemImage: "gearshape") {
-                    NavigationStack {
-                        SettingsView()
-                    }
-                }
-                Tab("My Plan", systemImage: "list.bullet.clipboard") {
-                    NavigationStack {
-                        PlanEditorView(showsDone: false)
-                    }
-                }
-            }
-            .environment(app)
-            .modelContainer(app.container)
-            .appearanceFromSettings()
-            .frame(minWidth: 580, minHeight: 680)
+            SettingsWindowContent()
+                .environment(app)
+                .modelContainer(app.container)
+                .appearanceFromSettings()
+                .frame(minWidth: 580, minHeight: 520)
         }
         #endif
     }
