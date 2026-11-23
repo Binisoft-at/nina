@@ -45,13 +45,18 @@ enum SettingsInfo {
         text: "When today is your default day type and Apple Health has a finished workout that one of your day types lists – tennis, for example – Today asks whether to switch. Only your tap changes the day."
     )
 
+    /// The footer lists the quiet hours; this says what the reminders are and which device sends them.
     static var coachReminders: Item {
-        let earliest = Fmt.clock(CoachReminders.earliestMinutes)
-        let latest = Fmt.clock(CoachReminders.latestMinutes)
         let morning = Fmt.clock(CoachReminders.morningUntilMinutes)
         return (title: "Coach reminders",
-                text: "Reminders from your plan: the morning weigh-in, daily checks, the evening before a full measurement, the check-in and phase days – each goes away once it's done on any device. Quiet hours: nothing before \(earliest) or after \(latest), and only one before \(morning).")
+                text: "Nudges from your plan: the morning weigh-in, daily checks, the evening before a full measurement, the check-in and phase days. Early checks share the morning reminder, so there's only one before \(morning). Your iPhone sends them (your Apple Watch shows them too); iPad and Mac only when switched on there.")
     }
+
+    /// Settings → Menu Bar (Mac only).
+    static let menuBar: Item = (
+        title: "Menu bar",
+        text: "The number next to Nina's icon is what's left of today's calories – the same as Today's ring. You can also ⌘-drag the icon out of the menu bar; that turns Show in menu bar off."
+    )
 
     /// German, like the Thalia section (the owner's choice).
     static let thalia: Item = (

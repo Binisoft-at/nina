@@ -25,13 +25,13 @@ enum PhaseSheetInfo {
     static var limits: Item {
         let ratio = Fmt.number(BodyComposition.waistToHeightGuideline, decimals: 1)
         return (title: "Review limits",
-                text: "In a gain phase Nina also asks for the review when your waist has grown by the amount below since the start, when your waist-to-height rises to \(ratio), or when your tracked body fat reaches the ceiling. 0 cm or an empty ceiling switches that limit off.")
+                text: "A gain brings some fat along with the muscle, so these limits open the review early. Besides your waist and body-fat limits below, it also opens when your waist-to-height rises to \(ratio) during the phase (with your height in Goals & Plan).")
     }
 
     /// "Calculate" (`PhaseTransition.proposal`).
     static let calculate: Item = (
         title: "Calculate",
-        text: "Nina takes your maintenance – measured from your log and weigh-ins of the last 28 days when there's enough, else from your profile – plus or minus the middle of your rate (0.1 kg a week ≈ 110 kcal a day). You see the new targets before anything is saved."
+        text: "Your maintenance comes from your log and weigh-ins of the last 28 days, or from your profile while there isn't enough of both. Nina adds or takes away the middle of your rate – 0.1 kg a week ≈ 110 kcal a day – and shows the new targets before anything is saved."
     )
 
     /// The maintenance bridge after a long gain (`PhaseTransition.suggestsBridge`).
@@ -49,14 +49,13 @@ enum PhaseSheetInfo {
         if hasNext { parts.append("Start now begins your next phase with its own targets") }
         let last: String = parts.removeLast()
         let first: String = parts.isEmpty ? last : parts.joined(separator: ", ") + " and " + last
-        var second = "Every choice saves at once and can be undone"
-        if let laterText { second += " – Decide Later asks again \(laterText)" }
-        return (title: "Your choices", text: first + ". " + second + ".")
+        guard let laterText else { return (title: "Your choices", text: first + ".") }
+        return (title: "Your choices", text: first + ". Decide Later asks again \(laterText).")
     }
 
     /// The choices when a planned phase is due (Start now, In a week).
     static var start: Item {
         (title: "Starting a phase",
-         text: "Start now switches to this phase's targets from today, and In a week moves its start 7 days later. Nothing changes until you \(CheckInSheetInfo.tap) – Decide Later asks again tomorrow.")
+         text: "Start now switches to this phase's targets from today, and In a week moves its start 7 days later. Decide Later asks again tomorrow; until you choose, nothing changes.")
     }
 }

@@ -118,6 +118,7 @@ struct NinaMenuBarSettingsSection: View {
             }
         } header: {
             Text("Menu Bar")
+                .info(SettingsInfo.menuBar.title, SettingsInfo.menuBar.text)
         } footer: {
             Text(footer)
         }

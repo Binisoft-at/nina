@@ -7,29 +7,29 @@ enum PlanEditorInfo {
 
     static let dayTypes: Item = (
         title: "Day types",
-        text: "Kinds of days with their own calories and macros, like Gym, Tennis or Rest. A change from the check-in moves all of them by the same amount, so the differences between them stay."
+        text: "Each day type has its own calories and macros and comes on fixed weekdays, when you pick it, or on all other days. A change from the check-in moves all of them by the same amount, so the differences between them stay."
     )
 
     /// Fixed, flexible and the default (`CoachPlan.Schedule`).
     static let schedule: Item = (
         title: "When a day type comes",
-        text: "Fixed weekdays come by themselves on those days, and flexible ones you pick on the day (the number per week is only a hint). All other days covers every day no other type claims – usually Rest."
+        text: "Fixed weekdays come by themselves on those days; flexible ones you pick on the day (the number per week is only a hint). All other days covers every day no other type claims – usually Rest; without such a type, those days get the baseline."
     )
 
     /// A day type's own targets against the baseline.
     static let baseline: Item = (
         title: "Same as baseline",
-        text: "The baseline is what every day without its own targets gets. Switch this off to give this day type its own calories and macros – changes start today, earlier days keep theirs."
+        text: "The baseline is what every day without its own targets gets. Switch this off to give this day type its own calories and macros; a change from the check-in still moves both by the same amount."
     )
 
     static let checks: Item = (
         title: "Daily checks",
-        text: "Things your plan asks you to do each day, like taking a supplement. They show as pills on Today to tick off, and the check-in counts how often you did them."
+        text: "Small things your plan asks you to do, like taking a supplement – every day, on some weekdays or on certain day types. They show as pills on Today to tick off, and the check-in counts how often you did them."
     )
 
     static let measuring: Item = (
         title: "Measuring & check-in",
-        text: "Measuring sets when you weigh in, which sites you measure and how you track body fat. Adjustments sets how big a calorie change from the weekly check-in can be and how long Nina waits between changes."
+        text: "Measuring sets when you weigh in, your check-in day, which sites you measure and how you track body fat. Adjustments sets how big a calorie change from the weekly check-in can be and how long Nina waits between changes."
     )
 
     /// The morning cutoff (`CoachPlan.Routine.morningCutoffMinutes`).
@@ -41,7 +41,7 @@ enum PlanEditorInfo {
     /// Two readings per site in a full set (`BodyReadings`).
     static var twoReadings: Item {
         (title: "Two readings",
-         text: "In a full set each site is measured twice and Nina saves the average. When the two differ by more than \(Fmt.number(BodyReadings.maxDifference, decimals: 1)) cm, it asks for a third and keeps the middle one.")
+         text: "In a full set each site is measured twice and Nina saves the average; when the two differ by more than \(Fmt.number(BodyReadings.maxDifference, decimals: 1)) cm, it asks for a third and keeps the middle one. Off: one reading, and a second only when it moved more than \(Fmt.number(BodyReadings.recheckChange, decimals: 1)) cm since last time.")
     }
 
     /// The step range of a proposal (`CoachPlan.Adjust.stepMin/stepMax`).
@@ -53,13 +53,13 @@ enum PlanEditorInfo {
     /// The window and the lock (`CoachPlan.Adjust`).
     static let timing: Item = (
         title: "Timing",
-        text: "Weigh-ins first is how long your rate needs before a check-in judges it, and Looks back the most days it uses. Between changes is how long Nina waits after a calorie change before it proposes another."
+        text: "The first row is how many days of weigh-ins your rate needs before a check-in judges it, the second how far back it looks at most. The days between changes give new targets time to show on the scale before Nina proposes another."
     )
 
     /// Protein per meal (`CoachPlan.Protein`).
     static let protein: Item = (
         title: "Protein per meal",
-        text: "Protein spread over your meals: a meal that reaches the minimum fills the protein pill in its header on Today, and the check-in counts those meals. Automatic is 0.4 g per kg of body weight."
+        text: "Protein spread over your meals: a meal that reaches the minimum fills the protein pill in its header on Today, and the check-in counts those meals. The maximum is only a guide – going over never shows a warning."
     )
 
     /// The long-term body goal (`CoachPlan.LongTerm`).
@@ -75,6 +75,6 @@ enum PlanEditorInfo {
 
     static let ai: Item = (
         title: "Your AI",
-        text: "Copy for My AI puts your plan, the last 4 weeks and your body numbers on the clipboard to paste into a chat with your AI. Its answer is a settings block: Import from My AI shows a preview first, and every change has Undo."
+        text: "Copy for My AI puts your plan, the last 4 weeks and your body numbers on the clipboard – Nina sends nothing anywhere. Your AI answers with a settings block; Import from My AI shows it as a preview first, and one Undo takes it all back."
     )
 }

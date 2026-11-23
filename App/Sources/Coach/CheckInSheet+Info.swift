@@ -25,10 +25,10 @@ enum CheckInSheetInfo {
                     text: "The 7-day average evens out the daily ups and downs, and the rate is how fast it moves per week. On the bar, the dot is your rate and the green band your phase's range.")
         case 1:
             return (title: "Your waist",
-                    text: "Once a week the tape shows what the scale can't – for example whether a gain goes to your middle. Measure in the morning before eating, at the same spot; no tape at hand? Skip with Next.")
+                    text: "Once a week the tape shows what the scale can't – for example whether a gain goes to your middle. One reading is enough; when it moved more than \(Fmt.number(BodyReadings.recheckChange, decimals: 1)) cm since last time, Nina asks for a second to be sure.")
         case 2:
             return (title: "How it went",
-                    text: "How closely you followed your plan in the 7 days before the check-in. Nina only proposes a calorie change when you logged most days and ate close to your targets.")
+                    text: "How closely you followed your plan this week. Nina only proposes a calorie change when you logged most days and ate close to your targets – otherwise the scale can't show whether the targets work.")
         default:
             return (title: "Next week",
                     text: "Nina compares your rate with your phase's range and says what it means for next week. A change comes only when the rules call for it, and nothing changes until you \(tap) Apply.")
@@ -38,7 +38,7 @@ enum CheckInSheetInfo {
     /// Why the rate is still "Gathering data" (step 1, and the reason on step 4).
     static func gathering(minimumDays: Int, minimumWeighIns: Int) -> Item {
         (title: "Gathering data",
-         text: "Your rate needs at least \(minimumWeighIns) morning weigh-ins over \(minimumDays) days or more, counted from the phase start or your last calorie change. Until then Nina doesn't judge your pace – just keep weighing in each morning.")
+         text: "Your rate needs at least \(minimumWeighIns) morning weigh-ins spread over \(minimumDays) days, counted from the phase start or your last calorie change. Until then Nina doesn't judge your pace – just keep weighing in each morning.")
     }
 
     /// The lock after a calorie change (rule `.locked`).
@@ -60,7 +60,7 @@ enum CheckInSheetInfo {
     /// The adherence gate (rules `.logging` and `.intake`).
     static func adherence(tolerance: Double) -> Item {
         (title: "Why no change",
-         text: "A change only makes sense when the targets were really eaten: at least 80 % of the days logged and your average within \(Fmt.number(tolerance)) kcal of your targets. Hit them this week, and the next check-in can judge your rate.")
+         text: "A change only makes sense when the targets were really eaten: at least \(Fmt.number(CheckInEngine.minimumLoggedShare * 100)) % of the days logged and your average within \(Fmt.number(tolerance)) kcal of your targets. Hit them this week, and the next check-in can judge your rate.")
     }
 
     /// The ⓘ next to the reason on "Next week", for the rules that hold a change back; nil for
