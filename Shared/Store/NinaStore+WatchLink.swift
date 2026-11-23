@@ -3,8 +3,9 @@ import SwiftData
 import NinaCore
 
 // The freshness of a day's numbers for the iPhone → Apple Watch snapshot (`WatchSnapshotRelay`):
-// the iPhone sends it with its snapshot, the watch compares its own with it. Used by the iPhone
-// app (`PhoneWatchLink`) and the watch app (`WatchPhoneLink`).
+// the iPhone sends it with its snapshot, the watch compares its own with it. Also the iPhone's
+// coach part (what only it knows from Apple Health) with the freshness of what the coach's status
+// line rests on. Used by the iPhone app (`PhoneWatchLink`) and the watch app (`WatchPhoneLink`).
 
 /// When this device itself last saved a change through the store (device-only, never synced):
 /// an Undo that deletes the newest entry leaves no record behind, but the save still counts.
@@ -42,5 +43,37 @@ extension NinaStore {
             local = last
         }
         return WatchSnapshotRelay.freshness(changes, localChange: local)
+    }
+
+    /// When what the coach's status line rests on (besides Apple Health) last changed in this
+    /// store: the weigh-ins, trashed ones included, the profile with the plan, and the saved
+    /// check-ins. The iPhone sends it with its coach part; the watch shows the iPhone's numbers
+    /// only while its own is not newer (`WatchSnapshotRelay.usesPhoneNumbers`). A food or a check
+    /// tick saved on the watch doesn't count: it doesn't change the weight numbers.
+    func watchLinkCoachFreshness() -> Date? {
+        var weights = FetchDescriptor<WeightEntry>(sortBy: [SortDescriptor(\.modifiedAt, order: .reverse)])
+        weights.fetchLimit = 1
+        let kind = DayMarkKind.checkIn.rawValue
+        var checkIns = FetchDescriptor<DayMark>(predicate: #Predicate<DayMark> { $0.kind == kind },
+                                                sortBy: [SortDescriptor(\.modifiedAt, order: .reverse)])
+        checkIns.fetchLimit = 1
+        var changes: [Date] = []
+        changes += ((try? context.fetch(weights)) ?? []).map(\.modifiedAt)
+        changes += ((try? context.fetch(checkIns)) ?? []).map(\.modifiedAt)
+        if let profile = profile() { changes.append(profile.modifiedAt) }
+        return WatchSnapshotRelay.freshness(changes)
+    }
+
+    /// The iPhone's coach part for its Apple Watch (`WatchSnapshotRelay.PhoneCoach`): `health` the
+    /// live Apple Health weigh-ins (never stored), `activeEnergy` today's active energy from Health
+    /// as last read (kcal, before "Add to my budget").
+    func watchLinkPhoneCoach(health: [WeightSignal.Reading], activeEnergy: Double, now: Date = Date()) -> WatchSnapshotRelay.PhoneCoach {
+        let settings = self.settings
+        let calendar = self.calendar
+        let today = settings.today(now: now, calendar: calendar)
+        let signal = weightSignal(adding: health, settings: settings)
+        return WatchSnapshotRelay.phoneCoach(signal: signal, plan: settings.plan, checkIns: checkIns(), today: today,
+                                             freshness: watchLinkCoachFreshness(), activeEnergy: activeEnergy,
+                                             activeEnergyDay: DayKey(date: now, calendar: calendar), calendar: calendar)
     }
 }
