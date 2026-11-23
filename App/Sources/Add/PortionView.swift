@@ -16,6 +16,8 @@ struct PortionView: View {
     @State private var amount: AmountText
     @State private var planLater = false
     @State private var time = Date()
+    /// Set once the person picks a time: then a meal change no longer moves it to the meal's time.
+    @State private var timeEdited = false
     @State private var showsLabel = false
 
     init(record: FoodRecord, mode: FoodPickMode, day: DayKey, meal: Binding<String>, onAdded: @escaping (Int) -> Void) {
@@ -96,10 +98,10 @@ struct PortionView: View {
                     }
                     Toggle("Plan for later", isOn: $planLater)
                     if planLater {
-                        DatePicker("At", selection: $time, displayedComponents: .hourAndMinute)
+                        DatePicker("At", selection: timeBinding, displayedComponents: .hourAndMinute)
                     }
                 } footer: {
-                    Text(planLater ? "Planned foods show dimmed and count once you tap ✓." : "Logged to \(Fmt.dayTitle(day, today: app.today).lowercased()).")
+                    Text(planLater ? plannedFooter : "Logged to \(Fmt.dayTitle(day, today: app.today).lowercased()).")
                 }
             }
         }
@@ -121,10 +123,38 @@ struct PortionView: View {
         }
         .onAppear {
             amount = record.initialAmount(language: app.language)
-            if let slot = app.settings.meals.first(where: { $0.id == meal }) {
-                time = day.date(minutes: slot.minutes)
-            }
+            if !timeEdited { moveTimeToMeal() }
         }
+        .onChange(of: meal) { _, _ in
+            if !timeEdited { moveTimeToMeal() }
+        }
+    }
+
+    private var timeBinding: Binding<Date> {
+        Binding(get: { time }, set: { newValue in
+            time = newValue
+            timeEdited = true
+        })
+    }
+
+    private var plannedFooter: String {
+        #if os(macOS)
+        "Planned foods show dimmed and count once you click ✓."
+        #else
+        "Planned foods show dimmed and count once you tap ✓."
+        #endif
+    }
+
+    /// The meal's usual time on the entry's day.
+    private func moveTimeToMeal() {
+        guard let slot = app.settings.meals.first(where: { $0.id == meal }) else { return }
+        time = day.date(minutes: minutesInDay(slot.minutes))
+    }
+
+    /// A clock time before the day starts ("day starts at 3:00", a snack at 0:30) belongs to the
+    /// end of the day: the calendar day after.
+    private func minutesInDay(_ minutes: Int) -> Int {
+        minutes < app.settings.dayStartHour * 60 ? minutes + 1440 : minutes
     }
 
     private var addTitle: String {
@@ -139,11 +169,8 @@ struct PortionView: View {
         switch mode {
         case .log:
             let status: EntryStatus = planLater ? .planned : .eaten
-            if let recipe, isSavedMeal {
-                app.logRecipe(recipe, day: day, meal: meal, status: status)
-            } else {
-                app.log(record, amount: amount, day: day, meal: meal, time: planLater ? combined(time) : nil, status: status)
-            }
+            // A saved meal goes the same way (`log` logs its foods), so its planned time sticks too.
+            app.log(record, amount: amount, day: day, meal: meal, time: planLater ? combined(time) : nil, status: status)
             onAdded(1)
         case .pick(let onPick):
             onPick(RecipeLine(record: record, amount: isSavedMeal ? AmountText(quantity: 1, unitLabel: BaseUnit.serving.symbol, unitAmount: 1, baseUnit: .serving) : amount,
@@ -152,9 +179,10 @@ struct PortionView: View {
         }
     }
 
-    /// The chosen clock time on the entry's day.
+    /// The chosen clock time on the entry's day (after midnight but before the day start: the
+    /// calendar day after).
     private func combined(_ clock: Date) -> Date {
-        day.date(minutes: ClockTime.minutes(of: clock))
+        day.date(minutes: minutesInDay(ClockTime.minutes(of: clock)))
     }
 }
 
@@ -186,7 +214,7 @@ struct NutritionLabel: View {
             row("of which saturates", per100[.saturatedFat], portion?[.saturatedFat], .saturatedFat, indent: true)
             row("Carbohydrate", per100[.carbs], portion?[.carbs], .carbs, indent: false)
             row("of which sugars", per100[.sugar], portion?[.sugar], .sugar, indent: true)
-            row("Fibre", per100[.fiber], portion?[.fiber], .fiber, indent: false)
+            row("Fiber", per100[.fiber], portion?[.fiber], .fiber, indent: false)
             row("Protein", per100[.protein], portion?[.protein], .protein, indent: false)
             GridRow {
                 Text("Salt")
@@ -241,8 +269,10 @@ struct QuickCaloriesView: View {
     @State private var chosenMeal = ""
     @FocusState private var energyFocused: Bool
 
+    /// Only a positive energy can be added (a minus would lower the day's total).
     private var kilocalories: Double? {
-        NumberText.parse(energy).map { app.energyUnit.kilocalories(from: $0) }
+        guard let value = NumberText.parse(energy), value > 0 else { return nil }
+        return app.energyUnit.kilocalories(from: value)
     }
 
     var body: some View {
@@ -272,6 +302,9 @@ struct QuickCaloriesView: View {
                 }
             }
             .formStyle(.grouped)
+            #if os(iOS)
+            .scrollDismissesKeyboard(.interactively)
+            #endif
             .navigationTitle("Quick Calories")
             .inlineNavigationTitle()
             .toolbar {
@@ -280,9 +313,9 @@ struct QuickCaloriesView: View {
                     Button("Add") {
                         guard let kcal = kilocalories else { return }
                         var values = NutrientValues([.energy: kcal])
-                        values[.protein] = NumberText.parse(protein) ?? 0
-                        values[.carbs] = NumberText.parse(carbs) ?? 0
-                        values[.fat] = NumberText.parse(fat) ?? 0
+                        values[.protein] = max(0, NumberText.parse(protein) ?? 0)
+                        values[.carbs] = max(0, NumberText.parse(carbs) ?? 0)
+                        values[.fat] = max(0, NumberText.parse(fat) ?? 0)
                         app.logQuick(name: name, nutrients: values, day: day, meal: chosenMeal)
                         dismiss()
                     }
@@ -301,7 +334,8 @@ struct QuickCaloriesView: View {
         HStack {
             Text(title)
             Spacer()
-            TextField("0", text: text)
+            TextField(title, text: text, prompt: Text("0"))
+                .labelsHidden()
                 .multilineTextAlignment(.trailing)
                 #if os(iOS)
                 .keyboardType(.decimalPad)

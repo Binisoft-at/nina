@@ -22,9 +22,11 @@ struct FoodRow: View {
                 CategoryBadge(category: record.category, emoji: record.emoji, size: 36)
             }
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    // Two lines: "Apple sauce, sweetened" and "…, unsweetened" must not look the same.
                     Text(record.displayName(language))
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     if record.isFavorite {
                         Image(systemName: "star.fill")
                             .font(.caption2)
@@ -39,14 +41,17 @@ struct FoodRow: View {
                     HighlightBadges(highlights: record.highlights)
                 }
             }
+            .layoutPriority(1)
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 1) {
                 Text(Fmt.energy(portionEnergy, unit: unit, showUnit: false))
                     .font(.subheadline.monospacedDigit())
+                // The portion gives way before the name does.
                 Text(portionLabel)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
             }
             if let onQuickAdd {
                 Button(action: onQuickAdd) {

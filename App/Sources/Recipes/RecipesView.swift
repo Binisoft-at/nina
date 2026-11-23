@@ -7,7 +7,8 @@ import NinaCore
 struct RecipesView: View {
     @Environment(AppModel.self) private var app
     @Query(RecipesView.listed) private var recipes: [Recipe]
-    @State private var query = ""
+    /// Kept per window while you switch between sidebar sections (Mac) or Foods and Meals (iPhone).
+    @SceneStorage("nina.recipes.query") private var query = ""
 
     /// Not deleted, in the person's order, then by name. Spelled out with explicit types: as one
     /// inline `@Query(filter:sort:)` expression the compiler gives up type-checking it.
@@ -102,7 +103,7 @@ struct RecipesView: View {
                 VStack(alignment: .trailing, spacing: 1) {
                     Text(Fmt.energy(recipe.recipeKind == .meal ? recipe.totals.energy : perServing, unit: app.energyUnit))
                         .font(.subheadline.monospacedDigit())
-                    Text(recipe.recipeKind == .meal ? "\(recipe.sortedItems.count) foods" : "per serving")
+                    Text(recipe.recipeKind == .meal ? Self.foodCount(recipe.sortedItems.count) : "per serving")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -110,6 +111,9 @@ struct RecipesView: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        #if os(macOS)
+        .pointerStyle(.link)
+        #endif
         .swipeActions(edge: .leading) {
             Button("Log", systemImage: "plus") { logNow(recipe) }
                 .tint(Brand.accent)
@@ -137,6 +141,11 @@ struct RecipesView: View {
         }
     }
 
+    /// "1 food", "3 foods"
+    private static func foodCount(_ count: Int) -> String {
+        count == 1 ? "1 food" : "\(count) foods"
+    }
+
     private func logNow(_ recipe: Recipe) {
         let meal = recipe.defaultMeal.isEmpty ? app.settings.suggestedMeal().id : recipe.defaultMeal
         app.logRecipe(recipe, day: app.selectedDay, meal: meal)
@@ -159,17 +168,40 @@ struct RecipeEditor: View {
     @State private var defaultMeal: String
     @State private var showPicker = false
     @State private var editingLine: RecipeLine?
+    @State private var confirmDiscard = false
+    /// What the editor opened with: Cancel and a swipe down ask before throwing changes away.
+    @State private var original: RecipeEditorSnapshot
 
     init(recipe: Recipe?, kind: RecipeKind) {
         self.recipe = recipe
-        _name = State(initialValue: recipe?.name ?? "")
-        _emoji = State(initialValue: recipe?.emoji ?? "")
-        _kind = State(initialValue: recipe?.recipeKind ?? kind)
-        _lines = State(initialValue: recipe?.sortedItems.map(RecipeLine.init(item:)) ?? [])
-        _servings = State(initialValue: recipe?.servings ?? (kind == .recipe ? 4 : 1))
-        _cookedWeight = State(initialValue: (recipe?.totalWeight ?? 0) > 0 ? NumberText.plain(recipe?.totalWeight ?? 0, decimals: 0) : "")
-        _notes = State(initialValue: recipe?.notes ?? "")
-        _defaultMeal = State(initialValue: recipe?.defaultMeal ?? "")
+        // One value per field, used for the field and for the snapshot (one plain expression each).
+        let initialName: String = recipe?.name ?? ""
+        let initialEmoji: String = recipe?.emoji ?? ""
+        let initialKind: RecipeKind = recipe?.recipeKind ?? kind
+        let initialLines: [RecipeLine] = recipe?.sortedItems.map(RecipeLine.init(item:)) ?? []
+        let defaultServings: Double = kind == .recipe ? 4 : 1
+        let initialServings: Double = recipe?.servings ?? defaultServings
+        let totalWeight: Double = recipe?.totalWeight ?? 0
+        let initialCooked: String = totalWeight > 0 ? NumberText.plain(totalWeight, decimals: 0) : ""
+        let initialNotes: String = recipe?.notes ?? ""
+        let initialMeal: String = recipe?.defaultMeal ?? ""
+        _name = State(initialValue: initialName)
+        _emoji = State(initialValue: initialEmoji)
+        _kind = State(initialValue: initialKind)
+        _lines = State(initialValue: initialLines)
+        _servings = State(initialValue: initialServings)
+        _cookedWeight = State(initialValue: initialCooked)
+        _notes = State(initialValue: initialNotes)
+        _defaultMeal = State(initialValue: initialMeal)
+        let opened = RecipeEditorSnapshot(name: initialName, emoji: initialEmoji, kind: initialKind, lines: initialLines,
+                                          servings: initialServings, cookedWeight: initialCooked, notes: initialNotes,
+                                          defaultMeal: initialMeal)
+        _original = State(initialValue: opened)
+    }
+
+    private var isDirty: Bool {
+        RecipeEditorSnapshot(name: name, emoji: emoji, kind: kind, lines: lines, servings: servings, cookedWeight: cookedWeight,
+                             notes: notes, defaultMeal: defaultMeal) != original
     }
 
     private var totals: NutrientValues { NutrientValues.sum(lines.map(\.nutrients)) }
@@ -229,7 +261,9 @@ struct RecipeEditor: View {
                         HStack {
                             Text("Cooked weight")
                             Spacer()
-                            TextField(rawWeight > 0 ? Fmt.number(rawWeight.rounded()) : "optional", text: $cookedWeight)
+                            TextField("Cooked weight", text: $cookedWeight,
+                                      prompt: Text(rawWeight > 0 ? Fmt.number(rawWeight.rounded()) : "optional"))
+                                .labelsHidden()
                                 .multilineTextAlignment(.trailing)
                                 #if os(iOS)
                                 .keyboardType(.numberPad)
@@ -293,7 +327,11 @@ struct RecipeEditor: View {
             .navigationTitle(recipe == nil ? (kind == .meal ? "New Meal" : "New Recipe") : name)
             .inlineNavigationTitle()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        if isDirty { confirmDiscard = true } else { dismiss() }
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save(close: true) }
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || lines.isEmpty)
@@ -309,8 +347,13 @@ struct RecipeEditor: View {
                 }
                 .environment(app)
             }
+            .interactiveDismissDisabled(isDirty)
+            .confirmationDialog("Discard changes?", isPresented: $confirmDiscard, titleVisibility: .visible) {
+                Button("Discard Changes", role: .destructive) { dismiss() }
+                Button("Keep Editing", role: .cancel) {}
+            }
         }
-        .sheetFrame(minWidth: 560, minHeight: 720)
+        .sheetFrame(minWidth: 560, minHeight: 560)
     }
 
     private func save(close: Bool) {
@@ -323,6 +366,18 @@ struct RecipeEditor: View {
             dismiss()
         }
     }
+}
+
+/// What the recipe editor's fields held when it opened.
+private struct RecipeEditorSnapshot: Equatable {
+    var name: String
+    var emoji: String
+    var kind: RecipeKind
+    var lines: [RecipeLine]
+    var servings: Double
+    var cookedWeight: String
+    var notes: String
+    var defaultMeal: String
 }
 
 /// Change one ingredient's amount (its nutrients follow).

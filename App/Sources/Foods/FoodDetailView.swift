@@ -14,6 +14,9 @@ struct FoodDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var meal = ""
     @State private var portion: AmountText?
+    /// The amount page: after Add it goes back here (or the sheet closes), so a second tap can't
+    /// log the food twice.
+    @State private var showsPortion = false
     @State private var tagText = ""
     @State private var editingTags = false
 
@@ -38,8 +41,8 @@ struct FoodDetailView: View {
                 }
                 HighlightBadges(highlights: food.highlights)
                 if mode.isLogging {
-                    NavigationLink {
-                        PortionView(record: food, mode: .log(day: app.selectedDay, meal: meal), day: app.selectedDay, meal: $meal) { _ in }
+                    Button {
+                        showsPortion = true
                     } label: {
                         Label("Log This Food", systemImage: "plus.circle.fill")
                             .foregroundStyle(Brand.accent)
@@ -128,7 +131,7 @@ struct FoodDetailView: View {
                 }
                 if food.ref.kind == .catalog {
                     Button("Hide from Search", systemImage: "eye.slash") {
-                        app.store.setHidden(food, true)
+                        FoodActions.hide(food, app: app)
                         dismiss()
                     }
                 }
@@ -153,6 +156,18 @@ struct FoodDetailView: View {
             if showsDone {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        #if os(macOS)
+                        .keyboardShortcut(.cancelAction)
+                        #endif
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showsPortion) {
+            PortionView(record: current, mode: .log(day: app.selectedDay, meal: meal), day: app.selectedDay, meal: $meal) { _ in
+                if showsDone {
+                    dismiss()
+                } else {
+                    showsPortion = false
                 }
             }
         }
