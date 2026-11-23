@@ -126,7 +126,7 @@ struct AssessmentSheet: View {
             }
         }
         .interactiveDismissDisabled(isDirty)
-        .sheetFrame(minWidth: 460, minHeight: 600)
+        .sheetFrame(minWidth: 460, minHeight: 560)
     }
 
     @ToolbarContentBuilder

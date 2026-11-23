@@ -221,7 +221,9 @@ enum PlanEditorData {
         let state = app.exportSettingsState(includeHealth: includeHealth)
         let measurements = store.measurements()
         let bodyFat = (measurements.compactMap(\.bodyFatReading) + weights.compactMap(\.bodyFatReading)).sorted { $0.day < $1.day }
-        let incomplete = Set(store.dayMarks(.event, from: start, through: today).filter { $0.key == "incompleteLog" }.map(\.dayKey))
+        // "Log is incomplete" as the coach reads it: the newest mark of each day wins, so a day
+        // marked complete again on another device stays complete.
+        let incomplete = store.incompleteDays(from: start, through: today)
         let input = CoachCopy.Input(
             today: today, state: state, readings: readings, includeHealth: includeHealth,
             totals: CoachContext.totals(store: store, from: start, through: today), dayTypeMarks: store.dayTypeMarks(),
