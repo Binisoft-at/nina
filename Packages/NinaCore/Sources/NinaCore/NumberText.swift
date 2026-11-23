@@ -14,6 +14,13 @@ public enum NumberText {
         return text
     }
 
+    /// The energy field of a food label in the chosen unit, whole numbers: 250 kcal → "250" or
+    /// "1046" (kJ). Read back with `unit.kilocalories(from:)`, so saving an untouched field keeps
+    /// the calories (within half a kJ).
+    public static func energyField(kilocalories: Double, unit: EnergyUnit) -> String {
+        plain(unit.value(fromKilocalories: kilocalories), decimals: 0)
+    }
+
     /// Value rounded the way a nutrition label shows it: integers for big values, one decimal
     /// below 10, two below 1 (0.04 g stays visible as 0.04, 152.6 kcal becomes 153).
     public static func label(_ value: Double) -> Double {

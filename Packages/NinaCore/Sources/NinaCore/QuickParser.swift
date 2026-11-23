@@ -77,15 +77,45 @@ public enum QuickParser {
 
     static func chunks(_ text: String) -> [String] {
         var pieces: [String] = []
-        for line in text.split(whereSeparator: { $0 == "\n" || $0 == "," || $0 == ";" || $0 == "+" || $0 == "&" }) {
-            pieces.append(contentsOf: splitOnJoiners(String(line)))
+        for line in separated(text) {
+            for part in splitOnJoiners(line) {
+                pieces.append(contentsOf: splitOnAmounts(part))
+            }
         }
         return pieces.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
+    /// Splits on line breaks, ",", ";", "+" and "&" – but not on a comma between two digits, so
+    /// German decimals stay whole ("1,5 l Milch", "Joghurt 3,5%").
+    static func separated(_ text: String) -> [String] {
+        let characters = Array(text)
+        var parts: [String] = []
+        var current = ""
+        for (index, character) in characters.enumerated() {
+            let isSeparator: Bool
+            switch character {
+            case ";", "+", "&": isSeparator = true
+            case ",":
+                let before = index > 0 ? characters[index - 1] : " "
+                let after = index + 1 < characters.count ? characters[index + 1] : " "
+                isSeparator = !(before.isNumber && after.isNumber)
+            default: isSeparator = character.isNewline
+            }
+            if isSeparator {
+                parts.append(current)
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        parts.append(current)
+        return parts
+    }
+
     /// Splits on "and / und / with / mit / plus" only when the next part starts with an amount,
-    /// so "fish and chips" and "Salz und Pfeffer" stay one food.
-    static func splitOnJoiners(_ line: String) -> [String] {
+    /// so "fish and chips" and "Salz und Pfeffer" stay one food. `always` splits on every joiner
+    /// between two words (the second try when a line found no food: "2 Semmeln mit Butter").
+    static func splitOnJoiners(_ line: String, always: Bool = false) -> [String] {
         let words = line.split(separator: " ").map(String.init)
         guard words.count > 2 else { return [line] }
         var parts: [[String]] = [[]]
@@ -94,7 +124,7 @@ public enum QuickParser {
             let word = words[index]
             let lowered = SearchText.normalize(word)
             if joiners.contains(lowered), !(parts.last?.isEmpty ?? true), index + 1 < words.count,
-               startsWithAmount(Array(words[(index + 1)...])) {
+               always || startsWithAmount(Array(words[(index + 1)...])) {
                 parts.append([])
             } else {
                 parts[parts.count - 1].append(word)
@@ -102,6 +132,47 @@ public enum QuickParser {
             index += 1
         }
         return parts.filter { !$0.isEmpty }.map { $0.joined(separator: " ") }
+    }
+
+    /// Splits "3 eggs 2 toast" before a new number – only when the part starts with a number and
+    /// both sides name a food, so "Cola 0,5 l", "Joghurt 3,5%" and "Rotwein 1 Achtel" stay whole.
+    static func splitOnAmounts(_ part: String) -> [String] {
+        let words = part.split(separator: " ").map(String.init)
+        guard words.count >= 4, let first = words.first, leadingNumber(first) != nil || multiplierToken(first) != nil else {
+            return [part]
+        }
+        var result: [String] = []
+        var current: [String] = []
+        for (index, word) in words.enumerated() {
+            if index > 1, current.count > 1, leadingNumber(word) != nil,
+               namesFood(current.joined(separator: " ")),
+               namesFood(words[index...].joined(separator: " ")) {
+                result.append(current.joined(separator: " "))
+                current = [word]
+            } else {
+                current.append(word)
+            }
+        }
+        result.append(current.joined(separator: " "))
+        return result
+    }
+
+    /// True when a chunk leaves a food to search for: a word with a letter that isn't a unit
+    /// ("2 toast" yes; "0,5 l" and "3,5%" no).
+    static func namesFood(_ chunk: String) -> Bool {
+        guard let item = parseChunk(chunk) else { return false }
+        return item.query.split(separator: " ").contains { word in
+            let normalized = SearchText.normalize(String(word))
+            return normalized.contains(where: \.isLetter) && unit(for: normalized) == nil && leadingNumber(String(word)) == nil
+        }
+    }
+
+    /// The items of a line that found no food, split on every joiner ("2 Semmeln mit Butter" →
+    /// "2 Semmeln", "Butter"); empty when the line has no joiner between two words.
+    public static func splitOnEveryJoiner(_ item: QuickItem) -> [QuickItem] {
+        let parts = splitOnJoiners(item.original, always: true)
+        guard parts.count > 1 else { return [] }
+        return parts.compactMap(parseChunk)
     }
 
     static let joiners: Set<String> = ["and", "und", "with", "mit", "plus", "sowie"]
@@ -146,6 +217,15 @@ public enum QuickParser {
             // "1 1/2", "2 ½"
             if let current = quantity, let next = words.first, let fraction = fractionOnly(next) {
                 quantity = current + fraction
+                words.removeFirst()
+            }
+            // "eine halbe Semmel", "ein halbes Brot", "zwei halbe" (= 1), "a half": the number counts halves.
+            if let current = quantity, let next = words.first, halfWords.contains(SearchText.normalize(next)) {
+                quantity = current * 0.5
+                words.removeFirst()
+            }
+            // "half a cup"
+            if quantity == 0.5, words.count > 1, let next = words.first, ["a", "an"].contains(SearchText.normalize(next)) {
                 words.removeFirst()
             }
         }
@@ -303,6 +383,9 @@ public enum QuickParser {
     ]
 
     static let fillers: Set<String> = ["of", "von", "vom", "der", "die", "das", "an", "stuck"]
+
+    /// "halbe" after a number: "eine halbe Semmel" is half a Semmel.
+    static let halfWords: Set<String> = ["half", "halb", "halbe", "halber", "halbes", "halben"]
 
     /// Portion groups: any of these words in a food's portion label counts as a match.
     static let portionGroups: [String: [String]] = [

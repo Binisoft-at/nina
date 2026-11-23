@@ -19,10 +19,38 @@ public enum FoodEmoji {
     }
 
     public static func emoji(for names: [String], category: FoodCategory) -> String {
+        let key = names.joined(separator: "\u{1F}") + "\u{1F}" + category.rawValue
+        if let known = cache.value(for: key) { return known }
+        var result = category.emoji
         for name in names where !name.isEmpty {
-            if let found = match(name) { return found }
+            if let found = match(name) {
+                result = found
+                break
+            }
         }
-        return category.emoji
+        cache.store(result, for: key)
+        return result
+    }
+
+    /// Lists show the same foods again and again: each name is matched against the rules once.
+    private static let cache = EmojiCache()
+
+    private final class EmojiCache: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [String: String] = [:]
+
+        func value(for key: String) -> String? {
+            lock.lock()
+            defer { lock.unlock() }
+            return values[key]
+        }
+
+        func store(_ value: String, for key: String) {
+            lock.lock()
+            defer { lock.unlock() }
+            if values.count >= 20_000 { values.removeAll(keepingCapacity: true) }
+            values[key] = value
+        }
     }
 
     /// The specific emoji for one name, or nil when only the category fits.

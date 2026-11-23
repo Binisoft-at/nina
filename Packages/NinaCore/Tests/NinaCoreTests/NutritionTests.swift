@@ -53,7 +53,7 @@ struct NutrientTests {
         #expect(AmountText(quantity: 150, unitLabel: "g", unitAmount: 1, baseUnit: .gram).text == "150 g")
         #expect(AmountText(quantity: 2, unitLabel: "slice", unitAmount: 30, baseUnit: .gram).text == "2 × slice (60 g)")
         #expect(AmountText(quantity: 1, unitLabel: "medium", unitAmount: 182, baseUnit: .gram).text == "1 medium (182 g)")
-        #expect(AmountText(quantity: 0.5, unitLabel: "serving", unitAmount: 1, baseUnit: .serving).text == "½ servings")
+        #expect(AmountText(quantity: 0.5, unitLabel: "serving", unitAmount: 1, baseUnit: .serving).text == "½ serving")
         #expect(AmountText.quantity(1.5) == "1½")
         #expect(AmountText.quantity(250) == "250")
     }
