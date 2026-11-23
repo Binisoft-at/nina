@@ -316,7 +316,7 @@ struct BodyPhotosGallery: View {
     }
 
     private var privacySection: some View {
-        CardSection(title: "Privacy", symbol: "lock") {
+        BodyPageInfoSection(title: "Privacy", symbol: "lock", about: BodyPageInfo.photoLock(isMac: PlatformInfo.isMac)) {
             BodyPhotoLockToggle()
             Text(privacyText)
                 .font(.footnote)

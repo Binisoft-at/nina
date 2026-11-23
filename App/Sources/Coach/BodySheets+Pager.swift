@@ -130,9 +130,15 @@ struct BodySheetSitePage: View {
         HStack(spacing: 12) {
             ForEach(1..<state.fieldCount, id: \.self) { index in
                 BodySheetExtraReading(text: field(index), index: index, site: state.site, title: title,
-                                      fallback: state.values.first ?? state.previous?.value, focus: focus)
+                                      fallback: state.values.first ?? state.previous?.value, focus: focus,
+                                      about: index == 1 ? readingsInfo : nil)
             }
         }
+    }
+
+    /// Why there is more than one reading: a full set's two, or the weekly re-check.
+    private var readingsInfo: BodyPageInfo {
+        BodyPageInfo.readings(twoReadings: state.base >= 2)
     }
 
     private func field(_ index: Int) -> Binding<String> {
@@ -230,13 +236,25 @@ struct BodySheetExtraReading: View {
     let title: String
     let fallback: Double?
     var focus: FocusState<BodySheetMeasureFocus?>.Binding
+    /// The ⓘ next to the title (on the 2nd reading only).
+    var about: BodyPageInfo?
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(BodySheetReadings.readingTitle(index))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            caption
             field
+        }
+    }
+
+    @ViewBuilder
+    private var caption: some View {
+        let heading = Text(BodySheetReadings.readingTitle(index))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        if let about {
+            heading.info(about)
+        } else {
+            heading
         }
     }
 
@@ -305,6 +323,7 @@ struct BodySheetEstimateCard: View {
             Text("Tape estimate")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .info(BodyPageInfo.tapeEstimate)
             content
             Text(line.footer)
                 .font(.caption)

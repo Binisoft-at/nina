@@ -76,7 +76,7 @@ struct BodyPhotosCard: View {
     private var lock: BodyPhotoLock { BodyPhotoLock.shared }
 
     var body: some View {
-        CardSection(title: "Photos", symbol: "camera", trailing: trailing) {
+        BodyPageInfoSection(title: "Photos", symbol: "camera", trailing: trailing, about: BodyPageInfo.comparablePhotos) {
             if photos.isEmpty {
                 emptyContent
             } else {
