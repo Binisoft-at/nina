@@ -17,40 +17,52 @@ enum InsightRange: Int, CaseIterable, Identifiable {
     }
 }
 
-/// Everything Insights shows for a period, computed once per data change.
+/// Everything Insights shows for a period, computed once per data change. Averages, the
+/// balance, day types, protein meals, rhythm and the measured maintenance count finished days
+/// only: today counts once it's over, and days marked "Log Is Incomplete" never do. The chart
+/// and the consistency grid show every day.
 struct InsightData {
     struct DayPoint: Identifiable {
         let day: DayKey
         let date: Date
         let energy: Double
         let target: Double
+        /// "On track", "Over", "Under", "Today" (logged, not over yet) or "Not logged".
         let verdict: String
         let logged: Bool
         var id: String { day.rawValue }
+        var isToday: Bool { verdict == InsightVerdict.today }
     }
 
-    struct WeightPoint: Identifiable {
-        let day: DayKey
-        let date: Date
-        let weight: Double?
+    /// The weight card's header: the 7-day average of the morning weights, as Body, Today and the
+    /// check-in show it, else the trend.
+    struct WeightHeader {
+        let hasWeighIns: Bool
+        let average: Double?
         let trend: Double?
-        var id: String { day.rawValue }
     }
 
     let range: InsightRange
     let points: [DayPoint]
+    /// Over the finished days.
     let stats: Insights.PeriodStats
+    /// Every logged day of the period, today included (the consistency grid).
+    let loggedDays: Int
     let streak: (current: Int, best: Int)
     let entries: [EntryFacts]
-    let weights: [WeightPoint]
+    let weight: WeightHeader
     let maintenance: Insights.Maintenance?
+    /// The targets averaged over the finished days (each day with its own day type's grams).
     let targets: DailyTargets
-    /// "Protein meals 21 of 28" over the logged days (nil without a per-meal minimum).
+    /// "Protein meals 21 of 28" over the finished days (nil without a per-meal minimum).
     let proteinMeals: ProgressProteinMeals?
     /// Eaten vs. target per day type (plans with 2 or more day types).
     let typeAverages: [ProgressTypeAverage]
     /// The long-term body goal, compact (nil without one).
     let goal: BodyPageGoal?
+
+    /// Today is logged (its bar shows in the "Today" style).
+    var showsToday: Bool { points.contains { $0.isToday } }
 
     @MainActor
     static func load(app: AppModel, range: InsightRange) -> InsightData {
@@ -70,48 +82,87 @@ struct InsightData {
             let minutes = list.filter { $0.status == .eaten }.map { ClockTime.minutes(of: $0.time) }
             if let first = minutes.min(), let last = minutes.max() { mealTimes[day] = (first, last) }
         }
-        let stats = Insights.stats(totals: totals, targets: { settings.targets(for: $0) }, mealTimes: mealTimes)
-        let points = totals.map { total -> DayPoint in
-            let target = settings.targets(for: total.day).energy
-            let verdict = DayProgress(totals: total, targets: settings.targets(for: total.day)).verdict
-            let label: String
-            switch verdict {
-            case .onTrack: label = "On track"
-            case .over: label = "Over"
-            case .under: label = "Under"
-            }
-            return DayPoint(day: total.day, date: total.day.date(), energy: total.eaten.energy, target: target,
-                            verdict: total.isLogged ? label : "Not logged", logged: total.isLogged)
-        }
-
-        // Logged days for the streak: look back further than the period.
-        let streakStart = today.adding(days: -400)
-        let streakDays = Set(store.entries(from: streakStart, through: today).filter(\.isEaten).map(\.dayKey))
-        let streak = Insights.streaks(logged: streakDays, today: today)
-
-        var weightsByDay = app.health.weights
-        for entry in store.weights() { weightsByDay[entry.dayKey] = entry.kilograms }
-        let trend = Insights.weightTrend(weightsByDay, through: today)
-        let weights = trend.filter { $0.day >= start }.map {
-            WeightPoint(day: $0.day, date: $0.day.date(), weight: $0.weight.isNaN ? nil : $0.weight, trend: $0.trend)
-        }
-        let longStart = today.adding(days: -27)
-        let longTotals: [DayTotals]
-        if start <= longStart {
-            longTotals = totals.filter { $0.day >= longStart }
-        } else {
-            let more = store.entries(from: longStart, through: today).map(\.facts)
-            let byDay = Dictionary(grouping: more, by: \.day)
-            longTotals = DayKey.range(longStart, through: today).map { DayTotals(day: $0, entries: byDay[$0] ?? []) }
-        }
-        let maintenance = Insights.maintenance(totals: longTotals, weights: weightsByDay, today: today)
         let incomplete = store.incompleteDays(from: start, through: today)
-        return InsightData(range: range, points: points, stats: stats, streak: streak, entries: facts.filter { $0.status == .eaten },
-                           weights: weights, maintenance: maintenance, targets: settings.targets,
-                           proteinMeals: ProgressInsights.proteinMeals(totals: totals, settings: settings, incomplete: incomplete),
-                           typeAverages: ProgressInsights.typeAverages(totals: totals, settings: settings, incomplete: incomplete),
+        let unfinished = Insights.unfinishedDays(totals, today: today, incomplete: incomplete)
+        let finished = totals.filter { !unfinished.contains($0.day) }
+        let stats = Insights.stats(totals: totals, targets: { settings.targets(for: $0) }, mealTimes: mealTimes,
+                                   excluding: unfinished)
+        let points = totals.map { point(for: $0, today: today, settings: settings) }
+        let signal = store.weightSignal(adding: app.healthWeightReadings, settings: settings)
+        return InsightData(range: range, points: points, stats: stats, loggedDays: totals.filter(\.isLogged).count,
+                           streak: Insights.streaks(logged: streakDays(store: store, through: today), today: today),
+                           entries: facts.filter { $0.status == .eaten },
+                           weight: WeightHeader(hasWeighIns: !signal.days.isEmpty || !signal.others.isEmpty,
+                                                average: signal.average(on: today).value, trend: signal.trend(on: today)),
+                           maintenance: measuredMaintenance(app: app, signal: signal, start: start, totals: totals),
+                           targets: stats.averageTargets,
+                           proteinMeals: ProgressInsights.proteinMeals(totals: finished, settings: settings, incomplete: incomplete),
+                           typeAverages: ProgressInsights.typeAverages(totals: finished, settings: settings, incomplete: incomplete),
                            goal: ProgressInsights.goal(app: app))
     }
+
+    private static func point(for total: DayTotals, today: DayKey, settings: NinaSettings) -> DayPoint {
+        let targets = settings.targets(for: total.day)
+        let verdict: String
+        if !total.isLogged {
+            verdict = InsightVerdict.notLogged
+        } else if total.day >= today {
+            verdict = InsightVerdict.today
+        } else {
+            switch DayProgress(totals: total, targets: targets).verdict {
+            case .onTrack: verdict = InsightVerdict.onTrack
+            case .over: verdict = InsightVerdict.over
+            case .under: verdict = InsightVerdict.under
+            }
+        }
+        return DayPoint(day: total.day, date: total.day.date(), energy: total.eaten.energy, target: targets.energy,
+                        verdict: verdict, logged: total.isLogged)
+    }
+
+    /// The days with something eaten in the 400 days through `today` (the streak), read without
+    /// the entries' nutrients.
+    @MainActor
+    private static func streakDays(store: NinaStore, through today: DayKey) -> Set<DayKey> {
+        let first = today.adding(days: -400).rawValue, last = today.rawValue
+        let eaten = EntryStatus.eaten.rawValue
+        var descriptor = FetchDescriptor<LogEntry>(
+            predicate: #Predicate<LogEntry> { $0.day >= first && $0.day <= last && $0.deletedAt == nil && $0.status == eaten }
+        )
+        descriptor.propertiesToFetch = [\.day, \.time]
+        let entries = (try? store.context.fetch(descriptor)) ?? []
+        return Set(entries.map(\.dayKey))
+    }
+
+    /// Measured maintenance as the coach reads it: the morning weights (typed and live Apple
+    /// Health), the 28 days through yesterday, without days marked "Log Is Incomplete" or paused.
+    @MainActor
+    private static func measuredMaintenance(app: AppModel, signal: WeightSignal, start: DayKey,
+                                            totals: [DayTotals]) -> Insights.Maintenance? {
+        let store = app.store
+        let plan = app.settings.plan
+        let yesterday = app.today.adding(days: -1)
+        let longStart = yesterday.adding(days: -27)
+        let longTotals: [DayTotals]
+        if start <= longStart {
+            longTotals = totals.filter { $0.day >= longStart && $0.day <= yesterday }
+        } else {
+            let more = store.entries(from: longStart, through: yesterday).map(\.facts)
+            let byDay = Dictionary(grouping: more, by: \.day)
+            longTotals = DayKey.range(longStart, through: yesterday).map { DayTotals(day: $0, entries: byDay[$0] ?? []) }
+        }
+        let paused = Set(longTotals.map(\.day).filter { plan.isPaused(on: $0) })
+        let excluded = store.incompleteDays(from: longStart, through: yesterday).union(paused)
+        return Insights.maintenance(totals: longTotals, weights: signal.morningWeights, today: yesterday, excluding: excluded)
+    }
+}
+
+/// The verdict names of the calories chart and the consistency grid.
+private enum InsightVerdict {
+    static let onTrack = "On track"
+    static let over = "Over"
+    static let under = "Under"
+    static let today = "Today"
+    static let notLogged = "Not logged"
 }
 
 struct InsightsView: View {
@@ -131,24 +182,7 @@ struct InsightsView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 if let data {
-                    if data.stats.loggedDays == 0 {
-                        ContentUnavailableView("Nothing logged in this period", systemImage: "chart.bar.xaxis",
-                                               description: Text("Insights fill up as you log. Importing your history from another app works too."))
-                    } else {
-                        caloriesCard(data)
-                        if !data.typeAverages.isEmpty {
-                            ProgressTypeAveragesCard(rows: data.typeAverages, unit: unit)
-                        }
-                        consistencyCard(data)
-                        macrosCard(data)
-                        nutrientsCard(data)
-                        topFoodsCard(data)
-                        rhythmCard(data)
-                    }
-                    if let goal = data.goal {
-                        ProgressGoalCard(goal: goal)
-                    }
-                    weightCard(data)
+                    cards(data)
                 } else {
                     ProgressView().padding(40)
                 }
@@ -157,14 +191,14 @@ struct InsightsView: View {
             .readableWidth(920)
         }
         .background(Color.groupedBackground)
-        .navigationTitle("Insights")
+        .navigationTitle(pageTitle)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     Button("Log Weight…", systemImage: "scalemass") { app.sheet = .weight(nil) }
                     Button("Goals & Plan…", systemImage: "target") { app.sheet = .goals }
                 } label: {
-                    Label("More", systemImage: "ellipsis.circle")
+                    Label("More", systemImage: "ellipsis")
                 }
             }
         }
@@ -175,6 +209,15 @@ struct InsightsView: View {
 
     private var unit: EnergyUnit { app.energyUnit }
 
+    /// "Nutrition" under Progress on iPhone and iPad (the segment's name); the Mac sidebar calls it Insights.
+    private var pageTitle: String {
+        #if os(macOS)
+        "Insights"
+        #else
+        "Nutrition"
+        #endif
+    }
+
     /// Reload on range and data changes, when Apple Health weights arrive (read live, never
     /// stored) and when a tape formula is picked.
     private var loadKey: String {
@@ -183,67 +226,156 @@ struct InsightsView: View {
 
     // MARK: Cards
 
-    private func caloriesCard(_ data: InsightData) -> some View {
-        let logged = data.points.filter(\.logged)
-        return CardSection(title: "Calories", symbol: "flame.fill",
-                           trailing: "⌀ \(Fmt.energy(data.stats.average.energy, unit: unit))") {
-            Chart {
-                ForEach(logged) { point in
-                    if data.range.rawValue <= 30 {
-                        BarMark(x: .value("Day", point.date, unit: .day), y: .value("Energy", unit.value(fromKilocalories: point.energy)))
-                            .foregroundStyle(by: .value("Verdict", point.verdict))
-                            .cornerRadius(4)
-                    } else {
-                        LineMark(x: .value("Day", point.date, unit: .day), y: .value("Energy", unit.value(fromKilocalories: point.energy)))
-                            .interpolationMethod(.catmullRom)
-                            .foregroundStyle(Brand.accent)
-                    }
-                }
-                RuleMark(y: .value("Goal", unit.value(fromKilocalories: data.stats.averageTarget)))
-                    .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
-                    .foregroundStyle(.secondary)
-                    .annotation(position: .top, alignment: .leading) {
-                        Text("Goal").font(.caption2).foregroundStyle(.secondary)
-                    }
+    /// The cards; the ones made of averages wait for a finished day (today counts once it's over).
+    @ViewBuilder
+    private func cards(_ data: InsightData) -> some View {
+        if data.loggedDays == 0 {
+            ContentUnavailableView("Nothing logged in this period", systemImage: "chart.bar.xaxis",
+                                   description: Text("Insights fill up as you log. Importing your history from another app works too."))
+        } else {
+            caloriesCard(data)
+            if !data.typeAverages.isEmpty {
+                ProgressTypeAveragesCard(rows: data.typeAverages, unit: unit)
             }
-            .chartForegroundStyleScale(["On track": Brand.accent, "Over": Color.orange, "Under": NutrientStyle.color(.protein).opacity(0.7), "Not logged": Color.gray])
-            .chartLegend(data.range.rawValue <= 30 ? .visible : .hidden)
-            .frame(height: 200)
-            let balance = data.stats.averageBalance
-            Text(balance >= 0
-                 ? "On average \(Fmt.energy(balance, unit: unit)) above your goal per logged day."
-                 : "On average \(Fmt.energy(-balance, unit: unit)) below your goal per logged day.")
+            consistencyCard(data)
+            if data.stats.loggedDays > 0 {
+                macrosCard(data)
+                nutrientsCard(data)
+            }
+            topFoodsCard(data)
+            if data.stats.loggedDays > 0 {
+                rhythmCard(data)
+            }
+        }
+        if let goal = data.goal {
+            ProgressGoalCard(goal: goal)
+        }
+        weightCard(data)
+    }
+
+    private func caloriesCard(_ data: InsightData) -> some View {
+        let trailing: String? = data.stats.loggedDays > 0 ? "avg \(Fmt.energy(data.stats.average.energy, unit: unit))" : nil
+        return CardSection(title: "Calories", symbol: "flame.fill", trailing: trailing) {
+            caloriesChart(data)
+            Text(balanceText(data))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
 
-    private func consistencyCard(_ data: InsightData) -> some View {
-        CardSection(title: "Consistency", symbol: "flame.circle",
-                    trailing: "\(data.stats.loggedDays) of \(data.stats.days) days") {
-            HStack(spacing: 24) {
-                StatTile(title: "Streak", value: "\(data.streak.current) days", tint: Brand.accent)
-                StatTile(title: "Best streak", value: "\(data.streak.best) days")
-                StatTile(title: "On track", value: Fmt.percent(data.stats.onTrackShare), detail: "within ±10 % of the goal")
-            }
-            let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: data.range == .week ? 7 : 15)
-            LazyVGrid(columns: columns, spacing: 3) {
-                ForEach(data.points.suffix(data.range == .year ? 105 : data.points.count)) { point in
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(color(for: point))
-                        .aspectRatio(1, contentMode: .fit)
-                        .help("\(Fmt.shortDay(point.day)): \(point.logged ? Fmt.energy(point.energy, unit: unit) : "not logged")")
+    private func caloriesChart(_ data: InsightData) -> some View {
+        let logged = data.points.filter(\.logged)
+        let isBars = data.range.rawValue <= 30
+        let goal = unit.value(fromKilocalories: data.stats.loggedDays > 0 ? data.stats.averageTarget : data.stats.averageTargets.energy)
+        let scale = verdictScale(showsToday: data.showsToday)
+        return Chart {
+            ForEach(logged) { point in
+                if isBars {
+                    BarMark(x: .value("Day", point.date, unit: .day), y: .value("Energy", unit.value(fromKilocalories: point.energy)))
+                        .foregroundStyle(by: .value("Verdict", point.verdict))
+                        .cornerRadius(4)
+                } else {
+                    LineMark(x: .value("Day", point.date, unit: .day), y: .value("Energy", unit.value(fromKilocalories: point.energy)))
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Brand.accent)
                 }
             }
+            RuleMark(y: .value("Goal", goal))
+                .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+                .foregroundStyle(.secondary)
+        }
+        .chartForegroundStyleScale(domain: scale.domain, range: scale.range)
+        .chartXAxis {
+            AxisMarks(preset: .aligned, values: .automatic(desiredCount: data.range == .week ? 7 : 5)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: .automatic)
+            AxisMarks(position: .leading, values: [goal]) { _ in
+                AxisValueLabel("Goal")
+            }
+        }
+        .chartLegend(isBars ? .visible : .hidden)
+        .frame(height: 200)
+    }
+
+    /// The bar colours: on track, over, under, and today's bar while the day isn't over.
+    private func verdictScale(showsToday: Bool) -> (domain: [String], range: [Color]) {
+        var domain = [InsightVerdict.onTrack, InsightVerdict.over, InsightVerdict.under]
+        var range: [Color] = [Brand.accent, Color.orange, InsightsView.underColor]
+        if showsToday {
+            domain.append(InsightVerdict.today)
+            range.append(InsightsView.todayColor)
+        }
+        return (domain, range)
+    }
+
+    private static var underColor: Color { NutrientStyle.color(.protein).opacity(0.7) }
+    private static var todayColor: Color { Brand.accent.opacity(0.3) }
+
+    private func balanceText(_ data: InsightData) -> String {
+        let note = data.showsToday ? " Today counts once it's over." : ""
+        guard data.stats.loggedDays > 0 else { return "Today counts once it's over." }
+        let balance = data.stats.averageBalance
+        let text = balance >= 0
+            ? "On average \(Fmt.energy(balance, unit: unit)) above your goal per logged day."
+            : "On average \(Fmt.energy(-balance, unit: unit)) below your goal per logged day."
+        return text + note
+    }
+
+    private func consistencyCard(_ data: InsightData) -> some View {
+        CardSection(title: "Consistency", symbol: "flame.circle",
+                    trailing: "\(data.loggedDays) of \(InsightsView.days(data.points.count))") {
+            HStack(spacing: 24) {
+                StatTile(title: "Streak", value: InsightsView.days(data.streak.current), tint: Brand.accent)
+                StatTile(title: "Best streak", value: InsightsView.days(data.streak.best))
+                StatTile(title: "On track", value: Fmt.percent(data.stats.onTrackShare), detail: "within ±10 % of the goal")
+            }
+            consistencyGrid(data)
             HStack(spacing: 12) {
-                legend("On track", Brand.accent)
-                legend("Over", .orange)
-                legend("Under", NutrientStyle.color(.protein).opacity(0.7))
-                legend("Not logged", Color.secondary.opacity(0.18))
+                legend(InsightVerdict.onTrack, Brand.accent)
+                legend(InsightVerdict.over, .orange)
+                legend(InsightVerdict.under, InsightsView.underColor)
+                legend(InsightVerdict.notLogged, Color.secondary.opacity(0.18))
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
         }
+    }
+
+    /// One square per day; VoiceOver reads the grid as one summary.
+    private func consistencyGrid(_ data: InsightData) -> some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: data.range == .week ? 7 : 15)
+        let shown = Array(data.points.suffix(data.range == .year ? 105 : data.points.count))
+        return LazyVGrid(columns: columns, spacing: 3) {
+            ForEach(shown) { point in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(color(for: point))
+                    .aspectRatio(1, contentMode: .fit)
+                    .help("\(Fmt.shortDay(point.day)): \(point.logged ? Fmt.energy(point.energy, unit: unit) : "not logged")")
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Logged days")
+        .accessibilityValue(gridSummary(shown))
+    }
+
+    /// "21 of 30 days logged: 15 on track, 3 over, 3 under."
+    private func gridSummary(_ points: [InsightData.DayPoint]) -> String {
+        func count(_ verdict: String) -> Int { points.filter { $0.verdict == verdict }.count }
+        let logged = points.filter(\.logged).count
+        var parts = ["\(count(InsightVerdict.onTrack)) on track", "\(count(InsightVerdict.over)) over",
+                     "\(count(InsightVerdict.under)) under"]
+        if count(InsightVerdict.today) > 0 { parts.append("today not over yet") }
+        return "\(logged) of \(InsightsView.days(points.count)) logged: " + parts.joined(separator: ", ")
+    }
+
+    /// "1 day", "12 days".
+    private static func days(_ count: Int) -> String {
+        count == 1 ? "1 day" : "\(count) days"
     }
 
     private func macrosCard(_ data: InsightData) -> some View {
@@ -268,7 +400,7 @@ struct InsightsView: View {
                 }
             }
             let split = data.targets.split
-            Text("Your target split is \(split.percentText) % (protein / carbs / fat). Averages are per logged day.")
+            Text("Your target split is \(split.percentText) % (protein / carbs / fat). Averages are per logged day, each day against its own targets.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             if let protein = data.proteinMeals {
@@ -331,10 +463,10 @@ struct InsightsView: View {
         return CardSection(title: "Rhythm", symbol: "clock.fill") {
             HStack(spacing: 24) {
                 if let first = data.stats.firstMealMinutes {
-                    StatTile(title: "First meal ⌀", value: Fmt.clock(first))
+                    StatTile(title: "First meal, avg", value: Fmt.clock(first))
                 }
                 if let last = data.stats.lastMealMinutes {
-                    StatTile(title: "Last meal ⌀", value: Fmt.clock(last))
+                    StatTile(title: "Last meal, avg", value: Fmt.clock(last))
                 }
                 if let first = data.stats.firstMealMinutes, let last = data.stats.lastMealMinutes, last > first {
                     StatTile(title: "Eating window", value: "\((last - first) / 60) h \((last - first) % 60) min")
@@ -354,19 +486,17 @@ struct InsightsView: View {
         }
     }
 
-    /// The weight chart lives on the Body page; here the trend weight, a way there and the
-    /// measured maintenance (it comes from your intake).
+    /// The weight chart lives on the Body page; here the 7-day average (as Body shows it), a way
+    /// there and the measured maintenance (it comes from your intake).
     private func weightCard(_ data: InsightData) -> some View {
-        let measured = data.weights.compactMap(\.weight)
-        let trends = data.weights.compactMap(\.trend)
-        return CardSection(title: "Weight", symbol: "scalemass.fill", trailing: trends.last.map { Fmt.kilograms($0) }) {
-            if measured.isEmpty {
+        CardSection(title: "Weight", symbol: "scalemass.fill", trailing: weightHeader(data.weight)) {
+            if !data.weight.hasWeighIns {
                 Text("Log your weight (or allow Apple Health) to see your measured maintenance calories.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button("Log Weight", systemImage: "plus") { app.sheet = .weight(nil) }
             } else {
-                Text("Your weight chart, 7-day average, measurements and body fat are on the Body page.")
+                Text("Your weight chart, measurements and body fat are on the Body page.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -378,12 +508,20 @@ struct InsightsView: View {
         }
     }
 
+    /// "7-day avg 67.1 kg", else "Trend 67.0 kg" while there aren't four morning weigh-ins in the week.
+    private func weightHeader(_ weight: InsightData.WeightHeader) -> String? {
+        if let average = weight.average { return "7-day avg \(Fmt.kilograms(average))" }
+        if let trend = weight.trend { return "Trend \(Fmt.kilograms(trend))" }
+        return nil
+    }
+
     private func color(for point: InsightData.DayPoint) -> Color {
         guard point.logged else { return Color.secondary.opacity(0.18) }
         switch point.verdict {
-        case "On track": return Brand.accent
-        case "Over": return .orange
-        default: return NutrientStyle.color(.protein).opacity(0.7)
+        case InsightVerdict.onTrack: return Brand.accent
+        case InsightVerdict.over: return .orange
+        case InsightVerdict.today: return InsightsView.todayColor
+        default: return InsightsView.underColor
         }
     }
 
@@ -422,11 +560,22 @@ struct MaintenanceView: View {
                     .font(.title3.weight(.bold).monospacedDigit())
                     .foregroundStyle(Brand.accent)
             }
-            Text("Over \(maintenance.days) days you ate \(Fmt.energy(maintenance.averageIntake, unit: app.energyUnit)) on average and your trend weight changed by \(maintenance.weightChange >= 0 ? "+" : "−")\(Fmt.kilograms(abs(maintenance.weightChange), decimals: 2)). One kg of body weight is about 7,700 kcal, so your body burns about \(Fmt.energy(maintenance.kilocalories, unit: app.energyUnit)) a day. Confidence: \(maintenance.confidence.rawValue) (\(maintenance.loggedDays) logged days).")
+            Text(explanation)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Button("Use for My Goal…") { app.sheet = .goals }
                 .font(.footnote)
         }
+    }
+
+    /// Up to yesterday, with the weight trend of the morning weigh-ins (the coach's numbers).
+    private var explanation: String {
+        let unit = app.energyUnit
+        let sign = maintenance.weightChange >= 0 ? "+" : "−"
+        let change = sign + Fmt.kilograms(abs(maintenance.weightChange), decimals: 2)
+        return "Over \(maintenance.days) days up to yesterday you ate \(Fmt.energy(maintenance.averageIntake, unit: unit)) on average "
+            + "and the trend of your morning weigh-ins changed by \(change). One kg of body weight is about 7,700 kcal, "
+            + "so your body burns about \(Fmt.energy(maintenance.kilocalories, unit: unit)) a day. "
+            + "Confidence: \(maintenance.confidence.rawValue) (\(maintenance.loggedDays) logged days; days marked incomplete and paused days left out)."
     }
 }

@@ -342,7 +342,24 @@ enum PlanEditorData {
 
     static func routineSummary(_ routine: CoachPlan.Routine) -> String {
         let weekly = routine.weeklySites.isEmpty ? "No weekly sites" : routine.weeklySites.map(\.title).joined(separator: ", ") + " weekly"
-        return "\(weekly) · full set every \(routine.fullEveryWeeks) weeks"
+        return "\(weekly) · full set \(everyWeeks(routine.fullEveryWeeks))"
+    }
+
+    /// "every week", "every 4 weeks".
+    static func everyWeeks(_ weeks: Int) -> String {
+        weeks == 1 ? "every week" : "every \(weeks) weeks"
+    }
+
+    /// "1 meal", "4 meals".
+    static func meals(_ count: Int) -> String {
+        count == 1 ? "1 meal" : "\(count) meals"
+    }
+
+    /// Why deleting a started phase asks first: "Its targets since 3 Sep go too – past days will
+    /// be judged by your general targets."
+    static func deleteMessage(for phase: CoachPlan.Phase?) -> String {
+        let since = phase?.start.map { " since \(Fmt.shortDay($0))" } ?? ""
+        return "Its targets\(since) go too – past days will be judged by your general targets. Undo or My Plan → Earlier Versions brings it back."
     }
 
     static func adjustSummary(_ adjust: CoachPlan.Adjust) -> String {
@@ -351,9 +368,9 @@ enum PlanEditorData {
 
     static func proteinSummary(_ protein: CoachPlan.Protein, settings: NinaSettings) -> String {
         let count = protein.effectiveCount(mealSlots: settings.meals.count)
-        guard protein.mealMin > 0 else { return "Automatic · \(count) meals" }
+        guard protein.mealMin > 0 else { return "Automatic · \(meals(count))" }
         let range = protein.mealMax > protein.mealMin ? "\(Fmt.number(protein.mealMin))–\(Fmt.number(protein.mealMax)) g" : "\(Fmt.number(protein.mealMin)) g"
-        return "\(range) · \(count) meals"
+        return "\(range) · \(meals(count))"
     }
 
     static func longTermSummary(_ goal: CoachPlan.LongTerm) -> String {
@@ -386,6 +403,34 @@ enum PlanEditorData {
         let latest = app.store.bodyFatReadings().last
         guard let ratio = ProteinMeals.ratio(grams: grams, weightKg: weight, leanKg: latest?.leanKg, bodyFat: latest?.bodyFat) else { return nil }
         return "\(Fmt.number(grams)) g a day = \(ratio.text)"
+    }
+}
+
+/// The plan editor's footers that name a gesture: tap and swipe on iPhone and iPad, click and
+/// right-click on the Mac.
+enum PlanEditorWording {
+    static var phasesFooter: String {
+        #if os(macOS)
+        "Nothing switches by itself: a phase starts when you click Start on its card. Right-click a phase to delete it."
+        #else
+        "Nothing switches by itself: a phase starts when you tap Start on its card. Swipe a phase to delete it."
+        #endif
+    }
+
+    static var notesFooter: String {
+        #if os(macOS)
+        "Advice from your plan that isn't a setting. Right-click a note to delete it."
+        #else
+        "Advice from your plan that isn't a setting. Swipe a note to delete it."
+        #endif
+    }
+
+    static var flexibleFooter: String {
+        #if os(macOS)
+        "You pick it on the day: click the day-type chip on Today, or right-click a day in the week strip. The number per week is a hint, never a nag."
+        #else
+        "You pick it on the day: tap the day-type chip on Today, or touch and hold a day in the week strip. The number per week is a hint, never a nag."
+        #endif
     }
 }
 

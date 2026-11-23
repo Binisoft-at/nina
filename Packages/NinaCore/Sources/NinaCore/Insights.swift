@@ -35,6 +35,10 @@ public enum Insights {
         public var averageWater: Double
         /// Average energy target over the logged days.
         public var averageTarget: Double
+        /// Every target averaged over the logged days (the macro and nutrient bars compare with
+        /// it, so gym and rest days each count with their own grams); the targets of the
+        /// period's last day while no day counts.
+        public var averageTargets: DailyTargets
         /// Share of logged days within ±10 % of the energy target.
         public var onTrackShare: Double
         public var overDays: Int
@@ -54,18 +58,23 @@ public enum Insights {
     ///   - totals: one value per day of the period (unlogged days included, they are skipped).
     ///   - targets: the targets that applied on a day.
     ///   - mealTimes: first and last eaten time per day (minutes after midnight).
+    ///   - excluding: days that don't count although something is logged: today (not over yet)
+    ///     and days marked "Log Is Incomplete" (`unfinishedDays` builds the set).
     public static func stats(totals: [DayTotals], targets: (DayKey) -> DailyTargets,
-                             mealTimes: [DayKey: (first: Int, last: Int)] = [:], calendar: Calendar = .current) -> PeriodStats {
-        let logged = totals.filter(\.isLogged)
+                             mealTimes: [DayKey: (first: Int, last: Int)] = [:], excluding: Set<DayKey> = [],
+                             calendar: Calendar = .current) -> PeriodStats {
+        let logged = totals.filter { $0.isLogged && !excluding.contains($0.day) }
         let count = Double(max(logged.count, 1))
         let sum = NutrientValues.sum(logged.map(\.eaten))
         let average = sum.scaled(by: 1 / count)
         var onTrack = 0, over = 0, under = 0
         var targetSum = 0.0
+        var targetTotals = TargetSum()
         var weekdaySums: [Int: (Double, Int)] = [:]
         for day in logged {
             let target = targets(day.day)
             targetSum += target.energy
+            targetTotals.add(target)
             let progress = DayProgress(totals: day, targets: target)
             switch progress.verdict {
             case .onTrack: onTrack += 1
@@ -85,6 +94,7 @@ public enum Insights {
             average: average,
             averageWater: logged.isEmpty ? 0 : logged.map(\.water).reduce(0, +) / count,
             averageTarget: logged.isEmpty ? 0 : targetSum / count,
+            averageTargets: targetTotals.average ?? totals.last.map { targets($0.day) } ?? .standard,
             onTrackShare: logged.isEmpty ? 0 : Double(onTrack) / count,
             overDays: over,
             underDays: under,
@@ -93,6 +103,42 @@ public enum Insights {
             firstMealMinutes: first,
             lastMealMinutes: last
         )
+    }
+
+    /// The days of `totals` that don't count as finished: `today` (and anything after it, it isn't
+    /// over yet) and the days marked "Log Is Incomplete" (`incomplete`). Pass it as `excluding:`
+    /// to `stats`.
+    public static func unfinishedDays(_ totals: [DayTotals], today: DayKey, incomplete: Set<DayKey> = []) -> Set<DayKey> {
+        Set(totals.map(\.day).filter { $0 >= today || incomplete.contains($0) })
+    }
+
+    /// Sums targets field by field for their average.
+    private struct TargetSum {
+        var energy = 0.0, protein = 0.0, carbs = 0.0, fat = 0.0, fiber = 0.0
+        var sugarMax = 0.0, saturatedFatMax = 0.0, sodiumMax = 0.0, water = 0.0
+        var count = 0
+
+        mutating func add(_ targets: DailyTargets) {
+            energy += targets.energy
+            protein += targets.protein
+            carbs += targets.carbs
+            fat += targets.fat
+            fiber += targets.fiber
+            sugarMax += targets.sugarMax
+            saturatedFatMax += targets.saturatedFatMax
+            sodiumMax += targets.sodiumMax
+            water += targets.water
+            count += 1
+        }
+
+        /// nil before anything was added.
+        var average: DailyTargets? {
+            guard count > 0 else { return nil }
+            let n = Double(count)
+            return DailyTargets(energy: energy / n, protein: protein / n, carbs: carbs / n, fat: fat / n, fiber: fiber / n,
+                                sugarMax: sugarMax / n, saturatedFatMax: saturatedFatMax / n, sodiumMax: sodiumMax / n,
+                                water: water / n)
+        }
     }
 
     public struct FoodRank: Equatable, Sendable, Identifiable {
@@ -159,12 +205,14 @@ public enum Insights {
 
     /// Your measured maintenance calories: average intake minus the energy the weight trend
     /// says was stored or burned (7,700 kcal per kg). Needs ≥ 14 days with weigh-ins at both
-    /// ends of the window and ≥ 10 logged days.
+    /// ends of the window and ≥ 10 logged days. `today` is the window's last day: pass the last
+    /// finished day (yesterday while today is still being logged). `excluding`: days whose
+    /// intake doesn't count (marked "Log Is Incomplete", paused); their weigh-ins still do.
     public static func maintenance(totals: [DayTotals], weights: [DayKey: Double], window: Int = 28,
-                                   today: DayKey, calendar: Calendar = .current) -> Maintenance? {
+                                   today: DayKey, excluding: Set<DayKey> = [], calendar: Calendar = .current) -> Maintenance? {
         let start = today.adding(days: -(window - 1), calendar: calendar)
         let inWindow = totals.filter { $0.day >= start && $0.day <= today }
-        let logged = inWindow.filter { $0.isLogged }
+        let logged = inWindow.filter { $0.isLogged && !excluding.contains($0.day) }
         guard logged.count >= 10 else { return nil }
         let windowWeights = weights.filter { $0.key >= start.adding(days: -14, calendar: calendar) && $0.key <= today }
         let trend = weightTrend(windowWeights, through: today, smoothing: 0.15, calendar: calendar)

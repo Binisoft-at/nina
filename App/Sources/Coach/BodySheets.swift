@@ -104,7 +104,7 @@ struct WeighInSheet: View {
 
     private var numberField: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            TextField("Weight", text: $text, prompt: Text("0.0"))
+            TextField("Weight", text: $text, prompt: Text(BodySheetNumber.text(0)))
                 .labelsHidden()
                 .textFieldStyle(.plain)
                 .font(.system(size: 52, weight: .semibold, design: .rounded).monospacedDigit())
@@ -156,12 +156,29 @@ struct WeighInSheet: View {
             parts.append("7-day average \(Fmt.kilograms(average))")
         }
         var lines = [parts.joined(separator: " · ")]
+        if let standing = standingLine(context) { lines.append(standing) }
         if let kilograms, shownCheck == nil, context.isUnusual(kilograms, at: time),
            WeightSignal.Tag.parse(note).isEmpty {
             lines.append("Unusual reading – anything special? Add a reason under More.")
         }
         let footer = lines.filter { !$0.isEmpty }.joined(separator: "\n")
         return footer.isEmpty ? " " : footer
+    }
+
+    /// With a plan: whether this weigh-in counts in the 7-day average, pace and check-in (only
+    /// the first one before the morning cutoff does).
+    private func standingLine(_ context: BodySheetWeighInContext) -> String? {
+        guard app.settings.plan.isSetUp else { return nil }
+        let day = context.day(for: time)
+        switch context.signal.standing(time: time, day: day, kilograms: kilograms) {
+        case .counts:
+            return nil
+        case .afterCutoff:
+            return "After \(Fmt.clock(context.signal.cutoffMinutes)) – shown on the chart, not counted in your average."
+        case .extra(let morning):
+            let when = day == app.today ? "This morning's" : "That morning's"
+            return "\(when) weight is already \(Fmt.kilograms(morning.kilograms)) – this one is extra, not counted in your average."
+        }
     }
 
     // MARK: Did you mean …?

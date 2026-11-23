@@ -10,6 +10,7 @@ import NinaCore
 struct BodyPageView: View {
     @Environment(AppModel.self) private var app
     @State private var data: BodyPageData?
+    @State private var latest: BodyPageLatestWeighIn?
     @State private var isWide = false
     /// The tape formula picked for sex "Prefer not to say" (device-only): the page reloads when it changes.
     @AppStorage(BodyPageKeys.navyFormula) private var navyFormula = ""
@@ -29,6 +30,7 @@ struct BodyPageView: View {
         }
         .task(id: loadKey) {
             data = BodyPageData.load(app: app)
+            latest = BodyPageLatestWeighIn.load(app: app)
         }
     }
 
@@ -41,7 +43,7 @@ struct BodyPageView: View {
     @ViewBuilder
     private var content: some View {
         if let data {
-            BodyPageLayout(data: data, isWide: isWide)
+            BodyPageLayout(data: data, latest: latest, isWide: isWide)
                 .onGeometryChange(for: Bool.self) { proxy in
                     proxy.size.width >= 700
                 } action: { newValue in
@@ -55,7 +57,29 @@ struct BodyPageView: View {
     }
 }
 
-/// The "+" menu: weigh-in, measurements, body fat, check-in, plan.
+/// The newest weigh-in (typed, or read live from Apple Health) for the weight card's header:
+/// "Today 67.3 kg". Display only, never stored.
+struct BodyPageLatestWeighIn: Equatable {
+    let day: DayKey
+    let kilograms: Double
+
+    @MainActor
+    static func load(app: AppModel) -> BodyPageLatestWeighIn? {
+        let readings = app.store.weights().map(\.reading) + app.healthWeightReadings
+        let plausible = readings.filter { WeightSignal.plausibleRange.contains($0.kilograms) }
+        guard let newest = plausible.max(by: { $0.time < $1.time }) else { return nil }
+        return BodyPageLatestWeighIn(day: newest.day, kilograms: newest.kilograms)
+    }
+
+    /// "Today 67.3 kg", "Yesterday 67.1 kg"; nil when older.
+    func text(today: DayKey) -> String? {
+        if day == today { return "Today \(Fmt.kilograms(kilograms))" }
+        if day == today.adding(days: -1) { return "Yesterday \(Fmt.kilograms(kilograms))" }
+        return nil
+    }
+}
+
+/// The "+" menu: weigh-in, measurements, body fat, photos, check-in, plan.
 private struct BodyPageAddMenu: View {
     @Environment(AppModel.self) private var app
 
@@ -64,6 +88,9 @@ private struct BodyPageAddMenu: View {
             Button("Log Weight…", systemImage: "scalemass") { app.sheet = .weight(nil) }
             Button("Log Measurements…", systemImage: "ruler") { app.measureNow() }
             Button("Log Body Fat…", systemImage: "percent") { app.sheet = .assessment(nil) }
+            Button(photosTitle, systemImage: "camera") {
+                app.sheet = .photos(.session(BodyPhotoStart(poses: PhotoPose.session)))
+            }
             if app.settings.plan.isSetUp {
                 Button("Weekly Check-in…", systemImage: "checklist") { app.sheet = .checkIn(app.currentCheckInWeek) }
             }
@@ -73,11 +100,21 @@ private struct BodyPageAddMenu: View {
             Label("Add", systemImage: "plus")
         }
     }
+
+    /// The photo session as the Photos card starts it (front, side, back).
+    private var photosTitle: String {
+        #if os(macOS)
+        "Add Progress Photos…"
+        #else
+        "Take Progress Photos…"
+        #endif
+    }
 }
 
 /// The cards in order; two columns under the weight card when wide.
 private struct BodyPageLayout: View {
     let data: BodyPageData
+    let latest: BodyPageLatestWeighIn?
     let isWide: Bool
 
     var body: some View {
@@ -120,7 +157,7 @@ private struct BodyPageLayout: View {
         if let header = data.header {
             BodyPagePhaseCard(header: header)
         }
-        BodyPageWeightCard(weight: data.weight)
+        BodyPageWeightCard(weight: data.weight, latest: latest?.text(today: data.today))
     }
 
     @ViewBuilder

@@ -231,7 +231,20 @@ public struct NutrientValues: Equatable, Hashable, Sendable {
         .joined(separator: ";")
     }
 
+    /// Decodes `encoded`. Text as Nina writes it (plain ASCII, no spaces) takes a fast path over
+    /// its UTF-8 bytes; anything else (spaces, typed or imported text) the trimming parser.
+    /// Both give the same values.
     public init(encoded: String) {
+        if let values = NutrientText.fastValues(encoded) {
+            self.init(values)
+        } else {
+            self.init(trimming: encoded)
+        }
+    }
+
+    /// The trimming parser: spaces around keys and values are allowed, pairs that aren't
+    /// "key=number" or name an unknown nutrient are skipped (a later pair wins).
+    init(trimming encoded: String) {
         var values: [Nutrient: Double] = [:]
         for pair in encoded.split(separator: ";") {
             let parts = pair.split(separator: "=", maxSplits: 1)
@@ -241,6 +254,66 @@ public struct NutrientValues: Equatable, Hashable, Sendable {
             values[nutrient] = value
         }
         self.init(values)
+    }
+
+    /// Only the energy of an encoded text: `NutrientValues(encoded:).energy` without decoding the
+    /// other nutrients (diary totals, rings, the week strip).
+    public static func energy(encoded: String) -> Double {
+        if let energy = NutrientText.fastEnergy(encoded) { return energy }
+        return NutrientValues(trimming: encoded).energy
+    }
+}
+
+/// The fast path of `NutrientValues(encoded:)`: "energy=52;protein=0.26" split on its UTF-8
+/// bytes, no Foundation trimming. Returns nil for text it doesn't take (any byte that is a
+/// space, a control character or not ASCII), which then goes to the trimming parser.
+enum NutrientText {
+    private static let semicolon = UInt8(ascii: ";")
+    private static let equals = UInt8(ascii: "=")
+    private static let energyKey = Array("energy".utf8)
+
+    /// One "key=value" pair: the bytes before and after the first "=" (nil without one or with
+    /// an empty side, as the trimming parser skips those).
+    private static func split(_ pair: Substring.UTF8View) -> (key: Substring.UTF8View, value: Substring.UTF8View)? {
+        guard let index = pair.firstIndex(of: equals) else { return nil }
+        let key = pair[pair.startIndex..<index]
+        let value = pair[pair.index(after: index)..<pair.endIndex]
+        guard !key.isEmpty, !value.isEmpty else { return nil }
+        return (key, value)
+    }
+
+    /// Bytes the fast path can't take: spaces, tabs, newlines and every non-ASCII byte.
+    private static func isPlain(_ bytes: String.UTF8View) -> Bool {
+        for byte in bytes where byte <= 0x20 || byte >= 0x7F { return false }
+        return true
+    }
+
+    static func fastValues(_ encoded: String) -> [Nutrient: Double]? {
+        let bytes = encoded.utf8
+        guard isPlain(bytes) else { return nil }
+        var values: [Nutrient: Double] = [:]
+        for pair in Substring(encoded).utf8.split(separator: semicolon) {
+            guard let (key, value) = split(pair),
+                  let nutrient = Nutrient(rawValue: String(Substring(key))),
+                  let number = Double(Substring(value)) else { continue }
+            values[nutrient] = number
+        }
+        return values
+    }
+
+    /// The energy value (0 when unknown or not finite, as `NutrientValues` drops those); nil for
+    /// text the fast path doesn't take.
+    static func fastEnergy(_ encoded: String) -> Double? {
+        let bytes = encoded.utf8
+        guard isPlain(bytes) else { return nil }
+        var energy: Double?
+        for pair in Substring(encoded).utf8.split(separator: semicolon) {
+            guard let (key, value) = split(pair), key.elementsEqual(energyKey),
+                  let number = Double(Substring(value)) else { continue }
+            energy = number
+        }
+        guard let energy, energy.isFinite else { return 0 }
+        return energy
     }
 }
 

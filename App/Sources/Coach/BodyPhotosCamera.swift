@@ -229,12 +229,15 @@ struct BodyPhotoCameraView: View {
     @State private var capture = BodyPhotoCapture()
     @State private var rotation = BodyPhotoRotation()
     @State private var state: BodyPhotoCameraState = .starting
-    @State private var position: AVCaptureDevice.Position = .back
+    /// The camera and the self-timer stay as last used for the next pose (this device only, never synced).
+    @AppStorage("nina.photos.front") private var usesFront = false
     @State private var showsGhost = true
-    @State private var timerSeconds = 0
+    @AppStorage("nina.photos.timer") private var timerSeconds = 0
     @State private var countdown: Int?
     @State private var countdownTask: Task<Void, Never>?
     @State private var isTaking = false
+
+    private var position: AVCaptureDevice.Position { usesFront ? .front : .back }
 
     var body: some View {
         ZStack {
@@ -442,7 +445,7 @@ struct BodyPhotoCameraView: View {
         let next: AVCaptureDevice.Position = position == .back ? .front : .back
         Task {
             guard await capture.start(next) else { return }
-            position = next
+            usesFront = next == .front
             rotation.follow(BodyPhotoCapture.device(at: next))
         }
     }

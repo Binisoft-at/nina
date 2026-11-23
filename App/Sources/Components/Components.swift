@@ -38,8 +38,18 @@ struct NutrientBar: View {
             .frame(height: compact ? 5 : 7)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(nutrient.title): \(valueText)")
+        .accessibilityLabel(spokenText)
         .animation(.smooth, value: value)
+    }
+
+    /// "Protein, 96 of 125 g" (not "96 slash 125").
+    private var spokenText: String {
+        if nutrient == .sodium {
+            return "Salt, \(Fmt.salt(fromSodium: value).replacingOccurrences(of: " g", with: "")) of \(Fmt.salt(fromSodium: target))"
+        }
+        let current = Fmt.nutrient(value, nutrient, unit: unit, showUnit: false)
+        let goal = Fmt.nutrient(target, nutrient, unit: unit)
+        return "\(nutrient.title), \(current) of \(goal)"
     }
 
     private var valueText: String {
@@ -71,12 +81,14 @@ struct CategoryBadge: View {
     }
 }
 
-/// A small rounded label ("High protein", a tag, an active filter).
+/// A small rounded label ("High protein", a tag, an active filter). In light mode the text is a
+/// darker shade of the tint, so orange and green stay readable on their pale background.
 struct Chip: View {
     let text: String
     var symbol: String?
     var tint: Color = .secondary
     var isSelected = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         HStack(spacing: 4) {
@@ -86,8 +98,13 @@ struct Chip: View {
         .font(.caption.weight(.medium))
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .foregroundStyle(isSelected ? Color.white : tint)
+        .foregroundStyle(textColor)
         .background(isSelected ? AnyShapeStyle(tint.gradient) : AnyShapeStyle(tint.opacity(0.13)), in: .capsule)
+    }
+
+    private var textColor: Color {
+        if isSelected { return .white }
+        return colorScheme == .light ? tint.mix(with: .black, by: 0.4) : tint
     }
 }
 

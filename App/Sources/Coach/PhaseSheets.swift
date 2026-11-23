@@ -4,8 +4,8 @@ import NinaCore
 
 // MARK: - Phase sheet
 
-/// A phase of the plan (`AppSheet.phase`): nil adds a new phase. Name, goal, dates with "about",
-/// the weekly rate range (0.05–1.0 kg in 0.05 steps, "Slow (lean) gain", a calm caution), the
+/// A phase of the plan (`AppSheet.phase`): nil adds a new phase. Name, goal, dates (approximate or not),
+/// the weekly rate range (0.05 kg steps, bounds by goal, "Slow (lean) gain", a calm caution), the
 /// review checkpoint, target weight and body fat, the waist check and a note; "Calculate" fills
 /// the targets per day type (`PhaseTransition.proposal`) with a preview. Start now, Mark as Done
 /// and Delete. Writes through `app.updatePlan` (Undo restores the plan); new targets are a
@@ -29,6 +29,10 @@ struct PhaseSheet: View {
     /// The goals people had, while no plan is set up: a first phase migrates them
     /// (`PlanEdits.addingFirstPhase`).
     @State private var setUpState: SettingsState?
+    /// What the sheet showed when it opened ("Discard changes?").
+    @State private var opened: PhaseSheetOpened?
+    @State private var confirmsDiscard = false
+    @State private var confirmsDelete = false
 
     private var isNew: Bool { original == nil }
     private var isDone: Bool { original?.status == .done }
@@ -39,20 +43,61 @@ struct PhaseSheet: View {
             form
                 .navigationTitle(isNew ? "New Phase" : CheckInSheetText.phaseName(draft))
                 .inlineNavigationTitle()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { dismiss() }
-                    }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save", action: save)
-                            .disabled(!isValid)
-                    }
+                .toolbar { toolbar }
+                .confirmationDialog("Discard changes?", isPresented: $confirmsDiscard, titleVisibility: .visible) {
+                    Button("Discard Changes", role: .destructive) { dismiss() }
+                    Button("Keep Editing", role: .cancel) {}
                 }
+        }
+        // On its own view: one dialog per view.
+        .confirmationDialog(deleteTitle, isPresented: $confirmsDelete, titleVisibility: .visible) {
+            Button("Delete Phase", role: .destructive, action: delete)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(deleteMessage)
         }
         .task(id: app.dataVersion) { load() }
         .onChange(of: calculationKey) { calculation = nil }
         .onChange(of: draft.goal) { _, goal in goalChanged(to: goal) }
-        .sheetFrame(minWidth: 540, minHeight: 720)
+        .interactiveDismissDisabled(isDirty)
+        .sheetFrame(minWidth: 540, minHeight: 560)
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") {
+                if isDirty { confirmsDiscard = true } else { dismiss() }
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Save", action: save)
+                .disabled(!isValid)
+        }
+    }
+
+    /// Something typed or changed since the sheet opened (or targets calculated).
+    private var isDirty: Bool {
+        guard let opened else { return false }
+        return calculation != nil || opened != currentInputs
+    }
+
+    private var currentInputs: PhaseSheetOpened {
+        PhaseSheetOpened(draft: draft, reviewOn: reviewOn,
+                         texts: [reviewMinText, reviewMaxText, targetWeightText, targetFatText, bodyFatCeilingText])
+    }
+
+    /// Delete asks first once a phase has started: its targets go with it.
+    private func requestDelete() {
+        if original?.isStarted == true { confirmsDelete = true } else { delete() }
+    }
+
+    private var deleteTitle: String {
+        "Delete \(original.map { CheckInSheetText.phaseName($0) } ?? "this phase")?"
+    }
+
+    private var deleteMessage: String {
+        PlanEditorData.deleteMessage(for: original)
     }
 
     /// A new phase gets a starting rate and the waist check that fit its goal (a rate the person
@@ -82,7 +127,7 @@ struct PhaseSheet: View {
                 actionsSection
             } else if !isNew {
                 Section {
-                    Button("Delete Phase", systemImage: "trash", role: .destructive, action: delete)
+                    Button("Delete Phase", systemImage: "trash", role: .destructive, action: requestDelete)
                 }
             }
         }
@@ -148,7 +193,7 @@ struct PhaseSheet: View {
                 Button("Mark as Done", systemImage: "checkmark.seal", action: markDone)
             }
             if !isNew {
-                Button("Delete Phase", systemImage: "trash", role: .destructive, action: delete)
+                Button("Delete Phase", systemImage: "trash", role: .destructive, action: requestDelete)
             }
         } footer: {
             Text(isStarted
@@ -197,30 +242,40 @@ struct PhaseSheet: View {
         setUpState = context.plan.isSetUp ? nil : app.settingsState
         guard !loaded else { return }
         loaded = true
-        if let phaseID, let phase = context.plan.phase(id: phaseID) {
-            original = phase
-            draft = phase
+        let phase: CoachPlan.Phase
+        if let phaseID, let stored = context.plan.phase(id: phaseID) {
+            original = stored
+            phase = stored
         } else {
-            draft = PhaseSheetPlan.newPhase(in: context.plan, today: context.today, calendar: context.calendar)
+            phase = PhaseSheetPlan.newPhase(in: context.plan, today: context.today, calendar: context.calendar)
         }
-        reviewOn = draft.reviewMin > 0 || draft.reviewMax > 0
-        reviewMinText = PhaseSheetFormat.text(draft.reviewMin)
-        reviewMaxText = PhaseSheetFormat.text(draft.reviewMax)
-        targetWeightText = PhaseSheetFormat.text(draft.targetWeight)
-        targetFatText = PhaseSheetFormat.text(draft.targetBodyFat)
-        bodyFatCeilingText = PhaseSheetFormat.text(draft.bodyFatCeiling)
+        let texts = [phase.reviewMin, phase.reviewMax, phase.targetWeight, phase.targetBodyFat, phase.bodyFatCeiling]
+            .map { PhaseSheetFormat.text($0) }
+        let review = phase.reviewMin > 0 || phase.reviewMax > 0
+        draft = phase
+        reviewOn = review
+        reviewMinText = texts[0]
+        reviewMaxText = texts[1]
+        targetWeightText = texts[2]
+        targetFatText = texts[3]
+        bodyFatCeilingText = texts[4]
+        opened = PhaseSheetOpened(draft: phase, reviewOn: review, texts: texts)
     }
 
     /// The draft with the typed numbers.
-    private func builtPhase() -> CoachPlan.Phase {
-        var phase = draft
+    private func builtPhase() -> CoachPlan.Phase { builtPhase(from: currentInputs) }
+
+    /// The phase the sheet's inputs describe.
+    private func builtPhase(from inputs: PhaseSheetOpened) -> CoachPlan.Phase {
+        var phase = inputs.draft
+        let texts = inputs.texts
         phase.name = phase.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        phase.targetWeight = PhaseSheetFormat.number(targetWeightText)
-        phase.targetBodyFat = PhaseSheetFormat.number(targetFatText)
+        phase.targetWeight = PhaseSheetFormat.number(texts[2])
+        phase.targetBodyFat = PhaseSheetFormat.number(texts[3])
         // Only a gain phase has ceilings (`BodyCeiling`).
-        phase.bodyFatCeiling = phase.goal == .gain ? PhaseSheetFormat.number(bodyFatCeilingText) : 0
-        var low = PhaseSheetFormat.number(reviewMinText)
-        var high = PhaseSheetFormat.number(reviewMaxText)
+        phase.bodyFatCeiling = phase.goal == .gain ? PhaseSheetFormat.number(texts[4]) : 0
+        var low = PhaseSheetFormat.number(texts[0])
+        var high = PhaseSheetFormat.number(texts[1])
         if low > 0, high > 0, low > high { swap(&low, &high) }
         if phase.goal == .maintain {
             // A maintain phase keeps its own band (an imported ±rate); a gain or loss rate goes.
@@ -230,7 +285,7 @@ struct PhaseSheet: View {
             }
             low = 0
             high = 0
-        } else if !reviewOn {
+        } else if !inputs.reviewOn {
             low = 0
             high = 0
         }
@@ -239,10 +294,17 @@ struct PhaseSheet: View {
         return phase
     }
 
-    /// The saved plan (read fresh) with the edited phase and the calculated targets.
+    /// The saved plan (read fresh) with the edited phase and the calculated targets. An existing
+    /// phase starts from the stored one and takes only the fields changed in this sheet (against
+    /// what it showed when it opened), so a check-in Apply or a Start made meanwhile (in another
+    /// window or on another device) stays, and an untouched sheet writes nothing.
     private func editedPlan() -> CoachPlan {
         let current = app.store.settings.plan
-        var plan = placed(builtPhase(), in: current)
+        var phase = builtPhase()
+        if let original, let opened, let stored = current.phase(id: original.id) {
+            phase = stored.applyingPhaseSheetEdits(original: builtPhase(from: opened), edited: phase)
+        }
+        var plan = placed(phase, in: current)
         if current.isEmpty { plan.routine = CoachPlan.Routine.defaults(for: app.settings.body.sex) }
         if let calculation {
             // The calculated targets hold from their day on: a later revision (a check-in applied
@@ -298,13 +360,23 @@ struct PhaseSheet: View {
     }
 }
 
+/// What the phase sheet showed when it opened: an untouched sheet asks nothing on Cancel.
+private struct PhaseSheetOpened: Equatable {
+    var draft: CoachPlan.Phase
+    var reviewOn: Bool
+    var texts: [String]
+}
+
 /// Typed numbers of the phase sheet (0 = none).
 private enum PhaseSheetFormat {
     /// A body-fat ceiling above this (%) isn't saved.
     static let maxBodyFat = 60.0
 
+    /// The number as people type it here: the device's decimal separator ("74,5"), no grouping,
+    /// up to two decimals; empty for none.
     static func text(_ value: Double) -> String {
-        value > 0 ? NumberText.plain(value, decimals: 2) : ""
+        guard value > 0, value.isFinite else { return "" }
+        return value.formatted(.number.precision(.fractionLength(0...2)).grouping(.never))
     }
 
     static func number(_ text: String) -> Double {
@@ -340,7 +412,7 @@ private struct PhaseSheetBasics: View {
 
     private var footer: String {
         if isDone { return "This phase is finished: only its name and note can change." }
-        return "End dates are soft: Nina only asks what's next when one comes. \"About\" marks a date you haven't fixed yet."
+        return "End dates are soft: Nina only asks what's next when one comes. \"Approximate date\" marks a date you haven't fixed yet (shown with ~)."
     }
 
     @ViewBuilder
@@ -350,7 +422,7 @@ private struct PhaseSheetBasics: View {
         } else {
             DatePicker("Start", selection: startBinding, displayedComponents: .date)
                 .disabled(isDone)
-            Toggle("About", isOn: $draft.startApprox)
+            Toggle("Approximate date", isOn: $draft.startApprox)
                 .disabled(isDone)
         }
     }
@@ -362,7 +434,7 @@ private struct PhaseSheetBasics: View {
         if draft.end != nil {
             DatePicker("End", selection: endBinding, in: (draft.start ?? today).date()..., displayedComponents: .date)
                 .disabled(isDone)
-            Toggle("About", isOn: $draft.endApprox)
+            Toggle("Approximate date", isOn: $draft.endApprox)
                 .disabled(isDone)
         }
     }
@@ -403,13 +475,14 @@ private struct PhaseSheetRate: View {
                     Text(rangeText)
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
-                    PhaseRateRangeSlider(low: minBinding, high: maxBinding, sign: draft.goal == .lose ? "−" : "+")
+                    PhaseRateRangeSlider(low: minBinding, high: maxBinding, bounds: bounds, sign: draft.goal == .lose ? "−" : "+")
                         .disabled(isDone)
+                    endLabels
                 }
                 .padding(.vertical, 4)
-                Stepper("From \(kgText(draft.rateMin))", value: minBinding, in: 0.05...max(0.05, draft.rateMax), step: 0.05)
+                Stepper("From \(kgText(draft.rateMin))", value: minBinding, in: fromRange, step: 0.05)
                     .disabled(isDone)
-                Stepper("To \(kgText(draft.rateMax))", value: maxBinding, in: min(max(0.05, draft.rateMin), 1.0)...1.0, step: 0.05)
+                Stepper("To \(kgText(draft.rateMax))", value: maxBinding, in: toRange, step: 0.05)
                     .disabled(isDone)
                 if let label = draft.rateLabel {
                     Label(label, systemImage: "leaf")
@@ -452,6 +525,33 @@ private struct PhaseSheetRate: View {
         "\(Fmt.number(value, decimals: 2)) kg"
     }
 
+    /// The slider's scale for the goal: a gain 0.05–0.5 kg, a loss 0.1–1.0 kg a week, widened to
+    /// take a rate set elsewhere (an import) without changing it.
+    private var bounds: ClosedRange<Double> {
+        PhaseRateRangeSlider.bounds(goal: draft.goal, rateMin: draft.rateMin, rateMax: draft.rateMax)
+    }
+
+    private var fromRange: ClosedRange<Double> {
+        bounds.lowerBound...max(bounds.lowerBound, draft.rateMax)
+    }
+
+    private var toRange: ClosedRange<Double> {
+        min(max(bounds.lowerBound, draft.rateMin), bounds.upperBound)...bounds.upperBound
+    }
+
+    /// "0.05" under the left end of the track, "0.5 kg" under the right one.
+    private var endLabels: some View {
+        HStack {
+            Text(Fmt.number(bounds.lowerBound, decimals: 2))
+            Spacer()
+            Text("\(Fmt.number(bounds.upperBound, decimals: 2)) kg")
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .monospacedDigit()
+        .accessibilityHidden(true)
+    }
+
     private var rateOn: Binding<Bool> {
         Binding<Bool>(get: { draft.rateMax > 0 }, set: { (on: Bool) in
             let range = on ? PhaseSheetPlan.defaultRate(for: draft.goal) : 0...0
@@ -474,18 +574,28 @@ private enum PhaseRateThumb {
     case low, high
 }
 
-/// The weekly rate as a range with two handles on one track (0.05–1.0 kg in 0.05 steps): the
+/// The weekly rate as a range with two handles on one track (`bounds`, in 0.05 steps): the
 /// low end never passes the high one. A drag moves the nearer handle (when both sit on one spot,
 /// the one in the drag's direction); VoiceOver adjusts each handle on its own.
 private struct PhaseRateRangeSlider: View {
     @Binding var low: Double
     @Binding var high: Double
+    /// The track's scale (`bounds(goal:rateMin:rateMax:)`).
+    let bounds: ClosedRange<Double>
     /// "+" for a gain, "−" for a loss (spoken values).
     let sign: String
     @Environment(\.isEnabled) private var isEnabled
     @State private var dragging: PhaseRateThumb?
 
-    private let bounds: ClosedRange<Double> = 0.05...1.0
+    /// A gain 0.05–0.5 kg a week (a lean gain uses a useful part of the track), a loss 0.1–1.0 kg;
+    /// widened to take a rate outside them (an imported one is never clamped).
+    static func bounds(goal: WeightGoal, rateMin: Double, rateMax: Double) -> ClosedRange<Double> {
+        let base: ClosedRange<Double> = goal == .lose ? 0.1...1.0 : 0.05...0.5
+        let lower = rateMin > 0 ? min(base.lowerBound, rateMin) : base.lowerBound
+        let upper = max(base.upperBound, rateMax)
+        return lower...max(lower, upper)
+    }
+
     private let step = 0.05
     private let thumb: CGFloat = 26
 
@@ -575,7 +685,7 @@ private struct PhaseRateRangeSlider: View {
         return bounds.lowerBound + fraction * (bounds.upperBound - bounds.lowerBound)
     }
 
-    /// Snaps to 0.05 kg within 0.05–1.0, keeping the low end at or below the high one.
+    /// Snaps to 0.05 kg within the bounds, keeping the low end at or below the high one.
     private func move(_ which: PhaseRateThumb, to raw: Double) {
         let snapped = min(max((raw / step).rounded() * step, bounds.lowerBound), bounds.upperBound)
         let value = (snapped * 100).rounded() / 100
@@ -787,7 +897,7 @@ struct PhaseReviewSheet: View {
                 }
         }
         .task(id: app.dataVersion) { load() }
-        .sheetFrame(minWidth: 540, minHeight: 700)
+        .sheetFrame(minWidth: 540, minHeight: 560)
     }
 
     @ViewBuilder
@@ -871,7 +981,7 @@ struct PhaseReviewSheet: View {
             }
             if changingEnd {
                 DatePicker("New end", selection: $endDate, in: tomorrow.date()..., displayedComponents: .date)
-                Button("Save End Date", systemImage: "checkmark.circle.fill") { saveEnd(facts) }
+                Button("Save End Date") { saveEnd(facts) }
                     .primaryActionStyle()
             }
             laterButton(facts)
@@ -1129,8 +1239,8 @@ private struct PhaseReviewStanding: View {
     private var weekText: String? {
         let phase = facts.mode == .start ? facts.active : facts.phase
         guard let phase, phase.isStarted, let week = phase.week(on: facts.today) else { return nil }
-        guard let weeks = phase.weeks() else { return "Week \(week)" }
-        return "Week \(week) of \(weeks)"
+        guard let weeks = phase.weeks() else { return "\(week)" }
+        return "\(week) of \(weeks)"
     }
 
     private var averageText: String {

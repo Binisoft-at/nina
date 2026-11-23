@@ -59,7 +59,7 @@ struct BodyPhotoSessionSheet: View {
             .modifier(BodyPhotoCameraPresenter(pose: $cameraPose, ghosts: lock.isLocked ? [:] : ghosts, session: session) { data, pose in
                 Task { await use(data, for: pose, picked: false) }
             })
-            .sheetFrame(minWidth: 520, minHeight: 720)
+            .sheetFrame(minWidth: 520, minHeight: 560)
     }
 
     private var content: some View {
@@ -193,7 +193,11 @@ struct BodyPhotoSessionSheet: View {
                 }
             } footer: {
                 if !takenPoses.isEmpty {
+                    #if os(macOS)
+                    Text("Click a photo to take it again.")
+                    #else
                     Text("Tap a photo to take it again.")
+                    #endif
                 }
             }
             Section {

@@ -113,7 +113,7 @@ struct PlanEditorDayTypeView: View {
         case .fixed:
             "On these weekdays. When two day types share a weekday, the first in the list wins."
         case .flexible:
-            "You pick it on the day: tap the day-type chip on Today, or touch and hold a day in the week strip. The number per week is a hint, never a nag."
+            PlanEditorWording.flexibleFooter
         case .default:
             "Every day no other day type claims – usually Rest."
         }

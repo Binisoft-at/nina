@@ -11,16 +11,22 @@ import AppKit
 /// ID, Touch ID or the device passcode (the Mac's password) unlocks them, and lock again as soon as
 /// Nina stops being active on iPhone and iPad (the app switcher, Control Center, a call – early
 /// enough for the blur to be in the app switcher's picture), goes to the background, the Mac
-/// sleeps or Nina is hidden. Off in the demo.
+/// sleeps or Nina is hidden. On the Mac also after a minute behind other apps (a quick ⌘-Tab
+/// doesn't ask again) and when the screen locks. Off in the demo.
 @MainActor
 @Observable
 final class BodyPhotoLock {
     static let shared = BodyPhotoLock()
     static let key = "nina.photos.lock"
+    /// How long Nina may sit behind other apps on the Mac before the photos lock again.
+    static let backgroundGrace: Duration = .seconds(60)
+    /// Password or Touch ID prompts showing right now (they take the focus from Nina).
+    private static var authenticating = 0
 
     private(set) var isEnabled: Bool
     private(set) var isUnlocked = false
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var backgroundLock: Task<Void, Never>?
 
     private init() {
         isEnabled = !LaunchOptions.current.isDemo && UserDefaults.standard.bool(forKey: BodyPhotoLock.key)
@@ -79,11 +85,30 @@ final class BodyPhotoLock {
         var error: NSError?
         // Without a passcode there is nothing to check with; the switch says so.
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return true }
+        authenticating += 1
+        defer { authenticating -= 1 }
         do {
             return try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
         } catch {
             return false
         }
+    }
+
+    /// Mac: Nina went behind another app; the photos lock once it stays there for
+    /// `backgroundGrace` (not while a password prompt has the focus).
+    private func scheduleBackgroundLock() {
+        guard BodyPhotoLock.authenticating == 0 else { return }
+        backgroundLock?.cancel()
+        backgroundLock = Task { [weak self] in
+            try? await Task.sleep(for: BodyPhotoLock.backgroundGrace)
+            guard !Task.isCancelled else { return }
+            self?.lock()
+        }
+    }
+
+    private func cancelBackgroundLock() {
+        backgroundLock?.cancel()
+        backgroundLock = nil
     }
 
     private func observeBackground() {
@@ -109,6 +134,32 @@ final class BodyPhotoLock {
                 MainActor.assumeIsolated { self?.lock() }
             })
         }
+        // The screen locked (without the display sleeping).
+        let distributed = DistributedNotificationCenter.default()
+        observers.append(distributed.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil,
+                                                 queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lock() }
+        })
+        // Behind other apps for a minute.
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleBackgroundLock() }
+        })
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil,
+                                                                queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.cancelBackgroundLock() }
+        })
+        #endif
+    }
+}
+
+/// The hint on a locked photo.
+private enum BodyPhotoLockModifierText {
+    static var unlockHint: String {
+        #if os(macOS)
+        "Locked – click to unlock"
+        #else
+        "Locked – tap to unlock"
         #endif
     }
 }
@@ -133,7 +184,7 @@ private struct BodyPhotoLockCover: ViewModifier {
                         Image(systemName: "lock.fill")
                             .font(compact ? Font.title3 : Font.largeTitle)
                         if !compact {
-                            Text("Locked – tap to unlock")
+                            Text(BodyPhotoLockModifierText.unlockHint)
                                 .font(.callout.weight(.medium))
                         }
                     }
@@ -146,14 +197,22 @@ private struct BodyPhotoLockCover: ViewModifier {
     }
 }
 
-/// The "Lock Photos with Face ID" switch (the Photos card's menu, the photos page).
+/// The "Lock Photos with Face ID" switch (the Photos card's menu, the photos page), with
+/// "This device only": each device has its own switch.
 struct BodyPhotoLockToggle: View {
     var body: some View {
         let lock = BodyPhotoLock.shared
-        Toggle("Lock Photos with \(BodyPhotoLock.methodName)", systemImage: "lock", isOn: Binding(
+        Toggle(isOn: Binding(
             get: { lock.isEnabled },
             set: { enabled in Task { await lock.setEnabled(enabled) } }
-        ))
+        )) {
+            Label {
+                Text("Lock Photos with \(BodyPhotoLock.methodName)")
+                Text("This device only")
+            } icon: {
+                Image(systemName: "lock")
+            }
+        }
         .disabled(!lock.isEnabled && !BodyPhotoLock.isAvailable)
     }
 }

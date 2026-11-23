@@ -195,9 +195,9 @@ struct BodySheetBigReading: View {
         }
     }
 
-    /// Last time's value, else "0.0".
+    /// Last time's value, else zero with the decimal separator people type here ("0.0", "0,0").
     private var placeholder: String {
-        guard let previous else { return "0.0" }
+        guard let previous else { return BodySheetNumber.text(0) }
         return BodySheetNumber.cm(previous)
     }
 

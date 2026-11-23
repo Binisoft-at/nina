@@ -241,20 +241,24 @@ public enum ProgressPhotos {
 }
 
 /// What Compare shows under the two photos: the days between, the 7-day average weight and the
-/// waist at each day (the nearest within a week), and the changes.
+/// waist at each day (each the nearest within a week), and the changes.
 public struct PhotoComparison: Equatable, Sendable {
     public struct Side: Equatable, Sendable {
         public var day: DayKey
-        /// The valid 7-day average on the day (nil without one).
+        /// The valid 7-day average nearest the day (the day itself first, else the closest within
+        /// a week, the earlier on a tie); nil without one.
         public var weight: Double?
+        /// The day that average ends on (differs from `day` when the photo day had none).
+        public var weightDay: DayKey?
         /// The tape value of `waistSite` nearest the day (within a week).
         public var waist: Double?
         /// The day that waist was measured.
         public var waistDay: DayKey?
 
-        public init(day: DayKey, weight: Double?, waist: Double?, waistDay: DayKey?) {
+        public init(day: DayKey, weight: Double?, weightDay: DayKey? = nil, waist: Double?, waistDay: DayKey?) {
             self.day = day
             self.weight = weight
+            self.weightDay = weight == nil ? nil : (weightDay ?? day)
             self.waist = waist
             self.waistDay = waistDay
         }
@@ -278,9 +282,20 @@ public struct PhotoComparison: Equatable, Sendable {
         let both = sites.first { near($0, pair.before) != nil && near($0, pair.after) != nil }
         let either = sites.first { near($0, pair.before) != nil || near($0, pair.after) != nil }
         let site = both ?? either ?? .waist
+        // The first photos are often taken the day tracking starts, before a week of weigh-ins:
+        // the nearest valid average within a week then stands in, as the waist does.
+        func weight(_ day: DayKey) -> (day: DayKey, value: Double)? {
+            if let exact = signal.average(on: day).value { return (day: day, value: exact) }
+            let window = ProgressPhotos.nearbyDays
+            let averages = signal.averages(from: day.adding(days: -window, calendar: calendar),
+                                           through: day.adding(days: window, calendar: calendar))
+            return ProgressPhotos.nearest(averages.map { (day: $0.day, value: $0.kilograms) }, to: day, within: window,
+                                          calendar: calendar)
+        }
         func side(_ day: DayKey) -> Side {
             let waist = near(site, day)
-            return Side(day: day, weight: signal.average(on: day).value, waist: waist?.value, waistDay: waist?.day)
+            let average = weight(day)
+            return Side(day: day, weight: average?.value, weightDay: average?.day, waist: waist?.value, waistDay: waist?.day)
         }
         before = side(pair.before)
         after = side(pair.after)
@@ -288,9 +303,9 @@ public struct PhotoComparison: Equatable, Sendable {
         waistSite = site
     }
 
-    /// After minus before, kg (both averages known).
+    /// After minus before, kg (both averages known, and not the same day's average).
     public var weightChange: Double? {
-        guard let first = before.weight, let second = after.weight else { return nil }
+        guard let first = before.weight, let second = after.weight, before.weightDay != after.weightDay else { return nil }
         return second - first
     }
 

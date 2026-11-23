@@ -57,14 +57,15 @@ private struct TodayCoachWorkoutHint: ViewModifier {
     }
 }
 
-/// The hint as a glass pill with a small "Not now" button.
+/// The hint as a tinted pill on the card (content, so no glass) with a small "Not now" button
+/// whose tap area is 44 pt.
 private struct TodayCoachWorkoutPill: View {
     let suggestion: WorkoutSuggestion
     let accept: () -> Void
     let dismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 2) {
             Button(action: accept) {
                 Text(label)
                     .font(.footnote.weight(.semibold))
@@ -72,10 +73,10 @@ private struct TodayCoachWorkoutPill: View {
                     .lineLimit(2)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
+                    .background(Brand.accent.opacity(0.14), in: .capsule)
                     .contentShape(.capsule)
             }
             .buttonStyle(.plain)
-            .glassEffect(.regular.tint(Brand.accent.opacity(0.18)).interactive(), in: .capsule)
             .accessibilityLabel(suggestion.text)
             .accessibilityHint("Makes today a \(suggestion.typeName) day. From an Apple Health workout.")
             Button(action: dismiss) {
@@ -83,10 +84,11 @@ private struct TodayCoachWorkoutPill: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
                     .frame(width: 28, height: 28)
-                    .contentShape(.circle)
+                    .background(Color.secondary.opacity(0.12), in: .circle)
+                    .frame(width: 44, height: 44)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .glassEffect(.regular.interactive(), in: .circle)
             .accessibilityLabel("Not now")
         }
     }

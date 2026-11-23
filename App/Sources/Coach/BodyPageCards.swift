@@ -51,37 +51,48 @@ struct BodyPageDueCard: View {
 // MARK: - Phase header
 
 /// "Lean gain · week 3 of 16", the status pill, a progress capsule and a few lines; a tap
-/// opens the phase.
+/// opens the phase. While coaching is paused, a Resume button under it.
 struct BodyPagePhaseCard: View {
     let header: BodyPagePhaseHeader
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        Button {
-            app.present(.phase(header.phaseID))
-        } label: {
-            content
+        VStack(alignment: .leading, spacing: 10) {
+            Button {
+                app.present(.phase(header.phaseID))
+            } label: {
+                content
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Opens the phase")
+            if isPaused {
+                Button("Resume Coaching", systemImage: "play.fill") {
+                    PlanEditorData.resume(app: app)
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens the phase")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
     }
+
+    private var isPaused: Bool { app.settings.plan.isPaused(on: app.today) }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(header.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    if let dates = header.dates {
-                        Text(dates)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+            // Title and status side by side when they fit, else the status under the title.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    titleBlock
+                    Spacer(minLength: 8)
+                    statusChip
                 }
-                Spacer(minLength: 8)
-                Chip(text: header.status, tint: BodyPageStyle.color(header.tone), isSelected: header.tone == .alert)
+                VStack(alignment: .leading, spacing: 6) {
+                    titleBlock
+                    statusChip
+                }
             }
             if let progress = header.progress {
                 BodyPageCapsule(progress: progress)
@@ -93,7 +104,26 @@ struct BodyPagePhaseCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .card()
+        .contentShape(.rect)
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(header.title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            if let dates = header.dates {
+                Text(dates)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var statusChip: some View {
+        Chip(text: header.status, tint: BodyPageStyle.color(header.tone), isSelected: header.tone == .alert)
+            .fixedSize()
     }
 
     private var lines: [String] {

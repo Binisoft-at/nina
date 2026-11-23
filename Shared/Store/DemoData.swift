@@ -51,10 +51,23 @@ enum DemoData {
             DemoFood(ref: "usda:19904", name: "Dark chocolate 70%", category: .sweets, unit: .gram, per100: n(598, 7.8, 45.9, 42.6, fiber: 10.9, sugar: 24), portion: ("square", 10)),
             DemoFood(ref: "usda:14209", name: "Coffee", category: .beverages, unit: .milliliter, per100: n(1, 0.1, 0, 0), portion: ("mug", 250)),
         ]
+        // Every nutrient the bundled catalog knows for the food (vitamins, minerals, saturated fat);
+        // the values above stay for a food it doesn't have.
+        let catalog = FoodCatalog.bundled
         var map: [String: DemoFood] = [:]
-        for food in list { map[food.name] = food }
+        for food in list {
+            if let record = catalog[FoodRef(food.ref)], !record.nutrients.isEmpty {
+                map[food.name] = DemoFood(ref: food.ref, name: food.name, category: food.category, unit: food.unit,
+                                          per100: record.nutrients, portion: food.portion)
+            } else {
+                map[food.name] = food
+            }
+        }
         return map
     }()
+
+    /// Sort order of the next demo entry: entries of the same time keep the order they were added.
+    private static var sequence = 0.0
 
     /// Grams (or ml) of a demo line: `count` portions when the food has a portion, else `amount`.
     static func grams(of food: DemoFood, amount: Double?, count: Double?) -> Double {
@@ -95,6 +108,8 @@ enum DemoData {
         entry.nutrients = food.per100.scaled(by: grams(of: food, amount: line.amount, count: line.count) / 100).encoded
         entry.status = line.status.rawValue
         entry.source = "demo"
+        sequence += 1
+        entry.sortOrder = sequence
         context.insert(entry)
         return entry
     }
@@ -253,7 +268,14 @@ enum DemoData {
         context.insert(mark)
     }
 
-    /// A saved meal with its weekday routine and a favourite own food.
+    /// A catalog food for a demo recipe that isn't in the demo diary.
+    private struct DemoIngredient {
+        let ref: String
+        let name: String
+        let grams: Double
+    }
+
+    /// A saved meal with its weekday routine, a cooked recipe and a favourite own food.
     static func insertLibrary(_ context: ModelContext) {
         let breakfast = Recipe(name: "Usual breakfast", kind: .meal)
         breakfast.emoji = "🥣"
@@ -285,6 +307,7 @@ enum DemoData {
         }
         let rule = PlanRule(recipeID: breakfast.uuid, title: breakfast.name, meal: "breakfast", minutes: 450, weekdays: .workdays)
         context.insert(rule)
+        insertChili(context)
 
         let skyr = Food(name: "Skyr, plain")
         skyr.catalogID = "nina:skyr"
@@ -294,6 +317,42 @@ enum DemoData {
         skyr.isFavorite = true
         skyr.tags = "high-protein|snack"
         context.insert(skyr)
+    }
+
+    /// A cooked recipe: chili for 4 portions, the values from the bundled catalog (an ingredient
+    /// it doesn't have is left out).
+    private static func insertChili(_ context: ModelContext) {
+        let chili = Recipe(name: "Chili sin carne", kind: .recipe)
+        chili.emoji = "🌶️"
+        chili.servings = 4
+        chili.defaultMeal = "dinner"
+        chili.tags = "batch-cooking"
+        context.insert(chili)
+        let ingredients = [
+            DemoIngredient(ref: "usda:16028", name: "Kidney beans, cooked", grams: 480),
+            DemoIngredient(ref: "usda:16015", name: "Black beans, cooked", grams: 240),
+            DemoIngredient(ref: "usda:11693", name: "Crushed tomatoes", grams: 400),
+            DemoIngredient(ref: "usda:11282", name: "Onion, raw", grams: 150),
+            DemoIngredient(ref: "usda:11215", name: "Garlic", grams: 10),
+            DemoIngredient(ref: "usda:04053", name: "Olive oil", grams: 15),
+        ]
+        let catalog = FoodCatalog.bundled
+        var order = 0.0
+        for ingredient in ingredients {
+            guard let record = catalog[FoodRef(ingredient.ref)] else { continue }
+            let item = RecipeItem(name: ingredient.name)
+            item.foodRef = ingredient.ref
+            item.category = record.category.rawValue
+            item.baseUnit = BaseUnit.gram.rawValue
+            item.quantity = ingredient.grams
+            item.unitLabel = BaseUnit.gram.symbol
+            item.unitAmount = 1
+            item.nutrients = record.nutrients.scaled(by: ingredient.grams / 100).encoded
+            item.sortOrder = order
+            order += 1
+            item.recipe = chili
+            context.insert(item)
+        }
     }
 
     // MARK: - The tour's practice day
@@ -657,9 +716,14 @@ struct DemoCoach {
                                  weightCheck: CheckInEngine.weightCheck(in: plan, ticks: done.map { (day: $0.day, checkID: $0.checkID) }),
                                  bmr: GoalCalculator.bmr(body), sex: .female)
         input.use(signal: signal)
-        let window = date.adding(days: -27, calendar: calendar)
-        let recent = totals.values.filter { $0.day >= window && $0.day <= date }.sorted { $0.day < $1.day }
-        input.maintenance = Insights.maintenance(totals: recent, weights: signal.morningWeights, today: date, calendar: calendar)
+        // Measured maintenance up to the day before (the check-in day is still being logged),
+        // without paused days, as the app's check-in reads it.
+        let end = date.adding(days: -1, calendar: calendar)
+        let window = end.adding(days: -27, calendar: calendar)
+        let recent = totals.values.filter { $0.day >= window && $0.day <= end }.sorted { $0.day < $1.day }
+        let paused = Set(recent.map(\.day).filter { plan.isPaused(on: $0) })
+        input.maintenance = Insights.maintenance(totals: recent, weights: signal.morningWeights, today: end, excluding: paused,
+                                                 calendar: calendar)
 
         var doneByDay: [DayKey: Set<String>] = [:]
         for tick in done { doneByDay[tick.day, default: []].insert(tick.checkID) }
